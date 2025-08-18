@@ -4,9 +4,18 @@ const cors = require('cors');
 const fs = require('fs').promises;
 const path = require('path');
 
-// Load environment variables
+// ✅ Load environment variables and DB client
 require('dotenv').config();
 const { Client } = require('pg');
+
+// ✅ Base URL for links and webhooks (trims trailing slashes)
+const PUBLIC_BASE_URL =
+  (process.env.PUBLIC_BASE_URL && process.env.PUBLIC_BASE_URL.replace(/\/+$/, '')) ||
+  `http://localhost:${process.env.PORT || 3000}`;
+
+// ✅ Dashboard base URL (optional; trims trailing slashes)
+const DASHBOARD_URL =
+  (process.env.DASHBOARD_URL && process.env.DASHBOARD_URL.replace(/\/+$/, '')) || null;
 
 const app = express();
 
@@ -86,13 +95,36 @@ const ensureDirectories = async () => {
 // Build an absolute base URL for responses/logs (no localhost leakage on Render)
 const getBaseUrl = (req) => {
   // Prefer explicit env (set this in Render for exact host you want, e.g. https://morehouse.pen.ai)
-  const fromEnv = process.env.PUBLIC_BASE_URL;
+  const fromEnv = PUBLIC_BASE_URL;
   if (fromEnv) return fromEnv.replace(/\/+$/, '');
 
   // Derive from request (supports HTTPS behind proxy)
   const proto = req.headers['x-forwarded-proto'] || req.protocol || 'https';
   const host = req.headers['x-forwarded-host'] || req.get('host');
   return `${proto}://${host}`;
+};
+
+// 🔗 Push the prospectus URL to the dashboard (if configured)
+const pushProspectusToDashboard = async ({ inquiryId, familyName, prospectusUrl }) => {
+  if (!DASHBOARD_URL) {
+    console.log('ℹ️ DASHBOARD_URL not set; skipping dashboard notify');
+    return;
+  }
+  try {
+    // Node 18+ has fetch globally
+    const res = await fetch(`${DASHBOARD_URL}/api/prospectus`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ inquiryId, familyName, prospectusUrl }),
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      throw new Error(`Dashboard responded ${res.status} ${res.statusText} ${text}`);
+    }
+    console.log('📊 Prospectus URL pushed to dashboard');
+  } catch (err) {
+    console.warn('⚠️ Failed to push URL to dashboard:', err.message);
+  }
 };
 
 // ---- Persistence helpers ----
@@ -469,6 +501,13 @@ app.post('/webhook', async (req, res) => {
     const base = getBaseUrl(req);
     const absoluteUrl = `${base}${prospectusInfo.url}`;
 
+    // 🔗 Notify dashboard (if configured)
+    await pushProspectusToDashboard({
+      inquiryId: inquiryRecord.id,
+      familyName: inquiryRecord.familySurname,
+      prospectusUrl: absoluteUrl,
+    });
+
     const response = {
       success: true,
       message: 'Inquiry received and prospectus generated successfully',
@@ -734,6 +773,14 @@ app.post('/api/generate-prospectus/:inquiryId', async (req, res) => {
     await updateInquiryStatus(inquiryId, prospectusInfo);
 
     const absoluteUrl = `${getBaseUrl(req)}${prospectusInfo.url}`;
+
+    // 🔗 Notify dashboard (if configured)
+    await pushProspectusToDashboard({
+      inquiryId,
+      familyName: inquiryData.familySurname,
+      prospectusUrl: absoluteUrl,
+    });
+
     res.json({
       success: true,
       message: 'Prospectus generated successfully',
