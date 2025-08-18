@@ -1,0 +1,17 @@
+{
+  "id": "INQ-1755514444827-5xdzpg",
+  "receivedAt": "2025-08-18T10:54:04.828Z",
+  "status": "prospectus_generated",
+  "prospectusGenerated": true,
+  "firstName": "Test",
+  "familySurname": "Family",
+  "parentEmail": "test@example.com",
+  "ageGroup": "Years 7 to 8",
+  "entryYear": "2026",
+  "leadership": true,
+  "sport": true,
+  "debating": true,
+  "prospectusFilename": "More-House-School-Family-Family-Test-2026-2025-08-18.html",
+  "prospectusUrl": "/prospectuses/More-House-School-Family-Family-Test-2026-2025-08-18.html",
+  "prospectusGeneratedAt": "2025-08-18T10:54:04.856Z"
+}

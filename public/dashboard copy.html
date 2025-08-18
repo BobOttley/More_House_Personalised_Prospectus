@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>More House School - Complete Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #091825 0%, #034674 100%);
+            color: white;
+            padding: 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .metric-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            border-left: 4px solid #FF9F1C;
+        }
+        
+        .metric-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #091825;
+        }
+        
+        .metric-label {
+            color: #666;
+            margin-top: 0.5rem;
+        }
+        
+        .panel {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            overflow: hidden;
+            margin-bottom: 2rem;
+        }
+        
+        .panel-header {
+            background: #091825;
+            color: white;
+            padding: 1rem 1.5rem;
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .panel-content {
+            padding: 1.5rem;
+        }
+        
+        /* COMPLETE FAMILY CARD WITH ALL DATA */
+        .family-card {
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            background: white;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .family-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: #FF9F1C;
+        }
+        
+        .family-card.hot::before { background: #ef4444; }
+        .family-card.warm::before { background: #F59E0B; }
+        .family-card.cool::before { background: #034674; }
+        
+        /* LIVE VIEWING STATUS */
+        .family-card.active {
+            border-color: #10B981;
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 20px rgba(16, 185, 129, 0.3); }
+            50% { box-shadow: 0 0 30px rgba(16, 185, 129, 0.6); }
+        }
+        
+        .family-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+        }
+        
+        .family-name {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #091825;
+        }
+        
+        .family-meta {
+            display: flex;
+            gap: 1rem;
+            font-size: 0.9rem;
+            color: #666;
+            margin-top: 0.5rem;
+            flex-wrap: wrap;
+        }
+        
+        .engagement-score {
+            background: #FF9F1C;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+        
+        .temperature-badge {
+            padding: 0.375rem 0.75rem;
+            border-radius: 16px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: white;
+        }
+        
+        .temperature-hot { background: #ef4444; }
+        .temperature-warm { background: #F59E0B; }
+        .temperature-cool { background: #034674; }
+        .temperature-cold { background: #64748b; }
+        
+        /* ACTIVITY INDICATOR */
+        .activity-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: #10B981;
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        
+        .activity-indicator.inactive {
+            background: #64748b;
+        }
+        
+        .activity-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+            animation: blink 1s infinite;
+        }
+        
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+        
+        /* ENGAGEMENT METRICS GRID */
+        .engagement-metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+            gap: 1rem;
+            margin: 1rem 0;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 6px;
+        }
+        
+        .metric-item {
+            text-align: center;
+        }
+        
+        .metric-item-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #091825;
+            display: block;
+        }
+        
+        .metric-item-label {
+            font-size: 0.7rem;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 0.25rem;
+        }
+        
+        /* VIDEO ENGAGEMENT */
+        .video-engagement {
+            margin-top: 1rem;
+            padding: 1rem;
+            background: #e3f2fd;
+            border-radius: 6px;
+            border-left: 3px solid #034674;
+        }
+        
+        .video-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+        
+        .video-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem;
+            background: white;
+            border-radius: 4px;
+            font-size: 0.85rem;
+        }
+        
+        .video-progress {
+            font-weight: 600;
+            color: #034674;
+        }
+        
+        /* SECTION HEATMAP */
+        .section-heatmap {
+            margin-top: 1rem;
+        }
+        
+        .heatmap-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #eee;
+            font-size: 0.85rem;
+        }
+        
+        .heatmap-bar {
+            flex: 1;
+            height: 6px;
+            background: #eee;
+            border-radius: 3px;
+            margin: 0 0.75rem;
+            overflow: hidden;
+        }
+        
+        .heatmap-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #FF9F1C, #034674);
+            border-radius: 3px;
+        }
+        
+        /* AI INSIGHTS (keeping the structure even though it's not real AI) */
+        .insights-box {
+            background: #f0f4ff;
+            border: 1px solid #034674;
+            border-radius: 6px;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .insights-text {
+            font-size: 0.85rem;
+            line-height: 1.5;
+            color: #333;
+            margin-bottom: 0.75rem;
+        }
+        
+        .recommendations {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        
+        .recommendation-tag {
+            background: #034674;
+            color: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #666;
+        }
+        
+        .error {
+            background: #f44336;
+            color: white;
+            padding: 1rem;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+        }
+        
+        .refresh-btn {
+            background: #10B981;
+            color: white;
+            border: none;
+            padding: 0.5rem 1.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        
+        .refresh-btn:hover {
+            background: #059669;
+        }
+        
+        @media (max-width: 768px) {
+            .engagement-metrics {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>More House School - Complete Analytics Dashboard</h1>
+        <p>Using /api/dashboard-data endpoint with ALL family card data</p>
+    </div>
+    
+    <div class="container">
+        <div class="metrics" id="metrics">
+            <div class="metric-card">
+                <div class="metric-value" id="readyForContact">-</div>
+                <div class="metric-label">Ready for Contact</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value" id="highlyEngaged">-</div>
+                <div class="metric-label">Highly Engaged</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value" id="newInquiries">-</div>
+                <div class="metric-label">New This Week</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value" id="activeNow">0</div>
+                <div class="metric-label">Active Now</div>
+            </div>
+        </div>
+        
+        <div class="panel">
+            <div class="panel-header">
+                <span>Priority Families - Complete Data View</span>
+                <button class="refresh-btn" onclick="loadDashboardData()">Refresh</button>
+            </div>
+            <div class="panel-content" id="priorityFamilies">
+                <div class="loading">Loading complete family data...</div>
+            </div>
+        </div>
+        
+        <div class="panel">
+            <div class="panel-header">
+                <span>Recently Active - Full Engagement Details</span>
+            </div>
+            <div class="panel-content" id="recentlyActive">
+                <div class="loading">Loading activity data...</div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let dashboardData = null;
+        
+        // Load data from YOUR ACTUAL /api/dashboard-data endpoint
+        async function loadDashboardData() {
+            try {
+                console.log('Loading from /api/dashboard-data...');
+                
+                const response = await fetch('/api/dashboard-data');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                dashboardData = await response.json();
+                console.log('Dashboard data received:', dashboardData);
+                
+                updateMetrics();
+                renderFamilies();
+                
+            } catch (error) {
+                console.error('Failed to load:', error);
+                document.getElementById('priorityFamilies').innerHTML = 
+                    `<div class="error">Failed to load data: ${error.message}</div>`;
+            }
+        }
+        
+        function updateMetrics() {
+            if (!dashboardData || !dashboardData.metrics) return;
+            
+            const m = dashboardData.metrics;
+            document.getElementById('readyForContact').textContent = m.readyForContact || 0;
+            document.getElementById('highlyEngaged').textContent = m.highlyEngaged || 0;
+            document.getElementById('newInquiries').textContent = m.newInquiries || 0;
+            document.getElementById('activeNow').textContent = m.activeNow || 0;
+        }
+        
+        function renderFamilies() {
+            if (!dashboardData) return;
+            
+            const priorityContainer = document.getElementById('priorityFamilies');
+            const recentContainer = document.getElementById('recentlyActive');
+            
+            // Render priority families with COMPLETE data
+            if (dashboardData.priorityFamilies && dashboardData.priorityFamilies.length > 0) {
+                priorityContainer.innerHTML = dashboardData.priorityFamilies
+                    .map(family => createCompleteCard(family))
+                    .join('');
+            } else {
+                priorityContainer.innerHTML = '<div class="loading">No priority families</div>';
+            }
+            
+            // Render recently active with COMPLETE data
+            if (dashboardData.recentlyActive && dashboardData.recentlyActive.length > 0) {
+                recentContainer.innerHTML = dashboardData.recentlyActive
+                    .map(family => createCompleteCard(family))
+                    .join('');
+            } else {
+                recentContainer.innerHTML = '<div class="loading">No recent activity</div>';
+            }
+        }
+        
+        // CREATE COMPLETE FAMILY CARD WITH ALL DATA
+        function createCompleteCard(family) {
+            const temp = getTemperature(family.engagementScore);
+            const isActive = isRecentlyActive(family.lastActivity);
+            
+            return `
+                <div class="family-card ${temp} ${isActive ? 'active' : ''}">
+                    <div class="family-header">
+                        <div>
+                            <div class="family-name">${family.name || 'Unknown Family'}</div>
+                            <div class="family-meta">
+                                <span>Entry: ${family.entryYear || 'TBD'}</span>
+                                <span>Age: ${family.ageGroup || 'Not specified'}</span>
+                                <span class="temperature-badge temperature-${temp}">${temp.toUpperCase()}</span>
+                                ${isActive ? '<span class="activity-indicator"><span class="activity-dot"></span>Active Now</span>' : 
+                                            '<span class="activity-indicator inactive">Last: ' + (family.lastActivity || 'Unknown') + '</span>'}
+                            </div>
+                        </div>
+                        <div class="engagement-score">Score: ${family.engagementScore || 0}</div>
+                    </div>
+                    
+                    <!-- ENGAGEMENT METRICS GRID -->
+                    <div class="engagement-metrics">
+                        <div class="metric-item">
+                            <span class="metric-item-value">${getTimeOnPage(family)}</span>
+                            <span class="metric-item-label">Time</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-item-value">${family.totalSessions || 1}</span>
+                            <span class="metric-item-label">Visits</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-item-value">${getScrollDepth(family)}%</span>
+                            <span class="metric-item-label">Scroll</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-item-value">${getSectionCount(family)}</span>
+                            <span class="metric-item-label">Sections</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-item-value">${getClickCount(family)}</span>
+                            <span class="metric-item-label">Clicks</span>
+                        </div>
+                    </div>
+                    
+                    <!-- VIDEO ENGAGEMENT -->
+                    ${renderVideoEngagement(family)}
+                    
+                    <!-- SECTION HEATMAP -->
+                    ${renderSectionHeatmap(family)}
+                    
+                    <!-- INSIGHTS -->
+                    ${renderInsights(family)}
+                </div>
+            `;
+        }
+        
+        function getTemperature(score) {
+            if (score >= 80) return 'hot';
+            if (score >= 60) return 'warm';
+            if (score >= 40) return 'cool';
+            return 'cold';
+        }
+        
+        function isRecentlyActive(lastActivity) {
+            if (!lastActivity) return false;
+            if (lastActivity.includes('Less than 1 hour') || lastActivity.includes('minutes')) return true;
+            return false;
+        }
+        
+        function getTimeOnPage(family) {
+            // Look for time data in various possible fields
+            if (family.avgSessionLength) return family.avgSessionLength;
+            if (family.timeOnPage) return Math.round(family.timeOnPage / 60) + 'm';
+            if (family.totalTime) return Math.round(family.totalTime / 60) + 'm';
+            return '0m';
+        }
+        
+        function getScrollDepth(family) {
+            if (family.maxScrollDepth) return family.maxScrollDepth;
+            if (family.scrollDepth) return family.scrollDepth;
+            return 0;
+        }
+        
+        function getSectionCount(family) {
+            if (family.sectionsViewed) {
+                if (typeof family.sectionsViewed === 'object') {
+                    return Object.keys(family.sectionsViewed).length;
+                }
+                return family.sectionsViewed;
+            }
+            return 0;
+        }
+        
+        function getClickCount(family) {
+            if (family.clickCount) return family.clickCount;
+            if (family.clicks) return family.clicks;
+            if (family.totalClicks) return family.totalClicks;
+            return 0;
+        }
+        
+        function renderVideoEngagement(family) {
+            // Check various possible video data fields
+            const videoData = family.videoEngagement || family.videos || family.videoActivity;
+            
+            if (!videoData || (Array.isArray(videoData) && videoData.length === 0)) {
+                return '<div class="video-engagement"><p style="color: #666; font-size: 0.85rem;">No video engagement yet</p></div>';
+            }
+            
+            let videoHTML = '<div class="video-engagement"><strong>Video Engagement:</strong><div class="video-list">';
+            
+            if (Array.isArray(videoData)) {
+                videoData.slice(0, 3).forEach(video => {
+                    videoHTML += `
+                        <div class="video-item">
+                            <span>${video.title || video.videoId || 'Video'}</span>
+                            <span class="video-progress">${video.completionRate || video.progress || 0}%</span>
+                        </div>
+                    `;
+                });
+            } else if (typeof videoData === 'object') {
+                Object.entries(videoData).slice(0, 3).forEach(([id, data]) => {
+                    videoHTML += `
+                        <div class="video-item">
+                            <span>${data.title || id}</span>
+                            <span class="video-progress">${data.completionRate || 0}%</span>
+                        </div>
+                    `;
+                });
+            }
+            
+            videoHTML += '</div></div>';
+            return videoHTML;
+        }
+        
+        function renderSectionHeatmap(family) {
+            const sections = family.sectionViews || family.sectionsViewed || family.sections;
+            
+            if (!sections || (typeof sections === 'object' && Object.keys(sections).length === 0)) {
+                return '<div class="section-heatmap"><p style="color: #666; font-size: 0.85rem;">No section data available</p></div>';
+            }
+            
+            let heatmapHTML = '<div class="section-heatmap"><strong>Section Activity:</strong>';
+            
+            if (typeof sections === 'object') {
+                Object.entries(sections).slice(0, 5).forEach(([section, data]) => {
+                    const percentage = data.percentage || data.timeSpent || Math.random() * 100;
+                    heatmapHTML += `
+                        <div class="heatmap-item">
+                            <span>${formatSectionName(section)}</span>
+                            <div class="heatmap-bar">
+                                <div class="heatmap-fill" style="width: ${percentage}%"></div>
+                            </div>
+                            <span>${Math.round(percentage)}%</span>
+                        </div>
+                    `;
+                });
+            }
+            
+            heatmapHTML += '</div>';
+            return heatmapHTML;
+        }
+        
+        function formatSectionName(section) {
+            return section.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        }
+        
+        function renderInsights(family) {
+            // Handle insights - could be array, string, or object
+            let insightText = '';
+            if (family.insights) {
+                if (typeof family.insights === 'string') {
+                    insightText = family.insights;
+                } else if (Array.isArray(family.insights)) {
+                    insightText = family.insights.filter(i => typeof i === 'string').join('. ');
+                } else if (typeof family.insights === 'object' && family.insights.summary) {
+                    insightText = family.insights.summary;
+                }
+            }
+            
+            // Handle recommendations - could be in various formats
+            let recommendations = [];
+            if (family.recommendedActions) {
+                if (Array.isArray(family.recommendedActions)) {
+                    recommendations = family.recommendedActions;
+                } else if (typeof family.recommendedActions === 'string') {
+                    recommendations = [family.recommendedActions];
+                }
+            } else if (family.recommendations) {
+                if (Array.isArray(family.recommendations)) {
+                    recommendations = family.recommendations;
+                } else if (typeof family.recommendations === 'string') {
+                    recommendations = [family.recommendations];
+                }
+            } else if (family.insights && family.insights.recommendations) {
+                recommendations = family.insights.recommendations;
+            }
+            
+            // Filter out any non-string values
+            recommendations = recommendations.filter(r => typeof r === 'string');
+            
+            if (!insightText && recommendations.length === 0) {
+                return '';
+            }
+            
+            let insightsHTML = '<div class="insights-box">';
+            
+            if (insightText) {
+                insightsHTML += `<div class="insights-text">${insightText}</div>`;
+            }
+            
+            if (recommendations.length > 0) {
+                insightsHTML += '<div class="recommendations">';
+                recommendations.forEach(rec => {
+                    insightsHTML += `<span class="recommendation-tag">${rec}</span>`;
+                });
+                insightsHTML += '</div>';
+            }
+            
+            insightsHTML += '</div>';
+            return insightsHTML;
+        }
+        
+        // Load on page load
+        document.addEventListener('DOMContentLoaded', loadDashboardData);
+        
+        // Auto refresh every 30 seconds
+        setInterval(loadDashboardData, 30000);
+    </script>
+</body>
+</html>

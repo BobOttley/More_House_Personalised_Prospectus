@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Sheena Moore – More House School Prospectus 2027</title>
+
+  <!-- ===== Brand Tokens (edit if you must) ===== -->
+  <style>
+    :root{
+      --brand-navy:#1a2b5c;--brand-rose:#e86a92;--brand-rose-2:#ff9ab6;--brand-ink:#26344d;
+      --bg:#ffffff;--bg-alt:#f7f7fa;--text:#2a2e38;--muted:#6b7280;--border:#e5e7eb;
+      --success:#0f9d58;--warning:#f4b400;--danger:#db4437;
+    }
+    *{box-sizing:border-box} html,body{margin:0;padding:0}
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,"Helvetica Neue",Arial,sans-serif;color:var(--text);background:var(--bg);line-height:1.65}
+
+    /* Typography */
+    h1,h2,h3,h4{margin:0 0 .6rem 0;line-height:1.2}
+    h1{font-size:2.4rem;color:var(--brand-navy);letter-spacing:-.02em}
+    h2{font-size:1.9rem;color:var(--brand-navy)}
+    h3{font-size:1.35rem;color:var(--brand-rose)}
+    h4{font-size:1.1rem;color:var(--brand-navy)}
+    p{margin:.8rem 0;color:var(--text)}
+    .lead{font-size:1.1rem}
+    .muted{color:var(--muted)}
+    a{color:var(--brand-rose);text-decoration:none}
+    a:hover{text-decoration:underline}
+
+    /* Layout */
+    .container{max-width:1100px;margin:0 auto;padding:1.2rem}
+    .section{padding:3.2rem 0;border-top:1px solid var(--border)}
+    .section:first-of-type{border-top:none}
+    .section .container>header{margin-bottom:1rem}
+
+    /* Cover */
+    .cover{position:relative;min-height:70vh;display:grid;place-items:center;background:
+      linear-gradient(140deg,rgba(26,43,92,.9),rgba(26,43,92,.6)),
+      url('https://images.unsplash.com/photo-1523580846011-d3a5bc25702b?q=80&w=1600&auto=format&fit=crop') center/cover no-repeat;}
+    .cover .card{background:rgba(255,255,255,.96);padding:2rem 2.2rem;border-radius:14px;box-shadow:0 30px 90px rgba(0,0,0,.35);max-width:800px}
+    .badge{display:inline-block;background:var(--brand-rose);color:#fff;border-radius:999px;padding:.28rem .7rem;font-size:.85rem;margin-bottom:.6rem}
+
+    /* Grid helpers */
+    .grid{display:grid;gap:1.2rem}
+    .grid-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .grid-3{grid-template-columns:repeat(3,minmax(0,1fr))}
+    @media (max-width: 900px){.grid-2,.grid-3{grid-template-columns:1fr}}
+
+    /* Cards, stats */
+    .card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:1rem}
+    .stat{display:flex;flex-direction:column;gap:.2rem;align-items:flex-start}
+    .stat .big{font-size:2rem;font-weight:700;color:var(--brand-navy)}
+    .stat .label{font-size:.95rem;color:var(--muted)}
+
+    /* Timeline */
+    .timeline{display:grid;gap:1rem}
+    .tl-row{display:grid;grid-template-columns:120px 1fr;gap:1rem;align-items:start}
+    .time{font-weight:700;color:var(--brand-navy)}
+
+    /* Gallery */
+    .gallery{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem}
+    .gallery .item{position:relative;border-radius:12px;overflow:hidden;border:1px solid var(--border);cursor:pointer}
+    .gallery img{display:block;width:100%;height:220px;object-fit:cover;transition:transform .25s}
+    .gallery .item:hover img{transform:scale(1.05)}
+    .gallery .caption{position:absolute;left:0;right:0;bottom:0;background:linear-gradient(transparent, rgba(0,0,0,.65));color:#fff;padding:.8rem .9rem;font-size:.95rem}
+
+    /* Video */
+    .video-wrap{position:relative;aspect-ratio:16/9;border-radius:12px;overflow:hidden;border:1px solid var(--border);background:#000}
+    .video-wrap iframe{width:100%;height:100%;border:0;display:block}
+
+    /* Accordions */
+    details{border:1px solid var(--border);border-radius:10px;padding:1rem;background:#fff}
+    details+details{margin-top:.8rem}
+    summary{font-weight:600;cursor:pointer;list-style:none}
+    summary::-webkit-details-marker{display:none}
+
+    /* CTA bar */
+    .cta{background:var(--brand-navy);color:#fff;border-radius:12px;padding:1.2rem 1.3rem;display:flex;gap:1rem;align-items:center;justify-content:space-between}
+    .btn{display:inline-flex;align-items:center;gap:.5rem;border-radius:10px;border:1px solid transparent;padding:.7rem 1rem;font-weight:600;cursor:pointer;text-decoration:none}
+    .btn.primary{background:var(--brand-rose);color:#fff}
+    .btn.secondary{background:#fff;border-color:var(--border);color:var(--brand-navy)}
+    .btn:focus-visible{outline:3px solid var(--brand-rose-2);outline-offset:2px}
+
+    /* Small helpers */
+    .tag{display:inline-block;padding:.25rem .55rem;border:1px solid var(--border);border-radius:999px;font-size:.8rem;color:var(--muted)}
+    .row{display:flex;gap:.6rem;flex-wrap:wrap}
+    .note{font-size:.9rem;color:var(--muted)}
+    .sr-only{position:absolute!important;height:1px;width:1px;overflow:hidden;clip:rect(1px,1px,1px,1px);white-space:nowrap;border:0;padding:0;margin:-1px}
+    noscript{display:block;background:#fff3cd;border:1px solid #ffeeba;border-radius:12px;padding:1rem;margin:1rem}
+  </style>
+
+      <meta name="inquiry-id" content="INQ-1755517108570-03q1hh">
+      <meta name="generated-date" content="2025-08-18T11:38:28.642Z">
+      <meta name="student-name" content="Sheena Moore">
+      <meta name="entry-year" content="2027">
+      <meta name="age-group" content="9-11">
+      <meta name="tracking-enabled" content="true">
+</head>
+
+<body>
+  <noscript>
+    JavaScript is disabled — engagement tracking won’t run. Please enable JavaScript to view videos and analytics-enabled sections.
+  </noscript>
+
+  <!-- ===== COVER ===== -->
+  <section class="cover section" data-section="cover">
+    <div class="card" data-section="cover:intro">
+      <span class="badge">Personalised prospectus</span>
+      <h1>Welcome to your tailored view of school life</h1>
+      <p class="lead">Every child is different. This prospectus adapts to your interests so you can quickly see what matters most to your family — from academic stretch to co-curricular life.</p>
+      <div class="row" aria-label="quick tags">
+        <span class="tag">Academic stretch</span>
+        <span class="tag">Pastoral care</span>
+        <span class="tag">Sport &amp; wellbeing</span>
+        <span class="tag">Arts</span>
+        <span class="tag">STEM</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== HEAD'S WELCOME ===== -->
+  <section class="section" data-section="heads-welcome">
+    <div class="container">
+      <header>
+        <h2>Head’s Welcome</h2>
+        <p class="muted">A short message from the Head about our values and ambitions.</p>
+      </header>
+      <div class="grid grid-2">
+        <div class="card" data-section="heads-welcome:letter">
+          <p>Thank you for exploring our school. We believe in purposeful kindness, intellectual curiosity, and the confidence that grows from being known well. You’ll see that belief reflected throughout this prospectus — in our curriculum pathways, our pastoral structures, and the breadth of opportunity beyond the classroom.</p>
+          <p>We encourage each pupil to set ambitious goals and to develop the habits that sustain success: focus, independence, and leadership through service. I hope this personalised tour helps you imagine your child thriving here.</p>
+          <p class="muted">— The Head</p>
+        </div>
+        <div class="card" data-section="heads-welcome:highlights">
+          <h3>Highlights at a glance</h3>
+          <ul>
+            <li>Small tutor groups with strong academic mentoring</li>
+            <li>Rich co-curricular life across sport, performing arts, and outdoor education</li>
+            <li>Modern facilities with a warm, family feel</li>
+            <li>Clear pathways to sixth form and university success</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== KEY STATISTICS ===== -->
+  <section class="section" data-section="key-stats">
+    <div class="container">
+      <header><h2>By the numbers</h2></header>
+      <div class="grid grid-3">
+        <div class="card stat" data-section="key-stats:a-level">
+          <span class="big">82%</span><span class="label">A*–B at A-level (2024)</span>
+        </div>
+        <div class="card stat" data-section="key-stats:top-destinations">
+          <span class="big">51%</span><span class="label">A*–A grades (2024)</span>
+        </div>
+        <div class="card stat" data-section="key-stats:unis">
+          <span class="big">Girls → Leading Unis</span><span class="label">STEM, Arts &amp; Humanities</span>
+        </div>
+      </div>
+      <p class="note">Results reflect the most recent examination series and university acceptances.</p>
+    </div>
+  </section>
+
+  <!-- ===== CURRICULUM ===== -->
+  <section class="section" data-section="curriculum">
+    <div class="container">
+      <header><h2>Curriculum &amp; Academic Pathways</h2></header>
+      <div class="grid grid-2">
+        <div class="card" data-section="curriculum:overview">
+          <p>We build strong foundations in literacy, numeracy, and scientific reasoning, then extend through option blocks that let pupils specialise while keeping breadth. Scholars benefit from seminars, competitions, and independent research projects guided by subject mentors.</p>
+          <details data-section="curriculum:accordion:stem">
+            <summary>STEM extension</summary>
+            <p>Enrichment includes coding labs, robotics, and Olympiad preparation. Partnerships with local universities provide masterclasses and lab time.</p>
+          </details>
+          <details data-section="curriculum:accordion:humanities">
+            <summary>Humanities &amp; social sciences</summary>
+            <p>Discussion-led learning develops analysis, argument, and empathy. Pupils contribute to our journal and present at colloquia.</p>
+          </details>
+          <details data-section="curriculum:accordion:languages">
+            <summary>Languages</summary>
+            <p>Native-speaker clubs and exchange links support rapid progress. Public speaking and debating are integrated to build confidence.</p>
+          </details>
+        </div>
+        <div class="card" data-section="curriculum:assessment">
+          <h3>Support that stretches</h3>
+          <p>Regular formative feedback keeps each pupil on a healthy challenge curve. We track progress closely and communicate clearly with families.</p>
+          <ul>
+            <li>Subject clinics and drop-ins</li>
+            <li>Study skills and revision coaching</li>
+            <li>Academic societies and competitions</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== CO-CURRICULAR ===== -->
+  <section class="section" data-section="co-curricular">
+    <div class="container">
+      <header><h2>Co-curricular Life</h2></header>
+      <div class="grid grid-3">
+        <div class="card" data-section="co-curricular:sport">
+          <h3>Sport &amp; wellbeing</h3>
+          <p>Teams compete regionally while participation remains high for all levels. Strength &amp; conditioning supports performance and injury prevention.</p>
+        </div>
+        <div class="card" data-section="co-curricular:arts">
+          <h3>Performing &amp; visual arts</h3>
+          <p>Concerts, productions, exhibitions and an arts award framework help pupils discover their voice, on stage and on canvas.</p>
+        </div>
+        <div class="card" data-section="co-curricular:outdoor">
+          <h3>Outdoor education</h3>
+          <p>Expeditions build resilience, teamwork, and leadership — from local navigation to multi-day hikes.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== GALLERY ===== -->
+  <section class="section" data-section="gallery">
+    <div class="container">
+      <header><h2>Spaces that inspire</h2></header>
+      <div class="gallery" role="list">
+        <figure class="item" role="listitem" data-section="gallery:item:library" aria-label="Library">
+          <img src="https://images.unsplash.com/photo-1519681393784-d120267933ba?q=80&w=1200&auto=format&fit=crop" alt="Library reading area">
+          <figcaption class="caption">Library &amp; research hub</figcaption>
+        </figure>
+        <figure class="item" role="listitem" data-section="gallery:item:lab" aria-label="Science laboratory">
+          <img src="https://images.unsplash.com/photo-1581093588401-16b3a7e3d4d1?q=80&w=1200&auto=format&fit=crop" alt="Science laboratory">
+          <figcaption class="caption">Science laboratories</figcaption>
+        </figure>
+        <figure class="item" role="listitem" data-section="gallery:item:sports" aria-label="Sports pitch">
+          <img src="https://images.unsplash.com/photo-1517649763962-0c623066013b?q=80&w=1200&auto=format&fit=crop" alt="Sports pitch">
+          <figcaption class="caption">Sports grounds</figcaption>
+        </figure>
+      </div>
+      <p class="note">Tap images to open them in your device viewer.</p>
+    </div>
+  </section>
+
+  <!-- ===== DAY IN THE LIFE ===== -->
+  <section class="section" data-section="day-in-the-life">
+    <div class="container">
+      <header><h2>A day in the life</h2></header>
+      <div class="timeline">
+        <div class="tl-row" data-section="day:08-30">
+          <div class="time">08:30</div>
+          <div class="card"><h4>Tutor time</h4><p>Goal-setting, notices, and a calm start. Mentors check in with each pupil.</p></div>
+        </div>
+        <div class="tl-row" data-section="day:10-00">
+          <div class="time">10:00</div>
+          <div class="card"><h4>Lessons</h4><p>Interactive teaching with stretch tasks and formative feedback.</p></div>
+        </div>
+        <div class="tl-row" data-section="day:12-45">
+          <div class="time">12:45</div>
+          <div class="card"><h4>Clubs &amp; rehearsals</h4><p>Music, debating, coding and more — try something new or build mastery.</p></div>
+        </div>
+        <div class="tl-row" data-section="day:15-50">
+          <div class="time">15:50</div>
+          <div class="card"><h4>Sport &amp; enrichment</h4><p>Fixtures, training, and wellbeing sessions. Every pupil active, every week.</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== VIDEO (YouTube) ===== -->
+  <section class="section" data-section="videos">
+    <div class="container">
+      <header><h2>Hear from our community</h2></header>
+      <div class="grid grid-2">
+        <div class="video-wrap" data-section="video:welcome">
+          <!-- YouTube IFrame API will bind here -->
+          <iframe
+            class="yt-video"
+            data-video-id="ysz5S6PUM-U"
+            src="https://www.youtube.com/embed/ysz5S6PUM-U?enablejsapi=1&rel=0&modestbranding=1&origin="
+            title="Welcome film" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
+        </div>
+        <div class="video-wrap" data-section="video:arts">
+          <iframe
+            class="yt-video"
+            data-video-id="ScMzIvxBSi4"
+            src="https://www.youtube.com/embed/ScMzIvxBSi4?enablejsapi=1&rel=0&modestbranding=1&origin="
+            title="Arts showcase" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
+        </div>
+      </div>
+      <p class="note">Videos are tracked for play, pause, watch-time, and completion.</p>
+    </div>
+  </section>
+
+  <!-- ===== ADMISSIONS / CTA ===== -->
+  <section class="section" data-section="admissions">
+    <div class="container">
+      <header><h2>Admissions &amp; next steps</h2></header>
+      <div class="cta" data-section="admissions:cta">
+        <div>
+          <strong>Ready to explore further?</strong>
+          <p class="muted">Book a visit, request a tailored prospectus PDF, or speak to our admissions team.</p>
+        </div>
+        <div class="row">
+          <a href="#book-a-visit" class="btn primary" data-track-click="book-visit">Book a visit</a>
+          <a href="#request-pdf" class="btn secondary" data-track-click="request-pdf">Request PDF</a>
+        </div>
+      </div>
+      <p id="book-a-visit" class="muted">Visits run weekly during term time. We’ll tailor your tour to your child’s interests.</p>
+      <p id="request-pdf" class="muted">Prefer offline? We can generate a PDF version of this personalised prospectus.</p>
+    </div>
+  </section>
+
+  <!-- ===== CONTACT ===== -->
+  <section class="section" data-section="contact">
+    <div class="container">
+      <header><h2>Contact us</h2></header>
+      <p>Admissions Office: <a href="mailto:admissions@example.edu" data-track-click="email-admissions">admissions@example.edu</a> · Tel: <a href="tel:+442012345678" data-track-click="call-admissions">+44 (0)20 1234 5678</a></p>
+      <p class="note">We reply quickly and can advise on entry points, scholarships, and transport.</p>
+    </div>
+  </section>
+
+  <!-- =========================================================
+       GRANULAR ENGAGEMENT & YOUTUBE TRACKING (no placeholders)
+       ========================================================= -->
+  <script>
+  (function(){
+    "use strict";
+
+    /* ---------------- Config ---------------- */
+    const ENDPOINTS = {
+      primary: "/api/track-engagement",
+      fallback: "/api/track"
+    };
+    const APP_ID = "prospectus";
+    const VISIBILITY_SAMPLE_MS = 1000;      // time-on-section sampling
+    const BATCH_MAX_AGE_MS = 5000;          // flush at least every 5s
+    const BATCH_MAX_SIZE   = 50;            // or 50 events
+    const YT_POLL_MS = 500;                 // YouTube progress check
+    const YT_QUARTILES = [0.25, 0.5, 0.75, 1.0];
+
+    /* ---------------- Identity ---------------- */
+    const url = new URL(window.location.href);
+    const pidParam = url.searchParams.get("pid");
+    const prospectusId = pidParam || hashString(location.pathname + location.search);
+    const sessionId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2,8)}`;
+    const storageKey = `prospectus_history:${prospectusId}`;
+
+    function hashString(s){
+      let h = 2166136261 >>> 0;
+      for (let i=0;i<s.length;i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+      return `p${(h>>>0).toString(36)}`;
+    }
+
+    /* ---------------- Utilities ---------------- */
+    const now = () => Date.now();
+    function eventBase(){
+      return {
+        app: APP_ID,
+        pid: prospectusId,
+        session_id: sessionId,
+        url: location.href,
+        referrer: document.referrer || null,
+        user_agent: navigator.userAgent,
+        ts: new Date().toISOString(),
+        tz: Intl.DateTimeFormat().resolvedOptions().timeZone || null
+      };
+    }
+
+    function saveHistory(events){
+      const prev = JSON.parse(localStorage.getItem(storageKey) || "[]");
+      const next = prev.concat(events);
+      localStorage.setItem(storageKey, JSON.stringify(next).slice(0, 2_000_000)); // cap ~2MB
+    }
+
+    function beacon(endpoint, payload){
+      try {
+        const blob = new Blob([JSON.stringify(payload)], {type:"application/json"});
+        if (navigator.sendBeacon && endpoint === ENDPOINTS.primary){
+          const ok = navigator.sendBeacon(endpoint, blob);
+          return ok;
+        }
+      } catch(e){}
+      return false;
+    }
+
+    async function postJSON(endpoint, payload){
+      try{
+        const res = await fetch(endpoint, {
+          method: "POST",
+          headers: {"Content-Type":"application/json"},
+          body: JSON.stringify(payload),
+          keepalive: true
+        });
+        return res.ok;
+      }catch(e){
+        return false;
+      }
+    }
+
+    /* ---------------- Batching ---------------- */
+    let queue = [];
+    let lastFlush = now();
+
+    function enqueue(ev){
+      queue.push(ev);
+      if (queue.length >= BATCH_MAX_SIZE) flush("size");
+    }
+
+    async function flush(reason="timer"){
+      if (!queue.length) return;
+      const batch = queue.splice(0, queue.length);
+      const payload = { pid: prospectusId, session_id: sessionId, events: batch };
+
+      // Try primary via sendBeacon; if not, fetch; then fallback endpoint
+      const beac = beacon(ENDPOINTS.primary, payload);
+      if (!beac){
+        const ok1 = await postJSON(ENDPOINTS.primary, payload);
+        if (!ok1){
+          await postJSON(ENDPOINTS.fallback, payload);
+        }
+      }
+
+      saveHistory(batch);
+      lastFlush = now();
+    }
+
+    setInterval(()=>{ if (now() - lastFlush >= BATCH_MAX_AGE_MS) flush("interval"); }, 1000);
+    window.addEventListener("beforeunload", ()=> flush("unload"));
+
+    /* ---------------- Auto-tag granular sections ----------------
+       We attach data-section to every meaningful node that doesn’t
+       already have one: headings, paragraphs, li, figures, buttons,
+       links, cards, timeline rows, etc. */
+    const TAG_SELECTORS = [
+      "[data-section]", "section", "article", "details", "summary",
+      "h1","h2","h3","h4","p","li","figure",".card",".stat",".tl-row",
+      ".gallery .item","img","a","button",".btn",".video-wrap",".yt-video"
+    ];
+
+    function autoTag(){
+      const counts = {};
+      const nodes = document.querySelectorAll(TAG_SELECTORS.join(","));
+      nodes.forEach(node=>{
+        if (node.hasAttribute("data-section")) return;
+
+        // Derive a base from classes / tagname / hints
+        let base = "";
+        if (node.closest("[data-section]")) {
+          base = node.closest("[data-section]").getAttribute("data-section") + ":";
+        }
+        const tag = (node.dataset.trackClick?"click-": "") + node.tagName.toLowerCase();
+        const cls = (node.className||"").toString().split(/\s+/).filter(Boolean)[0] || "block";
+        const guess = `${base}${cls}-${tag}`;
+        counts[guess] = (counts[guess]||0)+1;
+        node.setAttribute("data-section", `${guess}-${counts[guess]}`);
+      });
+    }
+    autoTag();
+
+    /* ---------------- Visibility / time-on-section ---------------- */
+    const visible = new Map(); // key -> { visibleSince, totalMs }
+    const visObserver = new IntersectionObserver((entries)=>{
+      const t = now();
+      entries.forEach(entry=>{
+        const key = entry.target.getAttribute("data-section") || "unknown";
+        const rec = visible.get(key) || {visibleSince:null,totalMs:0,ratio:0};
+        if (entry.isIntersecting){
+          rec.visibleSince = t;
+          rec.ratio = entry.intersectionRatio;
+        }else{
+          if (rec.visibleSince){ rec.totalMs += (t - rec.visibleSince); rec.visibleSince = null; }
+        }
+        visible.set(key, rec);
+      });
+    }, {threshold:[0, .25, .5, .75, 1]});
+
+    document.querySelectorAll("[data-section]").forEach(el=> visObserver.observe(el));
+
+    // Sample visible sections once per second
+    setInterval(()=>{
+      const t = now();
+      visible.forEach((rec,key)=>{
+        if (rec.visibleSince){
+          rec.totalMs += (VISIBILITY_SAMPLE_MS);
+          enqueue({...eventBase(), type:"section_visible", section:key, sample_ms:VISIBILITY_SAMPLE_MS, total_ms:rec.totalMs});
+        }
+      });
+    }, VISIBILITY_SAMPLE_MS);
+
+    // Scroll depth
+    let maxScrollPct = 0;
+    window.addEventListener("scroll", ()=>{
+      const pct = Math.round(100 * (window.scrollY + window.innerHeight) / Math.max(1, document.documentElement.scrollHeight));
+      if (pct > maxScrollPct){
+        maxScrollPct = pct;
+        enqueue({...eventBase(), type:"scroll_depth", percent:maxScrollPct});
+      }
+    }, {passive:true});
+
+    /* ---------------- Click tracking ---------------- */
+    document.addEventListener("click", (e)=>{
+      const t = e.target.closest("[data-track-click], a, button, .gallery .item, summary");
+      if (!t) return;
+      const section = (t.getAttribute("data-section") || t.closest("[data-section]")?.getAttribute("data-section") || "unknown");
+      const label = t.getAttribute("data-track-click") || t.textContent.trim().slice(0,80) || t.tagName.toLowerCase();
+      const href = t.getAttribute("href") || null;
+
+      enqueue({...eventBase(), type:"click", section, label, href});
+    });
+
+    // Gallery: open image in a new tab (mobile-friendly) and track open
+    document.querySelectorAll(".gallery .item").forEach(item=>{
+      item.addEventListener("click", ()=>{
+        const img = item.querySelector("img");
+        const src = img?.src || null;
+        const section = item.getAttribute("data-section");
+        enqueue({...eventBase(), type:"media_open", section, src});
+        if (src) window.open(src, "_blank", "noopener,noreferrer");
+      });
+    });
+
+    /* ---------------- YouTube tracking ---------------- */
+    const ytIframes = Array.from(document.querySelectorAll("iframe.yt-video"));
+    const ytPlayers = new Map(); // id -> {player, duration, sent:{0.25:false,...}, lastState, lastT}
+
+    function ensureYTApi(){
+      if (!ytIframes.length) return;
+      if (window.YT && window.YT.Player){ onYouTubeIframeAPIReady(); return; }
+      const s = document.createElement("script");
+      s.src = "https://www.youtube.com/iframe_api";
+      document.head.appendChild(s);
+      // API will call global onYouTubeIframeAPIReady
+    }
+
+    window.onYouTubeIframeAPIReady = function(){
+      ytIframes.forEach((frame, idx)=>{
+        const vid = frame.dataset.videoId;
+        const section = frame.closest("[data-section]")?.getAttribute("data-section") || `video:${idx}`;
+        const player = new YT.Player(frame, {
+          events:{
+            onReady: (ev)=>{
+              const p = ev.target;
+              const duration = Math.max(1, p.getDuration());
+              ytPlayers.set(vid, {player:p, duration, section, sent:{}, lastState:null, lastT:0});
+              enqueue({...eventBase(), type:"video_ready", video_id:vid, section, duration});
+            },
+            onStateChange: (ev)=>{
+              const state = ev.data; // -1 unstarted, 0 ended, 1 playing, 2 paused, 3 buffering, 5 cued
+              const p = ev.target;
+              const meta = ytPlayers.get(vid);
+              if (!meta) return;
+              const t = p.getCurrentTime();
+
+              if (state === 1){ // playing
+                enqueue({...eventBase(), type:"video_play", video_id:vid, section:meta.section, t:Math.round(t)});
+              } else if (state === 2){ // paused
+                enqueue({...eventBase(), type:"video_pause", video_id:vid, section:meta.section, t:Math.round(t)});
+              } else if (state === 0){ // ended
+                enqueue({...eventBase(), type:"video_complete", video_id:vid, section:meta.section, t:Math.round(meta.duration)});
+                // mark 100% quartile
+                meta.sent[1.0] = true;
+              }
+              meta.lastState = state;
+              meta.lastT = t;
+            }
+          }
+        });
+      });
+
+      // Poll for quartiles and watch time
+      setInterval(()=>{
+        ytPlayers.forEach((meta, vid)=>{
+          try{
+            const t = meta.player.getCurrentTime();
+            const d = Math.max(1, meta.player.getDuration() || meta.duration || 1);
+            meta.duration = d;
+            const pct = Math.min(1, t/d);
+
+            // watch tick
+            enqueue({...eventBase(), type:"video_watch_tick", video_id:vid, section:meta.section, t:Math.round(t)});
+
+            // quartiles
+            YT_QUARTILES.forEach(q=>{
+              if (!meta.sent[q] && pct >= q){
+                meta.sent[q] = true;
+                enqueue({...eventBase(), type:"video_quartile", video_id:vid, section:meta.section, quartile:q});
+              }
+            });
+          }catch(_){}
+        });
+      }, YT_POLL_MS);
+    };
+
+    ensureYTApi();
+
+    /* ---------------- First paint / identity events ---------------- */
+    enqueue({...eventBase(), type:"page_view"});
+    enqueue({...eventBase(), type:"session_start"});
+
+  })();
+  </script>
+<script>document.addEventListener('DOMContentLoaded',function(){
+      const data={"id":"INQ-1755517108570-03q1hh","receivedAt":"2025-08-18T11:38:28.570Z","status":"received","prospectusGenerated":false,"firstName":"Sheena","familySurname":"Moore","parentEmail":"robert@bt.com","ageGroup":"9-11","entryYear":"2027","sciences":true,"mathematics":false,"english":true,"languages":true,"humanities":true,"business":false,"drama":true,"music":true,"art":true,"creative_writing":false,"sport":true,"leadership":true,"community_service":false,"debating":true,"academic_excellence":true,"pastoral_care":true,"small_classes":true,"london_location":false,"values_based":false,"university_prep":true,"submissionTimestamp":"2025-08-18T11:38:28.507Z","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","referrer":"direct"};
+      if(typeof initializeProspectus==='function'){ initializeProspectus(data); }
+    });</script>
+  <script>
+    var tag=document.createElement('script');tag.src="https://www.youtube.com/iframe_api";
+    var firstScriptTag=document.getElementsByTagName('script')[0];
+    firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+  </script>
+  <script>(function(){
+    'use strict';
+    const TRACKING={inquiryId:'INQ-1755517108570-03q1hh',sessionId:'session_'+Date.now()+'_'+Math.random().toString(36).slice(2,9),endpoint:'/api/track-engagement',batchSize:5,flushInterval:10000};
+    const state={events:[],videoStates:{},sessionStart:Date.now()};
+    async function send(batch){ if(!batch.length) return;
+      try{ await fetch(TRACKING.endpoint,{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({events:batch,sessionInfo:{inquiryId:TRACKING.inquiryId,sessionId:TRACKING.sessionId,timeOnPage:Math.round((Date.now()-state.sessionStart)/1000)}})});
+      }catch(e){ console.error('send fail',e);}
+    }
+    function track(type,data={}){
+      const ev={inquiryId:TRACKING.inquiryId,sessionId:TRACKING.sessionId,eventType:type,timestamp:new Date().toISOString(),data,url:location.href};
+      state.events.push(ev); if(state.events.length>=TRACKING.batchSize){const b=state.events.splice(0,TRACKING.batchSize);send(b);}
+    }
+    window.onYouTubeIframeAPIReady=function(){
+      document.querySelectorAll('iframe[src*="youtube.com"]').forEach((iframe,idx)=>{
+        const m=(iframe.src||'').match(/embed\/([^?]+)/); const vid=m?m[1]:'unknown';
+        if(!iframe.src.includes('enablejsapi=1')) iframe.src=iframe.src+(iframe.src.includes('?')?'&':'?')+'enablejsapi=1';
+        iframe.id='yt_'+idx;
+        new YT.Player(iframe.id,{events:{onReady:()=>{state.videoStates[vid]={t:null,watch:0,pc:0,pause:0,Q:{q25:false,q50:false,q75:false}};},
+          onStateChange:(e)=>{const p=e.target; const dur=p.getDuration(); const cur=p.getCurrentTime(); const st=state.videoStates[vid];
+            if(e.data===YT.PlayerState.PLAYING){ if(!st.t){st.t=Date.now(); st.pc++; track('youtube_video_start',{videoId:vid,duration:Math.round(dur)})}
+              st.i&&clearInterval(st.i); st.i=setInterval(()=>{const pct=(p.getCurrentTime()/Math.max(1,dur))*100;
+                [['q25',25],['q50',50],['q75',75]].forEach(([k,val])=>{ if(pct>=val && !st.Q[k]){ st.Q[k]=true; track('youtube_video_progress',{videoId:vid,milestone:val+'%'})}});
+              },2000);
+            } else if(e.data===YT.PlayerState.PAUSED){ st.pause++; if(st.t){st.watch+=(Date.now()-st.t)/1000; st.t=null;}
+              track('youtube_video_pause',{videoId:vid,currentTime:Math.round(cur),totalWatchTime:Math.round(st.watch),pauseCount:st.pause}); clearInterval(st.i);
+            } else if(e.data===YT.PlayerState.ENDED){ if(st.t){st.watch+=(Date.now()-st.t)/1000; st.t=null;}
+              track('youtube_video_complete',{videoId:vid,totalWatchTime:Math.round(st.watch),completionRate:100}); clearInterval(st.i);
+            }
+          }}});});
+    };
+    track('page_load',{referrer:document.referrer,viewport:innerWidth+'x'+innerHeight});
+    document.addEventListener('visibilitychange',()=>{ if(document.hidden){ track('page_hidden',{totalTimeVisible:Math.round((Date.now()-state.sessionStart)/1000)});} else {track('page_visible',{});} });
+    window.addEventListener('beforeunload',()=>{ if(state.events.length){ navigator.sendBeacon(TRACKING.endpoint,JSON.stringify({events:state.events,sessionInfo:{inquiryId:TRACKING.inquiryId,sessionId:TRACKING.sessionId,sessionComplete:true,timeOnPage:Math.round((Date.now()-state.sessionStart)/1000)}})); }});
+    setInterval(()=>{ if(state.events.length){ const b=state.events.splice(0,state.events.length); send(b);} },TRACKING.flushInterval);
+  })();</script></body>
+</html>
+
