@@ -74,6 +74,66 @@ async function initializeDatabase() {
   }
 }
 
+// Normalise a text segment the same way filenames/slugs are built
+function normaliseSegment(s) {
+  return String(s || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+// Parse "More-House-School-<Family>-Family-<First>-<Year>-<YYYY-MM-DD>.html"
+function parseProspectusFilename(filename) {
+  const m = String(filename).match(/^More-House-School-(.+?)-Family-(.+?)-(\d{4})-(\d{4}-\d{2}-\d{2})\.html$/i);
+  if (!m) return null;
+  return {
+    familySeg: normaliseSegment(m[1]),
+    firstSeg:  normaliseSegment(m[2]),
+    yearSeg:   m[3],
+    dateSeg:   m[4]
+  };
+}
+
+// Smarter finder: exact match → expected filename → parsed segments → unique first+year
+async function findInquiryByFilenameSmart(filename) {
+  const parsed = parseProspectusFilename(filename);
+  const dir = path.join(__dirname, 'data');
+  const files = await fs.readdir(dir).catch(() => []);
+  const inquiries = [];
+
+  for (const f of files.filter(x => x.startsWith('inquiry-') && x.endsWith('.json'))) {
+    try {
+      const j = JSON.parse(await fs.readFile(path.join(dir, f), 'utf8'));
+      inquiries.push(j);
+      // 1) Exact saved filename
+      if (j.prospectusFilename === filename) return j;
+      // 2) Same as "expected" filename (recomputed)
+      try { if (generateFilename(j) === filename) return j; } catch {}
+    } catch {}
+  }
+
+  if (!parsed) return null;
+
+  // 3) Match by parsed family/first/year
+  const byParsed = inquiries.find(j =>
+    normaliseSegment(j.familySurname) === parsed.familySeg &&
+    normaliseSegment(j.firstName)    === parsed.firstSeg &&
+    String(j.entryYear)              === parsed.yearSeg
+  );
+  if (byParsed) return byParsed;
+
+  // 4) Fallback: unique match on first+year (helps when family was mistyped)
+  const candidates = inquiries.filter(j =>
+    normaliseSegment(j.firstName) === parsed.firstSeg &&
+    String(j.entryYear)           === parsed.yearSeg
+  );
+  if (candidates.length === 1) return candidates[0];
+
+  return null;
+}
+
+
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Files & slugs
 // ─────────────────────────────────────────────────────────────────────────────
@@ -776,23 +836,24 @@ app.get('/prospectuses/:filename', async (req, res) => {
     // Serve if present
     try { await fs.access(abs); return res.sendFile(abs); } catch {}
 
-    // Recover by filename → inquiry → regenerate
-    const inquiry = await findInquiryByFilename(filename);
+    // Smart recovery (handles missing/changed filenames)
+    const inquiry = await findInquiryByFilenameSmart(filename);
     if (inquiry) {
       const p = await generateProspectus(inquiry);
-      await updateInquiryStatus(inquiry.id, p);
+      await updateInquiryStatus(inquiry.id, p); // backfills prospectusFilename/Url
       abs = path.join(__dirname, p.url);
       return res.sendFile(abs);
     }
 
-    // As a last nudge, rebuild slugs then 404
+    // Last nudge
     await rebuildSlugIndexFromData();
     return res.status(404).send('Prospectus file not found');
   } catch (e) {
-    console.error('self-healing /prospectuses error:', e);
+    console.error('❌ Direct file recover failed:', e);
     return res.status(500).send('Failed to load prospectus file');
   }
 });
+
 
 // Keep static serving for any other static assets in /prospectuses
 app.use('/prospectuses', express.static(path.join(__dirname, 'prospectuses')));
