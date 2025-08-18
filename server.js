@@ -21,7 +21,6 @@ const app = express();
 app.set('trust proxy', true); // IMPORTANT for Render/X-Forwarded-* headers
 const PORT = process.env.PORT || 3000; // leave as-is; Render injects PORT
 
-
 // ---- In-memory slug index (loaded from /data/slug-index.json) ----
 let slugIndex = {}; // { [slug]: "/prospectuses/file.html" }
 async function loadSlugIndex() {
@@ -53,6 +52,8 @@ const initializeDatabase = async () => {
       database: process.env.DB_NAME || 'morehouse_analytics',
       user: process.env.DB_USER,
       password: process.env.DB_PASSWORD,
+      // **RENDER FIX**: Add SSL config for production
+      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
     });
     await db.connect();
     console.log('✅ Connected to PostgreSQL analytics database');
@@ -64,8 +65,33 @@ const initializeDatabase = async () => {
   }
 };
 
+// **RENDER FIX**: Enhanced CORS for cross-origin requests
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (mobile apps, etc.)
+    if (!origin) return callback(null, true);
+    
+    // Allow any onrender.com subdomain
+    if (origin.includes('.onrender.com')) return callback(null, true);
+    
+    // Allow localhost for development
+    if (origin.includes('localhost') || origin.includes('127.0.0.1')) return callback(null, true);
+    
+    // Allow github.io for testing
+    if (origin.includes('.github.io')) return callback(null, true);
+    
+    // For production, be permissive to avoid CORS issues
+    console.log('CORS: Allowing origin:', origin);
+    return callback(null, true);
+  },
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+  credentials: false,
+  optionsSuccessStatus: 200
+};
+
 // Middleware
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static('public'));
@@ -288,7 +314,7 @@ const updateEngagementMetrics = async (metricsData) => {
 const generateProspectus = async (inquiryData) => {
   try {
     console.log(`\n🎨 GENERATING PROSPECTUS FOR: ${inquiryData.firstName} ${inquiryData.familySurname}`);
-    console.log('══════════════════════════════════════════════════════════════════════');
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
     // Read template
     const templatePath = path.join(__dirname, 'public', 'prospectus_template.html');
@@ -413,9 +439,24 @@ const updateInquiryStatus = async (inquiryId, prospectusInfo) => {
   }
 };
 
+// **RENDER FIX**: Handle preflight requests explicitly
+app.options('*', (req, res) => {
+  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept');
+  res.header('Access-Control-Max-Age', '86400');
+  res.sendStatus(200);
+});
+
 // ✅ Webhook route (also supports /api/inquiry)
 app.post(['/webhook', '/api/inquiry'], async (req, res) => {
   console.log('WEBHOOK start', new Date().toISOString());
+  
+  // **RENDER FIX**: Add CORS headers explicitly for this route
+  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+  res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  
   try {
     const data = req.body || {};
     const required = ['firstName','familySurname','parentEmail','ageGroup','entryYear'];
@@ -840,17 +881,18 @@ const startServer = async () => {
     await ensureDirectories();
     await loadSlugIndex();
 
-    app.listen(PORT, () => {
+    // **RENDER FIX**: Bind to 0.0.0.0 for Render deployment
+    app.listen(PORT, '0.0.0.0', () => {
       console.log('\n🚀 MORE HOUSE WEBHOOK SERVER STARTED - PRETTY URLS ENABLED');
-      console.log('════════════════════════════════════════════════════════════════════════');
-      console.log(`🌐 Server running on: http://localhost:${PORT}`);
-      console.log(`📋 Webhook endpoint: http://localhost:${PORT}/webhook`);
-      console.log(`🔗 Pretty URL pattern: https://<host>/the-<family>-family-<shortid>`);
-      console.log(`📊 Health: http://localhost:${PORT}/health`);
-      console.log(`📝 List inquiries: http://localhost:${PORT}/api/inquiries`);
-      console.log(`🎨 Prospectus files (direct): http://localhost:${PORT}/prospectuses/`);
-      console.log(`📈 Dashboard aggregate: http://localhost:${PORT}/api/dashboard-data`);
-      console.log('════════════════════════════════════════════════════════════════════════');
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.log(`🌐 Server running on: 0.0.0.0:${PORT}`);
+      console.log(`📋 Webhook endpoint: /webhook`);
+      console.log(`🔗 Pretty URL pattern: /the-<family>-family-<shortid>`);
+      console.log(`📊 Health: /health`);
+      console.log(`📝 List inquiries: /api/inquiries`);
+      console.log(`🎨 Prospectus files: /prospectuses/`);
+      console.log(`📈 Dashboard aggregate: /api/dashboard-data`);
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       console.log(`📊 Analytics database: ${dbConnected ? 'Connected' : 'JSON files only'}`);
     });
   } catch (error) {

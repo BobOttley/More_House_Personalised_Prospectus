@@ -52,6 +52,7 @@
         .webhook-config label{font-size:.9rem;margin-bottom:5px}
         .webhook-config input{font-size:14px;padding:8px}
         .webhook-config-toggle{background:var(--morehouse-navy);color:white;border:none;padding:8px 15px;border-radius:5px;cursor:pointer;font-size:.8rem;margin-bottom:15px;display:none}
+        .debug-info{background:#f8f9fa;padding:10px;border-radius:5px;margin-top:10px;font-size:12px;color:#666;border:1px solid #dee2e6}
     </style>
 </head>
 <body>
@@ -64,7 +65,15 @@
         <p class="subtitle">Create Your Personalised Prospectus</p>
 
         <div class="intro-text">
-            <p><strong>Welcome to More House School’s personalised prospectus experience.</strong> Please complete this form to receive a bespoke prospectus tailored to your daughter’s interests and your family’s priorities.</p>
+            <p><strong>Welcome to More House School's personalised prospectus experience.</strong> Please complete this form to receive a bespoke prospectus tailored to your daughter's interests and your family's priorities.</p>
+        </div>
+
+        <!-- Debug Information Panel -->
+        <div class="debug-info" id="debugInfo">
+            <strong>Connection Info:</strong><br>
+            Current URL: <span id="currentUrl"></span><br>
+            Webhook Target: <span id="webhookTarget"></span><br>
+            Status: <span id="connectionStatus">Checking...</span>
         </div>
 
         <!-- Webhook Configuration (hidden except on localhost or with ?debug=1) -->
@@ -72,7 +81,7 @@
         <div class="webhook-config" id="webhookConfig" style="display:none;">
             <div class="form-group">
                 <label for="webhookUrl">Webhook URL (testing only)</label>
-                <input type="url" id="webhookUrl" value="/webhook" placeholder="https://your-service.onrender.com/webhook">
+                <input type="url" id="webhookUrl" value="" placeholder="https://your-service.onrender.com/webhook">
             </div>
         </div>
 
@@ -80,7 +89,7 @@
             <span class="section-label">Family Information</span>
             <div class="form-row">
                 <div class="form-group">
-                    <label for="firstName">Daughter’s First Name <span class="required">*</span></label>
+                    <label for="firstName">Daughter's First Name <span class="required">*</span></label>
                     <input type="text" id="firstName" required>
                 </div>
                 <div class="form-group">
@@ -140,17 +149,17 @@
                 <div class="checkbox-item"><input type="checkbox" id="sport"><label for="sport">Sport & Physical Education</label></div>
                 <div class="checkbox-item"><input type="checkbox" id="leadership"><label for="leadership">Leadership & Student Voice</label></div>
                 <div class="checkbox-item"><input type="checkbox" id="community_service"><label for="community_service">Community Service</label></div>
-                <div class="checkbox-item"><input type="checkbox" id="debating"><label for="debating">Debating & Public Speaking</label></div>
+                <div class="checkbox-item"><input type="checkbox" id="outdoor_education"><label for="outdoor_education">Outdoor Education</label></div>
             </div>
 
             <span class="section-label">What matters most to your family?</span>
             <div class="checkbox-group">
                 <div class="checkbox-item"><input type="checkbox" id="academic_excellence"><label for="academic_excellence">Academic Excellence</label></div>
                 <div class="checkbox-item"><input type="checkbox" id="pastoral_care"><label for="pastoral_care">Outstanding Pastoral Care</label></div>
-                <div class="checkbox-item"><input type="checkbox" id="small_classes"><label for="small_classes">Small Class Sizes</label></div>
-                <div class="checkbox-item"><input type="checkbox" id="london_location"><label for="london_location">Central London Location</label></div>
-                <div class="checkbox-item"><input type="checkbox" id="values_based"><label for="values_based">Values-Based Education</label></div>
-                <div class="checkbox-item"><input type="checkbox" id="university_prep"><label for="university_prep">University Preparation</label></div>
+                <div class="checkbox-item"><input type="checkbox" id="university_preparation"><label for="university_preparation">University Preparation</label></div>
+                <div class="checkbox-item"><input type="checkbox" id="personal_development"><label for="personal_development">Personal Development</label></div>
+                <div class="checkbox-item"><input type="checkbox" id="career_guidance"><label for="career_guidance">Career Guidance</label></div>
+                <div class="checkbox-item"><input type="checkbox" id="extracurricular_opportunities"><label for="extracurricular_opportunities">Extracurricular Opportunities</label></div>
             </div>
 
             <button type="submit" class="submit-btn" id="submitBtn">
@@ -162,6 +171,7 @@
         <div class="success-message" id="successMessage">
             <h3>🎉 Thank you for your enquiry!</h3>
             <p>Your personalised prospectus request has been submitted successfully.</p>
+            <p id="prospectusLink"></p>
         </div>
 
         <div class="error-message" id="errorMessage">
@@ -179,7 +189,31 @@
     </div>
 
     <script>
-        // --- Webhook visibility rules ---
+        // --- FIXED WEBHOOK CONFIGURATION ---
+        
+        // Auto-detect the webhook URL based on current location
+        function getWebhookUrl() {
+            const currentHost = window.location.hostname;
+            
+            // If on localhost, use local webhook
+            if (currentHost === 'localhost' || currentHost === '127.0.0.1') {
+                return 'http://localhost:3000/webhook';
+            }
+            
+            // **IMPORTANT: Replace this with your actual Render service URL**
+            // Check your Render dashboard for the correct URL
+            const RENDER_URL = 'https://more-house-personalised-prospectus.onrender.com';
+            
+            // Try to use same-origin first (if form is served from same domain)
+            if (window.location.origin.includes('onrender.com')) {
+                return `${window.location.origin}/webhook`;
+            }
+            
+            // Fallback to specified Render URL
+            return `${RENDER_URL}/webhook`;
+        }
+
+        // Webhook visibility and configuration
         const isLocalhost = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
         const debugParam = /[?&](debug|showWebhook)=1/.test(location.search);
         const showWebhookUI = isLocalhost || debugParam;
@@ -188,8 +222,18 @@
         const webhookConfig = document.getElementById('webhookConfig');
         const webhookUrlInput = document.getElementById('webhookUrl');
 
+        // Set up debug information
+        const currentUrlSpan = document.getElementById('currentUrl');
+        const webhookTargetSpan = document.getElementById('webhookTarget');
+        const connectionStatusSpan = document.getElementById('connectionStatus');
+        
+        currentUrlSpan.textContent = window.location.href;
+        const webhookUrl = getWebhookUrl();
+        webhookTargetSpan.textContent = webhookUrl;
+
         if (showWebhookUI) {
             webhookToggle.style.display = 'inline-block';
+            webhookUrlInput.value = webhookUrl;
             webhookToggle.addEventListener('click', () => {
                 webhookConfig.style.display = webhookConfig.style.display === 'none' ? 'block' : 'none';
             });
@@ -198,11 +242,36 @@
             webhookConfig.style.display = 'none';
         }
 
-        // Default webhook (works on Render and when serving locally from the same origin)
-        const DEFAULT_WEBHOOK = 'https://more-house-personalised-prospectus.onrender.com/webhook';
+        // Test webhook connectivity on page load
+        async function testWebhookConnectivity() {
+            try {
+                connectionStatusSpan.textContent = 'Testing connection...';
+                const testUrl = webhookUrl.replace('/webhook', '/health');
+                
+                const response = await fetch(testUrl, {
+                    method: 'GET',
+                    mode: 'cors',
+                    signal: AbortSignal.timeout(5000) // 5 second timeout
+                });
+                
+                if (response.ok) {
+                    connectionStatusSpan.textContent = '✅ Connected';
+                    connectionStatusSpan.style.color = '#28a745';
+                } else {
+                    connectionStatusSpan.textContent = `⚠️ Server responded with ${response.status}`;
+                    connectionStatusSpan.style.color = '#ffc107';
+                }
+            } catch (error) {
+                connectionStatusSpan.textContent = `❌ Connection failed: ${error.message}`;
+                connectionStatusSpan.style.color = '#dc3545';
+                console.error('Webhook connectivity test failed:', error);
+            }
+        }
 
+        // Run connectivity test
+        testWebhookConnectivity();
 
-        // Form submission handler
+        // Form submission handler with improved error handling
         document.getElementById('inquiryForm').addEventListener('submit', async function(e) {
             e.preventDefault();
 
@@ -219,6 +288,7 @@
             errorMessage.style.display = 'none';
 
             try {
+                // Collect form data
                 const formData = {
                     firstName: document.getElementById('firstName').value.trim(),
                     familySurname: document.getElementById('familySurname').value.trim(),
@@ -238,44 +308,79 @@
                     sport: document.getElementById('sport').checked,
                     leadership: document.getElementById('leadership').checked,
                     community_service: document.getElementById('community_service').checked,
-                    debating: document.getElementById('debating').checked,
+                    outdoor_education: document.getElementById('outdoor_education').checked,
                     academic_excellence: document.getElementById('academic_excellence').checked,
                     pastoral_care: document.getElementById('pastoral_care').checked,
-                    small_classes: document.getElementById('small_classes').checked,
-                    london_location: document.getElementById('london_location').checked,
-                    values_based: document.getElementById('values_based').checked,
-                    university_prep: document.getElementById('university_prep').checked,
+                    university_preparation: document.getElementById('university_preparation').checked,
+                    personal_development: document.getElementById('personal_development').checked,
+                    career_guidance: document.getElementById('career_guidance').checked,
+                    extracurricular_opportunities: document.getElementById('extracurricular_opportunities').checked,
                     submissionTimestamp: new Date().toISOString(),
                     userAgent: navigator.userAgent,
                     referrer: document.referrer || 'direct'
                 };
 
-                // Use test URL only when webhook UI is visible; otherwise force DEFAULT
-                const webhookUrl = showWebhookUI && webhookUrlInput.value ? webhookUrlInput.value : DEFAULT_WEBHOOK;
+                console.log('Form data collected:', formData);
 
-                const response = await fetch(webhookUrl, {
+                // Use configured webhook URL or detected URL
+                const finalWebhookUrl = (showWebhookUI && webhookUrlInput.value) ? 
+                    webhookUrlInput.value : webhookUrl;
+
+                console.log('Submitting to:', finalWebhookUrl);
+
+                // Submit with timeout and better error handling
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+                const response = await fetch(finalWebhookUrl, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(formData)
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(formData),
+                    mode: 'cors',
+                    signal: controller.signal
                 });
 
-                if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                clearTimeout(timeoutId);
+
+                if (!response.ok) {
+                    const errorText = await response.text().catch(() => 'Unknown error');
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}\n${errorText}`);
+                }
 
                 const result = await response.json();
                 console.log('Webhook response:', result);
 
+                // Show success message
                 successMessage.style.display = 'block';
+                
+                // Add prospectus link if provided
+                if (result?.prospectus?.url) {
+                    document.getElementById('prospectusLink').innerHTML = 
+                        `<a href="${result.prospectus.url}" target="_blank" style="color: #1a2b5c; font-weight: bold;">View Your Personalised Prospectus</a>`;
+                }
+
+                // Reset form
                 document.getElementById('inquiryForm').reset();
                 successMessage.scrollIntoView({ behavior: 'smooth' });
 
-                // Optional: open the generated prospectus if returned
-                if (result?.prospectus?.url) {
-                    window.open(result.prospectus.url, '_blank');
-                }
-
             } catch (error) {
                 console.error('Form submission error:', error);
-                document.getElementById('errorText').textContent = `Error: ${error.message}. Please try again.`;
+                
+                let errorMsg = 'There was an issue submitting your form. Please try again.';
+                
+                if (error.name === 'AbortError') {
+                    errorMsg = 'Request timed out. Please check your connection and try again.';
+                } else if (error.message.includes('CORS')) {
+                    errorMsg = 'Connection blocked by security policy. Please contact support.';
+                } else if (error.message.includes('Failed to fetch')) {
+                    errorMsg = 'Unable to connect to server. Please check your internet connection.';
+                } else {
+                    errorMsg = `Error: ${error.message}`;
+                }
+                
+                document.getElementById('errorText').textContent = errorMsg;
                 errorMessage.style.display = 'block';
                 errorMessage.scrollIntoView({ behavior: 'smooth' });
             } finally {
@@ -306,6 +411,7 @@
                     if (this.value.trim()) this.style.borderColor = '#28a745';
                 });
             });
+            
             const emailField = document.getElementById('parentEmail');
             emailField.addEventListener('blur', function() {
                 const ok = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.value);
