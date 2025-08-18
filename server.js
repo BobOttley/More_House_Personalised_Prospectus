@@ -18,7 +18,9 @@ function getBaseUrl(req) {
 }
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+app.set('trust proxy', true); // IMPORTANT for Render/X-Forwarded-* headers
+const PORT = process.env.PORT || 3000; // leave as-is; Render injects PORT
+
 
 // ---- In-memory slug index (loaded from /data/slug-index.json) ----
 let slugIndex = {}; // { [slug]: "/prospectuses/file.html" }
