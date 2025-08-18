@@ -40,6 +40,8 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static('public'));
+app.use((req, _res, next) => { console.log('→', req.method, req.url); next(); });
+
 
 // Serve tracking.js explicitly
 app.get('/tracking.js', (req, res) => {
@@ -423,133 +425,81 @@ const updateInquiryStatus = async (inquiryId, prospectusInfo) => {
 };
 
 // Enhanced webhook endpoint with prospectus generation and analytics
-app.post('/webhook', async (req, res) => {
-    console.log('\n🎯 WEBHOOK RECEIVED');
-    console.log('📅 Timestamp:', new Date().toISOString());
-    
-    try {
-        const formData = req.body;
-        
-        // Validate required fields
-        const requiredFields = ['firstName', 'familySurname', 'parentEmail', 'ageGroup', 'entryYear'];
-        const missingFields = requiredFields.filter(field => !formData[field]);
-        
-        if (missingFields.length > 0) {
-            console.log('❌ Missing required fields:', missingFields);
-            return res.status(400).json({
-                success: false,
-                error: 'Missing required fields',
-                missingFields,
-                received: Object.keys(formData)
-            });
-        }
-        
-        // Log the received data
-        console.log('\n📋 FORM DATA RECEIVED:');
-        console.log('══════════════════════════════════════════════════════════');
-        
-        // Personal Information
-        console.log('👨‍👩‍👧 FAMILY INFORMATION:');
-        console.log(`   Name: ${formData.firstName} ${formData.familySurname}`);
-        console.log(`   Email: ${formData.parentEmail}`);
-        console.log(`   Age Group: ${formData.ageGroup}`);
-        console.log(`   Entry Year: ${formData.entryYear}`);
-        
-        // Academic Interests
-        const academicInterests = [];
-        ['sciences', 'mathematics', 'english', 'languages', 'humanities', 'business'].forEach(interest => {
-            if (formData[interest]) academicInterests.push(interest);
-        });
-        console.log('\n📚 ACADEMIC INTERESTS:');
-        console.log(`   ${academicInterests.length > 0 ? academicInterests.join(', ') : 'None selected'}`);
-        
-        // Creative Interests
-        const creativeInterests = [];
-        ['drama', 'music', 'art', 'creative_writing'].forEach(interest => {
-            if (formData[interest]) creativeInterests.push(interest);
-        });
-        console.log('\n🎨 CREATIVE INTERESTS:');
-        console.log(`   ${creativeInterests.length > 0 ? creativeInterests.join(', ') : 'None selected'}`);
-        
-        // Co-curricular Interests
-        const coCurricularInterests = [];
-        ['sport', 'leadership', 'community_service', 'debating'].forEach(interest => {
-            if (formData[interest]) coCurricularInterests.push(interest);
-        });
-        console.log('\n🏃‍♀️ CO-CURRICULAR INTERESTS:');
-        console.log(`   ${coCurricularInterests.length > 0 ? coCurricularInterests.join(', ') : 'None selected'}`);
-        
-        // Family Priorities
-        const familyPriorities = [];
-        ['academic_excellence', 'pastoral_care', 'small_classes', 'london_location', 'values_based', 'university_prep'].forEach(priority => {
-            if (formData[priority]) familyPriorities.push(priority);
-        });
-        console.log('\n🏠 FAMILY PRIORITIES:');
-        console.log(`   ${familyPriorities.length > 0 ? familyPriorities.join(', ') : 'None selected'}`);
-        
-        // Technical metadata
-        console.log('\n🔧 TECHNICAL METADATA:');
-        console.log(`   User Agent: ${formData.userAgent || 'Not provided'}`);
-        console.log(`   Referrer: ${formData.referrer || 'Not provided'}`);
-        console.log(`   Submission Time: ${formData.submissionTimestamp || 'Not provided'}`);
-        
-        console.log('══════════════════════════════════════════════════════════\n');
-        
-        // Save the inquiry data to file
-        const inquiryRecord = await saveInquiryData(formData);
-        
-        // Save to analytics database
-        await saveInquiryToDatabase({
-            ...formData,
-            id: inquiryRecord.id,
-            receivedAt: inquiryRecord.receivedAt,
-            status: 'received',
-            userAgent: req.headers['user-agent'],
-            referrer: req.headers.referer,
-            ip: req.ip || req.connection.remoteAddress
-        });
-        
-        // Generate the prospectus
-        const prospectusInfo = await generateProspectus(inquiryRecord);
-        
-        // Update inquiry status
-        const updatedInquiry = await updateInquiryStatus(inquiryRecord.id, prospectusInfo);
-        
-        // Success response with prospectus information
-        const response = {
-            success: true,
-            message: 'Inquiry received and prospectus generated successfully',
-            inquiryId: inquiryRecord.id,
-            prospectus: {
-                filename: prospectusInfo.filename,
-                url: `http://localhost:${PORT}${prospectusInfo.url}`,
-                generatedAt: prospectusInfo.generatedAt
-            },
-            receivedAt: inquiryRecord.receivedAt,
-            summary: {
-                family: `${formData.firstName} ${formData.familySurname}`,
-                email: formData.parentEmail,
-                ageGroup: formData.ageGroup,
-                entryYear: formData.entryYear,
-                totalInterests: academicInterests.length + creativeInterests.length + coCurricularInterests.length,
-                familyPriorities: familyPriorities.length
-            }
-        };
-        
-        console.log('✅ WEBHOOK RESPONSE SENT:', response.inquiryId);
-        console.log(`🎯 PROSPECTUS URL: ${response.prospectus.url}`);
-        console.log('📊 Analytics tracking enabled on prospectus\n');
-        
-        res.json(response);
-        
-    } catch (error) {
-        console.error('❌ WEBHOOK ERROR:', error.message);
-        res.status(500).json({
-            success: false,
-            error: 'Internal server error',
-            message: error.message
-        });
+// Replace your entire existing webhook handler with this:
+app.post(['/webhook', '/api/inquiry'], async (req, res) => {
+  console.log('\n🎯 WEBHOOK RECEIVED', new Date().toISOString());
+
+  try {
+    const formData = req.body || {};
+
+    // 1) Validate required fields
+    const required = ['firstName','familySurname','parentEmail','ageGroup','entryYear'];
+    const missing = required.filter(k => !formData[k]);
+    if (missing.length) {
+      console.log('❌ Missing required fields:', missing);
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields',
+        missingFields: missing,
+        received: Object.keys(formData)
+      });
     }
+
+    // 2) Ensure the prospectus template exists
+    try {
+      await fs.access(path.join(__dirname, 'public', 'prospectus_template.html'));
+    } catch {
+      console.error('❌ prospectus_template.html is missing from /public');
+      return res.status(500).json({
+        success: false,
+        error: 'prospectus_template.html missing in /public'
+      });
+    }
+
+    // (Optional) brief log summary
+    console.log(`👨‍👩‍👧 ${formData.firstName} ${formData.familySurname} | ${formData.parentEmail} | ${formData.ageGroup} → ${formData.entryYear}`);
+
+    // 3) Persist inquiry (file + DB)
+    const inquiryRecord = await saveInquiryData(formData);
+    await saveInquiryToDatabase({
+      ...formData,
+      id: inquiryRecord.id,
+      receivedAt: inquiryRecord.receivedAt,
+      status: 'received',
+      userAgent: req.headers['user-agent'],
+      referrer: req.headers.referer,
+      ip: req.ip || req.connection?.remoteAddress
+    });
+
+    // 4) Generate prospectus + update status
+    const prospectusInfo = await generateProspectus(inquiryRecord);
+    await updateInquiryStatus(inquiryRecord.id, prospectusInfo);
+
+    // 5) Build absolute public URL (Render-aware)
+    const proto = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+    const host  = req.headers['x-forwarded-host']  || req.get('host');
+    const base  = (process.env.PUBLIC_BASE_URL && process.env.PUBLIC_BASE_URL.replace(/\/+$/, '')) || `${proto}://${host}`;
+    const absoluteUrl = `${base}${prospectusInfo.url}`;
+
+    const response = {
+      success: true,
+      message: 'Inquiry received and prospectus generated successfully',
+      inquiryId: inquiryRecord.id,
+      prospectus: {
+        filename: prospectusInfo.filename,
+        url: absoluteUrl,                 // ✅ no localhost here
+        generatedAt: prospectusInfo.generatedAt
+      },
+      receivedAt: inquiryRecord.receivedAt
+    };
+
+    console.log('✅ WEBHOOK RESPONSE SENT:', response.inquiryId, absoluteUrl);
+    res.json(response);
+
+  } catch (error) {
+    console.error('❌ WEBHOOK ERROR:', error);
+    res.status(500).json({ success: false, error: 'Internal server error', message: error.message });
+  }
 });
 
 // Analytics tracking endpoint
