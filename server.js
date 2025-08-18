@@ -44,26 +44,36 @@ let db = null;
 
 // Initialize database connection
 const initializeDatabase = async () => {
+  const haveUrl   = !!process.env.DATABASE_URL;
+  const haveParts = !!(process.env.DB_HOST && process.env.DB_USER && process.env.DB_NAME);
+
+  // If no credentials, run in JSON-only mode (no DB)
+  if (!haveUrl && !haveParts) {
+    console.log('📉 No DB credentials present — skipping database connection (JSON-only mode).');
+    return false;
+  }
+
   try {
     db = new Client({
-      connectionString: process.env.DATABASE_URL,
-      host: process.env.DB_HOST || 'localhost',
-      port: process.env.DB_PORT || 5432,
-      database: process.env.DB_NAME || 'morehouse_analytics',
-      user: process.env.DB_USER,
-      password: process.env.DB_PASSWORD,
-      // **RENDER FIX**: Add SSL config for production
-      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+      connectionString: process.env.DATABASE_URL || undefined,
+      host: process.env.DB_HOST || undefined,
+      port: process.env.DB_PORT ? Number(process.env.DB_PORT) : 5432,
+      database: process.env.DB_NAME || undefined,
+      user: process.env.DB_USER || undefined,
+      password: process.env.DB_PASSWORD || undefined,
+      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+      connectionTimeoutMillis: 3000 // fast-fail if DB is unreachable
     });
     await db.connect();
     console.log('✅ Connected to PostgreSQL analytics database');
     return true;
   } catch (error) {
-    console.warn('⚠️ PostgreSQL connection failed:', error.message);
-    console.warn('📊 Analytics will use JSON files, but core functionality remains');
+    console.warn('⚠️ PostgreSQL connection failed quickly:', error.message);
+    console.warn('📊 Falling back to JSON-only analytics (non-blocking).');
     return false;
   }
 };
+
 
 // **RENDER FIX**: Enhanced CORS for cross-origin requests
 const corsOptions = {
