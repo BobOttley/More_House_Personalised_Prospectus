@@ -564,113 +564,140 @@ app.post('/api/track-engagement', async (req, res) => {
 });
 
 // ---- Dashboard aggregate API ----
+// ---- Dashboard aggregate API (DB-first, with JSON fallback) ----
 app.get('/api/dashboard-data', async (_req, res) => {
   try {
-    const files = (await fs.readdir('data')).filter(f => f.startsWith('inquiry-') && f.endsWith('.json'));
+    // If DB is connected, use it for all aggregates
+    if (db) {
+      // Summary tiles
+      const [{ c: totalFamilies }] =
+        (await db.query(`SELECT COUNT(*)::int AS c FROM inquiries`)).rows;
 
-    const inquiries = [];
-    for (const f of files) {
-      try {
-        const j = JSON.parse(await fs.readFile(path.join('data', f), 'utf8'));
-        inquiries.push(j);
-      } catch {}
+      const [{ c: newInquiries7d }] = (await db.query(`
+        SELECT COUNT(*)::int AS c
+        FROM inquiries
+        WHERE COALESCE(received_at, created_at) >= NOW() - INTERVAL '7 days'
+      `)).rows;
+
+      const [{ c: readyForContact }] = (await db.query(`
+        SELECT COUNT(*)::int AS c
+        FROM inquiries
+        WHERE status = 'prospectus_generated' OR prospectus_generated IS TRUE
+      `)).rows;
+
+      const [{ c: highlyEngaged }] =
+        (await db.query(`SELECT COUNT(*)::int AS c FROM engagement_metrics WHERE time_on_page > 300`)).rows;
+
+      // Top interests (sum boolean columns)
+      const interestRow = (await db.query(`
+        SELECT
+          SUM(CASE WHEN sciences THEN 1 ELSE 0 END)::int AS sciences,
+          SUM(CASE WHEN mathematics THEN 1 ELSE 0 END)::int AS mathematics,
+          SUM(CASE WHEN english THEN 1 ELSE 0 END)::int AS english,
+          SUM(CASE WHEN languages THEN 1 ELSE 0 END)::int AS languages,
+          SUM(CASE WHEN humanities THEN 1 ELSE 0 END)::int AS humanities,
+          SUM(CASE WHEN business THEN 1 ELSE 0 END)::int AS business,
+          SUM(CASE WHEN drama THEN 1 ELSE 0 END)::int AS drama,
+          SUM(CASE WHEN music THEN 1 ELSE 0 END)::int AS music,
+          SUM(CASE WHEN art THEN 1 ELSE 0 END)::int AS art,
+          SUM(CASE WHEN creative_writing THEN 1 ELSE 0 END)::int AS creative_writing,
+          SUM(CASE WHEN sport THEN 1 ELSE 0 END)::int AS sport,
+          SUM(CASE WHEN leadership THEN 1 ELSE 0 END)::int AS leadership,
+          SUM(CASE WHEN community_service THEN 1 ELSE 0 END)::int AS community_service,
+          SUM(CASE WHEN outdoor_education THEN 1 ELSE 0 END)::int AS outdoor_education,
+          SUM(CASE WHEN academic_excellence THEN 1 ELSE 0 END)::int AS academic_excellence,
+          SUM(CASE WHEN pastoral_care THEN 1 ELSE 0 END)::int AS pastoral_care,
+          SUM(CASE WHEN university_preparation THEN 1 ELSE 0 END)::int AS university_preparation,
+          SUM(CASE WHEN personal_development THEN 1 ELSE 0 END)::int AS personal_development,
+          SUM(CASE WHEN career_guidance THEN 1 ELSE 0 END)::int AS career_guidance,
+          SUM(CASE WHEN extracurricular_opportunities THEN 1 ELSE 0 END)::int AS extracurricular_opportunities
+        FROM inquiries
+      `)).rows[0];
+
+      const topInterests = Object.entries(interestRow)
+        .map(([subject, count]) => ({ subject, count: Number(count || 0) }))
+        .filter(({ count }) => count > 0)
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 10);
+
+      // Recently active (exclude heartbeats, join to inquiries)
+      const recentlyActive = (await db.query(`
+        SELECT te.inquiry_id, te.event_type, te."timestamp",
+               COALESCE(i.first_name,'') AS first_name,
+               COALESCE(i.family_surname,'') AS family_surname
+        FROM tracking_events te
+        JOIN inquiries i ON i.id = te.inquiry_id
+        WHERE te.event_type <> 'heartbeat'
+        ORDER BY te."timestamp" DESC
+        LIMIT 10
+      `)).rows.map(r => ({
+        name: `${r.first_name} ${r.family_surname}`.trim(),
+        inquiryId: r.inquiry_id,
+        activity: r.event_type,
+        when: r.timestamp
+      }));
+
+      // Priority families (highest engagement)
+      const priorityFamilies = (await db.query(`
+        SELECT em.inquiry_id,
+               MAX(em.time_on_page) AS time_on_page,
+               MAX(em.total_visits) AS total_visits,
+               MAX(em.last_visit) AS last_visit,
+               COALESCE(i.first_name,'') AS first_name,
+               COALESCE(i.family_surname,'') AS family_surname,
+               COALESCE(i.age_group,'') AS age_group,
+               COALESCE(i.entry_year,'') AS entry_year
+        FROM engagement_metrics em
+        JOIN inquiries i ON i.id = em.inquiry_id
+        GROUP BY em.inquiry_id, i.first_name, i.family_surname, i.age_group, i.entry_year
+        ORDER BY total_visits DESC NULLS LAST, time_on_page DESC NULLS LAST, last_visit DESC NULLS LAST
+        LIMIT 10
+      `)).rows.map(r => ({
+        name: `${r.first_name} ${r.family_surname}`.trim(),
+        inquiryId: r.inquiry_id,
+        ageGroup: r.age_group,
+        entryYear: r.entry_year,
+        timeOnPage: Number(r.time_on_page || 0),
+        totalVisits: Number(r.total_visits || 0),
+        lastVisit: r.last_visit
+      }));
+
+      return res.json({
+        summary: { readyForContact, highlyEngaged, newInquiries7d, totalFamilies },
+        topInterests, recentlyActive, priorityFamilies
+      });
     }
 
-    const totalFamilies = inquiries.length;
+    // ------- Fallback: JSON files (no DB) -------
+    const files = await fs.readdir('data').catch(err => (err.code === 'ENOENT' ? [] : Promise.reject(err)));
+    const inquiries = [];
+    for (const f of files.filter(f => f.startsWith('inquiry-') && f.endsWith('.json'))) {
+      try { inquiries.push(JSON.parse(await fs.readFile(path.join('data', f), 'utf8'))); } catch {}
+    }
+
     const now = Date.now();
+    const totalFamilies = inquiries.length;
     const newInquiries7d = inquiries.filter(i => {
       const t = Date.parse(i.receivedAt || i.received_at || 0);
       return t && (now - t) <= 7 * 24 * 60 * 60 * 1000;
     }).length;
-
-    const readyForContact = inquiries.filter(i =>
-      i.prospectusGenerated || i.status === 'prospectus_generated'
-    ).length;
+    const readyForContact = inquiries.filter(i => i.prospectusGenerated || i.status === 'prospectus_generated').length;
 
     const interestKeys = [
       'sciences','mathematics','english','languages','humanities','business',
-      'drama','music','art','creative_writing',
-      'sport','leadership','community_service','outdoor_education',
-      'academic_excellence','pastoral_care','university_preparation',
-      'personal_development','career_guidance','extracurricular_opportunities'
+      'drama','music','art','creative_writing','sport','leadership','community_service','outdoor_education',
+      'academic_excellence','pastoral_care','university_preparation','personal_development','career_guidance','extracurricular_opportunities'
     ];
-    const interestCounts = {};
-    for (const key of interestKeys) interestCounts[key] = 0;
-    for (const i of inquiries) {
-      for (const key of interestKeys) if (i[key]) interestCounts[key]++;
-    }
-    const topInterests = Object.entries(interestCounts)
-      .filter(([, c]) => c > 0)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 10)
-      .map(([subject, count]) => ({ subject, count }));
-
-    let highlyEngaged = 0;
-    let recentlyActive = [];
-    let priorityFamilies = [];
-
-    try {
-      if (db) {
-        const hi = await db.query(`SELECT COUNT(*)::int AS c FROM engagement_metrics WHERE time_on_page > 300`);
-        highlyEngaged = hi.rows?.[0]?.c || 0;
-
-        const ra = await db.query(`
-          SELECT te.inquiry_id, te.event_type, te.timestamp,
-                 COALESCE(i.first_name,'') AS first_name,
-                 COALESCE(i.family_surname,'') AS family_surname
-          FROM tracking_events te
-          LEFT JOIN inquiries i ON i.id = te.inquiry_id
-          ORDER BY te.timestamp DESC
-          LIMIT 10
-        `);
-        recentlyActive = ra.rows.map(r => ({
-          name: `${r.first_name || ''} ${r.family_surname || ''}`.trim(),
-          inquiryId: r.inquiry_id,
-          activity: r.event_type,
-          when: r.timestamp
-        }));
-
-        const pf = await db.query(`
-          SELECT em.inquiry_id,
-                 MAX(em.time_on_page) AS time_on_page,
-                 MAX(em.total_visits) AS total_visits,
-                 MAX(em.last_visit) AS last_visit,
-                 COALESCE(i.first_name,'') AS first_name,
-                 COALESCE(i.family_surname,'') AS family_surname,
-                 COALESCE(i.age_group,'') AS age_group,
-                 COALESCE(i.entry_year,'') AS entry_year
-          FROM engagement_metrics em
-          LEFT JOIN inquiries i ON i.id = em.inquiry_id
-          WHERE em.last_visit > NOW() - INTERVAL '30 days'
-          GROUP BY em.inquiry_id, i.first_name, i.family_surname, i.age_group, i.entry_year
-          ORDER BY MAX(em.time_on_page) DESC NULLS LAST
-          LIMIT 5
-        `);
-        priorityFamilies = pf.rows.map(r => ({
-          name: `${r.first_name || ''} ${r.family_surname || ''}`.trim(),
-          inquiryId: r.inquiry_id,
-          ageGroup: r.age_group,
-          entryYear: r.entry_year,
-          timeOnPage: Number(r.time_on_page) || 0,
-          totalVisits: Number(r.total_visits) || 0,
-          lastVisit: r.last_visit
-        }));
-      }
-    } catch {}
+    const interestCounts = Object.fromEntries(interestKeys.map(k => [k, 0]));
+    for (const i of inquiries) for (const k of interestKeys) if (i[k]) interestCounts[k]++;
+    const topInterests = Object.entries(interestCounts).filter(([, c]) => c > 0)
+      .sort((a, b) => b[1] - a[1]).slice(0, 10).map(([subject, count]) => ({ subject, count }));
 
     res.json({
-      summary: { readyForContact, highlyEngaged, newInquiries7d, totalFamilies },
-      topInterests, recentlyActive, priorityFamilies,
-      inquiries: inquiries
-        .sort((a, b) => new Date(b.receivedAt) - new Date(a.receivedAt))
-        .map(i => ({
-          family: `${i.firstName || ''} ${i.familySurname || ''}`.trim(),
-          email: i.parentEmail,
-          ageGroup: i.ageGroup,
-          entryYear: i.entryYear,
-          status: i.status || (i.prospectusGenerated ? 'prospectus_generated' : 'received'),
-          receivedAt: i.receivedAt
-        }))
+      summary: { readyForContact, highlyEngaged: 0, newInquiries7d, totalFamilies },
+      topInterests,
+      recentlyActive: [],       // not available without DB
+      priorityFamilies: []      // not available without DB
     });
   } catch (e) {
     res.status(500).json({ error: 'Failed to build dashboard data', message: e.message });
