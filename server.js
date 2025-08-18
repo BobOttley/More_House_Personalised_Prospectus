@@ -68,19 +68,10 @@ const initializeDatabase = async () => {
 // **RENDER FIX**: Enhanced CORS for cross-origin requests
 const corsOptions = {
   origin: function (origin, callback) {
-    // Allow requests with no origin (mobile apps, etc.)
-    if (!origin) return callback(null, true);
-    
-    // Allow any onrender.com subdomain
+    if (!origin) return callback(null, true); // allow no-origin (native apps)
     if (origin.includes('.onrender.com')) return callback(null, true);
-    
-    // Allow localhost for development
     if (origin.includes('localhost') || origin.includes('127.0.0.1')) return callback(null, true);
-    
-    // Allow github.io for testing
     if (origin.includes('.github.io')) return callback(null, true);
-    
-    // For production, be permissive to avoid CORS issues
     console.log('CORS: Allowing origin:', origin);
     return callback(null, true);
   },
@@ -97,7 +88,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static('public'));
 app.use((req, _res, next) => { console.log('→', req.method, req.url); next(); });
 
-// Serve tracking.js explicitly (ok to keep alongside /public)
+// Serve tracking.js explicitly
 app.get('/tracking.js', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'tracking.js'));
 });
@@ -451,8 +442,6 @@ app.options('*', (req, res) => {
 // ✅ Webhook route (also supports /api/inquiry)
 app.post(['/webhook', '/api/inquiry'], async (req, res) => {
   console.log('WEBHOOK start', new Date().toISOString());
-  
-  // **RENDER FIX**: Add CORS headers explicitly for this route
   res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
   res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -501,7 +490,7 @@ app.post(['/webhook', '/api/inquiry'], async (req, res) => {
   }
 });
 
-// Analytics tracking endpoints (unchanged logic)
+// Analytics tracking endpoints
 app.post('/api/track', async (req, res) => {
   try {
     const { events, engagementMetrics } = req.body;
@@ -564,7 +553,7 @@ app.post('/api/track-engagement', async (req, res) => {
   }
 });
 
-// ---- Dashboard aggregate API (kept) ----
+// ---- Dashboard aggregate API ----
 app.get('/api/dashboard-data', async (_req, res) => {
   try {
     const files = (await fs.readdir('data')).filter(f => f.startsWith('inquiry-') && f.endsWith('.json'));
@@ -733,30 +722,10 @@ app.get('/api/analytics/inquiries', async (_req, res) => {
   }
 });
 
-// 🔥 Dashboard activity
-app.get('/api/analytics/activity', async (_req, res) => {
-  try {
-    if (!db) return res.json([]);
-    const result = await db.query(`
-      SELECT 
-        te.inquiry_id, te.event_type, te.timestamp, te.event_data,
-        i.first_name, i.family_surname
-      FROM tracking_events te
-      LEFT JOIN inquiries i ON te.inquiry_id = i.id
-      ORDER BY te.timestamp DESC
-      LIMIT 20
-    `);
-    res.json(result.rows);
-  } catch (error) {
-    console.error('❌ Failed to get activity for dashboard:', error.message);
-    res.status(500).json({ error: 'Failed to get activity data' });
-  }
-});
-
 // Serve prospectus files (direct path)
 app.use('/prospectuses', express.static(path.join(__dirname, 'prospectuses')));
 
-// API endpoint to generate prospectus for existing inquiry (now returns pretty URL)
+// API endpoint to generate prospectus for existing inquiry (returns pretty URL)
 app.post('/api/generate-prospectus/:inquiryId', async (req, res) => {
   try {
     const inquiryId = req.params.inquiryId;
@@ -850,11 +819,43 @@ app.get('/health', (req, res) => {
   });
 });
 
+// ---- New discoverability endpoints ----
+app.get('/config.json', (req, res) => {
+  const base = getBaseUrl(req);
+  res.json({ baseUrl: base, webhook: `${base}/webhook`, health: `${base}/health` });
+});
+
+app.get('/webhook', (_req, res) => {
+  res.status(405).json({
+    success: false,
+    error: 'Method not allowed',
+    message: 'Send a POST with JSON to this endpoint.'
+  });
+});
+
+app.get('/', (req, res) => {
+  const base = getBaseUrl(req);
+  res.type('html').send(`
+<!doctype html>
+<html><head><meta charset="utf-8"><title>More House Prospectus Service</title>
+<style>body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;padding:24px;max-width:780px;margin:auto;line-height:1.55}</style>
+</head><body>
+  <h1>More House Prospectus Service</h1>
+  <p>Service is running. Useful endpoints:</p>
+  <ul>
+    <li>Health: <a href="${base}/health">${base}/health</a></li>
+    <li>Webhook (POST JSON): <code>${base}/webhook</code></li>
+    <li>Inquiries: <a href="${base}/api/inquiries">${base}/api/inquiries</a></li>
+    <li>Dashboard data: <a href="${base}/api/dashboard-data">${base}/api/dashboard-data</a></li>
+  </ul>
+  <p>Pretty links (slugs) will look like: <code>${base}/the-smith-family-abc123</code></p>
+</body></html>`);
+});
+
 // ---- Pretty URL resolver (must be after other routes, before 404) ----
-const RESERVED = new Set(['api','prospectuses','health','tracking','dashboard','favicon','robots','sitemap','metrics']);
+const RESERVED = new Set(['api','prospectuses','health','tracking','dashboard','favicon','robots','sitemap','metrics','config','webhook']);
 app.get('/:slug', async (req, res, next) => {
   const slug = String(req.params.slug || '').toLowerCase();
-  // Skip obvious non-slugs or reserved bases
   if (!/^[a-z0-9-]+$/.test(slug)) return next();
   if (RESERVED.has(slug)) return next();
 
