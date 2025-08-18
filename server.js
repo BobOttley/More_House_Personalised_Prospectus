@@ -1,3 +1,5 @@
+// server.js — full file
+
 const express = require('express');
 const cors = require('cors');
 const fs = require('fs').promises;
@@ -403,7 +405,7 @@ const updateInquiryStatus = async (inquiryId, prospectusInfo) => {
       if (inquiry.id === inquiryId) {
         inquiry.prospectusGenerated = true;
         inquiry.prospectusFilename = prospectusInfo.filename;
-        inquiry.prospectusUrl = prospectusInfo.url;
+        inquiry.prospectusUrl = prospectusInfo.url;             // relative direct file path
         inquiry.prospectusPrettyPath = prospectusInfo.prettyPath; // "/the-smith-family-72a9f3"
         inquiry.slug = prospectusInfo.slug;
         inquiry.prospectusGeneratedAt = prospectusInfo.generatedAt;
@@ -563,10 +565,11 @@ app.post('/api/track-engagement', async (req, res) => {
   }
 });
 
-// ---- Dashboard aggregate API ----
 // ---- Dashboard aggregate API (DB-first, with JSON fallback) ----
-app.get('/api/dashboard-data', async (_req, res) => {
+app.get('/api/dashboard-data', async (req, res) => {
   try {
+    const base = getBaseUrl(req);
+
     // If DB is connected, use it for all aggregates
     if (db) {
       // Summary tiles
@@ -662,9 +665,33 @@ app.get('/api/dashboard-data', async (_req, res) => {
         lastVisit: r.last_visit
       }));
 
+      // Latest prospectuses (links)
+      let latestProspectuses = [];
+      try {
+        const lp = (await db.query(`
+          SELECT id, first_name, family_surname, prospectus_filename, prospectus_url, slug, prospectus_generated_at
+          FROM inquiries
+          WHERE prospectus_generated IS TRUE
+          ORDER BY prospectus_generated_at DESC NULLS LAST
+          LIMIT 10
+        `)).rows;
+        latestProspectuses = lp.map(r => {
+          const pretty = r.slug ? `${base}/${r.slug}` : (r.prospectus_url ? `${base}${r.prospectus_url}` : null);
+          const direct = r.prospectus_url ? `${base}${r.prospectus_url}` : null;
+          return {
+            name: `${r.first_name || ''} ${r.family_surname || ''}`.trim(),
+            inquiryId: r.id,
+            generatedAt: r.prospectus_generated_at,
+            prospectusPrettyUrl: pretty,
+            prospectusDirectUrl: direct
+          };
+        });
+      } catch {}
+
       return res.json({
         summary: { readyForContact, highlyEngaged, newInquiries7d, totalFamilies },
-        topInterests, recentlyActive, priorityFamilies
+        topInterests, recentlyActive, priorityFamilies,
+        latestProspectuses
       });
     }
 
@@ -693,20 +720,40 @@ app.get('/api/dashboard-data', async (_req, res) => {
     const topInterests = Object.entries(interestCounts).filter(([, c]) => c > 0)
       .sort((a, b) => b[1] - a[1]).slice(0, 10).map(([subject, count]) => ({ subject, count }));
 
+    // Build latestProspectuses from JSON
+    const latestProspectuses = inquiries
+      .filter(i => i.prospectusGenerated || i.status === 'prospectus_generated')
+      .sort((a,b) => new Date(b.prospectusGeneratedAt || b.receivedAt) - new Date(a.prospectusGeneratedAt || a.receivedAt))
+      .slice(0, 10)
+      .map(i => {
+        const prettyPath = i.prospectusPrettyPath || (i.slug ? `/${i.slug}` : null);
+        const prettyUrl  = prettyPath ? `${base}${prettyPath}` : null;
+        const directUrl  = i.prospectusUrl ? `${base}${i.prospectusUrl}` : null;
+        return {
+          name: `${i.firstName || ''} ${i.familySurname || ''}`.trim(),
+          inquiryId: i.id,
+          generatedAt: i.prospectusGeneratedAt || null,
+          prospectusPrettyUrl: prettyUrl,
+          prospectusDirectUrl: directUrl
+        };
+      });
+
     res.json({
       summary: { readyForContact, highlyEngaged: 0, newInquiries7d, totalFamilies },
       topInterests,
       recentlyActive: [],       // not available without DB
-      priorityFamilies: []      // not available without DB
+      priorityFamilies: [],     // not available without DB
+      latestProspectuses
     });
   } catch (e) {
     res.status(500).json({ error: 'Failed to build dashboard data', message: e.message });
   }
 });
 
-// 🔥 Dashboard inquiries
-app.get('/api/analytics/inquiries', async (_req, res) => {
+// 🔥 Dashboard inquiries (now includes prospectus URLs)
+app.get('/api/analytics/inquiries', async (req, res) => {
   try {
+    const base = getBaseUrl(req);
     const files = await fs.readdir('data');
     const inquiryFiles = files.filter(file => file.startsWith('inquiry-') && file.endsWith('.json'));
 
@@ -715,6 +762,11 @@ app.get('/api/analytics/inquiries', async (_req, res) => {
       try {
         const content = await fs.readFile(path.join('data', file), 'utf8');
         const inquiry = JSON.parse(content);
+
+        const prettyPath = inquiry.prospectusPrettyPath || (inquiry.slug ? `/${inquiry.slug}` : null);
+        const prospectusPrettyUrl = prettyPath ? `${base}${prettyPath}` : null;
+        const prospectusDirectUrl = inquiry.prospectusUrl ? `${base}${inquiry.prospectusUrl}` : null;
+
         const dashboardInquiry = {
           id: inquiry.id,
           first_name: inquiry.firstName,
@@ -725,8 +777,16 @@ app.get('/api/analytics/inquiries', async (_req, res) => {
           received_at: inquiry.receivedAt,
           updated_at: inquiry.prospectusGeneratedAt || inquiry.receivedAt,
           status: inquiry.status || (inquiry.prospectusGenerated ? 'prospectus_generated' : 'received'),
+          // NEW: prospectus fields for dashboard
+          prospectus_filename: inquiry.prospectusFilename || null,
+          slug: inquiry.slug || null,
+          prospectus_generated_at: inquiry.prospectusGeneratedAt || null,
+          prospectus_pretty_path: prettyPath,
+          prospectus_pretty_url: prospectusPrettyUrl,
+          prospectus_direct_url: prospectusDirectUrl,
           engagement: null
         };
+
         if (db) {
           try {
             const result = await db.query(`
@@ -845,7 +905,7 @@ app.get('/health', (req, res) => {
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
     environment: process.env.NODE_ENV || 'development',
-    version: '3.1.0',
+    version: '3.2.0',
     features: {
       analytics: 'enabled',
       tracking: 'enabled', 
