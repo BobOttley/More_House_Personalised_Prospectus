@@ -812,17 +812,17 @@
                 console.log('👨‍👩‍👧‍👦 Families data received:', familiesData.length, 'families');
                 
                 // Process data using the actual database metrics
-                this.dashboardData.families = processFamilyDataWithRealMetrics(familiesData);
-                this.dashboardData.activities = generateActivityFeed(dashboardData.recentlyActive || []);
-                this.dashboardData.metrics = {
+                dashboardData.families = processFamilyDataWithRealMetrics(familiesData);
+                dashboardData.activities = generateActivityFeed(dashboardData.recentlyActive || []);
+                dashboardData.metrics = {
                     hotLeads: dashboardData.summary?.hotLeads || 0,
                     warmLeads: dashboardData.summary?.warmLeads || 0,
                     avgEngagement: dashboardData.summary?.avgEngagement || 0,
                     totalFamilies: dashboardData.summary?.totalFamilies || familiesData.length
                 };
                 
-                console.log('📈 Processed metrics:', this.dashboardData.metrics);
-                console.log('🔍 Processed families with engagement:', this.dashboardData.families.filter(f => f.engagement).length);
+                console.log('📈 Processed metrics:', dashboardData.metrics);
+                console.log('🔍 Processed families with engagement:', dashboardData.families.filter(f => f.engagement).length);
                 
                 // Update UI
                 updateMetrics();
