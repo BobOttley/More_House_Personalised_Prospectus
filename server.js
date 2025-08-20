@@ -1123,31 +1123,31 @@ app.get('/api/analytics/inquiries', async (req, res) => {
         } catch (engagementError) {
           console.warn(`⚠️ Failed to get engagement for ${j.id}:`, engagementError.message);
         }
-        
-        out.push(rec);
-        console.log(`📝 Added inquiry record for ${j.firstName} ${j.familySurname}`);
-      } catch (fileError) {
-        console.error(`❌ Error processing file ${f}:`, fileError.message);
       }
+      
+      out.push(rec);
+      console.log(`📝 Added inquiry record for ${j.firstName} ${j.familySurname}`);
+    } catch (fileError) {
+      console.error(`❌ Error processing file ${f}:`, fileError.message);
     }
-    
-    // Sort by engagement score (calculated) then by received date
-    out.sort((a, b) => {
-      const aScore = calculateEngagementScore(a.engagement);
-      const bScore = calculateEngagementScore(b.engagement);
-      if (aScore !== bScore) return bScore - aScore;
-      return new Date(b.received_at) - new Date(a.received_at);
-    });
-    
-    console.log(`✅ Returning ${out.length} inquiries with engagement data`);
-    console.log(`📊 Families with engagement: ${out.filter(f => f.engagement).length}`);
-    
-    res.json(out);
-  } catch (e) {
-    console.error('❌ Analytics inquiries error:', e);
-    res.status(500).json({ error: 'Failed to get inquiries' });
   }
-});
+  
+  // Sort by engagement score (calculated) then by received date
+  out.sort((a, b) => {
+    const aScore = calculateEngagementScore(a.engagement);
+    const bScore = calculateEngagementScore(b.engagement);
+    if (aScore !== bScore) return bScore - aScore;
+    return new Date(b.received_at) - new Date(a.received_at);
+  });
+  
+  console.log(`✅ Returning ${out.length} inquiries with engagement data`);
+  console.log(`📊 Families with engagement: ${out.filter(f => f.engagement).length}`);
+  
+  res.json(out);
+} catch (e) {
+  console.error('❌ Analytics inquiries error:', e);
+  res.status(500).json({ error: 'Failed to get inquiries' });
+}
 
 // ────────────────────────────────────────────────────────────────────────────────
 // AI ANALYSIS ENDPOINTS
