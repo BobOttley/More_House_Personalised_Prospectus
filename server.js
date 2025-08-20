@@ -1030,36 +1030,134 @@ app.get('/api/dashboard-data', async (req, res) => {
   }
 });
 
-// ────────────────────────────────────────────────────────────────────────────────
-// Enhanced /api/analytics/inquiries endpoint with better engagement integration
-// ────────────────────────────────────────────────────────────────────────────────
+
+// Replace your existing /api/analytics/inquiries endpoint with this fixed version:
+
 app.get('/api/analytics/inquiries', async (req, res) => {
   try {
     console.log('📋 Analytics inquiries request received...');
     const base = getBaseUrl(req);
     
-    // Check if data directory exists
+    // TRY DATABASE FIRST (where your 36 families actually live!)
+    if (db) {
+      console.log('🗄️ Using database for inquiries data...');
+      
+      try {
+        // Get all inquiries from database
+        const inquiriesResult = await db.query(`
+          SELECT 
+            id, first_name, family_surname, parent_email, entry_year, age_group,
+            received_at, updated_at, status, prospectus_filename, prospectus_url, slug,
+            prospectus_generated_at, prospectus_generated,
+            sciences, mathematics, english, languages, humanities, business,
+            drama, music, art, creative_writing, sport, leadership, 
+            community_service, outdoor_education
+          FROM inquiries 
+          ORDER BY received_at DESC
+        `);
+        
+        console.log(`📊 Found ${inquiriesResult.rows.length} inquiries in database`);
+        
+        const out = [];
+        
+        for (const inquiry of inquiriesResult.rows) {
+          // Build pretty path
+          const prettyPath = inquiry.slug ? `/${inquiry.slug}` : null;
+          
+          const rec = {
+            id: inquiry.id,
+            first_name: inquiry.first_name,
+            family_surname: inquiry.family_surname,
+            parent_email: inquiry.parent_email,
+            entry_year: inquiry.entry_year,
+            age_group: inquiry.age_group,
+            received_at: inquiry.received_at,
+            updated_at: inquiry.updated_at,
+            status: inquiry.status,
+            prospectus_filename: inquiry.prospectus_filename,
+            slug: inquiry.slug,
+            prospectus_generated_at: inquiry.prospectus_generated_at,
+            prospectus_pretty_path: prettyPath,
+            prospectus_pretty_url: prettyPath ? `${base}${prettyPath}` : null,
+            prospectus_direct_url: inquiry.prospectus_url ? `${base}${inquiry.prospectus_url}` : null,
+            engagement: null,
+            // Include interest fields
+            sciences: inquiry.sciences,
+            mathematics: inquiry.mathematics,
+            english: inquiry.english,
+            languages: inquiry.languages,
+            humanities: inquiry.humanities,
+            business: inquiry.business,
+            drama: inquiry.drama,
+            music: inquiry.music,
+            art: inquiry.art,
+            sport: inquiry.sport,
+            leadership: inquiry.leadership,
+            community_service: inquiry.community_service,
+            outdoor_education: inquiry.outdoor_education
+          };
+
+          // Get engagement data for this inquiry
+          try {
+            const engagementResult = await db.query(`
+              SELECT time_on_page, scroll_depth, clicks_on_links, total_visits, last_visit
+              FROM engagement_metrics
+              WHERE inquiry_id = $1
+              ORDER BY last_visit DESC
+              LIMIT 1
+            `, [inquiry.id]);
+            
+            if (engagementResult.rows.length) {
+              const em = engagementResult.rows[0];
+              rec.engagement = {
+                timeOnPage: em.time_on_page || 0,
+                scrollDepth: em.scroll_depth || 0,
+                clickCount: em.clicks_on_links || 0,
+                totalVisits: em.total_visits || 0,
+                lastVisit: em.last_visit
+              };
+            }
+          } catch (engagementError) {
+            console.warn(`⚠️ Failed to get engagement for ${inquiry.id}:`, engagementError.message);
+          }
+          
+          out.push(rec);
+        }
+        
+        // Sort by engagement score then by received date
+        out.sort((a, b) => {
+          const aScore = calculateEngagementScore(a.engagement);
+          const bScore = calculateEngagementScore(b.engagement);
+          if (aScore !== bScore) return bScore - aScore;
+          return new Date(b.received_at) - new Date(a.received_at);
+        });
+        
+        console.log(`✅ Returning ${out.length} inquiries from database`);
+        console.log(`📊 Families with engagement: ${out.filter(f => f.engagement).length}`);
+        
+        return res.json(out);
+        
+      } catch (dbError) {
+        console.error('❌ Database query failed:', dbError.message);
+        console.log('📁 Falling back to JSON files...');
+      }
+    }
+    
+    // JSON FALLBACK (only if database fails)
+    console.log('📁 Using JSON fallback for inquiries...');
     const dataDir = path.join(__dirname, 'data');
-    console.log(`📁 Checking data directory: ${dataDir}`);
-    
-    const files = await fs.readdir(dataDir).catch(err => {
-      console.error(`❌ Error reading data directory: ${err.message}`);
-      return [];
-    });
-    
-    console.log(`📄 Found ${files.length} files in data directory`);
+    const files = await fs.readdir(dataDir).catch(() => []);
     const jsonFiles = files.filter(x => x.startsWith('inquiry-') && x.endsWith('.json'));
-    console.log(`📋 Found ${jsonFiles.length} inquiry JSON files: ${jsonFiles.slice(0, 3).join(', ')}${jsonFiles.length > 3 ? '...' : ''}`);
+    
+    console.log(`📋 Found ${jsonFiles.length} inquiry JSON files`);
     
     const out = [];
     
     for (const f of jsonFiles) {
       try {
-        console.log(`📖 Reading file: ${f}`);
         const filePath = path.join(dataDir, f);
         const fileContent = await fs.readFile(filePath, 'utf8');
         const j = JSON.parse(fileContent);
-        console.log(`✅ Parsed inquiry: ${j.firstName} ${j.familySurname} (ID: ${j.id})`);
         
         const prettyPath = j.prospectusPrettyPath || (j.slug ? `/${j.slug}` : null);
       
@@ -1080,7 +1178,7 @@ app.get('/api/analytics/inquiries', async (req, res) => {
           prospectus_pretty_url: prettyPath ? `${base}${prettyPath}` : null,
           prospectus_direct_url: j.prospectusUrl ? `${base}${j.prospectusUrl}` : null,
           engagement: null,
-          // Include interest fields for better processing
+          // Include interest fields
           sciences: j.sciences,
           mathematics: j.mathematics,
           english: j.english,
@@ -1095,55 +1193,16 @@ app.get('/api/analytics/inquiries', async (req, res) => {
           community_service: j.community_service,
           outdoor_education: j.outdoor_education
         };
-
-        // Get engagement data from database if available
-        if (db) {
-          try {
-            const r = await db.query(`
-              SELECT time_on_page, scroll_depth, clicks_on_links, total_visits, last_visit
-              FROM engagement_metrics
-              WHERE inquiry_id = $1
-              ORDER BY last_visit DESC
-              LIMIT 1
-            `, [j.id]);
-            
-            if (r.rows.length) {
-              const em = r.rows[0];
-              rec.engagement = {
-                timeOnPage: em.time_on_page || 0,
-                scrollDepth: em.scroll_depth || 0,
-                clickCount: em.clicks_on_links || 0,
-                totalVisits: em.total_visits || 0,
-                lastVisit: em.last_visit
-              };
-              console.log(`📊 Found engagement data for ${j.firstName} ${j.familySurname}:`, rec.engagement);
-            } else {
-              console.log(`📭 No engagement data found for ${j.firstName} ${j.familySurname}`);
-            }
-          } catch (engagementError) {
-            console.warn(`⚠️ Failed to get engagement for ${j.id}:`, engagementError.message);
-          }
-        }
         
         out.push(rec);
-        console.log(`📝 Added inquiry record for ${j.firstName} ${j.familySurname}`);
       } catch (fileError) {
         console.error(`❌ Error processing file ${f}:`, fileError.message);
       }
     }
     
-    // Sort by engagement score (calculated) then by received date
-    out.sort((a, b) => {
-      const aScore = calculateEngagementScore(a.engagement);
-      const bScore = calculateEngagementScore(b.engagement);
-      if (aScore !== bScore) return bScore - aScore;
-      return new Date(b.received_at) - new Date(a.received_at);
-    });
-    
-    console.log(`✅ Returning ${out.length} inquiries with engagement data`);
-    console.log(`📊 Families with engagement: ${out.filter(f => f.engagement).length}`);
-    
+    console.log(`✅ Returning ${out.length} inquiries from JSON files`);
     res.json(out);
+    
   } catch (e) {
     console.error('❌ Analytics inquiries error:', e);
     res.status(500).json({ error: 'Failed to get inquiries' });
