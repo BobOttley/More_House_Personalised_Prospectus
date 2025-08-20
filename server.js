@@ -133,6 +133,7 @@ app.use((req, _res, next) => { console.log(req.method, req.url); next(); });
 
 app.use(express.static(path.join(__dirname, 'public')));
 
+// FIXED: generateProspectus function with proper JSON escaping
 async function generateProspectus(inquiry) {
   console.log(`Generating prospectus for ${inquiry.firstName} ${inquiry.familySurname}`);
   const templatePath = path.join(__dirname, 'public', 'prospectus_template.html');
@@ -157,19 +158,13 @@ async function generateProspectus(inquiry) {
     const title = `${inquiry.firstName} ${inquiry.familySurname} - More House School Prospectus ${inquiry.entryYear}`;
     html = html.replace(/<title>.*?<\/title>/, `<title>${title}</title>`);
 
-    // FIXED: Properly escape the JSON data to prevent JavaScript syntax errors
-    const escapedInquiryData = JSON.stringify(inquiry)
-      .replace(/\\/g, '\\\\')
-      .replace(/'/g, "\\'")
-      .replace(/"/g, '\\"')
-      .replace(/\n/g, '\\n')
-      .replace(/\r/g, '\\r')
-      .replace(/\t/g, '\\t');
-
+    // FIXED: Properly escape JSON data for JavaScript injection
+    // Instead of complex string escaping, use JSON.stringify and proper script structure
     const personalizeBoot = `<script>
 document.addEventListener('DOMContentLoaded', function(){
   try {
-    const userData = JSON.parse('${escapedInquiryData}');
+    // FIXED: Pass data as a proper JavaScript object instead of string manipulation
+    const userData = ${JSON.stringify(inquiry)};
     console.log('Initializing prospectus with data:', userData);
     if (typeof initializeProspectus === 'function') {
       initializeProspectus(userData);
@@ -178,7 +173,7 @@ document.addEventListener('DOMContentLoaded', function(){
       console.error('initializeProspectus function not found');
     }
   } catch (error) {
-    console.error('Failed to parse inquiry data:', error);
+    console.error('Failed to initialize prospectus:', error);
   }
 });
 </script>`;
@@ -205,6 +200,7 @@ console.log('Inquiry ID set for tracking:', window.MORE_HOUSE_INQUIRY_ID);
     slugIndex[slug] = relPath;
     await saveSlugIndex();
 
+    // Verify the file was written correctly
     const savedContent = await fs.readFile(absPath, 'utf8');
     const hasTrackingJs = savedContent.includes('<script src="/tracking.js"></script>');
     const hasInquiryId = savedContent.includes(`window.MORE_HOUSE_INQUIRY_ID='${inquiry.id}'`);
@@ -232,6 +228,7 @@ console.log('Inquiry ID set for tracking:', window.MORE_HOUSE_INQUIRY_ID);
     throw new Error(`prospectus_template.html error: ${e.message}`);
   }
 }
+
 
 async function updateInquiryStatus(inquiryId, pInfo) {
   const files = await fs.readdir(path.join(__dirname, 'data'));
