@@ -860,6 +860,18 @@
                     // Extract interests from form data
                     const interests = extractInterestsFromFamily(family);
                     
+                    // DEBUG: Log all URL-related fields for each family
+                    console.log(`🔍 URL DEBUG for ${family.first_name} ${family.family_surname}:`, {
+                        prospectus_pretty_url: family.prospectus_pretty_url,
+                        prospectus_direct_url: family.prospectus_direct_url,
+                        prospectus_pretty_path: family.prospectus_pretty_path,
+                        slug: family.slug,
+                        prospectus_filename: family.prospectus_filename,
+                        prospectus_url: family.prospectus_url,
+                        status: family.status,
+                        prospectus_generated_at: family.prospectus_generated_at
+                    });
+                    
                     const processedFamily = {
                         ...family,
                         engagementScore: score,
@@ -1081,14 +1093,27 @@
                                     </div>
                                     <div class="detail-item">
                                         <h4>Prospectus Access</h4>
-                                        ${family.prospectus_pretty_url ? 
-                                            `<p><a href="${family.prospectus_pretty_url}" target="_blank" style="color: var(--sport-blue); text-decoration: none; font-weight: 600;">🔗 View Personalized Prospectus</a></p>` : 
-                                            family.slug ? 
-                                                `<p><a href="/${family.slug}" target="_blank" style="color: var(--sport-blue); text-decoration: none; font-weight: 600;">🔗 View Personalized Prospectus</a></p>` :
-                                                family.prospectus_direct_url ? 
-                                                    `<p><a href="${family.prospectus_direct_url}" target="_blank" style="color: var(--sport-blue); text-decoration: none; font-weight: 600;">🔗 View Prospectus (Direct)</a></p>` :
-                                                    `<p style="color: #999;">Prospectus not generated yet</p><button onclick="generateProspectusFor('${family.id}')" style="margin-top:8px;padding:4px 8px;background:var(--award-gold);color:white;border:none;border-radius:4px;cursor:pointer;font-size:0.8rem;">📄 Generate Now</button>`
-                                        }
+                                        ${(() => {
+                                            console.log(`🔗 Building prospectus link for ${family.first_name}:`, {
+                                                pretty_url: family.prospectus_pretty_url,
+                                                slug: family.slug,
+                                                direct_url: family.prospectus_direct_url,
+                                                filename: family.prospectus_filename,
+                                                status: family.status
+                                            });
+                                            
+                                            if (family.prospectus_pretty_url) {
+                                                return `<p><a href="${family.prospectus_pretty_url}" target="_blank" style="color: var(--sport-blue); text-decoration: none; font-weight: 600;">🔗 View Personalized Prospectus</a></p>`;
+                                            } else if (family.slug) {
+                                                return `<p><a href="/${family.slug}" target="_blank" style="color: var(--sport-blue); text-decoration: none; font-weight: 600;">🔗 View Personalized Prospectus</a></p>`;
+                                            } else if (family.prospectus_direct_url) {
+                                                return `<p><a href="${family.prospectus_direct_url}" target="_blank" style="color: var(--sport-blue); text-decoration: none; font-weight: 600;">🔗 View Prospectus (Direct)</a></p>`;
+                                            } else if (family.prospectus_filename) {
+                                                return `<p><a href="/prospectuses/${family.prospectus_filename}" target="_blank" style="color: var(--sport-blue); text-decoration: none; font-weight: 600;">🔗 View Prospectus (File)</a></p>`;
+                                            } else {
+                                                return `<p style="color: #999;">Prospectus not generated yet</p><button onclick="generateProspectusFor('${family.id}')" style="margin-top:8px;padding:4px 8px;background:var(--award-gold);color:white;border:none;border-radius:4px;cursor:pointer;font-size:0.8rem;">📄 Generate Now</button>`;
+                                            }
+                                        })()}
                                         <p style="font-size: 0.75rem; color: #999; margin-top: 0.25rem;">Opens in new tab</p>
                                     </div>
                                     <div class="detail-item">
