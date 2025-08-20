@@ -1131,17 +1131,19 @@
             }
             
             container.innerHTML = families.map(family => {
-                const engagement = family.engagement;
+                const engagement = family.engagement || {};
                 const totalTimeMinutes = Math.round((engagement.timeOnPage || engagement.time_on_page || 0) / 60);
                 const visits = engagement.totalVisits || engagement.total_visits || 1;
                 const scrollDepth = engagement.scrollDepth || engagement.scroll_depth || 0;
                 const clicks = engagement.clickCount || engagement.clicks_on_links || engagement.click_count || 0;
-                    <div class="family-card" data-id="${family.inquiry_id}">
-                        <div class="family-card-header" onclick="toggleFamilyCard('${family.inquiry_id}')">
+                
+                return `
+                    <div class="family-card" data-id="${family.inquiry_id || family.id}">
+                        <div class="family-card-header" onclick="toggleFamilyCard('${family.inquiry_id || family.id}')">
                             <div class="family-info">
                                 <div class="family-name">
                                     <div class="status-indicator ${family.isOnline ? 'online' : 'offline'}"></div>
-                                    ${family.first_name} ${family.family_surname} Family
+                                    ${family.firstName || family.first_name} ${family.familySurname || family.family_surname} Family
                                 </div>
                                 <div class="family-meta">
                                     <span>Entry ${family.entryYear || family.entry_year || 'Unknown'}</span>
@@ -1175,7 +1177,7 @@
                                     <div class="detail-item">
                                         <h4>Real Interests</h4>
                                         <div class="interests-tags">
-                                            ${family.interests.length > 0 ? 
+                                            ${family.interests && family.interests.length > 0 ? 
                                                 family.interests.map(interest => `<span class="interest-tag">${interest}</span>`).join('') :
                                                 '<span class="interest-tag">No interests selected</span>'
                                             }
