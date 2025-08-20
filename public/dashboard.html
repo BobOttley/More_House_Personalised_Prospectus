@@ -759,6 +759,7 @@
         </div>
     </main>
 
+    
     <script>
         // Dashboard State
         let dashboardData = {
@@ -817,14 +818,13 @@
                 console.log('✅ Raw inquiries data:', Array.isArray(inquiriesData) ? inquiriesData.length : 'object', 'families');
                 
                 // FIXED: Use dashboard-data endpoint for tracking activities since /api/analytics/tracking doesn't exist
-                let dashboardDataResponse;
+                let dashboardApiData = { recentlyActive: [] };
                 try {
-                    dashboardDataResponse = await fetch('/api/dashboard-data');
-                    const dashboardApiData = await dashboardDataResponse.json();
+                    const dashboardDataResponse = await fetch('/api/dashboard-data');
+                    dashboardApiData = await dashboardDataResponse.json();
                     console.log('✅ Dashboard API data received:', dashboardApiData);
                 } catch (e) {
                     console.warn('⚠️ Dashboard API failed, proceeding with inquiries only');
-                    dashboardApiData = { recentlyActive: [] };
                 }
                 
                 // FIXED: Handle both array and object responses from your server
