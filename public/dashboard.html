@@ -182,11 +182,11 @@ document.addEventListener('DOMContentLoaded', function(){
 
     // STEP 4: CRITICAL FIX - Create proper tracking script injection
     const trackingInject = `<!-- More House Analytics Tracking -->
-<script>
-window.MORE_HOUSE_INQUIRY_ID='${inquiry.id}';
-console.log('📊 Inquiry ID set for tracking:', window.MORE_HOUSE_INQUIRY_ID);
-</script>
-<script src="/tracking.js"></script>`;
+    const trackingScript = `<script>
+        window.MORE_HOUSE_INQUIRY_ID='${inquiry.id}';
+        console.log('📊 Inquiry ID set for tracking:', window.MORE_HOUSE_INQUIRY_ID);
+        </script>
+        <script src="/tracking.js"></script>`;
 
     // STEP 5: Find and inject BOTH scripts before </body>
     const bodyCloseIndex = html.lastIndexOf('</body>');
@@ -209,7 +209,7 @@ console.log('📊 Inquiry ID set for tracking:', window.MORE_HOUSE_INQUIRY_ID);
     // STEP 8: Verify the injection worked
     const savedContent = await fs.readFile(absPath, 'utf8');
     const hasTrackingJs = savedContent.includes('<script src="/tracking.js"></script>');
-    const hasInquiryId = savedContent.includes(`window.MORE_HOUSE_INQUIRY_ID='${inquiry.id}'`);
+    console.log('📊 Inquiry ID set for tracking:', inquiry.id);
     const hasPersonalization = savedContent.includes('initializeProspectus');
 
     console.log(`📄 Prospectus saved: ${filename}`);
