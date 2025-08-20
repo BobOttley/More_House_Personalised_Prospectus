@@ -1545,6 +1545,42 @@ app.get('/:slug', async (req, res, next) => {
   }
 });
 
+// Add this debug endpoint to your server.js
+app.get('/admin/debug-database', async (req, res) => {
+  try {
+    if (!db) {
+      return res.json({ error: 'Database not connected' });
+    }
+    
+    // Check what columns exist
+    const columns = await db.query(`
+      SELECT column_name, data_type 
+      FROM information_schema.columns 
+      WHERE table_name = 'inquiries'
+      ORDER BY column_name
+    `);
+    
+    // Get sample inquiry data
+    const sample = await db.query(`
+      SELECT id, first_name, family_surname, slug, prospectus_url, 
+             prospectus_filename, prospectus_generated, status
+      FROM inquiries 
+      LIMIT 5
+    `);
+    
+    // Count total inquiries
+    const [{ count }] = (await db.query(`SELECT COUNT(*) as count FROM inquiries`)).rows;
+    
+    res.json({
+      totalInquiries: count,
+      columns: columns.rows.map(r => ({ name: r.column_name, type: r.data_type })),
+      sampleData: sample.rows
+    });
+    
+  } catch (error) {
+    res.json({ error: error.message });
+  }
+});
 // 404
 app.use((req, res) => {
   res.status(404).json({ success:false, error:'Not found', message:`Route ${req.method} ${req.path} not found` });
