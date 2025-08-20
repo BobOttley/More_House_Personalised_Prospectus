@@ -12,9 +12,9 @@ const app = express();
 app.set('trust proxy', true);
 const PORT = process.env.PORT || 3000;
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
 // Helpers: base URL + CORS
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
 function getBaseUrl(req) {
   if (process.env.PUBLIC_BASE_URL) return process.env.PUBLIC_BASE_URL.replace(/\/+$/, '');
   const proto = req.headers['x-forwarded-proto'] || req.protocol || 'https';
@@ -44,9 +44,9 @@ app.use((req, _res, next) => { console.log('→', req.method, req.url); next(); 
 // Static public (dashboard.html, tracking.js, etc.)
 app.use(express.static(path.join(__dirname, 'public')));
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
 // Database Connection
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
 let db = null;
 async function initializeDatabase() {
   const haveUrl   = !!process.env.DATABASE_URL;
@@ -77,9 +77,9 @@ async function initializeDatabase() {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
 // File Management Functions
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
 let slugIndex = {}; // { [slug]: '/prospectuses/file.html' }
 
 async function ensureDirectories() {
@@ -219,16 +219,16 @@ async function rebuildSlugIndexFromData() {
       } catch {}
     }
     if (added) await saveSlugIndex();
-    console.log(`🔁 Rebuilt slug index (added ${added})`);
+    console.log(`🔨 Rebuilt slug index (added ${added})`);
   } catch (e) {
     console.warn('⚠️ rebuildSlugIndexFromData error:', e.message);
   }
   return added;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
 // Prospectus Generation
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
 async function generateProspectus(inquiry) {
   console.log(`🎨 Generating prospectus for ${inquiry.firstName} ${inquiry.familySurname}`);
   const templatePath = path.join(__dirname, 'public', 'prospectus_template.html');
@@ -325,9 +325,9 @@ async function updateInquiryStatus(inquiryId, pInfo) {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
 // Tracking Functions (UNIFIED - NO CONFLICTS)
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
 async function trackEngagementEvent(ev) {
   if (!db) return null;
   try {
@@ -383,35 +383,92 @@ async function updateEngagementMetrics(m) {
     return null;
   }
 }
-// Dashboard metrics calculation
+
+// Helper function to calculate engagement score consistently
+function calculateEngagementScore(engagement) {
+  if (!engagement) return 0;
+  
+  let score = 0;
+  
+  // Time spent (40% weight)
+  const timeMinutes = (engagement.timeOnPage || 0) / 60;
+  if (timeMinutes >= 30) score += 40;
+  else if (timeMinutes >= 15) score += 30;
+  else if (timeMinutes >= 5) score += 20;
+  else score += Math.min(timeMinutes * 4, 15);
+  
+  // Content depth (30% weight)
+  const scrollDepth = engagement.scrollDepth || 0;
+  score += Math.min(scrollDepth * 0.3, 30);
+  
+  // Return visits (20% weight)
+  const visits = engagement.totalVisits || 1;
+  if (visits >= 7) score += 20;
+  else if (visits >= 4) score += 15;
+  else if (visits >= 2) score += 10;
+  else score += 5;
+  
+  // Interaction quality (10% weight)
+  const clicks = engagement.clickCount || 0;
+  score += Math.min(clicks * 2, 10);
+  
+  return Math.min(Math.round(score), 100);
+}
+
+// Fixed getDashboardMetrics function to properly calculate from engagement_metrics table
 async function getDashboardMetrics() {
   try {
     if (db) {
-      // Database version
+      // Database version - get real engagement data from your existing tables
+      console.log('📊 Calculating dashboard metrics from database...');
+      
       const [{ c: totalFamilies }] = (await db.query(`SELECT COUNT(*)::int AS c FROM inquiries`)).rows;
+      console.log(`👨‍👩‍👧‍👦 Total families: ${totalFamilies}`);
+      
+      // Hot leads: families with high engagement (>10 minutes + >80% scroll OR multiple visits with good engagement)
       const [{ c: hotLeads }] = (await db.query(`
-        SELECT COUNT(*)::int AS c 
+        SELECT COUNT(DISTINCT inquiry_id)::int AS c 
         FROM engagement_metrics 
-        WHERE time_on_page > 600 AND scroll_depth > 80
+        WHERE (time_on_page > 600 AND scroll_depth > 80) 
+           OR (total_visits >= 3 AND time_on_page > 300 AND scroll_depth > 60)
       `)).rows;
+      console.log(`🔥 Hot leads: ${hotLeads}`);
+      
+      // Warm leads: families with moderate engagement (>5 minutes + >50% scroll)
+      // Exclude those already counted as hot leads
       const [{ c: warmLeads }] = (await db.query(`
-        SELECT COUNT(*)::int AS c 
+        SELECT COUNT(DISTINCT inquiry_id)::int AS c 
         FROM engagement_metrics 
-        WHERE time_on_page > 300 AND scroll_depth > 50
+        WHERE (time_on_page > 300 AND scroll_depth > 50)
+        AND inquiry_id NOT IN (
+          SELECT DISTINCT inquiry_id FROM engagement_metrics 
+          WHERE (time_on_page > 600 AND scroll_depth > 80) 
+             OR (total_visits >= 3 AND time_on_page > 300 AND scroll_depth > 60)
+        )
       `)).rows;
+      console.log(`🌟 Warm leads: ${warmLeads}`);
+      
+      // Average engagement time in minutes
       const [{ avg_time }] = (await db.query(`
         SELECT AVG(time_on_page) as avg_time 
         FROM engagement_metrics
+        WHERE time_on_page > 0
       `)).rows;
+      const avgEngagement = Math.round((avg_time || 0) / 60);
+      console.log(`📊 Average engagement: ${avgEngagement} minutes`);
 
-      return {
+      const metrics = {
         hotLeads,
         warmLeads,
         totalFamilies,
-        avgEngagement: Math.round((avg_time || 0) / 60) // Convert to minutes
+        avgEngagement
       };
+      
+      console.log('✅ Dashboard metrics calculated:', metrics);
+      return metrics;
     } else {
       // JSON fallback
+      console.log('📁 Using JSON fallback for metrics...');
       const files = await fs.readdir(path.join(__dirname, 'data'));
       const totalFamilies = files.filter(x => x.startsWith('inquiry-') && x.endsWith('.json')).length;
       
@@ -423,13 +480,14 @@ async function getDashboardMetrics() {
       };
     }
   } catch (error) {
-    console.error('Error getting dashboard metrics:', error);
+    console.error('❌ Error getting dashboard metrics:', error);
     return { hotLeads: 0, warmLeads: 0, totalFamilies: 0, avgEngagement: 0 };
   }
 }
-// ─────────────────────────────────────────────────────────────────────────────
+
+// ────────────────────────────────────────────────────────────────────────────────
 // AI Analysis Functions
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
 function extractInterests(inquiry) {
   const academic = [];
   const creative = [];
@@ -563,9 +621,9 @@ Respond ONLY with valid JSON in this format:
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
 // Preflight
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
 app.options('*', (req, res) => {
   res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
@@ -574,9 +632,9 @@ app.options('*', (req, res) => {
   res.sendStatus(200);
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
 // Main Routes
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
 
 // Webhook: create inquiry + generate prospectus
 app.post(['/webhook', '/api/inquiry'], async (req, res) => {
@@ -692,9 +750,9 @@ app.post('/api/generate-prospectus/:inquiryId', async (req, res) => {
   }
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
 // TRACKING ENDPOINT (UNIFIED - NO CONFLICTS)
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
 app.post('/api/track-engagement', async (req, res) => {
   try {
     const { events = [], sessionInfo } = req.body || {};
@@ -743,95 +801,248 @@ app.post('/api/track-engagement', async (req, res) => {
     res.status(500).json({ success: false, error: e.message });
   }
 });
-// Add this function before the /api/dashboard-data endpoint
-async function getDashboardMetrics() {
-  try {
-    if (db) {
-      // Database version - get real engagement data
-      const [{ c: totalFamilies }] = (await db.query(`SELECT COUNT(*)::int AS c FROM inquiries`)).rows;
-      
-      // Hot leads: families with high engagement (>10 minutes + >80% scroll)
-      const [{ c: hotLeads }] = (await db.query(`
-        SELECT COUNT(DISTINCT inquiry_id)::int AS c 
-        FROM engagement_metrics 
-        WHERE time_on_page > 600 AND scroll_depth > 80
-      `)).rows;
-      
-      // Warm leads: families with moderate engagement (>5 minutes + >50% scroll)
-      const [{ c: warmLeads }] = (await db.query(`
-        SELECT COUNT(DISTINCT inquiry_id)::int AS c 
-        FROM engagement_metrics 
-        WHERE time_on_page > 300 AND scroll_depth > 50 
-        AND inquiry_id NOT IN (
-          SELECT DISTINCT inquiry_id FROM engagement_metrics 
-          WHERE time_on_page > 600 AND scroll_depth > 80
-        )
-      `)).rows;
-      
-      // Average engagement time in minutes
-      const [{ avg_time }] = (await db.query(`
-        SELECT AVG(time_on_page) as avg_time 
-        FROM engagement_metrics
-      `)).rows;
 
-      return {
-        hotLeads,
-        warmLeads,
-        totalFamilies,
-        avgEngagement: Math.round((avg_time || 0) / 60) // Convert to minutes
-      };
-    } else {
-      // JSON fallback
-      const files = await fs.readdir(path.join(__dirname, 'data'));
-      const totalFamilies = files.filter(x => x.startsWith('inquiry-') && x.endsWith('.json')).length;
+// ────────────────────────────────────────────────────────────────────────────────
+// Enhanced /api/dashboard-data endpoint with proper database integration
+// ────────────────────────────────────────────────────────────────────────────────
+app.get('/api/dashboard-data', async (req, res) => {
+  try {
+    console.log('🔄 Dashboard data request received...');
+    const base = getBaseUrl(req);
+
+    if (db) {
+      console.log('🗄️ Using database for dashboard data...');
       
-      return {
+      // Get basic counts
+      const [{ c: totalFamilies }] = (await db.query(`SELECT COUNT(*)::int AS c FROM inquiries`)).rows;
+      const [{ c: newInquiries7d }] = (await db.query(`
+        SELECT COUNT(*)::int AS c
+        FROM inquiries
+        WHERE COALESCE(received_at, created_at) >= NOW() - INTERVAL '7 days'
+      `)).rows;
+      const [{ c: readyForContact }] = (await db.query(`
+        SELECT COUNT(*)::int AS c
+        FROM inquiries
+        WHERE status='prospectus_generated' OR prospectus_generated IS TRUE
+      `)).rows;
+      
+      // Calculate proper engagement metrics
+      const metrics = await getDashboardMetrics();
+      
+      // Get interest analysis
+      const interestRow = (await db.query(`
+        SELECT
+          SUM(CASE WHEN sciences THEN 1 ELSE 0 END)::int AS sciences,
+          SUM(CASE WHEN mathematics THEN 1 ELSE 0 END)::int AS mathematics,
+          SUM(CASE WHEN english THEN 1 ELSE 0 END)::int AS english,
+          SUM(CASE WHEN languages THEN 1 ELSE 0 END)::int AS languages,
+          SUM(CASE WHEN humanities THEN 1 ELSE 0 END)::int AS humanities,
+          SUM(CASE WHEN business THEN 1 ELSE 0 END)::int AS business,
+          SUM(CASE WHEN drama THEN 1 ELSE 0 END)::int AS drama,
+          SUM(CASE WHEN music THEN 1 ELSE 0 END)::int AS music,
+          SUM(CASE WHEN art THEN 1 ELSE 0 END)::int AS art,
+          SUM(CASE WHEN creative_writing THEN 1 ELSE 0 END)::int AS creative_writing,
+          SUM(CASE WHEN sport THEN 1 ELSE 0 END)::int AS sport,
+          SUM(CASE WHEN leadership THEN 1 ELSE 0 END)::int AS leadership,
+          SUM(CASE WHEN community_service THEN 1 ELSE 0 END)::int AS community_service,
+          SUM(CASE WHEN outdoor_education THEN 1 ELSE 0 END)::int AS outdoor_education,
+          SUM(CASE WHEN academic_excellence THEN 1 ELSE 0 END)::int AS academic_excellence,
+          SUM(CASE WHEN pastoral_care THEN 1 ELSE 0 END)::int AS pastoral_care,
+          SUM(CASE WHEN university_preparation THEN 1 ELSE 0 END)::int AS university_preparation,
+          SUM(CASE WHEN personal_development THEN 1 ELSE 0 END)::int AS personal_development,
+          SUM(CASE WHEN career_guidance THEN 1 ELSE 0 END)::int AS career_guidance,
+          SUM(CASE WHEN extracurricular_opportunities THEN 1 ELSE 0 END)::int AS extracurricular_opportunities
+        FROM inquiries
+      `)).rows[0];
+
+      const topInterests = Object.entries(interestRow || {}).map(([subject, count]) => ({
+        subject, count: Number(count||0)
+      })).filter(x => x.count>0).sort((a,b)=>b.count-a.count).slice(0,10);
+
+      // Get recent activity from tracking_events
+      const recentlyActive = (await db.query(`
+        SELECT DISTINCT ON (te.inquiry_id) 
+               te.inquiry_id, 
+               te.event_type, 
+               te."timestamp",
+               COALESCE(i.first_name,'') AS first_name,
+               COALESCE(i.family_surname,'') AS family_surname
+        FROM tracking_events te
+        JOIN inquiries i ON i.id = te.inquiry_id
+        WHERE te.event_type <> 'heartbeat' 
+          AND te."timestamp" >= NOW() - INTERVAL '24 hours'
+        ORDER BY te.inquiry_id, te."timestamp" DESC
+        LIMIT 10
+      `)).rows.map(r => ({
+        name: `${r.first_name} ${r.family_surname}`.trim(),
+        inquiryId: r.inquiry_id,
+        activity: r.event_type,
+        when: r.timestamp
+      }));
+
+      // Get priority families based on actual engagement data
+      const priorityFamilies = (await db.query(`
+        SELECT em.inquiry_id,
+               MAX(em.time_on_page) AS time_on_page,
+               MAX(em.total_visits) AS total_visits,
+               MAX(em.last_visit) AS last_visit,
+               COALESCE(i.first_name,'') AS first_name,
+               COALESCE(i.family_surname,'') AS family_surname,
+               COALESCE(i.age_group,'') AS age_group,
+               COALESCE(i.entry_year,'') AS entry_year,
+               -- Calculate engagement score in SQL
+               CASE 
+                 WHEN MAX(em.time_on_page) > 600 AND MAX(em.scroll_depth) > 80 THEN 'hot'
+                 WHEN MAX(em.time_on_page) > 300 AND MAX(em.scroll_depth) > 50 THEN 'warm'
+                 ELSE 'cold'
+               END as temperature
+        FROM engagement_metrics em
+        JOIN inquiries i ON i.id = em.inquiry_id
+        GROUP BY em.inquiry_id, i.first_name, i.family_surname, i.age_group, i.entry_year
+        ORDER BY MAX(em.time_on_page) DESC, MAX(em.total_visits) DESC, MAX(em.last_visit) DESC NULLS LAST
+        LIMIT 10
+      `)).rows.map(r => ({
+        name: `${r.first_name} ${r.family_surname}`.trim(),
+        inquiryId: r.inquiry_id,
+        ageGroup: r.age_group,
+        entryYear: r.entry_year,
+        timeOnPage: Number(r.time_on_page||0),
+        totalVisits: Number(r.total_visits||0),
+        lastVisit: r.last_visit,
+        temperature: r.temperature
+      }));
+
+      // Get latest prospectuses
+      let latestProspectuses = [];
+      try {
+        const lp = (await db.query(`
+          SELECT id, first_name, family_surname, prospectus_filename, prospectus_url, slug, prospectus_generated_at
+          FROM inquiries
+          WHERE prospectus_generated IS TRUE
+          ORDER BY prospectus_generated_at DESC NULLS LAST
+          LIMIT 10
+        `)).rows;
+        latestProspectuses = lp.map(r => {
+          const pretty = r.slug ? `${base}/${r.slug}` : (r.prospectus_url ? `${base}${r.prospectus_url}` : null);
+          const direct = r.prospectus_url ? `${base}${r.prospectus_url}` : null;
+          return {
+            name: `${r.first_name || ''} ${r.family_surname || ''}`.trim(),
+            inquiryId: r.id,
+            generatedAt: r.prospectus_generated_at,
+            prospectusPrettyUrl: pretty,
+            prospectusDirectUrl: direct
+          };
+        });
+      } catch (e) {
+        console.warn('Failed to get latest prospectuses:', e.message);
+      }
+
+      const response = {
+        summary: { 
+          readyForContact, 
+          highlyEngaged: metrics.hotLeads + metrics.warmLeads, 
+          newInquiries7d, 
+          totalFamilies,
+          hotLeads: metrics.hotLeads,
+          warmLeads: metrics.warmLeads,
+          avgEngagement: metrics.avgEngagement
+        },
+        topInterests, 
+        recentlyActive, 
+        priorityFamilies, 
+        latestProspectuses
+      };
+      
+      console.log('✅ Dashboard data response prepared:', {
+        summary: response.summary,
+        recentlyActive: response.recentlyActive.length,
+        priorityFamilies: response.priorityFamilies.length
+      });
+      
+      return res.json(response);
+    }
+
+    // JSON fallback (same as before)
+    console.log('📁 Using JSON fallback...');
+    const files = await fs.readdir(path.join(__dirname, 'data')).catch(() => []);
+    const inquiries = [];
+    for (const f of files.filter(x => x.startsWith('inquiry-') && x.endsWith('.json'))) {
+      try { 
+        inquiries.push(JSON.parse(await fs.readFile(path.join(__dirname, 'data', f), 'utf8'))); 
+      } catch {}
+    }
+
+    const now = Date.now();
+    const totalFamilies = inquiries.length;
+    const newInquiries7d = inquiries.filter(i => {
+      const t = Date.parse(i.receivedAt || 0);
+      return t && (now - t) <= 7*24*60*60*1000;
+    }).length;
+    const readyForContact = inquiries.filter(i => i.prospectusGenerated || i.status === 'prospectus_generated').length;
+
+    const interestKeys = [
+      'sciences','mathematics','english','languages','humanities','business',
+      'drama','music','art','creative_writing','sport','leadership','community_service','outdoor_education',
+      'academic_excellence','pastoral_care','university_preparation','personal_development','career_guidance','extracurricular_opportunities'
+    ];
+    const counts = Object.fromEntries(interestKeys.map(k => [k,0]));
+    for (const i of inquiries) for (const k of interestKeys) if (i[k]) counts[k]++;
+
+    const topInterests = Object.entries(counts).filter(([,c])=>c>0)
+      .sort((a,b)=>b[1]-a[1]).slice(0,10).map(([subject,count])=>({subject,count}));
+
+    const recentlyActive = [];
+    const priorityFamilies = [];
+
+    const latestProspectuses = inquiries
+      .filter(i => i.prospectusGenerated || i.status === 'prospectus_generated')
+      .sort((a,b) => new Date(b.prospectusGeneratedAt || b.receivedAt) - new Date(a.prospectusGeneratedAt || a.receivedAt))
+      .slice(0,10)
+      .map(i => {
+        const prettyPath = i.prospectusPrettyPath || (i.slug ? `/${i.slug}` : null);
+        return {
+          name: `${i.firstName||''} ${i.familySurname||''}`.trim(),
+          inquiryId: i.id,
+          generatedAt: i.prospectusGeneratedAt || null,
+          prospectusPrettyUrl: prettyPath ? `${base}${prettyPath}` : null,
+          prospectusDirectUrl: i.prospectusUrl ? `${base}${i.prospectusUrl}` : null
+        };
+      });
+
+    return res.json({
+      summary: { 
+        readyForContact, 
+        highlyEngaged: 0, 
+        newInquiries7d, 
+        totalFamilies,
         hotLeads: 0,
         warmLeads: 0,
-        totalFamilies,
         avgEngagement: 0
-      };
-    }
-  } catch (error) {
-    console.error('Error getting dashboard metrics:', error);
-    return { hotLeads: 0, warmLeads: 0, totalFamilies: 0, avgEngagement: 0 };
+      },
+      topInterests, 
+      recentlyActive, 
+      priorityFamilies, 
+      latestProspectuses
+    });
+  } catch (e) {
+    console.error('❌ Dashboard data error:', e);
+    res.status(500).json({ error:'Failed to build dashboard data', message:e.message });
   }
-}
-// Dashboard-compatible inquiries endpoint with engagement data
+});
+
+// ────────────────────────────────────────────────────────────────────────────────
+// Enhanced /api/analytics/inquiries endpoint with better engagement integration
+// ────────────────────────────────────────────────────────────────────────────────
 app.get('/api/analytics/inquiries', async (req, res) => {
   try {
+    console.log('📋 Analytics inquiries request received...');
     const base = getBaseUrl(req);
     const files = await fs.readdir(path.join(__dirname, 'data'));
     const out = [];
     
     for (const f of files.filter(x => x.startsWith('inquiry-') && x.endsWith('.json'))) {
       const j = JSON.parse(await fs.readFile(path.join(__dirname, 'data', f), 'utf8'));
-      
-      // Get engagement data from DB if available
-      let engagement = null;
-      if (db) {
-        try {
-          const r = await db.query(`
-            SELECT time_on_page, scroll_depth, clicks_on_links, total_visits, last_visit
-            FROM engagement_metrics
-            WHERE inquiry_id = $1
-            ORDER BY last_visit DESC
-            LIMIT 1
-          `, [j.id]);
-          if (r.rows.length) {
-            const em = r.rows[0];
-            engagement = {
-              timeOnPage: em.time_on_page || 0,
-              scrollDepth: em.scroll_depth || 0,
-              clickCount: em.clicks_on_links || 0,
-              totalVisits: em.total_visits || 0,
-              lastVisit: em.last_visit
-            };
-          }
-        } catch (e) {
-          console.warn('Engagement query failed:', e.message);
-        }
-      }
+      const prettyPath = j.prospectusPrettyPath || (j.slug ? `/${j.slug}` : null);
       
       const rec = {
         id: j.id,
@@ -841,23 +1052,84 @@ app.get('/api/analytics/inquiries', async (req, res) => {
         entry_year: j.entryYear,
         age_group: j.ageGroup,
         received_at: j.receivedAt,
+        updated_at: j.prospectusGeneratedAt || j.receivedAt,
         status: j.status || (j.prospectusGenerated ? 'prospectus_generated' : 'received'),
-        engagement: engagement
+        prospectus_filename: j.prospectusFilename || null,
+        slug: j.slug || null,
+        prospectus_generated_at: j.prospectusGeneratedAt || null,
+        prospectus_pretty_path: prettyPath,
+        prospectus_pretty_url: prettyPath ? `${base}${prettyPath}` : null,
+        prospectus_direct_url: j.prospectusUrl ? `${base}${j.prospectusUrl}` : null,
+        engagement: null,
+        // Include interest fields for better processing
+        sciences: j.sciences,
+        mathematics: j.mathematics,
+        english: j.english,
+        languages: j.languages,
+        humanities: j.humanities,
+        business: j.business,
+        drama: j.drama,
+        music: j.music,
+        art: j.art,
+        sport: j.sport,
+        leadership: j.leadership,
+        community_service: j.community_service,
+        outdoor_education: j.outdoor_education
       };
+
+      // Get engagement data from database if available
+      if (db) {
+        try {
+          const r = await db.query(`
+            SELECT time_on_page, scroll_depth, clicks_on_links, total_visits, last_visit
+            FROM engagement_metrics
+            WHERE inquiry_id = $1
+            ORDER BY last_visit DESC
+            LIMIT 1
+          `, [j.id]);
+          
+          if (r.rows.length) {
+            const em = r.rows[0];
+            rec.engagement = {
+              timeOnPage: em.time_on_page || 0,
+              scrollDepth: em.scroll_depth || 0,
+              clickCount: em.clicks_on_links || 0,
+              totalVisits: em.total_visits || 0,
+              lastVisit: em.last_visit
+            };
+            console.log(`📊 Found engagement data for ${j.firstName} ${j.familySurname}:`, rec.engagement);
+          } else {
+            console.log(`📭 No engagement data found for ${j.firstName} ${j.familySurname}`);
+          }
+        } catch (engagementError) {
+          console.warn(`⚠️ Failed to get engagement for ${j.id}:`, engagementError.message);
+        }
+      }
       
       out.push(rec);
     }
     
-    out.sort((a,b) => new Date(b.received_at) - new Date(a.received_at));
+    // Sort by engagement score (calculated) then by received date
+    out.sort((a, b) => {
+      const aScore = calculateEngagementScore(a.engagement);
+      const bScore = calculateEngagementScore(b.engagement);
+      if (aScore !== bScore) return bScore - aScore;
+      return new Date(b.received_at) - new Date(a.received_at);
+    });
+    
+    console.log(`✅ Returning ${out.length} inquiries with engagement data`);
+    console.log(`📊 Families with engagement: ${out.filter(f => f.engagement).length}`);
+    
     res.json(out);
   } catch (e) {
-    console.error('analytics/inquiries error:', e);
-    res.status(500).json({ error: 'Failed to get analytics inquiries' });
+    console.error('❌ Analytics inquiries error:', e);
+    res.status(500).json({ error: 'Failed to get inquiries' });
   }
 });
-// ─────────────────────────────────────────────────────────────────────────────
+
+// ────────────────────────────────────────────────────────────────────────────────
 // AI ANALYSIS ENDPOINTS
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
 app.post('/api/ai/analyze-all-families', async (req, res) => {
   try {
     console.log('🤖 Starting AI analysis for all families...');
@@ -955,240 +1227,6 @@ app.post('/api/ai/analyze-all-families', async (req, res) => {
   }
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Dashboard APIs (DB first, JSON fallback)
-// ─────────────────────────────────────────────────────────────────────────────
-app.get('/api/dashboard-data', async (req, res) => {
-  try {
-    const base = getBaseUrl(req);
-
-    if (db) {
-      const [{ c: totalFamilies }] = (await db.query(`SELECT COUNT(*)::int AS c FROM inquiries`)).rows;
-      const [{ c: newInquiries7d }] = (await db.query(`
-        SELECT COUNT(*)::int AS c
-        FROM inquiries
-        WHERE COALESCE(received_at, created_at) >= NOW() - INTERVAL '7 days'
-      `)).rows;
-      const [{ c: readyForContact }] = (await db.query(`
-        SELECT COUNT(*)::int AS c
-        FROM inquiries
-        WHERE status='prospectus_generated' OR prospectus_generated IS TRUE
-      `)).rows;
-      const [{ c: highlyEngaged }] = (await db.query(`
-        SELECT COUNT(*)::int AS c
-        FROM engagement_metrics WHERE time_on_page > 300
-      `)).rows;
-
-      const interestRow = (await db.query(`
-        SELECT
-          SUM(CASE WHEN sciences THEN 1 ELSE 0 END)::int AS sciences,
-          SUM(CASE WHEN mathematics THEN 1 ELSE 0 END)::int AS mathematics,
-          SUM(CASE WHEN english THEN 1 ELSE 0 END)::int AS english,
-          SUM(CASE WHEN languages THEN 1 ELSE 0 END)::int AS languages,
-          SUM(CASE WHEN humanities THEN 1 ELSE 0 END)::int AS humanities,
-          SUM(CASE WHEN business THEN 1 ELSE 0 END)::int AS business,
-          SUM(CASE WHEN drama THEN 1 ELSE 0 END)::int AS drama,
-          SUM(CASE WHEN music THEN 1 ELSE 0 END)::int AS music,
-          SUM(CASE WHEN art THEN 1 ELSE 0 END)::int AS art,
-          SUM(CASE WHEN creative_writing THEN 1 ELSE 0 END)::int AS creative_writing,
-          SUM(CASE WHEN sport THEN 1 ELSE 0 END)::int AS sport,
-          SUM(CASE WHEN leadership THEN 1 ELSE 0 END)::int AS leadership,
-          SUM(CASE WHEN community_service THEN 1 ELSE 0 END)::int AS community_service,
-          SUM(CASE WHEN outdoor_education THEN 1 ELSE 0 END)::int AS outdoor_education,
-          SUM(CASE WHEN academic_excellence THEN 1 ELSE 0 END)::int AS academic_excellence,
-          SUM(CASE WHEN pastoral_care THEN 1 ELSE 0 END)::int AS pastoral_care,
-          SUM(CASE WHEN university_preparation THEN 1 ELSE 0 END)::int AS university_preparation,
-          SUM(CASE WHEN personal_development THEN 1 ELSE 0 END)::int AS personal_development,
-          SUM(CASE WHEN career_guidance THEN 1 ELSE 0 END)::int AS career_guidance,
-          SUM(CASE WHEN extracurricular_opportunities THEN 1 ELSE 0 END)::int AS extracurricular_opportunities
-        FROM inquiries
-      `)).rows[0];
-
-      const topInterests = Object.entries(interestRow || {}).map(([subject, count]) => ({
-        subject, count: Number(count||0)
-      })).filter(x => x.count>0).sort((a,b)=>b.count-a.count).slice(0,10);
-
-      const recentlyActive = (await db.query(`
-        SELECT te.inquiry_id, te.event_type, te."timestamp",
-               COALESCE(i.first_name,'') AS first_name,
-               COALESCE(i.family_surname,'') AS family_surname
-        FROM tracking_events te
-        JOIN inquiries i ON i.id = te.inquiry_id
-        WHERE te.event_type <> 'heartbeat'
-        ORDER BY te."timestamp" DESC
-        LIMIT 10
-      `)).rows.map(r => ({
-        name: `${r.first_name} ${r.family_surname}`.trim(),
-        inquiryId: r.inquiry_id,
-        activity: r.event_type,
-        when: r.timestamp
-      }));
-
-      const priorityFamilies = (await db.query(`
-        SELECT em.inquiry_id,
-               MAX(em.time_on_page) AS time_on_page,
-               MAX(em.total_visits) AS total_visits,
-               MAX(em.last_visit) AS last_visit,
-               COALESCE(i.first_name,'') AS first_name,
-               COALESCE(i.family_surname,'') AS family_surname,
-               COALESCE(i.age_group,'') AS age_group,
-               COALESCE(i.entry_year,'') AS entry_year
-        FROM engagement_metrics em
-        JOIN inquiries i ON i.id = em.inquiry_id
-        GROUP BY em.inquiry_id, i.first_name, i.family_surname, i.age_group, i.entry_year
-        ORDER BY total_visits DESC NULLS LAST, time_on_page DESC NULLS LAST, last_visit DESC NULLS LAST
-        LIMIT 10
-      `)).rows.map(r => ({
-        name: `${r.first_name} ${r.family_surname}`.trim(),
-        inquiryId: r.inquiry_id,
-        ageGroup: r.age_group,
-        entryYear: r.entry_year,
-        timeOnPage: Number(r.time_on_page||0),
-        totalVisits: Number(r.total_visits||0),
-        lastVisit: r.last_visit
-      }));
-
-      let latestProspectuses = [];
-      try {
-        const lp = (await db.query(`
-          SELECT id, first_name, family_surname, prospectus_filename, prospectus_url, slug, prospectus_generated_at
-          FROM inquiries
-          WHERE prospectus_generated IS TRUE
-          ORDER BY prospectus_generated_at DESC NULLS LAST
-          LIMIT 10
-        `)).rows;
-        latestProspectuses = lp.map(r => {
-          const pretty = r.slug ? `${base}/${r.slug}` : (r.prospectus_url ? `${base}${r.prospectus_url}` : null);
-          const direct = r.prospectus_url ? `${base}${r.prospectus_url}` : null;
-          return {
-            name: `${r.first_name || ''} ${r.family_surname || ''}`.trim(),
-            inquiryId: r.id,
-            generatedAt: r.prospectus_generated_at,
-            prospectusPrettyUrl: pretty,
-            prospectusDirectUrl: direct
-          };
-        });
-      } catch {}
-
-      return res.json({
-        summary: { readyForContact, highlyEngaged, newInquiries7d, totalFamilies },
-        topInterests, recentlyActive, priorityFamilies, latestProspectuses
-      });
-    }
-
-    // JSON fallback
-    const files = await fs.readdir(path.join(__dirname, 'data')).catch(() => []);
-    const inquiries = [];
-    for (const f of files.filter(x => x.startsWith('inquiry-') && x.endsWith('.json'))) {
-      try { inquiries.push(JSON.parse(await fs.readFile(path.join(__dirname, 'data', f), 'utf8'))); } catch {}
-    }
-
-    const now = Date.now();
-    const totalFamilies = inquiries.length;
-    const newInquiries7d = inquiries.filter(i => {
-      const t = Date.parse(i.receivedAt || 0);
-      return t && (now - t) <= 7*24*60*60*1000;
-    }).length;
-    const readyForContact = inquiries.filter(i => i.prospectusGenerated || i.status === 'prospectus_generated').length;
-
-    const interestKeys = [
-      'sciences','mathematics','english','languages','humanities','business',
-      'drama','music','art','creative_writing','sport','leadership','community_service','outdoor_education',
-      'academic_excellence','pastoral_care','university_preparation','personal_development','career_guidance','extracurricular_opportunities'
-    ];
-    const counts = Object.fromEntries(interestKeys.map(k => [k,0]));
-    for (const i of inquiries) for (const k of interestKeys) if (i[k]) counts[k]++;
-
-    const topInterests = Object.entries(counts).filter(([,c])=>c>0)
-      .sort((a,b)=>b[1]-a[1]).slice(0,10).map(([subject,count])=>({subject,count}));
-
-    const recentlyActive = []; // not available without DB
-    const priorityFamilies = []; // not available without DB
-
-    const latestProspectuses = inquiries
-      .filter(i => i.prospectusGenerated || i.status === 'prospectus_generated')
-      .sort((a,b) => new Date(b.prospectusGeneratedAt || b.receivedAt) - new Date(a.prospectusGeneratedAt || a.receivedAt))
-      .slice(0,10)
-      .map(i => {
-        const prettyPath = i.prospectusPrettyPath || (i.slug ? `/${i.slug}` : null);
-        return {
-          name: `${i.firstName||''} ${i.familySurname||''}`.trim(),
-          inquiryId: i.id,
-          generatedAt: i.prospectusGeneratedAt || null,
-          prospectusPrettyUrl: prettyPath ? `${base}${prettyPath}` : null,
-          prospectusDirectUrl: i.prospectusUrl ? `${base}${i.prospectusUrl}` : null
-        };
-      });
-
-    return res.json({
-      summary: { readyForContact, highlyEngaged: 0, newInquiries7d, totalFamilies },
-      topInterests, recentlyActive, priorityFamilies, latestProspectuses
-    });
-  } catch (e) {
-    console.error('dashboard-data error:', e);
-    res.status(500).json({ error:'Failed to build dashboard data', message:e.message });
-  }
-});
-
-// Analytics-friendly list for dashboard (with engagement when DB connected)
-app.get('/api/analytics/inquiries', async (req, res) => {
-  try {
-    const base = getBaseUrl(req);
-    const files = await fs.readdir(path.join(__dirname, 'data'));
-    const out = [];
-    for (const f of files.filter(x => x.startsWith('inquiry-') && x.endsWith('.json'))) {
-      const j = JSON.parse(await fs.readFile(path.join(__dirname, 'data', f), 'utf8'));
-      const prettyPath = j.prospectusPrettyPath || (j.slug ? `/${j.slug}` : null);
-      const rec = {
-        id: j.id,
-        first_name: j.firstName,
-        family_surname: j.familySurname,
-        parent_email: j.parentEmail,
-        entry_year: j.entryYear,
-        age_group: j.ageGroup,
-        received_at: j.receivedAt,
-        updated_at: j.prospectusGeneratedAt || j.receivedAt,
-        status: j.status || (j.prospectusGenerated ? 'prospectus_generated' : 'received'),
-        prospectus_filename: j.prospectusFilename || null,
-        slug: j.slug || null,
-        prospectus_generated_at: j.prospectusGeneratedAt || null,
-        prospectus_pretty_path: prettyPath,
-        prospectus_pretty_url: prettyPath ? `${base}${prettyPath}` : null,
-        prospectus_direct_url: j.prospectusUrl ? `${base}${j.prospectusUrl}` : null,
-        engagement: null
-      };
-
-      if (db) {
-        try {
-          const r = await db.query(`
-            SELECT time_on_page, scroll_depth, clicks_on_links, total_visits, last_visit
-            FROM engagement_metrics
-            WHERE inquiry_id = $1
-            ORDER BY last_visit DESC
-            LIMIT 1
-          `, [j.id]);
-          if (r.rows.length) {
-            const em = r.rows[0];
-            rec.engagement = {
-              timeOnPage: em.time_on_page || 0,
-              scrollDepth: em.scroll_depth || 0,
-              clickCount: em.clicks_on_links || 0,
-              totalVisits: em.total_visits || 0,
-              lastVisit: em.last_visit
-            };
-          }
-        } catch {}
-      }
-      out.push(rec);
-    }
-    out.sort((a,b)=> new Date(b.received_at) - new Date(a.received_at));
-    res.json(out);
-  } catch (e) {
-    console.error('analytics/inquiries error:', e);
-    res.status(500).json({ error:'Failed to get inquiries' });
-  }
-});
-
 // Legacy raw list (kept for parity)
 app.get('/api/inquiries', async (_req, res) => {
   try {
@@ -1205,9 +1243,9 @@ app.get('/api/inquiries', async (_req, res) => {
   }
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
 // Self-healing direct file route (serve/regenerate) — put BEFORE static
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
 app.get('/prospectuses/:filename', async (req, res) => {
   try {
     const filename = String(req.params.filename || '');
@@ -1237,9 +1275,9 @@ app.get('/prospectuses/:filename', async (req, res) => {
 // Keep static serving for any other static assets in /prospectuses
 app.use('/prospectuses', express.static(path.join(__dirname, 'prospectuses')));
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
 // Admin: rebuild slug mappings on click
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
 app.get('/admin/rebuild-slugs', async (req, res) => {
   const before = Object.keys(slugIndex).length;
   const added = await rebuildSlugIndexFromData();
@@ -1247,9 +1285,9 @@ app.get('/admin/rebuild-slugs', async (req, res) => {
   res.json({ success:true, before, added, after });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
 // Root/info endpoints
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
 app.get('/config.json', (req, res) => {
   const base = getBaseUrl(req);
   res.json({ baseUrl: base, webhook: `${base}/webhook`, health: `${base}/health` });
@@ -1294,9 +1332,9 @@ app.get('/', (req, res) => {
 </body></html>`);
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
 // Pretty URL resolver (self-healing)
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
 const RESERVED = new Set(['api','prospectuses','health','tracking','dashboard','favicon','robots','sitemap','metrics','config','webhook','admin','smart_analytics_dashboard.html']);
 app.get('/:slug', async (req, res, next) => {
   const slug = String(req.params.slug || '').toLowerCase();
@@ -1350,9 +1388,9 @@ app.use((req, res) => {
   res.status(404).json({ success:false, error:'Not found', message:`Route ${req.method} ${req.path} not found` });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
 // Start-up
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
 async function startServer() {
   const dbConnected = await initializeDatabase();
   await ensureDirectories();
@@ -1361,14 +1399,14 @@ async function startServer() {
 
   app.listen(PORT, '0.0.0.0', () => {
     console.log('\n🚀 MORE HOUSE SCHOOL SYSTEM STARTED');
-    console.log('═══════════════════════════════════════');
+    console.log('╔═══════════════════════════════════════╗');
     console.log(`🌐 Server: http://localhost:${PORT}`);
     console.log(`📋 Webhook: http://localhost:${PORT}/webhook`);
     console.log(`📊 Dashboard: http://localhost:${PORT}/smart_analytics_dashboard.html`);
     console.log(`🤖 AI Analysis: POST http://localhost:${PORT}/api/ai/analyze-all-families`);
     console.log(`🔗 Pretty URL pattern: http://localhost:${PORT}/the-<family>-family-<shortid>`);
     console.log(`📊 DB: ${dbConnected ? 'Connected' : 'JSON-only'}`);
-    console.log('═══════════════════════════════════════');
+    console.log('╚═══════════════════════════════════════╝');
   });
 }
 

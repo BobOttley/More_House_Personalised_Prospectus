@@ -47,6 +47,7 @@
             padding: 2rem;
             box-shadow: 0 4px 20px rgba(9, 24, 37, 0.3);
             text-align: center;
+            position: relative;
         }
 
         .header-brand {
@@ -173,7 +174,6 @@
             margin-bottom: 1rem;
         }
 
-        /* Metric Icons - Clean and Simple */
         .metric-icon {
             width: 48px;
             height: 48px;
@@ -304,6 +304,8 @@
             color: var(--blazer-navy);
             font-size: 1rem;
             margin-bottom: 0.25rem;
+            display: flex;
+            align-items: center;
         }
 
         .family-meta {
@@ -426,24 +428,7 @@
             font-weight: 500;
         }
 
-        .contact-btn {
-            background: var(--award-gold);
-            color: var(--blazer-navy);
-            border: none;
-            padding: 0.75rem 1.5rem;
-            border-radius: 8px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-            width: 100%;
-        }
-
-        .contact-btn:hover {
-            background: #e88a00;
-            transform: translateY(-1px);
-        }
-
-        /* Live Activity Feed */
+        /* Activity Feed */
         .activity-feed {
             max-height: 600px;
             overflow-y: auto;
@@ -533,38 +518,6 @@
             font-size: 0.9rem;
         }
 
-        /* Responsive */
-        @media (max-width: 1024px) {
-            .dashboard-grid {
-                grid-template-columns: 1fr;
-                margin: 0 1rem 2rem;
-            }
-            
-            .metrics-bar {
-                padding: 1rem;
-                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            }
-        }
-
-        @media (max-width: 768px) {
-            .header-brand h1 {
-                font-size: 1.4rem;
-            }
-            
-            .metric-value {
-                font-size: 1.8rem;
-            }
-            
-            .family-meta {
-                flex-direction: column;
-                gap: 0.5rem;
-            }
-            
-            .details-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-
         /* Loading States */
         .loading {
             display: flex;
@@ -612,10 +565,42 @@
             50% { opacity: 1; }
             100% { opacity: 0.4; }
         }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+                margin: 0 1rem 2rem;
+            }
+            
+            .metrics-bar {
+                padding: 1rem;
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            }
+        }
+
+        @media (max-width: 768px) {
+            .header-brand h1 {
+                font-size: 2.5rem;
+            }
+            
+            .metric-value {
+                font-size: 1.8rem;
+            }
+            
+            .family-meta {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+            
+            .details-grid {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 </head>
 <body>
-    <!-- Header - Exactly Like SMART Reply -->
+    <!-- Header -->
     <header class="dashboard-header">
         <div class="header-controls">
             <div class="auto-refresh-toggle">
@@ -675,11 +660,6 @@
                 <div class="metric-icon total"></div>
                 <div class="metric-content">
                     <div class="metric-title">Total Families</div>
-                    <div class="metric-value" id="totalFamilies">0</div>
-                    <div class="metric-trend">Active prospects</div>
-                </div>
-            </div>
-        </div><div class="metric-title">Total Families</div>
                     <div class="metric-value" id="totalFamilies">0</div>
                     <div class="metric-trend">Active prospects</div>
                 </div>
@@ -810,21 +790,39 @@
             isRefreshing = true;
             
             try {
+                console.log('🔄 Loading dashboard data...');
+                
                 // Update refresh icon
                 document.getElementById('refreshIcon').style.animation = 'spin 1s linear infinite';
                 
-                // Fetch dashboard data
-                const response = await fetch('/api/dashboard-data');
-                const data = await response.json();
+                // Fetch dashboard data with proper metrics
+                const dashboardResponse = await fetch('/api/dashboard-data');
+                if (!dashboardResponse.ok) {
+                    throw new Error(`Dashboard API failed: ${dashboardResponse.status}`);
+                }
+                const dashboardData = await dashboardResponse.json();
+                console.log('📊 Dashboard data received:', dashboardData);
                 
                 // Fetch detailed family analytics
                 const analyticsResponse = await fetch('/api/analytics/inquiries');
+                if (!analyticsResponse.ok) {
+                    throw new Error(`Analytics API failed: ${analyticsResponse.status}`);
+                }
                 const familiesData = await analyticsResponse.json();
+                console.log('👨‍👩‍👧‍👦 Families data received:', familiesData.length, 'families');
                 
-                // Process and store data
-                dashboardData.families = processFamilyData(familiesData);
-                dashboardData.activities = generateActivityFeed(familiesData);
-                dashboardData.metrics = calculateMetrics(dashboardData.families);
+                // Process data using the actual database metrics
+                this.dashboardData.families = processFamilyDataWithRealMetrics(familiesData);
+                this.dashboardData.activities = generateActivityFeed(dashboardData.recentlyActive || []);
+                this.dashboardData.metrics = {
+                    hotLeads: dashboardData.summary?.hotLeads || 0,
+                    warmLeads: dashboardData.summary?.warmLeads || 0,
+                    avgEngagement: dashboardData.summary?.avgEngagement || 0,
+                    totalFamilies: dashboardData.summary?.totalFamilies || familiesData.length
+                };
+                
+                console.log('📈 Processed metrics:', this.dashboardData.metrics);
+                console.log('🔍 Processed families with engagement:', this.dashboardData.families.filter(f => f.engagement).length);
                 
                 // Update UI
                 updateMetrics();
@@ -832,57 +830,97 @@
                 renderActivityFeed();
                 
             } catch (error) {
-                console.error('Failed to load dashboard data:', error);
-                showError('Failed to load dashboard data');
+                console.error('❌ Failed to load dashboard data:', error);
+                showError('Failed to load dashboard data: ' + error.message);
             } finally {
                 isRefreshing = false;
                 document.getElementById('refreshIcon').style.animation = '';
             }
         }
 
-        function processFamilyData(familiesData) {
+        function processFamilyDataWithRealMetrics(familiesData) {
             return familiesData.map(family => {
+                // Use the actual engagement data from the database
                 const engagement = family.engagement || {};
-                const score = calculateEngagementScore(engagement, family);
+                
+                // Calculate score using server-side data
+                const score = calculateEngagementScoreFromDB(engagement, family);
+                
+                // Extract interests from form data
+                const interests = extractInterestsFromFamily(family);
+                
+                console.log(`👪 Processing ${family.first_name} ${family.family_surname}:`, {
+                    engagement,
+                    score,
+                    interests: interests.length
+                });
                 
                 return {
                     ...family,
                     engagementScore: score,
                     temperature: getTemperature(score),
                     isOnline: isCurrentlyOnline(engagement.lastVisit),
-                    interests: extractInterests(family),
-                    contactReady: score >= 80
+                    interests: interests,
+                    contactReady: score >= 80,
+                    engagement: engagement
                 };
             });
         }
 
-        function calculateEngagementScore(engagement, family) {
-            // SMART Analytics Scoring Algorithm (0-100)
+        function calculateEngagementScoreFromDB(engagement, family) {
+            // Use actual database metrics for scoring
             let score = 0;
             
-            // Time spent (40% weight)
+            // Time spent (40% weight) - using actual timeOnPage from DB
             const timeMinutes = (engagement.timeOnPage || 0) / 60;
             if (timeMinutes >= 30) score += 40;
             else if (timeMinutes >= 15) score += 30;
             else if (timeMinutes >= 5) score += 20;
             else score += Math.min(timeMinutes * 4, 15);
             
-            // Content depth (30% weight)
+            // Content depth (30% weight) - using actual scrollDepth from DB
             const scrollDepth = engagement.scrollDepth || 0;
             score += Math.min(scrollDepth * 0.3, 30);
             
-            // Return visits (20% weight)
+            // Return visits (20% weight) - using actual totalVisits from DB
             const visits = engagement.totalVisits || 1;
             if (visits >= 7) score += 20;
             else if (visits >= 4) score += 15;
             else if (visits >= 2) score += 10;
             else score += 5;
             
-            // Interaction quality (10% weight)
+            // Interaction quality (10% weight) - using actual clickCount from DB
             const clicks = engagement.clickCount || 0;
             score += Math.min(clicks * 2, 10);
             
-            return Math.min(Math.round(score), 100);
+            const finalScore = Math.min(Math.round(score), 100);
+            
+            console.log(`💯 Score calculation for ${family.first_name}:`, {
+                timeMinutes: timeMinutes.toFixed(1),
+                scrollDepth,
+                visits,
+                clicks,
+                finalScore
+            });
+            
+            return finalScore;
+        }
+
+        function extractInterestsFromFamily(family) {
+            const interests = [];
+            const interestFields = [
+                'sciences', 'mathematics', 'english', 'languages', 'humanities',
+                'business', 'drama', 'music', 'art', 'sport', 'leadership',
+                'community_service', 'outdoor_education'
+            ];
+            
+            interestFields.forEach(field => {
+                if (family[field]) {
+                    interests.push(field.charAt(0).toUpperCase() + field.slice(1).replace('_', ' '));
+                }
+            });
+            
+            return interests;
         }
 
         function getTemperature(score) {
@@ -900,77 +938,38 @@
             return diffMinutes < 30; // Online if active within 30 minutes
         }
 
-        function extractInterests(family) {
-            const interests = [];
-            const interestFields = [
-                'sciences', 'mathematics', 'english', 'languages', 'humanities',
-                'business', 'drama', 'music', 'art', 'sport', 'leadership'
-            ];
-            
-            interestFields.forEach(field => {
-                if (family[field]) {
-                    interests.push(field.charAt(0).toUpperCase() + field.slice(1));
-                }
-            });
-            
-            return interests;
+        function generateActivityFeed(recentActivityData) {
+            // Use the recentlyActive data from the dashboard API
+            return (recentActivityData || []).map(activity => ({
+                family: activity.name || 'Unknown Family',
+                action: getActivityDescription(activity.activity),
+                time: formatTimeAgo(new Date(activity.when)),
+                type: getActivityType(activity.activity),
+                score: 0
+            }));
         }
 
-        function calculateMetrics(families) {
-            const metrics = {
-                hotLeads: families.filter(f => f.temperature === 'hot').length,
-                warmLeads: families.filter(f => f.temperature === 'warm').length,
-                totalFamilies: families.length,
-                avgEngagement: 0
+        function getActivityDescription(activityType) {
+            const descriptions = {
+                'page_load': 'Opened prospectus',
+                'scroll_depth': 'Engaged with content',
+                'link_click': 'Clicked links',
+                'heartbeat': 'Active on page',
+                'page_visible': 'Viewing prospectus',
+                'youtube_video_start': 'Started watching video',
+                'youtube_video_progress': 'Watched video content'
             };
             
-            if (families.length > 0) {
-                const totalEngagement = families.reduce((sum, f) => sum + (f.engagement?.timeOnPage || 0), 0);
-                metrics.avgEngagement = Math.round(totalEngagement / families.length / 60); // Convert to minutes
-            }
-            
-            return metrics;
+            return descriptions[activityType] || `${activityType.replace('_', ' ')} activity`;
         }
 
-        function generateActivityFeed(familiesData) {
-            // Generate sample activity based on recent engagement
-            const activities = [];
+        function getActivityType(activityType) {
+            const highEngagement = ['youtube_video_progress', 'scroll_depth', 'link_click'];
+            const mediumEngagement = ['page_load', 'page_visible'];
             
-            familiesData.forEach(family => {
-                if (family.engagement && family.engagement.lastVisit) {
-                    const lastVisit = new Date(family.engagement.lastVisit);
-                    const now = new Date();
-                    const hoursAgo = Math.floor((now - lastVisit) / (1000 * 60 * 60));
-                    
-                    if (hoursAgo < 24) {
-                        activities.push({
-                            family: `${family.first_name} ${family.family_surname}`,
-                            action: getActivityAction(family),
-                            time: formatTimeAgo(lastVisit),
-                            type: family.temperature || 'low',
-                            score: family.engagementScore || 0
-                        });
-                    }
-                }
-            });
-            
-            return activities.sort((a, b) => b.score - a.score).slice(0, 10);
-        }
-
-        function getActivityAction(family) {
-            const actions = [
-                'Viewed prospectus sections',
-                'Engaged with video content', 
-                'Explored academic programmes',
-                'Downloaded prospectus materials',
-                'Browsed entry point information'
-            ];
-            
-            const score = family.engagementScore || 0;
-            if (score >= 80) return 'Highly engaged with content - Ready for contact!';
-            if (score >= 60) return 'Showing strong interest - Consider reaching out';
-            
-            return actions[Math.floor(Math.random() * actions.length)];
+            if (highEngagement.includes(activityType)) return 'high';
+            if (mediumEngagement.includes(activityType)) return 'medium';
+            return 'low';
         }
 
         function formatTimeAgo(date) {
@@ -978,9 +977,12 @@
             const diffMs = now - date;
             const diffMins = Math.floor(diffMs / (1000 * 60));
             const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+            const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
             
+            if (diffMins < 1) return 'Just now';
             if (diffMins < 60) return `${diffMins} minutes ago`;
             if (diffHours < 24) return `${diffHours} hours ago`;
+            if (diffDays < 7) return `${diffDays} days ago`;
             return date.toLocaleDateString();
         }
 
@@ -989,70 +991,83 @@
             document.getElementById('warmLeads').textContent = dashboardData.metrics.warmLeads;
             document.getElementById('avgEngagement').textContent = dashboardData.metrics.avgEngagement;
             document.getElementById('totalFamilies').textContent = dashboardData.metrics.totalFamilies;
+            
+            console.log('📊 Updated UI metrics:', dashboardData.metrics);
         }
 
         function renderFamilyCards() {
             const container = document.getElementById('familyCards');
             const families = getFilteredFamilies();
             
+            console.log('🎨 Rendering', families.length, 'family cards');
+            
             if (families.length === 0) {
                 container.innerHTML = '<div class="loading">No families match your filters</div>';
                 return;
             }
             
-            container.innerHTML = families.map(family => `
-                <div class="family-card" data-id="${family.id}">
-                    <div class="family-card-header" onclick="toggleFamilyCard('${family.id}')">
-                        <div class="family-info">
-                        <div class="family-name">
-                            <div class="status-indicator ${family.isOnline ? 'online' : 'offline'}"></div>
-                            ${family.first_name} ${family.family_surname} Family
-                        </div>
-                        <div class="family-meta">
-                            <span>Entry ${family.entry_year}</span>
-                            <span>${Math.round((family.engagement?.timeOnPage || 0) / 60)} mins total</span>
-                            <span>${formatTimeAgo(new Date(family.engagement?.lastVisit || family.received_at))}</span>
-                        </div>
-                        </div>
-                        <div class="family-score">
-                            <div class="score-badge ${family.temperature}">
-                                ${family.engagementScore}
+            container.innerHTML = families.map(family => {
+                const lastActivity = family.engagement?.lastVisit || family.received_at;
+                const totalTime = Math.round((family.engagement?.timeOnPage || 0) / 60);
+                
+                return `
+                    <div class="family-card" data-id="${family.id}">
+                        <div class="family-card-header" onclick="toggleFamilyCard('${family.id}')">
+                            <div class="family-info">
+                                <div class="family-name">
+                                    <div class="status-indicator ${family.isOnline ? 'online' : 'offline'}"></div>
+                                    ${family.first_name} ${family.family_surname} Family
+                                </div>
+                                <div class="family-meta">
+                                    <span>Entry ${family.entry_year || 'Unknown'}</span>
+                                    <span>${totalTime} mins total</span>
+                                    <span>${family.engagement?.totalVisits || 1} visits</span>
+                                    <span>${formatTimeAgo(new Date(lastActivity))}</span>
+                                </div>
                             </div>
-                            <div class="expand-btn">▼</div>
+                            <div class="family-score">
+                                <div class="score-badge ${family.temperature}">
+                                    ${family.engagementScore}
+                                </div>
+                                <div class="expand-btn">▼</div>
+                            </div>
                         </div>
-                    </div>
-                    <div class="family-card-details">
-                        <div class="family-details-content">
-                            <div class="details-grid">
-                                <div class="detail-item">
-                                    <h4>Engagement Summary</h4>
-                                    <p>${family.engagement?.totalVisits || 1} visits • ${family.engagement?.scrollDepth || 0}% scroll depth</p>
-                                </div>
-                                <div class="detail-item">
-                                    <h4>Contact Status</h4>
-                                    <p>${family.contactReady ? 'Ready for immediate contact' : 'Continue nurturing'}</p>
-                                </div>
-                                <div class="detail-item">
-                                    <h4>Interests</h4>
-                                    <div class="interests-tags">
-                                        ${family.interests.map(interest => `<span class="interest-tag">${interest}</span>`).join('')}
+                        <div class="family-card-details">
+                            <div class="family-details-content">
+                                <div class="details-grid">
+                                    <div class="detail-item">
+                                        <h4>Engagement Summary</h4>
+                                        <p>${family.engagement?.totalVisits || 1} visits • ${family.engagement?.scrollDepth || 0}% scroll depth</p>
+                                        <p>Total time: ${totalTime} minutes</p>
+                                    </div>
+                                    <div class="detail-item">
+                                        <h4>Contact Status</h4>
+                                        <p>${family.contactReady ? '✅ Ready for immediate contact' : '⏳ Continue nurturing'}</p>
+                                    </div>
+                                    <div class="detail-item">
+                                        <h4>Interests</h4>
+                                        <div class="interests-tags">
+                                            ${family.interests.map(interest => `<span class="interest-tag">${interest}</span>`).join('')}
+                                        </div>
+                                    </div>
+                                    <div class="detail-item">
+                                        <h4>Technical Info</h4>
+                                        <p>Age Group: ${family.age_group || 'Unknown'}</p>
+                                        <p>Email: ${family.parent_email || 'Unknown'}</p>
                                     </div>
                                 </div>
-                                <div class="detail-item">
-                                    <h4>Device & Browser</h4>
-                                    <p>${family.engagement?.deviceType || 'Unknown'} • ${family.engagement?.browser || 'Unknown'}</p>
-                                </div>
                             </div>
-                            ${family.contactReady ? '' : ''}
                         </div>
                     </div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
         }
 
         function renderActivityFeed() {
             const container = document.getElementById('activityFeed');
             const activities = dashboardData.activities;
+            
+            console.log('📢 Rendering', activities.length, 'activity items');
             
             if (activities.length === 0) {
                 container.innerHTML = '<div class="loading">No recent activity</div>';
@@ -1061,12 +1076,12 @@
             
             container.innerHTML = activities.map(activity => `
                 <div class="activity-item">
-                    <div class="activity-avatar">${activity.family.split(' ')[0][0]}${activity.family.split(' ')[1][0]}</div>
+                    <div class="activity-avatar">${activity.family.charAt(0)}</div>
                     <div class="activity-content">
                         <div class="activity-text">
                             <strong>${activity.family}</strong> ${activity.action}
                         </div>
-                        <div class="activity-time">${activity.time} • Score: ${activity.score}</div>
+                        <div class="activity-time">${activity.time}</div>
                     </div>
                     <div class="activity-type ${activity.type}"></div>
                 </div>
@@ -1093,7 +1108,7 @@
             
             // Entry year filter
             if (entryYearFilter !== 'all') {
-                families = families.filter(f => f.entry_year === entryYearFilter);
+                families = families.filter(f => f.entry_year == entryYearFilter);
             }
             
             // Search filter
@@ -1133,10 +1148,6 @@
             }
         }
 
-        function contactFamily(familyId) {
-            // REMOVED - This is a reporting platform only
-        }
-
         function refreshDashboard() {
             loadDashboardData();
         }
@@ -1158,58 +1169,53 @@
         }
 
         function showError(message) {
-            console.error(message);
+            console.error('❌ Dashboard Error:', message);
             // Could add toast notification here
         }
-        
-        
 
-        // Replace the triggerAIAnalysis function in your dashboard.html file
-
-// AI Analysis Functions
-async function triggerAIAnalysis() {
-    const aiStatusElement = document.getElementById('aiStatus');
-    const buttonElement = document.querySelector('.refresh-btn[onclick="triggerAIAnalysis()"]');
-    
-    if (aiStatusElement) aiStatusElement.style.display = 'flex';
-    if (buttonElement) buttonElement.disabled = true;
-    
-    try {
-        console.log('🤖 Starting AI analysis...');
-        
-        // Call your AI analysis endpoint
-        const response = await fetch('/api/ai/analyze-all-families', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
-        
-        if (response.ok) {
-            const result = await response.json();
-            console.log('✅ AI Analysis completed:', result);
+        // AI Analysis Functions
+        async function triggerAIAnalysis() {
+            const aiStatusElement = document.getElementById('aiStatus');
+            const buttonElement = document.querySelector('.refresh-btn[onclick="triggerAIAnalysis()"]');
             
-            // Refresh dashboard data after AI analysis
-            await loadDashboardData();
+            if (aiStatusElement) aiStatusElement.style.display = 'flex';
+            if (buttonElement) buttonElement.disabled = true;
             
-            // Show success message
-            if (result.success) {
-                alert(`✅ AI Analysis completed successfully!\n\nAnalyzed: ${result.results.analyzed}/${result.results.total} families`);
-            } else {
-                alert('⚠️ AI Analysis completed with some errors. Check console for details.');
+            try {
+                console.log('🤖 Starting AI analysis...');
+                
+                const response = await fetch('/api/ai/analyze-all-families', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    console.log('✅ AI Analysis completed:', result);
+                    
+                    // Refresh dashboard data after AI analysis
+                    await loadDashboardData();
+                    
+                    // Show success message
+                    if (result.success) {
+                        alert(`✅ AI Analysis completed successfully!\n\nAnalyzed: ${result.results.analyzed}/${result.results.total} families`);
+                    } else {
+                        alert('⚠️ AI Analysis completed with some errors. Check console for details.');
+                    }
+                } else {
+                    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+                    throw new Error(`AI Analysis failed: ${errorData.error || response.statusText}`);
+                }
+            } catch (error) {
+                console.error('❌ AI Analysis error:', error);
+                alert(`❌ AI Analysis failed: ${error.message}\n\nPlease try again or contact support.`);
+            } finally {
+                if (aiStatusElement) aiStatusElement.style.display = 'none';
+                if (buttonElement) buttonElement.disabled = false;
             }
-        } else {
-            const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-            throw new Error(`AI Analysis failed: ${errorData.error || response.statusText}`);
         }
-    } catch (error) {
-        console.error('❌ AI Analysis error:', error);
-        alert(`❌ AI Analysis failed: ${error.message}\n\nPlease try again or contact support.`);
-    } finally {
-        if (aiStatusElement) aiStatusElement.style.display = 'none';
-        if (buttonElement) buttonElement.disabled = false;
-    }
-}
     </script>
 </body>
 </html>
