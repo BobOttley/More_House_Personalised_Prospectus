@@ -807,7 +807,7 @@ app.post('/api/track-engagement', async (req, res) => {
 // ────────────────────────────────────────────────────────────────────────────────
 app.get('/api/dashboard-data', async (req, res) => {
   try {
-    console.log('🔄 Dashboard data request received...');
+    console.log('📄 Dashboard data request received...');
     const base = getBaseUrl(req);
 
     if (db) {
@@ -1063,91 +1063,92 @@ app.get('/api/analytics/inquiries', async (req, res) => {
         
         const prettyPath = j.prospectusPrettyPath || (j.slug ? `/${j.slug}` : null);
       
-      const rec = {
-        id: j.id,
-        first_name: j.firstName,
-        family_surname: j.familySurname,
-        parent_email: j.parentEmail,
-        entry_year: j.entryYear,
-        age_group: j.ageGroup,
-        received_at: j.receivedAt,
-        updated_at: j.prospectusGeneratedAt || j.receivedAt,
-        status: j.status || (j.prospectusGenerated ? 'prospectus_generated' : 'received'),
-        prospectus_filename: j.prospectusFilename || null,
-        slug: j.slug || null,
-        prospectus_generated_at: j.prospectusGeneratedAt || null,
-        prospectus_pretty_path: prettyPath,
-        prospectus_pretty_url: prettyPath ? `${base}${prettyPath}` : null,
-        prospectus_direct_url: j.prospectusUrl ? `${base}${j.prospectusUrl}` : null,
-        engagement: null,
-        // Include interest fields for better processing
-        sciences: j.sciences,
-        mathematics: j.mathematics,
-        english: j.english,
-        languages: j.languages,
-        humanities: j.humanities,
-        business: j.business,
-        drama: j.drama,
-        music: j.music,
-        art: j.art,
-        sport: j.sport,
-        leadership: j.leadership,
-        community_service: j.community_service,
-        outdoor_education: j.outdoor_education
-      };
+        const rec = {
+          id: j.id,
+          first_name: j.firstName,
+          family_surname: j.familySurname,
+          parent_email: j.parentEmail,
+          entry_year: j.entryYear,
+          age_group: j.ageGroup,
+          received_at: j.receivedAt,
+          updated_at: j.prospectusGeneratedAt || j.receivedAt,
+          status: j.status || (j.prospectusGenerated ? 'prospectus_generated' : 'received'),
+          prospectus_filename: j.prospectusFilename || null,
+          slug: j.slug || null,
+          prospectus_generated_at: j.prospectusGeneratedAt || null,
+          prospectus_pretty_path: prettyPath,
+          prospectus_pretty_url: prettyPath ? `${base}${prettyPath}` : null,
+          prospectus_direct_url: j.prospectusUrl ? `${base}${j.prospectusUrl}` : null,
+          engagement: null,
+          // Include interest fields for better processing
+          sciences: j.sciences,
+          mathematics: j.mathematics,
+          english: j.english,
+          languages: j.languages,
+          humanities: j.humanities,
+          business: j.business,
+          drama: j.drama,
+          music: j.music,
+          art: j.art,
+          sport: j.sport,
+          leadership: j.leadership,
+          community_service: j.community_service,
+          outdoor_education: j.outdoor_education
+        };
 
-      // Get engagement data from database if available
-      if (db) {
-        try {
-          const r = await db.query(`
-            SELECT time_on_page, scroll_depth, clicks_on_links, total_visits, last_visit
-            FROM engagement_metrics
-            WHERE inquiry_id = $1
-            ORDER BY last_visit DESC
-            LIMIT 1
-          `, [j.id]);
-          
-          if (r.rows.length) {
-            const em = r.rows[0];
-            rec.engagement = {
-              timeOnPage: em.time_on_page || 0,
-              scrollDepth: em.scroll_depth || 0,
-              clickCount: em.clicks_on_links || 0,
-              totalVisits: em.total_visits || 0,
-              lastVisit: em.last_visit
-            };
-            console.log(`📊 Found engagement data for ${j.firstName} ${j.familySurname}:`, rec.engagement);
-          } else {
-            console.log(`📭 No engagement data found for ${j.firstName} ${j.familySurname}`);
+        // Get engagement data from database if available
+        if (db) {
+          try {
+            const r = await db.query(`
+              SELECT time_on_page, scroll_depth, clicks_on_links, total_visits, last_visit
+              FROM engagement_metrics
+              WHERE inquiry_id = $1
+              ORDER BY last_visit DESC
+              LIMIT 1
+            `, [j.id]);
+            
+            if (r.rows.length) {
+              const em = r.rows[0];
+              rec.engagement = {
+                timeOnPage: em.time_on_page || 0,
+                scrollDepth: em.scroll_depth || 0,
+                clickCount: em.clicks_on_links || 0,
+                totalVisits: em.total_visits || 0,
+                lastVisit: em.last_visit
+              };
+              console.log(`📊 Found engagement data for ${j.firstName} ${j.familySurname}:`, rec.engagement);
+            } else {
+              console.log(`📭 No engagement data found for ${j.firstName} ${j.familySurname}`);
+            }
+          } catch (engagementError) {
+            console.warn(`⚠️ Failed to get engagement for ${j.id}:`, engagementError.message);
           }
-        } catch (engagementError) {
-          console.warn(`⚠️ Failed to get engagement for ${j.id}:`, engagementError.message);
         }
+        
+        out.push(rec);
+        console.log(`📝 Added inquiry record for ${j.firstName} ${j.familySurname}`);
+      } catch (fileError) {
+        console.error(`❌ Error processing file ${f}:`, fileError.message);
       }
-      
-      out.push(rec);
-      console.log(`📝 Added inquiry record for ${j.firstName} ${j.familySurname}`);
-    } catch (fileError) {
-      console.error(`❌ Error processing file ${f}:`, fileError.message);
     }
+    
+    // Sort by engagement score (calculated) then by received date
+    out.sort((a, b) => {
+      const aScore = calculateEngagementScore(a.engagement);
+      const bScore = calculateEngagementScore(b.engagement);
+      if (aScore !== bScore) return bScore - aScore;
+      return new Date(b.received_at) - new Date(a.received_at);
+    });
+    
+    console.log(`✅ Returning ${out.length} inquiries with engagement data`);
+    console.log(`📊 Families with engagement: ${out.filter(f => f.engagement).length}`);
+    
+    res.json(out);
+  } catch (e) {
+    console.error('❌ Analytics inquiries error:', e);
+    res.status(500).json({ error: 'Failed to get inquiries' });
   }
-  
-  // Sort by engagement score (calculated) then by received date
-  out.sort((a, b) => {
-    const aScore = calculateEngagementScore(a.engagement);
-    const bScore = calculateEngagementScore(b.engagement);
-    if (aScore !== bScore) return bScore - aScore;
-    return new Date(b.received_at) - new Date(a.received_at);
-  });
-  
-  console.log(`✅ Returning ${out.length} inquiries with engagement data`);
-  console.log(`📊 Families with engagement: ${out.filter(f => f.engagement).length}`);
-  
-  res.json(out);
-} catch (e) {
-  console.error('❌ Analytics inquiries error:', e);
-  res.status(500).json({ error: 'Failed to get inquiries' });
-}
+});
 
 // ────────────────────────────────────────────────────────────────────────────────
 // AI ANALYSIS ENDPOINTS
@@ -1283,7 +1284,6 @@ app.get('/api/debug/data-files', async (req, res) => {
     res.status(500).json({ error: e.message });
   }
 });
-
 
 app.get('/api/inquiries', async (_req, res) => {
   try {
@@ -1456,14 +1456,14 @@ async function startServer() {
 
   app.listen(PORT, '0.0.0.0', () => {
     console.log('\n🚀 MORE HOUSE SCHOOL SYSTEM STARTED');
-    console.log('╔═══════════════════════════════════════╗');
+    console.log('╔═══════════════════════════════════════════╗');
     console.log(`🌐 Server: http://localhost:${PORT}`);
     console.log(`📋 Webhook: http://localhost:${PORT}/webhook`);
     console.log(`📊 Dashboard: http://localhost:${PORT}/smart_analytics_dashboard.html`);
     console.log(`🤖 AI Analysis: POST http://localhost:${PORT}/api/ai/analyze-all-families`);
     console.log(`🔗 Pretty URL pattern: http://localhost:${PORT}/the-<family>-family-<shortid>`);
     console.log(`📊 DB: ${dbConnected ? 'Connected' : 'JSON-only'}`);
-    console.log('╚═══════════════════════════════════════╝');
+    console.log('╚═══════════════════════════════════════════╝');
   });
 }
 
