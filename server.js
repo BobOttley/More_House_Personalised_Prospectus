@@ -157,15 +157,28 @@ async function generateProspectus(inquiry) {
     const title = `${inquiry.firstName} ${inquiry.familySurname} - More House School Prospectus ${inquiry.entryYear}`;
     html = html.replace(/<title>.*?<\/title>/, `<title>${title}</title>`);
 
+    // FIXED: Properly escape the JSON data to prevent JavaScript syntax errors
+    const escapedInquiryData = JSON.stringify(inquiry)
+      .replace(/\\/g, '\\\\')
+      .replace(/'/g, "\\'")
+      .replace(/"/g, '\\"')
+      .replace(/\n/g, '\\n')
+      .replace(/\r/g, '\\r')
+      .replace(/\t/g, '\\t');
+
     const personalizeBoot = `<script>
 document.addEventListener('DOMContentLoaded', function(){
-  const userData = ${JSON.stringify(inquiry, null, 2)};
-  console.log('Initializing prospectus with data:', userData);
-  if (typeof initializeProspectus === 'function') {
-    initializeProspectus(userData);
-    console.log('Prospectus personalized successfully');
-  } else {
-    console.error('initializeProspectus function not found');
+  try {
+    const userData = JSON.parse('${escapedInquiryData}');
+    console.log('Initializing prospectus with data:', userData);
+    if (typeof initializeProspectus === 'function') {
+      initializeProspectus(userData);
+      console.log('Prospectus personalized successfully');
+    } else {
+      console.error('initializeProspectus function not found');
+    }
+  } catch (error) {
+    console.error('Failed to parse inquiry data:', error);
   }
 });
 </script>`;
