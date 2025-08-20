@@ -1391,15 +1391,61 @@ app.get('/prospectuses/:filename', async (req, res) => {
 // Keep static serving for any other static assets in /prospectuses
 app.use('/prospectuses', express.static(path.join(__dirname, 'prospectuses')));
 
-// ────────────────────────────────────────────────────────────────────────────────
-// Admin: rebuild slug mappings on click
-// ────────────────────────────────────────────────────────────────────────────────
-app.get('/admin/rebuild-slugs', async (req, res) => {
-  const before = Object.keys(slugIndex).length;
-  const added = await rebuildSlugIndexFromData();
-  const after = Object.keys(slugIndex).length;
-  res.json({ success:true, before, added, after });
-});
+// Replace your existing rebuildSlugIndexFromData function with this:
+async function rebuildSlugIndexFromData() {
+  let added = 0;
+  try {
+    // Try database first (where your actual data lives)
+    if (db) {
+      console.log('🔧 Rebuilding slug index from database...');
+      const result = await db.query(`
+        SELECT id, slug, prospectus_url, prospectus_filename, first_name, family_surname
+        FROM inquiries 
+        WHERE slug IS NOT NULL
+      `);
+      
+      for (const row of result.rows) {
+        const slug = (row.slug || '').toLowerCase();
+        if (!slug) continue;
+        
+        let rel = row.prospectus_url;
+        if (!rel && row.prospectus_filename) {
+          rel = `/prospectuses/${row.prospectus_filename}`;
+        }
+        
+        if (rel && !slugIndex[slug]) {
+          slugIndex[slug] = rel;
+          added++;
+          console.log(`✅ Added slug mapping: ${slug} -> ${rel} (${row.first_name} ${row.family_surname})`);
+        }
+      }
+      
+      if (added > 0) await saveSlugIndex();
+      console.log(`🔨 Rebuilt slug index from database (added ${added})`);
+      return added;
+    }
+    
+    // Fallback to JSON files if no database
+    console.log('📁 Rebuilding slug index from JSON files...');
+    const files = await fs.readdir(path.join(__dirname, 'data'));
+    const js = files.filter(f => f.startsWith('inquiry-') && f.endsWith('.json'));
+    for (const f of js) {
+      try {
+        const j = JSON.parse(await fs.readFile(path.join(__dirname, 'data', f), 'utf8'));
+        const s = (j.slug || '').toLowerCase();
+        if (!s) continue;
+        let rel = j.prospectusUrl;
+        if (!rel && j.prospectusFilename) rel = `/prospectuses/${j.prospectusFilename}`;
+        if (rel && !slugIndex[s]) { slugIndex[s] = rel; added++; }
+      } catch {}
+    }
+    if (added) await saveSlugIndex();
+    console.log(`🔨 Rebuilt slug index from JSON (added ${added})`);
+  } catch (e) {
+    console.warn('⚠️ rebuildSlugIndexFromData error:', e.message);
+  }
+  return added;
+}
 
 // ────────────────────────────────────────────────────────────────────────────────
 // Root/info endpoints
