@@ -473,6 +473,7 @@ DO NOT INCLUDE ANY TEXT OUTSIDE THE JSON OBJECT.`;
           headers: {
             "Content-Type": "application/json",
             "x-api-key": process.env.ANTHROPIC_API_KEY  // ← ADD THIS LINE
+            "anthropic-version": "2023-06-01"  // ← ADD THIS LINE
           },
           body: JSON.stringify({
             model: "claude-sonnet-4-20250514",
