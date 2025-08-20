@@ -1,5 +1,5 @@
 // server.js — complete file (UK English comments), full feature set
-// Fixed version with proper tracking injection, dashboard URLs, and slug resolution
+// Enhanced version with AI analysis, proper tracking injection, dashboard URLs, and slug resolution
 
 const express = require('express');
 const cors = require('cors');
@@ -74,6 +74,47 @@ async function initializeDatabase() {
     console.warn('➡️ Continuing in JSON-only mode.');
     db = null;
     return false;
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────────────
+// 🤖 AI INSIGHTS TABLE CREATION
+// ────────────────────────────────────────────────────────────────────────────────
+async function ensureAIInsightsTable() {
+  if (!db) return;
+  
+  try {
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS ai_family_insights (
+        id SERIAL PRIMARY KEY,
+        inquiry_id VARCHAR(50) NOT NULL,
+        analysis_type VARCHAR(50) NOT NULL DEFAULT 'family_profile',
+        insights_json TEXT,
+        confidence_score DECIMAL(3,2) DEFAULT 0.5,
+        recommendations TEXT[],
+        lead_score INTEGER DEFAULT 50,
+        urgency_level VARCHAR(20) DEFAULT 'medium',
+        lead_temperature VARCHAR(10) DEFAULT 'warm',
+        generated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(inquiry_id, analysis_type)
+      );
+    `);
+    
+    // Create index for faster queries
+    await db.query(`
+      CREATE INDEX IF NOT EXISTS idx_ai_insights_lead_score 
+      ON ai_family_insights(lead_score DESC, generated_at DESC);
+    `);
+    
+    await db.query(`
+      CREATE INDEX IF NOT EXISTS idx_ai_insights_urgency 
+      ON ai_family_insights(urgency_level, lead_score DESC);
+    `);
+    
+    console.log('✅ AI insights table verified/created');
+  } catch (error) {
+    console.warn('⚠️ Failed to create AI insights table:', error.message);
   }
 }
 
@@ -255,7 +296,7 @@ async function findInquiryBySlug(slug) {
   return null;
 }
 
-// 🔧 FIXED SLUG REBUILDING (Replace your existing rebuildSlugIndexFromData)
+// 🔧 FIXED SLUG REBUILDING
 async function rebuildSlugIndexFromData() {
   let added = 0;
   console.log('🔨 Rebuilding slug index...');
@@ -408,7 +449,7 @@ document.addEventListener('DOMContentLoaded', function(){
     const trackingInject = `<!-- More House Analytics Tracking -->
 <script>
 window.MORE_HOUSE_INQUIRY_ID='${inquiry.id}';
-console.log('🔊 Inquiry ID set for tracking:', window.MORE_HOUSE_INQUIRY_ID);
+console.log('📊 Inquiry ID set for tracking:', window.MORE_HOUSE_INQUIRY_ID);
 </script>
 <script src="/tracking.js"></script>`;
 
@@ -444,7 +485,7 @@ console.log('🔊 Inquiry ID set for tracking:', window.MORE_HOUSE_INQUIRY_ID);
 
     if (!hasTrackingJs || !hasInquiryId) {
       console.error('🚨 CRITICAL: Tracking script injection FAILED!');
-      console.log('📝 Body section preview:', savedContent.slice(bodyCloseIndex - 200, bodyCloseIndex + 200));
+      console.log('🔍 Body section preview:', savedContent.slice(bodyCloseIndex - 200, bodyCloseIndex + 200));
     }
 
     return {
@@ -568,25 +609,25 @@ function calculateEngagementScore(engagement) {
   let score = 0;
   
   // Time spent (40% weight)
-  const timeMinutes = (engagement.timeOnPage || 0) / 60;
+  const timeMinutes = (engagement.timeOnPage || engagement.time_on_page || 0) / 60;
   if (timeMinutes >= 30) score += 40;
   else if (timeMinutes >= 15) score += 30;
   else if (timeMinutes >= 5) score += 20;
   else score += Math.min(timeMinutes * 4, 15);
   
   // Content depth (30% weight)
-  const scrollDepth = engagement.scrollDepth || 0;
+  const scrollDepth = engagement.scrollDepth || engagement.scroll_depth || 0;
   score += Math.min(scrollDepth * 0.3, 30);
   
   // Return visits (20% weight)
-  const visits = engagement.totalVisits || 1;
+  const visits = engagement.totalVisits || engagement.total_visits || 1;
   if (visits >= 7) score += 20;
   else if (visits >= 4) score += 15;
   else if (visits >= 2) score += 10;
   else score += 5;
   
   // Interaction quality (10% weight)
-  const clicks = engagement.clickCount || 0;
+  const clicks = engagement.clickCount || engagement.clicks_on_links || 0;
   score += Math.min(clicks * 2, 10);
   
   return Math.min(Math.round(score), 100);
@@ -663,7 +704,7 @@ async function getDashboardMetrics() {
 }
 
 // ────────────────────────────────────────────────────────────────────────────────
-// AI Analysis Functions
+// 🤖 ENHANCED AI ANALYSIS FUNCTIONS
 // ────────────────────────────────────────────────────────────────────────────────
 function extractInterests(inquiry) {
   const academic = [];
@@ -697,25 +738,33 @@ function extractPriorities(inquiry) {
   return priorities;
 }
 
+// 🤖 ENHANCED AI ANALYSIS FUNCTION WITH BETTER ERROR HANDLING
 async function analyzeFamily(inquiry, engagementData) {
   try {
-    // Build context for Claude
+    console.log(`🤖 Analyzing family: ${inquiry.firstName} ${inquiry.familySurname}`);
+    
+    // Build comprehensive context for Claude
     const familyContext = {
       name: `${inquiry.firstName} ${inquiry.familySurname}`,
       ageGroup: inquiry.ageGroup,
       entryYear: inquiry.entryYear,
+      parentEmail: inquiry.parentEmail,
       interests: extractInterests(inquiry),
       priorities: extractPriorities(inquiry),
       engagement: engagementData ? {
         timeOnPage: engagementData.time_on_page || 0,
         scrollDepth: engagementData.scroll_depth || 0,
-        totalVisits: engagementData.total_visits || 0,
+        totalVisits: engagementData.total_visits || 1,
+        clickCount: engagementData.clicks_on_links || 0,
         lastVisit: engagementData.last_visit
       } : null
     };
 
-    // Construct prompt for Claude
-    const prompt = `As an expert education consultant for More House School, analyze this family's profile and provide insights for our admissions team.
+    // Calculate engagement score
+    const engagementScore = calculateEngagementScore(familyContext.engagement);
+
+    // Enhanced prompt for Claude with specific formatting instructions
+    const prompt = `As an expert education consultant for More House School, analyze this family's profile and provide actionable insights for our admissions team.
 
 FAMILY PROFILE:
 - Student: ${familyContext.name}
@@ -726,75 +775,145 @@ FAMILY PROFILE:
 - Family Priorities: ${familyContext.priorities.join(', ') || 'None specified'}
 ${familyContext.engagement ? `
 ENGAGEMENT DATA:
-- Time spent on prospectus: ${Math.round(familyContext.engagement.timeOnPage / 60)} minutes
+- Time spent: ${Math.round(familyContext.engagement.timeOnPage / 60)} minutes
 - Content engagement: ${familyContext.engagement.scrollDepth}% scroll depth
 - Visit frequency: ${familyContext.engagement.totalVisits} visits
+- Interaction count: ${familyContext.engagement.clickCount} clicks
+- Engagement score: ${engagementScore}/100
 - Last active: ${familyContext.engagement.lastVisit ? new Date(familyContext.engagement.lastVisit).toLocaleDateString() : 'Unknown'}
-` : ''}
+` : 'ENGAGEMENT DATA: No tracking data available yet'}
 
-Please provide a JSON response with insights for admissions teams.
+Based on this information, provide insights that will help our admissions team prioritize and personalize their approach.
 
-Respond ONLY with valid JSON in this format:
+RESPOND ONLY WITH VALID JSON IN THIS EXACT FORMAT:
 {
-  "leadScore": 85,
+  "leadScore": 75,
+  "urgencyLevel": "high",
+  "leadTemperature": "hot",
   "conversationStarters": [
-    "Ask about their interest in our science facilities",
-    "Discuss our small class sizes for individual attention"
+    "Discuss our exceptional science facilities and laboratories",
+    "Explore how our small class sizes support individual learning"
   ],
   "sellingPoints": [
-    "Exceptional science laboratories", 
-    "Individual attention in small classes"
+    "Outstanding STEM program with modern laboratories",
+    "Individual attention with 8:1 student-teacher ratio"
   ],
-  "urgencyLevel": "high",
-  "nextAction": "Schedule immediate callback - highly engaged family",
+  "nextActions": [
+    "Schedule immediate phone call within 24 hours",
+    "Send personalized science department brochure"
+  ],
   "insights": {
-    "studentProfile": "Science-focused with strong academic drive",
-    "familyPriorities": "Academic excellence and individual attention"
+    "studentProfile": "Science-focused student with strong academic potential",
+    "familyPriorities": "Academic excellence and individual attention",
+    "engagementPattern": "Highly engaged - spent significant time on academic sections",
+    "recommendedApproach": "Lead with academic strengths and science opportunities"
   },
+  "keyObservations": [
+    "Strong interest in STEM subjects",
+    "Family values academic excellence",
+    "High engagement suggests serious consideration"
+  ],
   "confidence": 0.92
-}`;
+}
 
-    // Call Claude API
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 1000,
-        messages: [
-          { role: "user", content: prompt }
-        ]
-      })
-    });
+DO NOT INCLUDE ANY TEXT OUTSIDE THE JSON OBJECT.`;
 
-    if (!response.ok) {
-      throw new Error(`Claude API error: ${response.status}`);
+    // Call Claude API with retry logic
+    let attempts = 0;
+    const maxAttempts = 3;
+    
+    while (attempts < maxAttempts) {
+      try {
+        attempts++;
+        console.log(`🔄 Claude API call attempt ${attempts}/${maxAttempts} for ${inquiry.id}`);
+        
+        const response = await fetch("https://api.anthropic.com/v1/messages", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "claude-sonnet-4-20250514",
+            max_tokens: 2000,
+            messages: [
+              { role: "user", content: prompt }
+            ]
+          })
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Claude API HTTP ${response.status}: ${errorText}`);
+        }
+
+        const data = await response.json();
+        let responseText = data.content[0].text;
+        
+        // Clean up response (remove any markdown formatting)
+        responseText = responseText.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+        
+        // Parse the JSON response
+        const analysis = JSON.parse(responseText);
+        
+        // Validate required fields
+        if (!analysis.leadScore || !analysis.urgencyLevel) {
+          throw new Error('Invalid analysis response - missing required fields');
+        }
+        
+        console.log(`✅ Claude analysis completed for ${inquiry.id} (score: ${analysis.leadScore})`);
+        
+        return {
+          leadScore: analysis.leadScore || 50,
+          urgencyLevel: analysis.urgencyLevel || 'medium',
+          leadTemperature: analysis.leadTemperature || 'warm',
+          conversationStarters: analysis.conversationStarters || [],
+          sellingPoints: analysis.sellingPoints || [],
+          nextActions: analysis.nextActions || [],
+          insights: analysis.insights || {},
+          keyObservations: analysis.keyObservations || [],
+          confidence_score: analysis.confidence || 0.5,
+          recommendations: analysis.conversationStarters || [], // For backward compatibility
+          engagementScore: engagementScore,
+          analysisDate: new Date().toISOString()
+        };
+
+      } catch (error) {
+        console.warn(`⚠️ Claude API attempt ${attempts} failed for ${inquiry.id}:`, error.message);
+        
+        if (attempts >= maxAttempts) {
+          throw error;
+        }
+        
+        // Wait before retry (exponential backoff)
+        await new Promise(resolve => setTimeout(resolve, 1000 * attempts));
+      }
     }
 
-    const data = await response.json();
-    let responseText = data.content[0].text;
-    
-    // Clean up response (remove any markdown)
-    responseText = responseText.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-    
-    const analysis = JSON.parse(responseText);
-    
-    return {
-      leadScore: analysis.leadScore || 50,
-      conversationStarters: analysis.conversationStarters || [],
-      sellingPoints: analysis.sellingPoints || [],
-      urgencyLevel: analysis.urgencyLevel || 'medium',
-      nextAction: analysis.nextAction || 'Follow up as needed',
-      insights: analysis.insights || {},
-      confidence_score: analysis.confidence || 0.5,
-      recommendations: analysis.conversationStarters || []
-    };
-
   } catch (error) {
-    console.error('Claude API analysis failed:', error);
-    return null;
+    console.error(`❌ Family analysis failed for ${inquiry.id}:`, error.message);
+    
+    // Return fallback analysis based on engagement data
+    const engagementScore = calculateEngagementScore(engagementData);
+    return {
+      leadScore: Math.max(engagementScore, 25), // Minimum score based on engagement
+      urgencyLevel: engagementScore > 70 ? 'high' : engagementScore > 40 ? 'medium' : 'low',
+      leadTemperature: engagementScore > 70 ? 'hot' : engagementScore > 40 ? 'warm' : 'cold',
+      conversationStarters: ['Follow up on their inquiry', 'Discuss school offerings'],
+      sellingPoints: ['Quality education', 'Strong community'],
+      nextActions: ['Schedule follow-up call'],
+      insights: {
+        studentProfile: 'Analysis unavailable - requires manual review',
+        familyPriorities: 'Unknown - contact for details',
+        engagementPattern: engagementData ? `Engagement score: ${engagementScore}/100` : 'No engagement data',
+        recommendedApproach: 'Standard inquiry follow-up process'
+      },
+      keyObservations: ['AI analysis failed - manual review needed'],
+      confidence_score: 0.1,
+      recommendations: ['Manual review required'],
+      engagementScore: engagementScore,
+      analysisDate: new Date().toISOString(),
+      error: error.message
+    };
   }
 }
 
@@ -915,11 +1034,26 @@ app.post('/api/generate-prospectus/:inquiryId', async (req, res) => {
           parentEmail: row.parent_email,
           ageGroup: row.age_group,
           entryYear: row.entry_year,
-          // Add all other fields...
           sciences: row.sciences,
           mathematics: row.mathematics,
           english: row.english,
-          // ... etc
+          languages: row.languages,
+          humanities: row.humanities,
+          business: row.business,
+          drama: row.drama,
+          music: row.music,
+          art: row.art,
+          creative_writing: row.creative_writing,
+          sport: row.sport,
+          leadership: row.leadership,
+          community_service: row.community_service,
+          outdoor_education: row.outdoor_education,
+          academic_excellence: row.academic_excellence,
+          pastoral_care: row.pastoral_care,
+          university_preparation: row.university_preparation,
+          personal_development: row.personal_development,
+          career_guidance: row.career_guidance,
+          extracurricular_opportunities: row.extracurricular_opportunities
         };
       }
     }
@@ -1009,17 +1143,470 @@ app.post('/api/track-engagement', async (req, res) => {
 });
 
 // ────────────────────────────────────────────────────────────────────────────────
-// 🔧 FIXED DASHBOARD DATA ENDPOINT - SHOWS CORRECT URLS
+// 🤖 ENHANCED AI ANALYSIS ENDPOINTS
+// ────────────────────────────────────────────────────────────────────────────────
+
+// Enhanced batch AI analysis endpoint
+app.post('/api/ai/analyze-all-families', async (req, res) => {
+  try {
+    console.log('🤖 Starting comprehensive AI analysis for all families...');
+    
+    let inquiries = [];
+    
+    // Get inquiries from database first, fallback to JSON
+    if (db) {
+      console.log('📊 Loading families from database...');
+      const result = await db.query(`
+        SELECT id, first_name, family_surname, parent_email, age_group, entry_year,
+               sciences, mathematics, english, languages, humanities, business,
+               drama, music, art, creative_writing, sport, leadership, 
+               community_service, outdoor_education, academic_excellence,
+               pastoral_care, university_preparation, personal_development,
+               career_guidance, extracurricular_opportunities, received_at
+        FROM inquiries 
+        ORDER BY received_at DESC
+      `);
+      
+      inquiries = result.rows.map(row => ({
+        id: row.id,
+        firstName: row.first_name,
+        familySurname: row.family_surname,
+        parentEmail: row.parent_email,
+        ageGroup: row.age_group,
+        entryYear: row.entry_year,
+        sciences: row.sciences,
+        mathematics: row.mathematics,
+        english: row.english,
+        languages: row.languages,
+        humanities: row.humanities,
+        business: row.business,
+        drama: row.drama,
+        music: row.music,
+        art: row.art,
+        creative_writing: row.creative_writing,
+        sport: row.sport,
+        leadership: row.leadership,
+        community_service: row.community_service,
+        outdoor_education: row.outdoor_education,
+        academic_excellence: row.academic_excellence,
+        pastoral_care: row.pastoral_care,
+        university_preparation: row.university_preparation,
+        personal_development: row.personal_development,
+        career_guidance: row.career_guidance,
+        extracurricular_opportunities: row.extracurricular_opportunities,
+        receivedAt: row.received_at
+      }));
+    } else {
+      // JSON fallback
+      console.log('📁 Loading families from JSON files...');
+      const files = await fs.readdir(path.join(__dirname, 'data'));
+      for (const f of files.filter(x => x.startsWith('inquiry-') && x.endsWith('.json'))) {
+        try {
+          const j = JSON.parse(await fs.readFile(path.join(__dirname, 'data', f), 'utf8'));
+          inquiries.push(j);
+        } catch (fileError) {
+          console.warn(`⚠️ Failed to read ${f}:`, fileError.message);
+        }
+      }
+    }
+
+    console.log(`📊 Found ${inquiries.length} families to analyze`);
+    
+    if (inquiries.length === 0) {
+      return res.json({
+        success: true,
+        message: 'No families found to analyze',
+        results: { total: 0, analyzed: 0, errors: 0 },
+        details: []
+      });
+    }
+
+    let analysisCount = 0;
+    const errors = [];
+    const successDetails = [];
+
+    // Process each family
+    for (const inquiry of inquiries) {
+      try {
+        console.log(`🔍 Processing ${inquiry.firstName} ${inquiry.familySurname} (${inquiry.id})`);
+        
+        // Get engagement data if available
+        let engagementData = null;
+        if (db) {
+          const engagementResult = await db.query(`
+            SELECT time_on_page, scroll_depth, clicks_on_links, total_visits, last_visit
+            FROM engagement_metrics
+            WHERE inquiry_id = $1
+            ORDER BY last_visit DESC
+            LIMIT 1
+          `, [inquiry.id]);
+          
+          if (engagementResult.rows.length) {
+            engagementData = engagementResult.rows[0];
+          }
+        }
+
+        // Call Claude API for analysis
+        const analysis = await analyzeFamily(inquiry, engagementData);
+        
+        if (analysis) {
+          // Store analysis in database if available
+          if (db) {
+            try {
+              await db.query(`
+                INSERT INTO ai_family_insights (
+                  inquiry_id, analysis_type, insights_json, confidence_score, 
+                  recommendations, generated_at, lead_score, urgency_level, lead_temperature
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                ON CONFLICT (inquiry_id, analysis_type) DO UPDATE SET
+                  insights_json = EXCLUDED.insights_json,
+                  confidence_score = EXCLUDED.confidence_score,
+                  recommendations = EXCLUDED.recommendations,
+                  generated_at = EXCLUDED.generated_at,
+                  lead_score = EXCLUDED.lead_score,
+                  urgency_level = EXCLUDED.urgency_level,
+                  lead_temperature = EXCLUDED.lead_temperature
+              `, [
+                inquiry.id,
+                'family_profile',
+                JSON.stringify(analysis),
+                analysis.confidence_score,
+                analysis.recommendations,
+                new Date(),
+                analysis.leadScore,
+                analysis.urgencyLevel,
+                analysis.leadTemperature
+              ]);
+              
+              console.log(`💾 Stored analysis for ${inquiry.id} in database`);
+            } catch (dbError) {
+              console.warn(`⚠️ DB insert failed for ${inquiry.id}:`, dbError.message);
+            }
+          }
+
+          analysisCount++;
+          successDetails.push({
+            inquiryId: inquiry.id,
+            name: `${inquiry.firstName} ${inquiry.familySurname}`,
+            leadScore: analysis.leadScore,
+            urgencyLevel: analysis.urgencyLevel,
+            confidence: analysis.confidence_score
+          });
+          
+          console.log(`✅ Analysis completed for ${inquiry.firstName} ${inquiry.familySurname} (score: ${analysis.leadScore})`);
+        }
+        
+      } catch (error) {
+        console.error(`❌ Analysis failed for ${inquiry.id}:`, error.message);
+        errors.push({ 
+          inquiryId: inquiry.id, 
+          name: `${inquiry.firstName || ''} ${inquiry.familySurname || ''}`.trim(),
+          error: error.message 
+        });
+      }
+    }
+
+    console.log(`🎯 AI analysis complete: ${analysisCount}/${inquiries.length} successful`);
+    
+    const response = {
+      success: true,
+      message: `AI analysis completed for ${analysisCount} out of ${inquiries.length} families`,
+      results: {
+        total: inquiries.length,
+        analyzed: analysisCount,
+        errors: errors.length,
+        successRate: inquiries.length > 0 ? Math.round((analysisCount / inquiries.length) * 100) : 0
+      },
+      successDetails: successDetails.slice(0, 10), // Show first 10 successful analyses
+      errors: errors.length > 0 ? errors.slice(0, 5) : undefined // Show first 5 errors
+    };
+    
+    res.json(response);
+
+  } catch (error) {
+    console.error('❌ Batch AI analysis error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'AI analysis failed',
+      message: error.message,
+      results: { total: 0, analyzed: 0, errors: 1 }
+    });
+  }
+});
+
+// Add this endpoint to your server.js for individual family analysis
+app.post('/api/ai/analyze-family/:inquiryId', async (req, res) => {
+  try {
+    const inquiryId = req.params.inquiryId;
+    console.log(`🤖 Starting individual AI analysis for family: ${inquiryId}`);
+    
+    let inquiry = null;
+    
+    // Get inquiry from database first, fallback to JSON
+    if (db) {
+      console.log('📊 Loading family from database...');
+      const result = await db.query(`
+        SELECT id, first_name, family_surname, parent_email, age_group, entry_year,
+               sciences, mathematics, english, languages, humanities, business,
+               drama, music, art, creative_writing, sport, leadership, 
+               community_service, outdoor_education, academic_excellence,
+               pastoral_care, university_preparation, personal_development,
+               career_guidance, extracurricular_opportunities, received_at
+        FROM inquiries 
+        WHERE id = $1
+      `, [inquiryId]);
+      
+      if (result.rows.length > 0) {
+        const row = result.rows[0];
+        inquiry = {
+          id: row.id,
+          firstName: row.first_name,
+          familySurname: row.family_surname,
+          parentEmail: row.parent_email,
+          ageGroup: row.age_group,
+          entryYear: row.entry_year,
+          sciences: row.sciences,
+          mathematics: row.mathematics,
+          english: row.english,
+          languages: row.languages,
+          humanities: row.humanities,
+          business: row.business,
+          drama: row.drama,
+          music: row.music,
+          art: row.art,
+          creative_writing: row.creative_writing,
+          sport: row.sport,
+          leadership: row.leadership,
+          community_service: row.community_service,
+          outdoor_education: row.outdoor_education,
+          academic_excellence: row.academic_excellence,
+          pastoral_care: row.pastoral_care,
+          university_preparation: row.university_preparation,
+          personal_development: row.personal_development,
+          career_guidance: row.career_guidance,
+          extracurricular_opportunities: row.extracurricular_opportunities,
+          receivedAt: row.received_at
+        };
+      }
+    } else {
+      // JSON fallback
+      console.log('📁 Loading family from JSON files...');
+      const files = await fs.readdir(path.join(__dirname, 'data'));
+      for (const f of files.filter(x => x.startsWith('inquiry-') && x.endsWith('.json'))) {
+        try {
+          const j = JSON.parse(await fs.readFile(path.join(__dirname, 'data', f), 'utf8'));
+          if (j.id === inquiryId) {
+            inquiry = j;
+            break;
+          }
+        } catch (fileError) {
+          console.warn(`⚠️ Failed to read ${f}:`, fileError.message);
+        }
+      }
+    }
+    
+    if (!inquiry) {
+      return res.status(404).json({
+        success: false,
+        error: 'Family not found',
+        inquiryId: inquiryId
+      });
+    }
+    
+    console.log(`🔍 Processing ${inquiry.firstName} ${inquiry.familySurname} (${inquiry.id})`);
+    
+    // Get engagement data if available
+    let engagementData = null;
+    if (db) {
+      const engagementResult = await db.query(`
+        SELECT time_on_page, scroll_depth, clicks_on_links, total_visits, last_visit
+        FROM engagement_metrics
+        WHERE inquiry_id = $1
+        ORDER BY last_visit DESC
+        LIMIT 1
+      `, [inquiry.id]);
+      
+      if (engagementResult.rows.length) {
+        engagementData = engagementResult.rows[0];
+      }
+    }
+
+    // Call Claude API for analysis (using your existing analyzeFamily function)
+    const analysis = await analyzeFamily(inquiry, engagementData);
+    
+    if (!analysis) {
+      return res.status(500).json({
+        success: false,
+        error: 'AI analysis failed',
+        inquiryId: inquiryId
+      });
+    }
+    
+    // Store analysis in database if available
+    if (db) {
+      try {
+        await db.query(`
+          INSERT INTO ai_family_insights (
+            inquiry_id, analysis_type, insights_json, confidence_score, 
+            recommendations, generated_at, lead_score, urgency_level, lead_temperature
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+          ON CONFLICT (inquiry_id, analysis_type) DO UPDATE SET
+            insights_json = EXCLUDED.insights_json,
+            confidence_score = EXCLUDED.confidence_score,
+            recommendations = EXCLUDED.recommendations,
+            generated_at = EXCLUDED.generated_at,
+            lead_score = EXCLUDED.lead_score,
+            urgency_level = EXCLUDED.urgency_level,
+            lead_temperature = EXCLUDED.lead_temperature
+        `, [
+          inquiry.id,
+          'family_profile',
+          JSON.stringify(analysis),
+          analysis.confidence_score,
+          analysis.recommendations,
+          new Date(),
+          analysis.leadScore,
+          analysis.urgencyLevel,
+          analysis.leadTemperature
+        ]);
+        
+        console.log(`💾 Stored individual analysis for ${inquiry.id} in database`);
+      } catch (dbError) {
+        console.warn(`⚠️ DB insert failed for ${inquiry.id}:`, dbError.message);
+      }
+    }
+    
+    console.log(`✅ Individual analysis completed for ${inquiry.firstName} ${inquiry.familySurname} (score: ${analysis.leadScore})`);
+    
+    res.json({
+      success: true,
+      message: `AI analysis completed for ${inquiry.firstName} ${inquiry.familySurname}`,
+      inquiryId: inquiry.id,
+      analysis: {
+        leadScore: analysis.leadScore,
+        urgencyLevel: analysis.urgencyLevel,
+        leadTemperature: analysis.leadTemperature,
+        confidence: analysis.confidence_score,
+        conversationStarters: analysis.conversationStarters,
+        sellingPoints: analysis.sellingPoints,
+        nextActions: analysis.nextActions,
+        insights: analysis.insights
+      }
+    });
+    
+  } catch (error) {
+    console.error(`❌ Individual AI analysis error for ${req.params.inquiryId}:`, error);
+    res.status(500).json({
+      success: false,
+      error: 'Individual AI analysis failed',
+      message: error.message,
+      inquiryId: req.params.inquiryId
+    });
+  }
+});
+
+// New endpoint to get AI insights for dashboard
+app.get('/api/ai/family-insights', async (req, res) => {
+  try {
+    console.log('🤖 Retrieving AI insights for dashboard...');
+    
+    if (!db) {
+      return res.json({
+        success: false,
+        message: 'AI insights require database connection',
+        insights: []
+      });
+    }
+    
+    // Get AI insights with family information
+    const insights = await db.query(`
+      SELECT 
+        ai.inquiry_id,
+        ai.insights_json,
+        ai.confidence_score,
+        ai.lead_score,
+        ai.urgency_level,
+        ai.lead_temperature,
+        ai.generated_at,
+        i.first_name,
+        i.family_surname,
+        i.parent_email,
+        i.entry_year,
+        i.age_group,
+        em.time_on_page,
+        em.total_visits,
+        em.last_visit
+      FROM ai_family_insights ai
+      JOIN inquiries i ON i.id = ai.inquiry_id
+      LEFT JOIN engagement_metrics em ON em.inquiry_id = ai.inquiry_id
+      WHERE ai.analysis_type = 'family_profile'
+      ORDER BY ai.lead_score DESC, ai.generated_at DESC
+      LIMIT 50
+    `);
+    
+    const processedInsights = insights.rows.map(row => {
+      let parsedInsights = {};
+      try {
+        parsedInsights = JSON.parse(row.insights_json || '{}');
+      } catch (e) {
+        console.warn(`Failed to parse insights for ${row.inquiry_id}`);
+      }
+      
+      return {
+        inquiryId: row.inquiry_id,
+        familyName: `${row.first_name} ${row.family_surname}`,
+        parentEmail: row.parent_email,
+        entryYear: row.entry_year,
+        ageGroup: row.age_group,
+        leadScore: row.lead_score,
+        urgencyLevel: row.urgency_level,
+        leadTemperature: row.lead_temperature,
+        confidence: row.confidence_score,
+        generatedAt: row.generated_at,
+        insights: parsedInsights,
+        engagement: {
+          timeOnPage: row.time_on_page || 0,
+          totalVisits: row.total_visits || 0,
+          lastVisit: row.last_visit
+        }
+      };
+    });
+    
+    console.log(`📊 Retrieved ${processedInsights.length} AI insights`);
+    
+    res.json({
+      success: true,
+      insights: processedInsights,
+      summary: {
+        total: processedInsights.length,
+        hotLeads: processedInsights.filter(i => i.leadScore >= 80).length,
+        warmLeads: processedInsights.filter(i => i.leadScore >= 60 && i.leadScore < 80).length,
+        coldLeads: processedInsights.filter(i => i.leadScore < 60).length
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Failed to get AI insights:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to retrieve AI insights',
+      message: error.message
+    });
+  }
+});
+
+// ────────────────────────────────────────────────────────────────────────────────
+// 🎯 ENHANCED DASHBOARD DATA ENDPOINT WITH AI INSIGHTS INTEGRATION
 // ────────────────────────────────────────────────────────────────────────────────
 app.get('/api/dashboard-data', async (req, res) => {
   try {
-    console.log('📄 Dashboard data request received...');
+    console.log('📊 Enhanced dashboard data request with AI insights...');
     const base = getBaseUrl(req);
 
     if (db) {
-      console.log('🗄️ Using database for dashboard data...');
+      console.log('🗄️ Using database for enhanced dashboard data...');
       
-      // Get basic counts
+      // 1. BASIC METRICS
       const [{ c: totalFamilies }] = (await db.query(`SELECT COUNT(*)::int AS c FROM inquiries`)).rows;
       const [{ c: newInquiries7d }] = (await db.query(`
         SELECT COUNT(*)::int AS c
@@ -1032,10 +1619,50 @@ app.get('/api/dashboard-data', async (req, res) => {
         WHERE status='prospectus_generated' OR prospectus_generated IS TRUE
       `)).rows;
       
-      // Calculate proper engagement metrics
-      const metrics = await getDashboardMetrics();
+      // 2. AI-ENHANCED ENGAGEMENT METRICS
+      let aiInsightsSummary = { hotLeads: 0, warmLeads: 0, coldLeads: 0, analyzed: 0 };
+      try {
+        const aiMetrics = await db.query(`
+          SELECT 
+            COUNT(*) as total_analyzed,
+            SUM(CASE WHEN lead_score >= 80 THEN 1 ELSE 0 END) as hot_leads,
+            SUM(CASE WHEN lead_score >= 60 AND lead_score < 80 THEN 1 ELSE 0 END) as warm_leads,
+            SUM(CASE WHEN lead_score < 60 THEN 1 ELSE 0 END) as cold_leads,
+            AVG(lead_score) as avg_score
+          FROM ai_family_insights 
+          WHERE analysis_type = 'family_profile'
+        `);
+        
+        if (aiMetrics.rows.length > 0) {
+          const metrics = aiMetrics.rows[0];
+          aiInsightsSummary = {
+            hotLeads: parseInt(metrics.hot_leads || 0),
+            warmLeads: parseInt(metrics.warm_leads || 0),
+            coldLeads: parseInt(metrics.cold_leads || 0),
+            analyzed: parseInt(metrics.total_analyzed || 0),
+            averageScore: Math.round(parseFloat(metrics.avg_score || 0))
+          };
+        }
+      } catch (aiError) {
+        console.warn('⚠️ AI metrics query failed:', aiError.message);
+      }
       
-      // Get interest analysis
+      // Fallback to traditional engagement if no AI data
+      if (aiInsightsSummary.analyzed === 0) {
+        console.log('📊 No AI data, using traditional engagement metrics...');
+        const traditionalMetrics = await getDashboardMetrics();
+        aiInsightsSummary.hotLeads = traditionalMetrics.hotLeads;
+        aiInsightsSummary.warmLeads = traditionalMetrics.warmLeads;
+      }
+      
+      // 3. AVERAGE ENGAGEMENT TIME
+      const [{ avg_time }] = (await db.query(`
+        SELECT AVG(time_on_page) as avg_time 
+        FROM engagement_metrics WHERE time_on_page > 0
+      `)).rows;
+      const avgEngagement = Math.round((avg_time || 0) / 60);
+
+      // 4. TOP INTERESTS ANALYSIS
       const interestRow = (await db.query(`
         SELECT
           SUM(CASE WHEN sciences THEN 1 ELSE 0 END)::int AS sciences,
@@ -1050,31 +1677,30 @@ app.get('/api/dashboard-data', async (req, res) => {
           SUM(CASE WHEN creative_writing THEN 1 ELSE 0 END)::int AS creative_writing,
           SUM(CASE WHEN sport THEN 1 ELSE 0 END)::int AS sport,
           SUM(CASE WHEN leadership THEN 1 ELSE 0 END)::int AS leadership,
-          SUM(CASE WHEN community_service THEN 1 ELSE 0 END)::int AS community_service,
-          SUM(CASE WHEN outdoor_education THEN 1 ELSE 0 END)::int AS outdoor_education,
           SUM(CASE WHEN academic_excellence THEN 1 ELSE 0 END)::int AS academic_excellence,
-          SUM(CASE WHEN pastoral_care THEN 1 ELSE 0 END)::int AS pastoral_care,
-          SUM(CASE WHEN university_preparation THEN 1 ELSE 0 END)::int AS university_preparation,
-          SUM(CASE WHEN personal_development THEN 1 ELSE 0 END)::int AS personal_development,
-          SUM(CASE WHEN career_guidance THEN 1 ELSE 0 END)::int AS career_guidance,
-          SUM(CASE WHEN extracurricular_opportunities THEN 1 ELSE 0 END)::int AS extracurricular_opportunities
+          SUM(CASE WHEN pastoral_care THEN 1 ELSE 0 END)::int AS pastoral_care
         FROM inquiries
       `)).rows[0];
 
       const topInterests = Object.entries(interestRow || {}).map(([subject, count]) => ({
-        subject, count: Number(count||0)
-      })).filter(x => x.count>0).sort((a,b)=>b.count-a.count).slice(0,10);
+        subject: subject.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+        count: Number(count || 0)
+      })).filter(x => x.count > 0).sort((a, b) => b.count - a.count).slice(0, 10);
 
-      // Get recent activity from tracking_events
+      // 5. RECENT ACTIVITY WITH AI INSIGHTS
       const recentlyActive = (await db.query(`
         SELECT DISTINCT ON (te.inquiry_id) 
                te.inquiry_id, 
                te.event_type, 
                te."timestamp",
                COALESCE(i.first_name,'') AS first_name,
-               COALESCE(i.family_surname,'') AS family_surname
+               COALESCE(i.family_surname,'') AS family_surname,
+               ai.lead_score,
+               ai.urgency_level
         FROM tracking_events te
         JOIN inquiries i ON i.id = te.inquiry_id
+        LEFT JOIN ai_family_insights ai ON ai.inquiry_id = te.inquiry_id 
+          AND ai.analysis_type = 'family_profile'
         WHERE te.event_type <> 'heartbeat' 
           AND te."timestamp" >= NOW() - INTERVAL '24 hours'
         ORDER BY te.inquiry_id, te."timestamp" DESC
@@ -1083,95 +1709,142 @@ app.get('/api/dashboard-data', async (req, res) => {
         name: `${r.first_name} ${r.family_surname}`.trim(),
         inquiryId: r.inquiry_id,
         activity: r.event_type,
-        when: r.timestamp
+        when: r.timestamp,
+        leadScore: r.lead_score || null,
+        urgencyLevel: r.urgency_level || 'unknown',
+        temperature: r.lead_score >= 80 ? 'hot' : r.lead_score >= 60 ? 'warm' : 'cold'
       }));
 
-      // Get priority families based on actual engagement data
+      // 6. PRIORITY FAMILIES WITH AI SCORING
       const priorityFamilies = (await db.query(`
-        SELECT em.inquiry_id,
-               MAX(em.time_on_page) AS time_on_page,
-               MAX(em.total_visits) AS total_visits,
-               MAX(em.last_visit) AS last_visit,
-               COALESCE(i.first_name,'') AS first_name,
-               COALESCE(i.family_surname,'') AS family_surname,
-               COALESCE(i.age_group,'') AS age_group,
-               COALESCE(i.entry_year,'') AS entry_year,
-               -- Calculate engagement score in SQL
-               CASE 
-                 WHEN MAX(em.time_on_page) > 600 AND MAX(em.scroll_depth) > 80 THEN 'hot'
-                 WHEN MAX(em.time_on_page) > 300 AND MAX(em.scroll_depth) > 50 THEN 'warm'
-                 ELSE 'cold'
-               END as temperature
-        FROM engagement_metrics em
-        JOIN inquiries i ON i.id = em.inquiry_id
-        GROUP BY em.inquiry_id, i.first_name, i.family_surname, i.age_group, i.entry_year
-        ORDER BY MAX(em.time_on_page) DESC, MAX(em.total_visits) DESC, MAX(em.last_visit) DESC NULLS LAST
-        LIMIT 10
-      `)).rows.map(r => ({
-        name: `${r.first_name} ${r.family_surname}`.trim(),
-        inquiryId: r.inquiry_id,
-        ageGroup: r.age_group,
-        entryYear: r.entry_year,
-        timeOnPage: Number(r.time_on_page||0),
-        totalVisits: Number(r.total_visits||0),
-        lastVisit: r.last_visit,
-        temperature: r.temperature
-      }));
+        SELECT 
+          i.id as inquiry_id,
+          COALESCE(i.first_name,'') AS first_name,
+          COALESCE(i.family_surname,'') AS family_surname,
+          COALESCE(i.age_group,'') AS age_group,
+          COALESCE(i.entry_year,'') AS entry_year,
+          COALESCE(ai.lead_score, 0) as ai_score,
+          COALESCE(ai.urgency_level, 'unknown') as urgency,
+          COALESCE(ai.insights_json, '{}') as insights_json,
+          MAX(em.time_on_page) AS time_on_page,
+          MAX(em.total_visits) AS total_visits,
+          MAX(em.last_visit) AS last_visit,
+          ai.generated_at as ai_analysis_date
+        FROM inquiries i
+        LEFT JOIN ai_family_insights ai ON ai.inquiry_id = i.id 
+          AND ai.analysis_type = 'family_profile'
+        LEFT JOIN engagement_metrics em ON em.inquiry_id = i.id
+        GROUP BY i.id, i.first_name, i.family_surname, i.age_group, i.entry_year,
+                 ai.lead_score, ai.urgency_level, ai.insights_json, ai.generated_at
+        ORDER BY 
+          COALESCE(ai.lead_score, 0) DESC,
+          MAX(em.time_on_page) DESC,
+          MAX(em.total_visits) DESC,
+          i.received_at DESC
+        LIMIT 15
+      `)).rows.map(r => {
+        let insights = {};
+        try {
+          insights = JSON.parse(r.insights_json || '{}');
+        } catch (e) {}
+        
+        return {
+          name: `${r.first_name} ${r.family_surname}`.trim(),
+          inquiryId: r.inquiry_id,
+          ageGroup: r.age_group,
+          entryYear: r.entry_year,
+          aiScore: r.ai_score || 0,
+          urgencyLevel: r.urgency,
+          timeOnPage: Number(r.time_on_page || 0),
+          totalVisits: Number(r.total_visits || 0),
+          lastVisit: r.last_visit,
+          temperature: r.ai_score >= 80 ? 'hot' : r.ai_score >= 60 ? 'warm' : 'cold',
+          hasAIAnalysis: !!r.ai_analysis_date,
+          nextActions: insights.nextActions || [],
+          keyObservations: insights.keyObservations || [],
+          analysisDate: r.ai_analysis_date
+        };
+      });
 
-      // 🎯 CRITICAL: Get latest prospectuses with CORRECT URLs
+      // 7. LATEST PROSPECTUSES WITH ENHANCED DATA
       let latestProspectuses = [];
       try {
         const lp = (await db.query(`
-          SELECT id, first_name, family_surname, prospectus_filename, prospectus_url, slug, prospectus_generated_at
-          FROM inquiries
-          WHERE prospectus_generated IS TRUE AND (prospectus_url IS NOT NULL OR slug IS NOT NULL)
-          ORDER BY prospectus_generated_at DESC NULLS LAST
+          SELECT 
+            i.id, i.first_name, i.family_surname, i.prospectus_filename, 
+            i.prospectus_url, i.slug, i.prospectus_generated_at,
+            ai.lead_score, ai.urgency_level
+          FROM inquiries i
+          LEFT JOIN ai_family_insights ai ON ai.inquiry_id = i.id 
+            AND ai.analysis_type = 'family_profile'
+          WHERE i.prospectus_generated IS TRUE 
+            AND (i.prospectus_url IS NOT NULL OR i.slug IS NOT NULL)
+          ORDER BY i.prospectus_generated_at DESC NULLS LAST
           LIMIT 10
         `)).rows;
+        
         latestProspectuses = lp.map(r => {
-          // Build pretty URL using slug first, fallback to direct URL
           const pretty = r.slug ? `${base}/${r.slug}` : (r.prospectus_url ? `${base}${r.prospectus_url}` : null);
           const direct = r.prospectus_url ? `${base}${r.prospectus_url}` : null;
+          
           return {
             name: `${r.first_name || ''} ${r.family_surname || ''}`.trim(),
             inquiryId: r.id,
             generatedAt: r.prospectus_generated_at,
             prospectusPrettyUrl: pretty,
-            prospectusDirectUrl: direct
+            prospectusDirectUrl: direct,
+            leadScore: r.lead_score || null,
+            urgencyLevel: r.urgency_level || 'unknown',
+            temperature: r.lead_score >= 80 ? 'hot' : r.lead_score >= 60 ? 'warm' : 'cold'
           };
         });
+        
         console.log(`📋 Latest prospectuses: ${latestProspectuses.length} found`);
       } catch (e) {
         console.warn('Failed to get latest prospectuses:', e.message);
       }
 
+      // 8. BUILD ENHANCED RESPONSE
       const response = {
         summary: { 
           readyForContact, 
-          highlyEngaged: metrics.hotLeads + metrics.warmLeads, 
+          highlyEngaged: aiInsightsSummary.hotLeads + aiInsightsSummary.warmLeads, 
           newInquiries7d, 
           totalFamilies,
-          hotLeads: metrics.hotLeads,
-          warmLeads: metrics.warmLeads,
-          avgEngagement: metrics.avgEngagement
+          hotLeads: aiInsightsSummary.hotLeads,
+          warmLeads: aiInsightsSummary.warmLeads,
+          coldLeads: aiInsightsSummary.coldLeads,
+          avgEngagement,
+          aiAnalyzed: aiInsightsSummary.analyzed,
+          aiAverageScore: aiInsightsSummary.averageScore || 0
         },
         topInterests, 
         recentlyActive, 
         priorityFamilies, 
-        latestProspectuses
+        latestProspectuses,
+        aiInsights: {
+          available: aiInsightsSummary.analyzed > 0,
+          totalAnalyzed: aiInsightsSummary.analyzed,
+          averageScore: aiInsightsSummary.averageScore || 0,
+          distribution: {
+            hot: aiInsightsSummary.hotLeads,
+            warm: aiInsightsSummary.warmLeads,
+            cold: aiInsightsSummary.coldLeads
+          }
+        }
       };
       
-      console.log('✅ Dashboard data response prepared:', {
+      console.log('✅ Enhanced dashboard data response prepared:', {
         summary: response.summary,
-        recentlyActive: response.recentlyActive.length,
+        aiInsights: response.aiInsights,
         priorityFamilies: response.priorityFamilies.length,
-        latestProspectuses: response.latestProspectuses.length
+        recentlyActive: response.recentlyActive.length
       });
       
       return res.json(response);
     }
 
-    // JSON fallback
+    // JSON FALLBACK (basic functionality)
     console.log('📁 Using JSON fallback...');
     const files = await fs.readdir(path.join(__dirname, 'data')).catch(() => []);
     const inquiries = [];
@@ -1198,10 +1871,10 @@ app.get('/api/dashboard-data', async (req, res) => {
     for (const i of inquiries) for (const k of interestKeys) if (i[k]) counts[k]++;
 
     const topInterests = Object.entries(counts).filter(([,c])=>c>0)
-      .sort((a,b)=>b[1]-a[1]).slice(0,10).map(([subject,count])=>({subject,count}));
-
-    const recentlyActive = [];
-    const priorityFamilies = [];
+      .sort((a,b)=>b[1]-a[1]).slice(0,10).map(([subject,count])=>({
+        subject: subject.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+        count
+      }));
 
     const latestProspectuses = inquiries
       .filter(i => i.prospectusGenerated || i.status === 'prospectus_generated')
@@ -1214,7 +1887,10 @@ app.get('/api/dashboard-data', async (req, res) => {
           inquiryId: i.id,
           generatedAt: i.prospectusGeneratedAt || null,
           prospectusPrettyUrl: prettyPath ? `${base}${prettyPath}` : null,
-          prospectusDirectUrl: i.prospectusUrl ? `${base}${i.prospectusUrl}` : null
+          prospectusDirectUrl: i.prospectusUrl ? `${base}${i.prospectusUrl}` : null,
+          leadScore: null,
+          urgencyLevel: 'unknown',
+          temperature: 'unknown'
         };
       });
 
@@ -1226,20 +1902,29 @@ app.get('/api/dashboard-data', async (req, res) => {
         totalFamilies,
         hotLeads: 0,
         warmLeads: 0,
-        avgEngagement: 0
+        coldLeads: 0,
+        avgEngagement: 0,
+        aiAnalyzed: 0,
+        aiAverageScore: 0
       },
       topInterests, 
-      recentlyActive, 
-      priorityFamilies, 
-      latestProspectuses
+      recentlyActive: [], 
+      priorityFamilies: [], 
+      latestProspectuses,
+      aiInsights: {
+        available: false,
+        totalAnalyzed: 0,
+        averageScore: 0,
+        distribution: { hot: 0, warm: 0, cold: 0 }
+      }
     });
   } catch (e) {
-    console.error('❌ Dashboard data error:', e);
-    res.status(500).json({ error:'Failed to build dashboard data', message:e.message });
+    console.error('❌ Enhanced dashboard data error:', e);
+    res.status(500).json({ error:'Failed to build enhanced dashboard data', message:e.message });
   }
 });
 
-// 🔧 FIXED /api/analytics/inquiries endpoint with CORRECT URLs
+// 🔧 FIXED /api/analytics/inquiries endpoint with CORRECT URLs + AI DATA
 app.get('/api/analytics/inquiries', async (req, res) => {
   try {
     console.log('📋 Analytics inquiries request received...');
@@ -1250,17 +1935,19 @@ app.get('/api/analytics/inquiries', async (req, res) => {
       console.log('🗄️ Using database for inquiries data...');
       
       try {
-        // Get all inquiries from database with CORRECT URL construction
+        // Get all inquiries from database with CORRECT URL construction + AI insights
         const inquiriesResult = await db.query(`
           SELECT 
-            id, first_name, family_surname, parent_email, entry_year, age_group,
-            received_at, updated_at, status, prospectus_filename, prospectus_url, slug,
-            prospectus_generated_at, prospectus_generated,
-            sciences, mathematics, english, languages, humanities, business,
-            drama, music, art, creative_writing, sport, leadership, 
-            community_service, outdoor_education
-          FROM inquiries 
-          ORDER BY received_at DESC
+            i.id, i.first_name, i.family_surname, i.parent_email, i.entry_year, i.age_group,
+            i.received_at, i.updated_at, i.status, i.prospectus_filename, i.prospectus_url, i.slug,
+            i.prospectus_generated_at, i.prospectus_generated,
+            i.sciences, i.mathematics, i.english, i.languages, i.humanities, i.business,
+            i.drama, i.music, i.art, i.creative_writing, i.sport, i.leadership, 
+            i.community_service, i.outdoor_education,
+            ai.lead_score, ai.urgency_level, ai.lead_temperature, ai.insights_json, ai.confidence_score
+          FROM inquiries i
+          LEFT JOIN ai_family_insights ai ON ai.inquiry_id = i.id AND ai.analysis_type = 'family_profile'
+          ORDER BY COALESCE(ai.lead_score, 0) DESC, i.received_at DESC
         `);
         
         console.log(`📊 Found ${inquiriesResult.rows.length} inquiries in database`);
@@ -1301,7 +1988,21 @@ app.get('/api/analytics/inquiries', async (req, res) => {
             sport: inquiry.sport,
             leadership: inquiry.leadership,
             community_service: inquiry.community_service,
-            outdoor_education: inquiry.outdoor_education
+            outdoor_education: inquiry.outdoor_education,
+            // 🤖 ADD AI INSIGHTS
+            aiInsights: inquiry.lead_score ? {
+              leadScore: inquiry.lead_score,
+              urgencyLevel: inquiry.urgency_level,
+              temperature: inquiry.lead_temperature,
+              confidence: inquiry.confidence_score,
+              hasAnalysis: true
+            } : {
+              leadScore: null,
+              urgencyLevel: 'unknown',
+              temperature: 'unknown',
+              confidence: 0,
+              hasAnalysis: false
+            }
           };
 
           // Get engagement data for this inquiry
@@ -1321,7 +2022,8 @@ app.get('/api/analytics/inquiries', async (req, res) => {
                 scrollDepth: em.scroll_depth || 0,
                 clickCount: em.clicks_on_links || 0,
                 totalVisits: em.total_visits || 0,
-                lastVisit: em.last_visit
+                lastVisit: em.last_visit,
+                engagementScore: calculateEngagementScore(em)
               };
             }
           } catch (engagementError) {
@@ -1331,16 +2033,9 @@ app.get('/api/analytics/inquiries', async (req, res) => {
           out.push(rec);
         }
         
-        // Sort by engagement score then by received date
-        out.sort((a, b) => {
-          const aScore = calculateEngagementScore(a.engagement);
-          const bScore = calculateEngagementScore(b.engagement);
-          if (aScore !== bScore) return bScore - aScore;
-          return new Date(b.received_at) - new Date(a.received_at);
-        });
-        
         console.log(`✅ Returning ${out.length} inquiries from database`);
         console.log(`📊 Families with engagement: ${out.filter(f => f.engagement).length}`);
+        console.log(`🤖 Families with AI analysis: ${out.filter(f => f.aiInsights.hasAnalysis).length}`);
         
         return res.json(out);
         
@@ -1398,7 +2093,15 @@ app.get('/api/analytics/inquiries', async (req, res) => {
           sport: j.sport,
           leadership: j.leadership,
           community_service: j.community_service,
-          outdoor_education: j.outdoor_education
+          outdoor_education: j.outdoor_education,
+          // No AI insights in JSON mode
+          aiInsights: {
+            leadScore: null,
+            urgencyLevel: 'unknown',
+            temperature: 'unknown',
+            confidence: 0,
+            hasAnalysis: false
+          }
         };
         
         out.push(rec);
@@ -1413,106 +2116,6 @@ app.get('/api/analytics/inquiries', async (req, res) => {
   } catch (e) {
     console.error('❌ Analytics inquiries error:', e);
     res.status(500).json({ error: 'Failed to get inquiries' });
-  }
-});
-
-// ────────────────────────────────────────────────────────────────────────────────
-// AI ANALYSIS ENDPOINTS
-// ────────────────────────────────────────────────────────────────────────────────
-app.post('/api/ai/analyze-all-families', async (req, res) => {
-  try {
-    console.log('🤖 Starting AI analysis for all families...');
-    
-    // Get all inquiries
-    const files = await fs.readdir(path.join(__dirname, 'data'));
-    const inquiries = [];
-    for (const f of files.filter(x => x.startsWith('inquiry-') && x.endsWith('.json'))) {
-      try {
-        const j = JSON.parse(await fs.readFile(path.join(__dirname, 'data', f), 'utf8'));
-        inquiries.push(j);
-      } catch {}
-    }
-
-    console.log(`📊 Found ${inquiries.length} families to analyze`);
-
-    let analysisCount = 0;
-    const errors = [];
-
-    for (const inquiry of inquiries) {
-      try {
-        // Get engagement data if available
-        let engagementData = null;
-        if (db) {
-          const r = await db.query(`
-            SELECT time_on_page, scroll_depth, clicks_on_links, total_visits, last_visit
-            FROM engagement_metrics
-            WHERE inquiry_id = $1
-            ORDER BY last_visit DESC
-            LIMIT 1
-          `, [inquiry.id]);
-          if (r.rows.length) {
-            engagementData = r.rows[0];
-          }
-        }
-
-        // Call Claude API for analysis
-        const analysis = await analyzeFamily(inquiry, engagementData);
-        
-        if (analysis) {
-          // Store analysis in database if available
-          if (db) {
-            try {
-              await db.query(`
-                INSERT INTO ai_family_insights (
-                  inquiry_id, analysis_type, insights_json, confidence_score, 
-                  recommendations, generated_at
-                ) VALUES ($1, $2, $3, $4, $5, $6)
-                ON CONFLICT (inquiry_id, analysis_type) DO UPDATE SET
-                  insights_json = EXCLUDED.insights_json,
-                  confidence_score = EXCLUDED.confidence_score,
-                  recommendations = EXCLUDED.recommendations,
-                  generated_at = EXCLUDED.generated_at
-              `, [
-                inquiry.id,
-                'family_profile',
-                JSON.stringify(analysis.insights),
-                analysis.confidence_score,
-                analysis.recommendations,
-                new Date()
-              ]);
-            } catch (dbError) {
-              console.warn(`DB insert failed for ${inquiry.id}:`, dbError.message);
-            }
-          }
-
-          analysisCount++;
-        }
-      } catch (error) {
-        console.error(`❌ Analysis failed for ${inquiry.id}:`, error.message);
-        errors.push({ inquiryId: inquiry.id, error: error.message });
-      }
-    }
-
-    console.log(`✅ AI analysis complete: ${analysisCount}/${inquiries.length} successful`);
-    
-    res.json({
-      success: true,
-      message: `AI analysis completed`,
-      results: {
-        total: inquiries.length,
-        analyzed: analysisCount,
-        errors: errors.length
-      },
-      errors: errors.length > 0 ? errors : undefined
-    });
-
-  } catch (error) {
-    console.error('❌ AI analysis error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'AI analysis failed',
-      message: error.message
-    });
   }
 });
 
@@ -1551,6 +2154,7 @@ app.get('/api/debug/data-files', async (req, res) => {
   }
 });
 
+// Legacy raw list (kept for parity)
 app.get('/api/inquiries', async (_req, res) => {
   try {
     const files = await fs.readdir(path.join(__dirname, 'data'));
@@ -1599,7 +2203,7 @@ app.get('/prospectuses/:filename', async (req, res) => {
 app.use('/prospectuses', express.static(path.join(__dirname, 'prospectuses')));
 
 // ────────────────────────────────────────────────────────────────────────────────
-// 🔧 ADD ADMIN DEBUG ENDPOINT
+// 🔧 ADMIN DEBUG ENDPOINTS
 // ────────────────────────────────────────────────────────────────────────────────
 app.get('/admin/rebuild-slugs', async (req, res) => {
   try {
@@ -1628,7 +2232,6 @@ app.get('/admin/rebuild-slugs', async (req, res) => {
   }
 });
 
-// Add this debug endpoint to your server.js
 app.get('/admin/debug-database', async (req, res) => {
   try {
     if (!db) {
@@ -1654,8 +2257,18 @@ app.get('/admin/debug-database', async (req, res) => {
     // Count total inquiries
     const [{ count }] = (await db.query(`SELECT COUNT(*) as count FROM inquiries`)).rows;
     
+    // Check AI insights table
+    let aiCount = 0;
+    try {
+      const [{ count: aiInsights }] = (await db.query(`SELECT COUNT(*) as count FROM ai_family_insights`)).rows;
+      aiCount = aiInsights;
+    } catch (e) {
+      console.warn('AI insights table not found:', e.message);
+    }
+    
     res.json({
       totalInquiries: count,
+      aiInsights: aiCount,
       columns: columns.rows.map(r => ({ name: r.column_name, type: r.data_type })),
       sampleData: sample.rows
     });
@@ -1679,7 +2292,7 @@ app.get('/health', (req, res) => {
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
     environment: process.env.NODE_ENV || 'development',
-    version: '3.5.0-fixed',
+    version: '4.0.0-ai-enhanced',
     features: {
       analytics: 'enabled',
       tracking: 'enabled',
@@ -1688,8 +2301,10 @@ app.get('/health', (req, res) => {
       prettyUrls: true,
       selfHealing: true,
       aiAnalysis: 'enabled',
+      aiInsights: 'enabled',
       trackingFixed: 'enabled',
-      dashboardUrlsFixed: 'enabled'
+      dashboardUrlsFixed: 'enabled',
+      claudeIntegration: 'enabled'
     }
   });
 });
@@ -1701,224 +2316,37 @@ app.get('/', (req, res) => {
 <style>body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;padding:24px;max-width:780px;margin:auto;line-height:1.55}</style></head>
 <body>
   <h1>More House Prospectus Service</h1>
-  <p><strong>🎯 Version 3.5.0 - All Issues Fixed!</strong></p>
+  <p><strong>🎯 Version 4.0.0 - AI Enhanced!</strong></p>
   <ul>
     <li>Health: <a href="${base}/health">${base}/health</a></li>
     <li>Webhook (POST JSON): <code>${base}/webhook</code></li>
     <li>Dashboard: <a href="${base}/smart_analytics_dashboard.html">${base}/smart_analytics_dashboard.html</a></li>
     <li>Inquiries (JSON): <a href="${base}/api/analytics/inquiries">${base}/api/analytics/inquiries</a></li>
     <li>Dashboard data (JSON): <a href="${base}/api/dashboard-data">${base}/api/dashboard-data</a></li>
+    <li>🤖 AI Insights: <a href="${base}/api/ai/family-insights">${base}/api/ai/family-insights</a></li>
     <li>Rebuild slugs: <a href="${base}/admin/rebuild-slugs">${base}/admin/rebuild-slugs</a></li>
     <li>Debug database: <a href="${base}/admin/debug-database">${base}/admin/debug-database</a></li>
   </ul>
-  <h3>🔧 Fixed Issues:</h3>
+  <h3>🎯 New AI Features:</h3>
   <ul>
-    <li>✅ Tracking script injection now works properly</li>
+    <li>✅ Claude API integration for family analysis</li>
+    <li>✅ Lead scoring and prioritization (0-100)</li>
+    <li>✅ Hot/Warm/Cold temperature classification</li>
+    <li>✅ Conversation starters and selling points</li>
+    <li>✅ Enhanced dashboard with AI insights</li>
+    <li>✅ Automated family insights generation</li>
+  </ul>
+  <h3>🔧 Maintained Fixes:</h3>
+  <ul>
+    <li>✅ Tracking script injection works properly</li>
     <li>✅ Dashboard URLs are correctly saved and displayed</li>
     <li>✅ Pretty URLs (slugs) are properly generated and resolved</li>
     <li>✅ Database synchronization with JSON fallback</li>
   </ul>
   <p>Pretty links look like: <code>${base}/the-smith-family-abc123</code></p>
   <p>🤖 AI Analysis: <code>POST ${base}/api/ai/analyze-all-families</code></p>
+  <p>🧠 AI Insights API: <code>GET ${base}/api/ai/family-insights</code></p>
 </body></html>`);
-});
-
-// Add these endpoints to your server.js file
-
-// 📊 Dashboard Data Endpoint
-app.get('/api/dashboard-data', async (req, res) => {
-  try {
-    console.log('📊 Dashboard data request received...');
-    
-    if (db) {
-      // Get basic counts from database
-      const totalFamilies = (await db.query('SELECT COUNT(*) as count FROM inquiries')).rows[0].count;
-      const newInquiries7d = (await db.query(`
-        SELECT COUNT(*) as count FROM inquiries 
-        WHERE received_at >= NOW() - INTERVAL '7 days'
-      `)).rows[0].count;
-      
-      // Calculate engagement metrics
-      const hotLeads = (await db.query(`
-        SELECT COUNT(DISTINCT inquiry_id) as count 
-        FROM engagement_metrics 
-        WHERE time_on_page > 600 AND scroll_depth > 80
-      `)).rows[0].count || 0;
-      
-      const warmLeads = (await db.query(`
-        SELECT COUNT(DISTINCT inquiry_id) as count 
-        FROM engagement_metrics 
-        WHERE time_on_page > 300 AND scroll_depth > 50
-        AND inquiry_id NOT IN (
-          SELECT DISTINCT inquiry_id FROM engagement_metrics 
-          WHERE time_on_page > 600 AND scroll_depth > 80
-        )
-      `)).rows[0].count || 0;
-      
-      // Average engagement time
-      const avgTime = (await db.query(`
-        SELECT AVG(time_on_page) as avg_time 
-        FROM engagement_metrics WHERE time_on_page > 0
-      `)).rows[0].avg_time || 0;
-      
-      // Recent activity
-      const recentActivity = (await db.query(`
-        SELECT DISTINCT ON (te.inquiry_id) 
-               te.inquiry_id, te.event_type, te.timestamp,
-               i.first_name, i.family_surname
-        FROM tracking_events te
-        JOIN inquiries i ON i.id = te.inquiry_id
-        WHERE te.timestamp >= NOW() - INTERVAL '24 hours'
-        ORDER BY te.inquiry_id, te.timestamp DESC
-        LIMIT 10
-      `)).rows.map(r => ({
-        name: `${r.first_name} ${r.family_surname}`,
-        inquiryId: r.inquiry_id,
-        activity: r.event_type,
-        when: r.timestamp
-      }));
-      
-      res.json({
-        summary: {
-          hotLeads,
-          warmLeads,
-          totalFamilies: parseInt(totalFamilies),
-          avgEngagement: Math.round(avgTime / 60), // Convert to minutes
-          readyForContact: hotLeads + warmLeads,
-          newInquiries7d: parseInt(newInquiries7d)
-        },
-        recentlyActive: recentActivity,
-        topInterests: [], // Add if needed
-        priorityFamilies: [], // Add if needed  
-        latestProspectuses: [] // Add if needed
-      });
-      
-    } else {
-      // JSON fallback
-      const files = await fs.readdir(path.join(__dirname, 'data')).catch(() => []);
-      const totalFamilies = files.filter(x => x.startsWith('inquiry-') && x.endsWith('.json')).length;
-      
-      res.json({
-        summary: {
-          hotLeads: 0,
-          warmLeads: 0,
-          totalFamilies,
-          avgEngagement: 0,
-          readyForContact: 0,
-          newInquiries7d: 0
-        },
-        recentlyActive: [],
-        topInterests: [],
-        priorityFamilies: [],
-        latestProspectuses: []
-      });
-    }
-    
-  } catch (error) {
-    console.error('❌ Dashboard data error:', error);
-    res.status(500).json({ error: 'Failed to get dashboard data' });
-  }
-});
-
-// 📋 Analytics Inquiries Endpoint
-app.get('/api/analytics/inquiries', async (req, res) => {
-  try {
-    console.log('📋 Analytics inquiries request...');
-    const base = getBaseUrl(req);
-    
-    if (db) {
-      // Get all inquiries with engagement data
-      const inquiries = await db.query(`
-        SELECT 
-          i.id, i.first_name, i.family_surname, i.parent_email,
-          i.entry_year, i.age_group, i.received_at, i.status,
-          i.prospectus_filename, i.prospectus_url, i.slug,
-          i.sciences, i.mathematics, i.english, i.languages,
-          i.humanities, i.business, i.drama, i.music, i.art,
-          i.sport, i.leadership, i.community_service,
-          em.time_on_page, em.scroll_depth, em.clicks_on_links,
-          em.total_visits, em.last_visit
-        FROM inquiries i
-        LEFT JOIN engagement_metrics em ON i.id = em.inquiry_id
-        ORDER BY i.received_at DESC
-      `);
-      
-      const processed = inquiries.rows.map(row => ({
-        id: row.id,
-        first_name: row.first_name,
-        family_surname: row.family_surname,
-        parent_email: row.parent_email,
-        entry_year: row.entry_year,
-        age_group: row.age_group,
-        received_at: row.received_at,
-        status: row.status,
-        prospectus_filename: row.prospectus_filename,
-        prospectus_url: row.prospectus_url,
-        prospectus_pretty_url: row.slug ? `${base}/${row.slug}` : null,
-        prospectus_direct_url: row.prospectus_url ? `${base}${row.prospectus_url}` : null,
-        slug: row.slug,
-        
-        // Interest fields
-        sciences: row.sciences,
-        mathematics: row.mathematics,
-        english: row.english,
-        languages: row.languages,
-        humanities: row.humanities,
-        business: row.business,
-        drama: row.drama,
-        music: row.music,
-        art: row.art,
-        sport: row.sport,
-        leadership: row.leadership,
-        community_service: row.community_service,
-        
-        // Engagement data
-        engagement: row.time_on_page ? {
-          timeOnPage: row.time_on_page,
-          scrollDepth: row.scroll_depth,
-          clickCount: row.clicks_on_links,
-          totalVisits: row.total_visits,
-          lastVisit: row.last_visit
-        } : null
-      }));
-      
-      res.json(processed);
-      
-    } else {
-      // JSON fallback
-      const files = await fs.readdir(path.join(__dirname, 'data'));
-      const inquiries = [];
-      
-      for (const f of files.filter(x => x.startsWith('inquiry-') && x.endsWith('.json'))) {
-        try {
-          const j = JSON.parse(await fs.readFile(path.join(__dirname, 'data', f), 'utf8'));
-          inquiries.push({
-            id: j.id,
-            first_name: j.firstName,
-            family_surname: j.familySurname,
-            parent_email: j.parentEmail,
-            entry_year: j.entryYear,
-            age_group: j.ageGroup,
-            received_at: j.receivedAt,
-            status: j.status || 'received',
-            prospectus_filename: j.prospectusFilename,
-            prospectus_url: j.prospectusUrl,
-            prospectus_pretty_url: j.slug ? `${base}/${j.slug}` : null,
-            slug: j.slug,
-            engagement: null // No engagement data in JSON mode
-          });
-        } catch (e) {
-          console.error(`Error reading ${f}:`, e.message);
-        }
-      }
-      
-      res.json(inquiries);
-    }
-    
-  } catch (error) {
-    console.error('❌ Analytics inquiries error:', error);
-    res.status(500).json({ error: 'Failed to get inquiries' });
-  }
 });
 
 // ────────────────────────────────────────────────────────────────────────────────
@@ -2009,29 +2437,45 @@ app.use((req, res) => {
 });
 
 // ────────────────────────────────────────────────────────────────────────────────
-// Start-up
+// 🚀 ENHANCED STARTUP WITH AI TABLE CREATION
 // ────────────────────────────────────────────────────────────────────────────────
 async function startServer() {
+  console.log('🏁 Starting More House School System with AI Analytics...');
+  
   const dbConnected = await initializeDatabase();
   await ensureDirectories();
   await loadSlugIndex();
+  
+  // ✅ NEW: Ensure AI insights table exists
+  if (dbConnected) {
+    await ensureAIInsightsTable();
+  }
+  
   await rebuildSlugIndexFromData();
 
   app.listen(PORT, '0.0.0.0', () => {
     console.log('\n🚀 MORE HOUSE SCHOOL SYSTEM STARTED');
-    console.log('╔══════════════════════════════════════════════════════════════════╗');
+    console.log('╔═══════════════════════════════════════════════════════════════════════════════╗');
     console.log(`🌐 Server: http://localhost:${PORT}`);
     console.log(`📋 Webhook: http://localhost:${PORT}/webhook`);
     console.log(`📊 Dashboard: http://localhost:${PORT}/smart_analytics_dashboard.html`);
     console.log(`🤖 AI Analysis: POST http://localhost:${PORT}/api/ai/analyze-all-families`);
+    console.log(`🧠 AI Insights: GET http://localhost:${PORT}/api/ai/family-insights`);
     console.log(`🔗 Pretty URL pattern: http://localhost:${PORT}/the-<family>-family-<shortid>`);
     console.log(`📊 DB: ${dbConnected ? 'Connected' : 'JSON-only'}`);
-    console.log('🎯 ALL ISSUES FIXED:');
+    console.log('🎯 NEW AI FEATURES:');
+    console.log('   ✅ Claude API integration for family analysis');
+    console.log('   ✅ Lead scoring and prioritization (0-100)');
+    console.log('   ✅ Hot/Warm/Cold temperature classification');
+    console.log('   ✅ Conversation starters and selling points');
+    console.log('   ✅ Enhanced dashboard with AI insights');
+    console.log('   ✅ Automated family insights generation');
+    console.log('🔧 PREVIOUS FIXES MAINTAINED:');
     console.log('   ✅ Tracking script injection works');
     console.log('   ✅ Dashboard URLs display correctly');
     console.log('   ✅ Pretty URLs resolve properly');
     console.log('   ✅ Database + JSON synchronization');
-    console.log('╚══════════════════════════════════════════════════════════════════╝');
+    console.log('╚═══════════════════════════════════════════════════════════════════════════════╝');
   });
 }
 
@@ -2040,11 +2484,16 @@ process.on('SIGTERM', async () => { if (db) await db.end(); process.exit(0); });
 
 startServer();
 
+// Enhanced module exports
 module.exports = {
   generateProspectus,
   updateInquiryStatus,
   generateFilename,
   trackEngagementEvent,
   updateEngagementMetrics,
-  analyzeFamily
+  analyzeFamily,  // ✅ NEW: Export AI analysis function
+  ensureAIInsightsTable,  // ✅ NEW: Export table creation function
+  calculateEngagementScore,  // ✅ NEW: Export engagement scoring
+  extractInterests,  // ✅ NEW: Export interest extraction
+  extractPriorities  // ✅ NEW: Export priority extraction
 };

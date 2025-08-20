@@ -21,6 +21,7 @@
             --hot-lead: #FF4444;
             --warm-lead: #FF9F1C;
             --cold-lead: #034674;
+            --ai-accent: #8B5CF6;
             
             --font-heading: 'Playfair Display', serif;
             --font-body: 'Inter', sans-serif;
@@ -119,6 +120,11 @@
             background: rgba(255, 255, 255, 0.2);
         }
 
+        .refresh-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
         .auto-refresh-toggle {
             display: flex;
             align-items: center;
@@ -166,6 +172,7 @@
         .metric-card.warm::before { background: var(--warm-lead); }
         .metric-card.engagement::before { background: var(--success); }
         .metric-card.total::before { background: var(--sport-blue); }
+        .metric-card.ai::before { background: var(--ai-accent); }
 
         .metric-header {
             display: flex;
@@ -198,6 +205,9 @@
         }
         .metric-icon.total { 
             background: linear-gradient(135deg, var(--sport-blue), #0ea5e9); 
+        }
+        .metric-icon.ai { 
+            background: linear-gradient(135deg, var(--ai-accent), #a78bfa); 
         }
 
         .metric-content {
@@ -287,6 +297,10 @@
             transform: translateY(-1px);
         }
 
+        .family-card.has-ai-insights {
+            border-left: 4px solid var(--ai-accent);
+        }
+
         .family-card-header {
             padding: 1rem 1.5rem;
             cursor: pointer;
@@ -350,6 +364,16 @@
             color: #6B7280;
         }
 
+        .ai-score-badge {
+            background: var(--ai-accent);
+            color: white;
+            padding: 0.2rem 0.6rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-left: 0.5rem;
+        }
+
         .status-indicator {
             width: 8px;
             height: 8px;
@@ -386,7 +410,7 @@
         }
 
         .family-card.expanded .family-card-details {
-            max-height: 500px;
+            max-height: 800px;
         }
 
         .family-details-content {
@@ -427,6 +451,117 @@
             border-radius: 12px;
             font-size: 0.75rem;
             font-weight: 500;
+        }
+
+        /* 🤖 AI INSIGHTS SECTION */
+        .ai-insights-section {
+            grid-column: 1 / -1;
+            background: linear-gradient(135deg, #f8fafc 0%, #e7e5ff 100%);
+            border: 2px solid var(--ai-accent);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-top: 1rem;
+        }
+
+        .ai-insights-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .ai-insights-header h4 {
+            color: var(--ai-accent);
+            font-weight: 700;
+            font-size: 1rem;
+        }
+
+        .ai-badge {
+            background: var(--ai-accent);
+            color: white;
+            padding: 0.2rem 0.6rem;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+
+        .ai-metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .ai-metric {
+            text-align: center;
+            padding: 1rem;
+            background: white;
+            border-radius: 8px;
+            border: 1px solid rgba(139, 92, 246, 0.2);
+        }
+
+        .ai-metric-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--ai-accent);
+            margin-bottom: 0.25rem;
+        }
+
+        .ai-metric-label {
+            font-size: 0.75rem;
+            color: #64748b;
+            font-weight: 500;
+        }
+
+        .ai-recommendations {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+        }
+
+        .ai-recommendation-group h5 {
+            color: var(--blazer-navy);
+            font-size: 0.9rem;
+            margin-bottom: 0.75rem;
+            font-weight: 600;
+        }
+
+        .ai-recommendation-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .ai-recommendation-list li {
+            background: white;
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            border-radius: 8px;
+            border-left: 3px solid var(--ai-accent);
+            font-size: 0.85rem;
+            line-height: 1.4;
+        }
+
+        .ai-analyze-btn {
+            background: linear-gradient(135deg, var(--ai-accent), #a78bfa);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .ai-analyze-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+        }
+
+        .ai-analyze-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
         }
 
         /* Activity Feed */
@@ -548,7 +683,7 @@
             display: inline-flex;
             align-items: center;
             gap: 0.5rem;
-            color: var(--award-gold);
+            color: var(--ai-accent);
             font-size: 0.8rem;
             font-weight: 500;
         }
@@ -556,7 +691,7 @@
         .pulse {
             width: 8px;
             height: 8px;
-            background: var(--award-gold);
+            background: var(--ai-accent);
             border-radius: 50%;
             animation: pulse 2s infinite;
         }
@@ -577,6 +712,10 @@
             .metrics-bar {
                 padding: 1rem;
                 grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            }
+            
+            .ai-recommendations {
+                grid-template-columns: 1fr;
             }
         }
 
@@ -618,7 +757,7 @@
             <h1><span class="smart-text">SMART</span> <span class="analytics-text">Analytics</span></h1>
         </div>
         <div class="header-subtitle">More House School</div>
-        <div class="header-meta">Admissions Intelligence Dashboard</div>
+        <div class="header-meta">AI-Powered Admissions Intelligence Dashboard</div>
     </header>
 
     <!-- Metrics Bar -->
@@ -645,13 +784,13 @@
             </div>
         </div>
 
-        <div class="metric-card engagement">
+        <div class="metric-card ai">
             <div class="metric-header">
-                <div class="metric-icon engagement">⏱</div>
+                <div class="metric-icon ai">🤖</div>
                 <div class="metric-content">
-                    <div class="metric-title">Avg Engagement</div>
-                    <div class="metric-value" id="avgEngagement">0</div>
-                    <div class="metric-trend">Minutes per session</div>
+                    <div class="metric-title">AI Analyzed</div>
+                    <div class="metric-value" id="aiAnalyzed">0</div>
+                    <div class="metric-trend" id="aiAnalyzedTrend">Families with insights</div>
                 </div>
             </div>
         </div>
@@ -672,6 +811,7 @@
     <section class="controls-bar">
         <div class="filter-group">
             <select class="filter-select" id="sortFilter">
+                <option value="ai_score">Sort by AI Score</option>
                 <option value="score">Sort by Engagement Score</option>
                 <option value="recent">Sort by Recent Activity</option>
                 <option value="inquiryDate">Sort by Inquiry Date</option>
@@ -682,6 +822,7 @@
                 <option value="all">All Families</option>
                 <option value="hot">Hot Leads Only</option>
                 <option value="warm">Warm Leads Only</option>
+                <option value="ai_analyzed">AI Analyzed Only</option>
                 <option value="online">Currently Online</option>
             </select>
             
@@ -704,16 +845,18 @@
                 <div>
                     <h2>Family Prospects</h2>
                     <div style="font-size: 0.9rem; opacity: 0.9; margin-top: 0.25rem;">
-                        Real-time engagement tracking
+                        Real-time engagement tracking with AI insights
                     </div>
                 </div>
-                <div class="ai-analyzing" id="aiStatus" style="display: none;">
-                    <div class="pulse"></div>
-                    AI Analyzing...
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <div class="ai-analyzing" id="aiStatus" style="display: none;">
+                        <div class="pulse"></div>
+                        AI Analyzing...
+                    </div>
+                    <button class="ai-analyze-btn" onclick="triggerAIAnalysis()" id="aiAnalyzeBtn">
+                        🤖 <span style="font-weight: 700;">SMART</span> AI Analysis
+                    </button>
                 </div>
-                <button class="refresh-btn" onclick="triggerAIAnalysis()" style="background: white; border: 1px solid rgba(255,255,255,0.3); margin-left: 1rem;">
-                    <span style="color: var(--award-gold); font-weight: 600;">SMART</span> <span style="color: var(--blazer-navy);">AI Analysis</span>
-                </button>
             </div>
             <div class="panel-content">
                 <div class="family-cards-container" id="familyCards">
@@ -752,7 +895,7 @@
             metrics: {
                 hotLeads: 0,
                 warmLeads: 0,
-                avgEngagement: 0,
+                aiAnalyzed: 0,
                 totalFamilies: 0
             }
         };
@@ -762,7 +905,7 @@
 
         // Initialize Dashboard
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('🚀 Dashboard initializing...');
+            console.log('🚀 Enhanced AI Dashboard initializing...');
             loadDashboardData();
             setupEventListeners();
             startAutoRefresh();
@@ -792,7 +935,7 @@
             isRefreshing = true;
             
             try {
-                console.log('📄 Loading dashboard data...');
+                console.log('📄 Loading enhanced dashboard data with AI insights...');
                 
                 // Update refresh icon
                 const refreshIcon = document.getElementById('refreshIcon');
@@ -820,7 +963,7 @@
                 dashboardData.metrics = {
                     hotLeads: summaryData.summary?.hotLeads || 0,
                     warmLeads: summaryData.summary?.warmLeads || 0,
-                    avgEngagement: summaryData.summary?.avgEngagement || 0,
+                    aiAnalyzed: summaryData.summary?.aiAnalyzed || 0,
                     totalFamilies: summaryData.summary?.totalFamilies || familiesData.length
                 };
                 
@@ -855,7 +998,24 @@
                     const engagement = family.engagement || {};
                     
                     // Calculate score using server-side data (exactly matching server calculation)
-                    const score = calculateEngagementScore(engagement);
+                    const engagementScore = calculateEngagementScore(engagement);
+                    
+                    // Extract AI insights if available - handle multiple possible formats
+                    const aiInsights = family.aiInsights || {};
+                    
+                    // Enhanced AI insights processing
+                    const processedAIInsights = {
+                        hasAnalysis: aiInsights.hasAnalysis || !!(aiInsights.leadScore || aiInsights.urgencyLevel),
+                        leadScore: aiInsights.leadScore || null,
+                        urgencyLevel: aiInsights.urgencyLevel || 'unknown',
+                        temperature: aiInsights.temperature || aiInsights.leadTemperature || 'unknown',
+                        confidence: aiInsights.confidence || aiInsights.confidence_score || 0,
+                        generatedAt: aiInsights.generatedAt || null,
+                        insights: aiInsights.insights || aiInsights,
+                        conversationStarters: aiInsights.conversationStarters || [],
+                        sellingPoints: aiInsights.sellingPoints || [],
+                        nextActions: aiInsights.nextActions || []
+                    };
                     
                     // Extract interests from form data
                     const interests = extractInterestsFromFamily(family);
@@ -867,26 +1027,34 @@
                         prospectus_pretty_path: family.prospectus_pretty_path,
                         slug: family.slug,
                         prospectus_filename: family.prospectus_filename,
-                        prospectus_url: family.prospectus_url,
-                        status: family.status,
-                        prospectus_generated_at: family.prospectus_generated_at
+                        aiInsights: processedAIInsights.hasAnalysis ? '✅' : '❌',
+                        aiScore: processedAIInsights.leadScore || 'none'
                     });
+                    
+                    // Use AI score if available, fallback to engagement score
+                    const finalScore = processedAIInsights.leadScore || engagementScore;
+                    const finalTemperature = processedAIInsights.leadScore ? processedAIInsights.temperature : getTemperature(engagementScore);
                     
                     const processedFamily = {
                         ...family,
-                        engagementScore: score,
-                        temperature: getTemperature(score),
+                        engagementScore: engagementScore,
+                        finalScore: finalScore,
+                        temperature: finalTemperature,
                         isOnline: isCurrentlyOnline(engagement.lastVisit),
                         interests: interests,
-                        contactReady: score >= 80,
-                        engagement: engagement
+                        contactReady: finalScore >= 80,
+                        engagement: engagement,
+                        aiInsights: processedAIInsights
                     };
                     
                     console.log(`✅ Processed ${family.first_name} ${family.family_surname}:`, {
-                        score,
-                        temp: processedFamily.temperature,
+                        engagementScore,
+                        aiScore: processedAIInsights.leadScore || 'none',
+                        finalScore,
+                        temp: finalTemperature,
                         online: processedFamily.isOnline,
                         interests: interests.length,
+                        hasAI: processedAIInsights.hasAnalysis,
                         prospectusUrl: family.prospectus_pretty_url ? '✅' : '❌'
                     });
                     
@@ -1021,7 +1189,7 @@
             const elements = {
                 hotLeads: document.getElementById('hotLeads'),
                 warmLeads: document.getElementById('warmLeads'),
-                avgEngagement: document.getElementById('avgEngagement'),
+                aiAnalyzed: document.getElementById('aiAnalyzed'),
                 totalFamilies: document.getElementById('totalFamilies')
             };
             
@@ -1030,6 +1198,15 @@
                     elements[key].textContent = dashboardData.metrics[key] || 0;
                 }
             });
+            
+            // Update AI analyzed trend
+            const aiTrend = document.getElementById('aiAnalyzedTrend');
+            if (aiTrend) {
+                const percentage = dashboardData.metrics.totalFamilies > 0 
+                    ? Math.round((dashboardData.metrics.aiAnalyzed / dashboardData.metrics.totalFamilies) * 100)
+                    : 0;
+                aiTrend.textContent = `${percentage}% analyzed`;
+            }
             
             console.log('📊 Updated UI metrics:', dashboardData.metrics);
         }
@@ -1050,25 +1227,29 @@
             container.innerHTML = families.map(family => {
                 const lastActivity = family.engagement?.lastVisit || family.received_at;
                 const totalTime = Math.round((family.engagement?.timeOnPage || 0) / 60);
+                const displayScore = family.finalScore || family.engagementScore || 0;
+                const hasAI = family.aiInsights?.hasAnalysis;
                 
                 return `
-                    <div class="family-card" data-id="${family.id}">
+                    <div class="family-card ${hasAI ? 'has-ai-insights' : ''}" data-id="${family.id}">
                         <div class="family-card-header" onclick="toggleFamilyCard('${family.id}')">
                             <div class="family-info">
                                 <div class="family-name">
                                     <div class="status-indicator ${family.isOnline ? 'online' : 'offline'}"></div>
                                     ${family.first_name} ${family.family_surname} Family
+                                    ${hasAI ? '<span class="ai-score-badge">AI</span>' : ''}
                                 </div>
                                 <div class="family-meta">
                                     <span>Entry ${family.entry_year || 'Unknown'}</span>
                                     <span>${totalTime} mins total</span>
                                     <span>${family.engagement?.totalVisits || 1} visits</span>
                                     <span>${formatTimeAgo(new Date(lastActivity))}</span>
+                                    ${hasAI ? `<span style="color: var(--ai-accent); font-weight: 600;">🤖 ${family.aiInsights.urgencyLevel} priority</span>` : ''}
                                 </div>
                             </div>
                             <div class="family-score">
                                 <div class="score-badge ${family.temperature}">
-                                    ${family.engagementScore}
+                                    ${displayScore}
                                 </div>
                                 <div class="expand-btn">▼</div>
                             </div>
@@ -1080,10 +1261,12 @@
                                         <h4>Engagement Summary</h4>
                                         <p>${family.engagement?.totalVisits || 1} visits • ${family.engagement?.scrollDepth || 0}% scroll depth</p>
                                         <p>Total time: ${totalTime} minutes</p>
+                                        <p>Engagement Score: ${family.engagementScore}/100</p>
                                     </div>
                                     <div class="detail-item">
                                         <h4>Contact Status</h4>
                                         <p>${family.contactReady ? '✅ Ready for immediate contact' : '⏳ Continue nurturing'}</p>
+                                        ${hasAI ? `<p style="margin-top: 0.5rem;">🎯 <strong>${family.aiInsights.temperature}</strong> lead</p>` : ''}
                                     </div>
                                     <div class="detail-item">
                                         <h4>Interests</h4>
@@ -1121,7 +1304,134 @@
                                         <p>Age Group: ${family.age_group || 'Unknown'}</p>
                                         <p>Email: ${family.parent_email || 'Unknown'}</p>
                                     </div>
+                                    <div class="detail-item">
+                                        <h4>AI Analysis</h4>
+                                        ${hasAI ? `
+                                            <p style="color: var(--ai-accent); font-weight: 600;">✅ Analysis Available</p>
+                                            <p>Confidence: ${Math.round((family.aiInsights.confidence || 0) * 100)}%</p>
+                                            <p style="font-size: 0.8rem; color: #64748b; margin-top: 0.5rem;">
+                                                Generated: ${family.aiInsights.generatedAt ? new Date(family.aiInsights.generatedAt).toLocaleDateString() : 'Recently'}
+                                            </p>
+                                        ` : `
+                                            <p style="color: #64748b; margin-bottom: 0.75rem;">No AI analysis yet</p>
+                                            <button class="ai-analyze-btn" onclick="analyzeSingleFamily('${family.id}')" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;">
+                                                🤖 Analyze This Family
+                                            </button>
+                                        `}
+                                    </div>
                                 </div>
+                                
+                                                                        ${hasAI && family.aiInsights.hasAnalysis ? `
+                                    <div class="ai-insights-section">
+                                        <div class="ai-insights-header">
+                                            <h4>🤖 AI Family Insights</h4>
+                                            <span class="ai-badge">SMART Analysis</span>
+                                        </div>
+                                        
+                                        <div class="ai-metrics">
+                                            <div class="ai-metric">
+                                                <div class="ai-metric-value">${family.aiInsights.leadScore || 'N/A'}</div>
+                                                <div class="ai-metric-label">AI Lead Score</div>
+                                            </div>
+                                            <div class="ai-metric">
+                                                <div class="ai-metric-value">${family.aiInsights.urgencyLevel || 'Unknown'}</div>
+                                                <div class="ai-metric-label">Priority Level</div>
+                                            </div>
+                                            <div class="ai-metric">
+                                                <div class="ai-metric-value">${family.aiInsights.temperature || 'Unknown'}</div>
+                                                <div class="ai-metric-label">Lead Temperature</div>
+                                            </div>
+                                            <div class="ai-metric">
+                                                <div class="ai-metric-value">${Math.round((family.aiInsights.confidence || 0) * 100)}%</div>
+                                                <div class="ai-metric-label">Confidence</div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="ai-recommendations">
+                                            <div class="ai-recommendation-group">
+                                                <h5>💬 Conversation Starters</h5>
+                                                <ul class="ai-recommendation-list">
+                                                    ${(() => {
+                                                        try {
+                                                            // Handle both stored JSON string and parsed object
+                                                            let insights = family.aiInsights.insights;
+                                                            if (typeof insights === 'string') {
+                                                                insights = JSON.parse(insights);
+                                                            }
+                                                            
+                                                            // Get conversation starters from various possible locations
+                                                            const starters = insights?.conversationStarters || 
+                                                                            insights?.recommendations || 
+                                                                            family.aiInsights.conversationStarters ||
+                                                                            ['Contact family to discuss their interests'];
+                                                            
+                                                            return Array.isArray(starters) 
+                                                                ? starters.map(starter => `<li>${starter}</li>`).join('') 
+                                                                : '<li>Contact family to discuss their interests</li>';
+                                                        } catch (e) {
+                                                            console.warn('Error parsing conversation starters:', e);
+                                                            return '<li>Contact family to discuss their interests</li>';
+                                                        }
+                                                    })()}
+                                                </ul>
+                                            </div>
+                                            
+                                            <div class="ai-recommendation-group">
+                                                <h5>🎯 Key Selling Points</h5>
+                                                <ul class="ai-recommendation-list">
+                                                    ${(() => {
+                                                        try {
+                                                            // Handle both stored JSON string and parsed object
+                                                            let insights = family.aiInsights.insights;
+                                                            if (typeof insights === 'string') {
+                                                                insights = JSON.parse(insights);
+                                                            }
+                                                            
+                                                            // Get selling points from various possible locations
+                                                            const points = insights?.sellingPoints || 
+                                                                          insights?.keyObservations ||
+                                                                          family.aiInsights.sellingPoints ||
+                                                                          ['More House School excellence'];
+                                                            
+                                                            return Array.isArray(points) 
+                                                                ? points.map(point => `<li>${point}</li>`).join('') 
+                                                                : '<li>More House School excellence</li>';
+                                                        } catch (e) {
+                                                            console.warn('Error parsing selling points:', e);
+                                                            return '<li>More House School excellence</li>';
+                                                        }
+                                                    })()}
+                                                </ul>
+                                            </div>
+                                        </div>
+                                        
+                                        ${(() => {
+                                            try {
+                                                let insights = family.aiInsights.insights;
+                                                if (typeof insights === 'string') {
+                                                    insights = JSON.parse(insights);
+                                                }
+                                                
+                                                const nextActions = insights?.nextActions || 
+                                                                  family.aiInsights.nextActions;
+                                                
+                                                if (nextActions && Array.isArray(nextActions) && nextActions.length > 0) {
+                                                    return `
+                                                        <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(139, 92, 246, 0.2);">
+                                                            <h5 style="color: var(--blazer-navy); font-size: 0.9rem; margin-bottom: 0.75rem; font-weight: 600;">📋 Next Actions</h5>
+                                                            <ul class="ai-recommendation-list">
+                                                                ${nextActions.map(action => `<li style="background: #f0f9ff; border-left-color: #0ea5e9;">${action}</li>`).join('')}
+                                                            </ul>
+                                                        </div>
+                                                    `;
+                                                }
+                                                return '';
+                                            } catch (e) {
+                                                return '';
+                                            }
+                                        })()}
+                                    </div>
+                                ` : ''}
                             </div>
                         </div>
                     </div>
@@ -1163,12 +1473,14 @@
             const statusFilter = document.getElementById('statusFilter')?.value || 'all';
             const entryYearFilter = document.getElementById('entryYearFilter')?.value || 'all';
             const searchTerm = document.getElementById('searchBox')?.value?.toLowerCase() || '';
-            const sortBy = document.getElementById('sortFilter')?.value || 'score';
+            const sortBy = document.getElementById('sortFilter')?.value || 'ai_score';
             
             // Status filter
             if (statusFilter !== 'all') {
                 if (statusFilter === 'online') {
                     families = families.filter(f => f.isOnline);
+                } else if (statusFilter === 'ai_analyzed') {
+                    families = families.filter(f => f.aiInsights?.hasAnalysis);
                 } else {
                     families = families.filter(f => f.temperature === statusFilter);
                 }
@@ -1188,6 +1500,20 @@
             
             // Sort
             switch (sortBy) {
+                case 'ai_score':
+                    families.sort((a, b) => {
+                        // Prioritize families with AI analysis, then by score
+                        const aHasAI = a.aiInsights?.hasAnalysis || false;
+                        const bHasAI = b.aiInsights?.hasAnalysis || false;
+                        
+                        if (aHasAI && !bHasAI) return -1;
+                        if (!aHasAI && bHasAI) return 1;
+                        
+                        const aScore = a.finalScore || a.engagementScore || 0;
+                        const bScore = b.finalScore || b.engagementScore || 0;
+                        return bScore - aScore;
+                    });
+                    break;
                 case 'score':
                     families.sort((a, b) => (b.engagementScore || 0) - (a.engagementScore || 0));
                     break;
@@ -1221,7 +1547,7 @@
         }
 
         function refreshDashboard() {
-            console.log('🔄 Manual refresh triggered');
+            console.log('📄 Manual refresh triggered');
             loadDashboardData();
         }
 
@@ -1230,7 +1556,7 @@
             autoRefreshInterval = setInterval(() => {
                 const checkbox = document.getElementById('autoRefresh');
                 if (checkbox && checkbox.checked) {
-                    console.log('🔄 Auto-refresh triggered');
+                    console.log('📄 Auto-refresh triggered');
                     loadDashboardData();
                 }
             }, 30000); // Refresh every 30 seconds
@@ -1248,16 +1574,19 @@
             // Could add toast notification here
         }
 
-        // AI Analysis Functions
+        // 🤖 ENHANCED AI ANALYSIS FUNCTIONS
         async function triggerAIAnalysis() {
             const aiStatusElement = document.getElementById('aiStatus');
-            const buttonElement = document.querySelector('.refresh-btn[onclick="triggerAIAnalysis()"]');
+            const buttonElement = document.getElementById('aiAnalyzeBtn');
             
             if (aiStatusElement) aiStatusElement.style.display = 'flex';
-            if (buttonElement) buttonElement.disabled = true;
+            if (buttonElement) {
+                buttonElement.disabled = true;
+                buttonElement.textContent = '🤖 Analyzing...';
+            }
             
             try {
-                console.log('🤖 Starting AI analysis...');
+                console.log('🤖 Starting comprehensive AI analysis...');
                 
                 const response = await fetch('/api/ai/analyze-all-families', {
                     method: 'POST',
@@ -1275,7 +1604,7 @@
                     
                     // Show success message
                     if (result.success) {
-                        alert(`✅ AI Analysis completed successfully!\n\nAnalyzed: ${result.results.analyzed}/${result.results.total} families`);
+                        alert(`✅ AI Analysis completed successfully!\n\nAnalyzed: ${result.results.analyzed}/${result.results.total} families\nSuccess Rate: ${result.results.successRate}%`);
                     } else {
                         alert('⚠️ AI Analysis completed with some errors. Check console for details.');
                     }
@@ -1288,7 +1617,64 @@
                 alert(`❌ AI Analysis failed: ${error.message}\n\nPlease try again or contact support.`);
             } finally {
                 if (aiStatusElement) aiStatusElement.style.display = 'none';
-                if (buttonElement) buttonElement.disabled = false;
+                if (buttonElement) {
+                    buttonElement.disabled = false;
+                    buttonElement.innerHTML = '🤖 <span style="font-weight: 700;">SMART</span> AI Analysis';
+                }
+            }
+        }
+
+        // Analyze a single family
+        async function analyzeSingleFamily(inquiryId) {
+            const buttonElement = document.querySelector(`[onclick="analyzeSingleFamily('${inquiryId}')"]`);
+            
+            if (buttonElement) {
+                buttonElement.disabled = true;
+                buttonElement.textContent = '🤖 Analyzing...';
+            }
+            
+            try {
+                console.log(`🤖 Analyzing single family: ${inquiryId}`);
+                
+                const response = await fetch(`/api/ai/analyze-family/${inquiryId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    console.log('✅ Single family analysis completed:', result);
+                    
+                    // Refresh dashboard to show new AI insights
+                    await loadDashboardData();
+                    
+                    if (result.success && result.analysis) {
+                        alert(`✅ AI Analysis completed!\n\nFamily: ${result.message}\nLead Score: ${result.analysis.leadScore}/100\nTemperature: ${result.analysis.leadTemperature}\nConfidence: ${Math.round((result.analysis.confidence || 0) * 100)}%`);
+                    } else {
+                        alert(`✅ ${result.message || 'Analysis completed successfully'}`);
+                    }
+                } else {
+                    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+                    throw new Error(`Analysis failed: ${errorData.error || response.statusText}`);
+                }
+                
+            } catch (error) {
+                console.error('❌ Single family analysis error:', error);
+                
+                // Fallback: if single analysis endpoint doesn't exist, use bulk analysis
+                if (error.message.includes('404') || error.message.includes('Not Found')) {
+                    console.log('ℹ️ Single family endpoint not found, using bulk analysis...');
+                    await triggerAIAnalysis();
+                } else {
+                    alert(`❌ Failed to analyze family: ${error.message}`);
+                }
+            } finally {
+                if (buttonElement) {
+                    buttonElement.disabled = false;
+                    buttonElement.textContent = '🤖 Analyze This Family';
+                }
             }
         }
 
