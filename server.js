@@ -954,15 +954,14 @@ app.get('/api/analytics/inquiries', async (req, res) => {
     if (db) {
       try {
         console.log('📊 Reading inquiries from DATABASE...');
+        
+        // FIXED: Simple query without AI columns that don't exist
         const result = await db.query(`
           SELECT i.*, 
                  em.time_on_page, em.scroll_depth, em.clicks_on_links, 
-                 em.total_visits, em.last_visit,
-                 afi.lead_score, afi.urgency_level, afi.lead_temperature, 
-                 afi.confidence_score
+                 em.total_visits, em.last_visit
           FROM inquiries i
           LEFT JOIN engagement_metrics em ON i.id = em.inquiry_id
-          LEFT JOIN ai_family_insights afi ON i.id = afi.inquiry_id
           ORDER BY i.received_at DESC
         `);
         
@@ -1009,82 +1008,78 @@ app.get('/api/analytics/inquiries', async (req, res) => {
           community_service: row.community_service,
           outdoor_education: row.outdoor_education,
           aiInsights: {
-            leadScore: row.lead_score,
-            urgencyLevel: row.urgency_level || 'unknown',
-            temperature: row.lead_temperature || 'unknown',
-            confidence: row.confidence_score || 0,
-            hasAnalysis: !!row.lead_score
+            leadScore: null,
+            urgencyLevel: 'unknown',
+            temperature: 'unknown',
+            confidence: 0,
+            hasAnalysis: false
           }
         }));
         
         console.log(`✅ Loaded ${inquiries.length} inquiries from DATABASE with engagement data`);
+        
       } catch (dbError) {
         console.warn('⚠️ Database read failed, falling back to JSON:', dbError.message);
-      }
-    }
-
-    // 🎯 FALLBACK: Read from JSON files if database failed or empty
-    if (inquiries.length === 0) {
-      console.log('📁 Falling back to JSON files...');
-      const files = await fs.readdir(path.join(__dirname, 'data')).catch(() => []);
-      
-      for (const f of files.filter(x => x.startsWith('inquiry-') && x.endsWith('.json'))) {
-        try { 
-          const content = await fs.readFile(path.join(__dirname, 'data', f), 'utf8');
-          const inquiry = JSON.parse(content);
-          
-          const out = {
-            id: inquiry.id,
-            first_name: inquiry.firstName,
-            family_surname: inquiry.familySurname,
-            parent_email: inquiry.parentEmail,
-            entry_year: inquiry.entryYear,
-            age_group: inquiry.ageGroup,
-            received_at: inquiry.receivedAt,
-            updated_at: inquiry.prospectusGeneratedAt || inquiry.receivedAt,
-            status: inquiry.status || (inquiry.prospectusGenerated ? 'prospectus_generated' : 'received'),
-            prospectus_filename: inquiry.prospectusFilename || null,
-            slug: inquiry.slug || null,
-            prospectus_generated_at: inquiry.prospectusGeneratedAt || null,
-            prospectus_pretty_path: inquiry.prospectusPrettyPath || (inquiry.slug ? `/${inquiry.slug}` : null),
-            prospectus_pretty_url: inquiry.prospectusPrettyPath ? `${base}${inquiry.prospectusPrettyPath}` : null,
-            prospectus_direct_url: inquiry.prospectusUrl ? `${base}${inquiry.prospectusUrl}` : null,
-            engagement: {
-              timeOnPage: 0,
-              scrollDepth: 0,
-              clickCount: 0,
-              totalVisits: 1,
-              lastVisit: inquiry.receivedAt,
-              engagementScore: 25
-            },
-            sciences: inquiry.sciences,
-            mathematics: inquiry.mathematics,
-            english: inquiry.english,
-            languages: inquiry.languages,
-            humanities: inquiry.humanities,
-            business: inquiry.business,
-            drama: inquiry.drama,
-            music: inquiry.music,
-            art: inquiry.art,
-            sport: inquiry.sport,
-            leadership: inquiry.leadership,
-            community_service: inquiry.community_service,
-            outdoor_education: inquiry.outdoor_education,
-            aiInsights: {
-              leadScore: null,
-              urgencyLevel: 'unknown',
-              temperature: 'unknown',
-              confidence: 0,
-              hasAnalysis: false
-            }
-          };
-          
-          inquiries.push(out);
-        } catch (e) {
-          console.warn(`Failed to read ${f}:`, e.message);
+        // Only fall back to JSON if database completely fails
+        const files = await fs.readdir(path.join(__dirname, 'data')).catch(() => []);
+        
+        for (const f of files.filter(x => x.startsWith('inquiry-') && x.endsWith('.json'))) {
+          try { 
+            const content = await fs.readFile(path.join(__dirname, 'data', f), 'utf8');
+            const inquiry = JSON.parse(content);
+            
+            inquiries.push({
+              id: inquiry.id,
+              first_name: inquiry.firstName,
+              family_surname: inquiry.familySurname,
+              parent_email: inquiry.parentEmail,
+              entry_year: inquiry.entryYear,
+              age_group: inquiry.ageGroup,
+              received_at: inquiry.receivedAt,
+              updated_at: inquiry.prospectusGeneratedAt || inquiry.receivedAt,
+              status: inquiry.status || (inquiry.prospectusGenerated ? 'prospectus_generated' : 'received'),
+              prospectus_filename: inquiry.prospectusFilename || null,
+              slug: inquiry.slug || null,
+              prospectus_generated_at: inquiry.prospectusGeneratedAt || null,
+              prospectus_pretty_path: inquiry.prospectusPrettyPath || (inquiry.slug ? `/${inquiry.slug}` : null),
+              prospectus_pretty_url: inquiry.prospectusPrettyPath ? `${base}${inquiry.prospectusPrettyPath}` : null,
+              prospectus_direct_url: inquiry.prospectusUrl ? `${base}${inquiry.prospectusUrl}` : null,
+              engagement: {
+                timeOnPage: 0,
+                scrollDepth: 0,
+                clickCount: 0,
+                totalVisits: 1,
+                lastVisit: inquiry.receivedAt,
+                engagementScore: 25
+              },
+              sciences: inquiry.sciences,
+              mathematics: inquiry.mathematics,
+              english: inquiry.english,
+              languages: inquiry.languages,
+              humanities: inquiry.humanities,
+              business: inquiry.business,
+              drama: inquiry.drama,
+              music: inquiry.music,
+              art: inquiry.art,
+              sport: inquiry.sport,
+              leadership: inquiry.leadership,
+              community_service: inquiry.community_service,
+              outdoor_education: inquiry.outdoor_education,
+              aiInsights: {
+                leadScore: null,
+                urgencyLevel: 'unknown',
+                temperature: 'unknown',
+                confidence: 0,
+                hasAnalysis: false
+              }
+            });
+            
+          } catch (e) {
+            console.warn(`Failed to read ${f}:`, e.message);
+          }
         }
+        console.log(`📁 Loaded ${inquiries.length} inquiries from JSON files`);
       }
-      console.log(`📁 Loaded ${inquiries.length} inquiries from JSON files`);
     }
     
     console.log(`📊 Returning ${inquiries.length} inquiries to dashboard`);
