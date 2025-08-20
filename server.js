@@ -466,11 +466,13 @@ DO NOT INCLUDE ANY TEXT OUTSIDE THE JSON OBJECT.`;
       try {
         attempts++;
         console.log(`Claude API call attempt ${attempts}/${maxAttempts} for ${inquiry.id}`);
-        
+        console.log('🔑 API Key available:', !!process.env.ANTHROPIC_API_KEY);
+
         const response = await fetch("https://api.anthropic.com/v1/messages", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            "x-api-key": process.env.ANTHROPIC_API_KEY  // ← ADD THIS LINE
           },
           body: JSON.stringify({
             model: "claude-sonnet-4-20250514",
