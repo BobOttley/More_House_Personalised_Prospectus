@@ -756,27 +756,91 @@ app.post('/api/track-engagement', async (req, res) => {
   }
 });
 
+// FIXED: Dashboard endpoints that read DATABASE FIRST, then JSON as fallback
+
 app.get('/api/dashboard-data', async (req, res) => {
   try {
     console.log('Dashboard data request...');
     const base = getBaseUrl(req);
+    let inquiries = [];
 
-    const files = await fs.readdir(path.join(__dirname, 'data')).catch(() => []);
-    const inquiries = [];
-    
-    console.log(`Found ${files.length} files in data directory`);
-    
-    for (const f of files.filter(x => x.startsWith('inquiry-') && x.endsWith('.json'))) {
-      try { 
-        const content = await fs.readFile(path.join(__dirname, 'data', f), 'utf8');
-        const inquiry = JSON.parse(content);
-        inquiries.push(inquiry);
-      } catch (e) {
-        console.warn(`Failed to read ${f}:`, e.message);
+    // 🎯 PRIORITY 1: Read from DATABASE first if connected
+    if (db) {
+      try {
+        console.log('📊 Reading from DATABASE...');
+        const result = await db.query(`
+          SELECT id, first_name, family_surname, parent_email, age_group, entry_year,
+                 sciences, mathematics, english, languages, humanities, business,
+                 drama, music, art, creative_writing, sport, leadership, 
+                 community_service, outdoor_education, academic_excellence, 
+                 pastoral_care, university_preparation, personal_development, 
+                 career_guidance, extracurricular_opportunities,
+                 received_at, status, prospectus_generated, prospectus_filename, 
+                 prospectus_url, slug, prospectus_generated_at
+          FROM inquiries 
+          ORDER BY received_at DESC
+        `);
+        
+        inquiries = result.rows.map(row => ({
+          id: row.id,
+          firstName: row.first_name,
+          familySurname: row.family_surname,
+          parentEmail: row.parent_email,
+          ageGroup: row.age_group,
+          entryYear: row.entry_year,
+          receivedAt: row.received_at,
+          status: row.status,
+          prospectusGenerated: row.prospectus_generated,
+          prospectusFilename: row.prospectus_filename,
+          prospectusUrl: row.prospectus_url,
+          slug: row.slug,
+          prospectusGeneratedAt: row.prospectus_generated_at,
+          prospectusPrettyPath: row.slug ? `/${row.slug}` : null,
+          sciences: row.sciences,
+          mathematics: row.mathematics,
+          english: row.english,
+          languages: row.languages,
+          humanities: row.humanities,
+          business: row.business,
+          drama: row.drama,
+          music: row.music,
+          art: row.art,
+          creative_writing: row.creative_writing,
+          sport: row.sport,
+          leadership: row.leadership,
+          community_service: row.community_service,
+          outdoor_education: row.outdoor_education,
+          academic_excellence: row.academic_excellence,
+          pastoral_care: row.pastoral_care,
+          university_preparation: row.university_preparation,
+          personal_development: row.personal_development,
+          career_guidance: row.career_guidance,
+          extracurricular_opportunities: row.extracurricular_opportunities
+        }));
+        
+        console.log(`✅ Loaded ${inquiries.length} inquiries from DATABASE`);
+      } catch (dbError) {
+        console.warn('⚠️ Database read failed, falling back to JSON:', dbError.message);
       }
     }
 
-    console.log(`Loaded ${inquiries.length} inquiries from JSON files`);
+    // 🎯 FALLBACK: Read from JSON files if database failed or empty
+    if (inquiries.length === 0) {
+      console.log('📁 Falling back to JSON files...');
+      const files = await fs.readdir(path.join(__dirname, 'data')).catch(() => []);
+      console.log(`Found ${files.length} files in data directory`);
+      
+      for (const f of files.filter(x => x.startsWith('inquiry-') && x.endsWith('.json'))) {
+        try { 
+          const content = await fs.readFile(path.join(__dirname, 'data', f), 'utf8');
+          const inquiry = JSON.parse(content);
+          inquiries.push(inquiry);
+        } catch (e) {
+          console.warn(`Failed to read ${f}:`, e.message);
+        }
+      }
+      console.log(`📁 Loaded ${inquiries.length} inquiries from JSON files`);
+    }
 
     const now = Date.now();
     const totalFamilies = inquiries.length;
@@ -865,11 +929,12 @@ app.get('/api/dashboard-data', async (req, res) => {
       latestProspectuses
     };
     
-    console.log('Dashboard data response prepared:', {
+    console.log('📊 Dashboard data response prepared:', {
       totalFamilies: response.summary.totalFamilies,
       recentlyActive: response.recentlyActive.length,
       priorityFamilies: response.priorityFamilies.length,
-      prospectuses: response.latestProspectuses.length
+      prospectuses: response.latestProspectuses.length,
+      source: inquiries.length > 0 ? (db ? 'database' : 'json') : 'empty'
     });
     
     return res.json(response);
@@ -878,6 +943,159 @@ app.get('/api/dashboard-data', async (req, res) => {
     res.status(500).json({ error:'Failed to build dashboard data', message:e.message });
   }
 });
+
+app.get('/api/analytics/inquiries', async (req, res) => {
+  try {
+    console.log('📊 Analytics inquiries request...');
+    const base = getBaseUrl(req);
+    let inquiries = [];
+
+    // 🎯 PRIORITY 1: Read from DATABASE first if connected
+    if (db) {
+      try {
+        console.log('📊 Reading inquiries from DATABASE...');
+        const result = await db.query(`
+          SELECT i.*, 
+                 em.time_on_page, em.scroll_depth, em.clicks_on_links, 
+                 em.total_visits, em.last_visit,
+                 afi.lead_score, afi.urgency_level, afi.lead_temperature, 
+                 afi.confidence_score
+          FROM inquiries i
+          LEFT JOIN engagement_metrics em ON i.id = em.inquiry_id
+          LEFT JOIN ai_family_insights afi ON i.id = afi.inquiry_id
+          ORDER BY i.received_at DESC
+        `);
+        
+        inquiries = result.rows.map(row => ({
+          id: row.id,
+          first_name: row.first_name,
+          family_surname: row.family_surname,
+          parent_email: row.parent_email,
+          entry_year: row.entry_year,
+          age_group: row.age_group,
+          received_at: row.received_at,
+          updated_at: row.prospectus_generated_at || row.received_at,
+          status: row.status || (row.prospectus_generated ? 'prospectus_generated' : 'received'),
+          prospectus_filename: row.prospectus_filename,
+          slug: row.slug,
+          prospectus_generated_at: row.prospectus_generated_at,
+          prospectus_pretty_path: row.slug ? `/${row.slug}` : null,
+          prospectus_pretty_url: row.slug ? `${base}/${row.slug}` : null,
+          prospectus_direct_url: row.prospectus_url ? `${base}${row.prospectus_url}` : null,
+          engagement: {
+            timeOnPage: row.time_on_page || 0,
+            scrollDepth: row.scroll_depth || 0,
+            clickCount: row.clicks_on_links || 0,
+            totalVisits: row.total_visits || 1,
+            lastVisit: row.last_visit || row.received_at,
+            engagementScore: calculateEngagementScore({
+              timeOnPage: row.time_on_page || 0,
+              scrollDepth: row.scroll_depth || 0,
+              totalVisits: row.total_visits || 1,
+              clickCount: row.clicks_on_links || 0
+            })
+          },
+          sciences: row.sciences,
+          mathematics: row.mathematics,
+          english: row.english,
+          languages: row.languages,
+          humanities: row.humanities,
+          business: row.business,
+          drama: row.drama,
+          music: row.music,
+          art: row.art,
+          sport: row.sport,
+          leadership: row.leadership,
+          community_service: row.community_service,
+          outdoor_education: row.outdoor_education,
+          aiInsights: {
+            leadScore: row.lead_score,
+            urgencyLevel: row.urgency_level || 'unknown',
+            temperature: row.lead_temperature || 'unknown',
+            confidence: row.confidence_score || 0,
+            hasAnalysis: !!row.lead_score
+          }
+        }));
+        
+        console.log(`✅ Loaded ${inquiries.length} inquiries from DATABASE with engagement data`);
+      } catch (dbError) {
+        console.warn('⚠️ Database read failed, falling back to JSON:', dbError.message);
+      }
+    }
+
+    // 🎯 FALLBACK: Read from JSON files if database failed or empty
+    if (inquiries.length === 0) {
+      console.log('📁 Falling back to JSON files...');
+      const files = await fs.readdir(path.join(__dirname, 'data')).catch(() => []);
+      
+      for (const f of files.filter(x => x.startsWith('inquiry-') && x.endsWith('.json'))) {
+        try { 
+          const content = await fs.readFile(path.join(__dirname, 'data', f), 'utf8');
+          const inquiry = JSON.parse(content);
+          
+          const out = {
+            id: inquiry.id,
+            first_name: inquiry.firstName,
+            family_surname: inquiry.familySurname,
+            parent_email: inquiry.parentEmail,
+            entry_year: inquiry.entryYear,
+            age_group: inquiry.ageGroup,
+            received_at: inquiry.receivedAt,
+            updated_at: inquiry.prospectusGeneratedAt || inquiry.receivedAt,
+            status: inquiry.status || (inquiry.prospectusGenerated ? 'prospectus_generated' : 'received'),
+            prospectus_filename: inquiry.prospectusFilename || null,
+            slug: inquiry.slug || null,
+            prospectus_generated_at: inquiry.prospectusGeneratedAt || null,
+            prospectus_pretty_path: inquiry.prospectusPrettyPath || (inquiry.slug ? `/${inquiry.slug}` : null),
+            prospectus_pretty_url: inquiry.prospectusPrettyPath ? `${base}${inquiry.prospectusPrettyPath}` : null,
+            prospectus_direct_url: inquiry.prospectusUrl ? `${base}${inquiry.prospectusUrl}` : null,
+            engagement: {
+              timeOnPage: 0,
+              scrollDepth: 0,
+              clickCount: 0,
+              totalVisits: 1,
+              lastVisit: inquiry.receivedAt,
+              engagementScore: 25
+            },
+            sciences: inquiry.sciences,
+            mathematics: inquiry.mathematics,
+            english: inquiry.english,
+            languages: inquiry.languages,
+            humanities: inquiry.humanities,
+            business: inquiry.business,
+            drama: inquiry.drama,
+            music: inquiry.music,
+            art: inquiry.art,
+            sport: inquiry.sport,
+            leadership: inquiry.leadership,
+            community_service: inquiry.community_service,
+            outdoor_education: inquiry.outdoor_education,
+            aiInsights: {
+              leadScore: null,
+              urgencyLevel: 'unknown',
+              temperature: 'unknown',
+              confidence: 0,
+              hasAnalysis: false
+            }
+          };
+          
+          inquiries.push(out);
+        } catch (e) {
+          console.warn(`Failed to read ${f}:`, e.message);
+        }
+      }
+      console.log(`📁 Loaded ${inquiries.length} inquiries from JSON files`);
+    }
+    
+    console.log(`📊 Returning ${inquiries.length} inquiries to dashboard`);
+    res.json(inquiries);
+    
+  } catch (e) {
+    console.error('Analytics inquiries error:', e);
+    res.status(500).json({ error: 'Failed to get inquiries' });
+  }
+});
+
 
 app.get('/api/analytics/inquiries', async (req, res) => {
   try {
