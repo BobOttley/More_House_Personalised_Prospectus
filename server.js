@@ -1,4 +1,5 @@
 // server.js — complete file (UK English comments), full feature set
+// Fixed version with no conflicting endpoints and proper AI analysis
 
 const express = require('express');
 const cors = require('cors');
@@ -44,6 +45,8 @@ app.use((req, _res, next) => { console.log('→', req.method, req.url); next(); 
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Database Connection
+// ─────────────────────────────────────────────────────────────────────────────
 let db = null;
 async function initializeDatabase() {
   const haveUrl   = !!process.env.DATABASE_URL;
@@ -74,68 +77,8 @@ async function initializeDatabase() {
   }
 }
 
-// Normalise a text segment the same way filenames/slugs are built
-function normaliseSegment(s) {
-  return String(s || '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-}
-
-// Parse "More-House-School-<Family>-Family-<First>-<Year>-<YYYY-MM-DD>.html"
-function parseProspectusFilename(filename) {
-  const m = String(filename).match(/^More-House-School-(.+?)-Family-(.+?)-(\d{4})-(\d{4}-\d{2}-\d{2})\.html$/i);
-  if (!m) return null;
-  return {
-    familySeg: normaliseSegment(m[1]),
-    firstSeg:  normaliseSegment(m[2]),
-    yearSeg:   m[3],
-    dateSeg:   m[4]
-  };
-}
-
-// Smarter finder: exact match → expected filename → parsed segments → unique first+year
-async function findInquiryByFilenameSmart(filename) {
-  const parsed = parseProspectusFilename(filename);
-  const dir = path.join(__dirname, 'data');
-  const files = await fs.readdir(dir).catch(() => []);
-  const inquiries = [];
-
-  for (const f of files.filter(x => x.startsWith('inquiry-') && x.endsWith('.json'))) {
-    try {
-      const j = JSON.parse(await fs.readFile(path.join(dir, f), 'utf8'));
-      inquiries.push(j);
-      // 1) Exact saved filename
-      if (j.prospectusFilename === filename) return j;
-      // 2) Same as "expected" filename (recomputed)
-      try { if (generateFilename(j) === filename) return j; } catch {}
-    } catch {}
-  }
-
-  if (!parsed) return null;
-
-  // 3) Match by parsed family/first/year
-  const byParsed = inquiries.find(j =>
-    normaliseSegment(j.familySurname) === parsed.familySeg &&
-    normaliseSegment(j.firstName)    === parsed.firstSeg &&
-    String(j.entryYear)              === parsed.yearSeg
-  );
-  if (byParsed) return byParsed;
-
-  // 4) Fallback: unique match on first+year (helps when family was mistyped)
-  const candidates = inquiries.filter(j =>
-    normaliseSegment(j.firstName) === parsed.firstSeg &&
-    String(j.entryYear)           === parsed.yearSeg
-  );
-  if (candidates.length === 1) return candidates[0];
-
-  return null;
-}
-
-
-
 // ─────────────────────────────────────────────────────────────────────────────
-// Files & slugs
+// File Management Functions
 // ─────────────────────────────────────────────────────────────────────────────
 let slugIndex = {}; // { [slug]: '/prospectuses/file.html' }
 
@@ -154,6 +97,7 @@ async function loadSlugIndex() {
     console.log('ℹ️ No slug-index.json yet; will create on first save.');
   }
 }
+
 async function saveSlugIndex() {
   const p = path.join(__dirname, 'data', 'slug-index.json');
   await fs.writeFile(p, JSON.stringify(slugIndex, null, 2));
@@ -184,6 +128,24 @@ function makeSlug(inquiry) {
   return `the-${fam}-family-${shortId}`;
 }
 
+function normaliseSegment(s) {
+  return String(s || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+function parseProspectusFilename(filename) {
+  const m = String(filename).match(/^More-House-School-(.+?)-Family-(.+?)-(\d{4})-(\d{4}-\d{2}-\d{2})\.html$/i);
+  if (!m) return null;
+  return {
+    familySeg: normaliseSegment(m[1]),
+    firstSeg:  normaliseSegment(m[2]),
+    yearSeg:   m[3],
+    dateSeg:   m[4]
+  };
+}
+
 async function saveInquiryJson(record) {
   const filename = `inquiry-${record.receivedAt}.json`;
   const p = path.join(__dirname, 'data', filename);
@@ -191,7 +153,56 @@ async function saveInquiryJson(record) {
   return p;
 }
 
-// Scan /data to rebuild slug mappings
+async function findInquiryByFilenameSmart(filename) {
+  const parsed = parseProspectusFilename(filename);
+  const dir = path.join(__dirname, 'data');
+  const files = await fs.readdir(dir).catch(() => []);
+  const inquiries = [];
+
+  for (const f of files.filter(x => x.startsWith('inquiry-') && x.endsWith('.json'))) {
+    try {
+      const j = JSON.parse(await fs.readFile(path.join(dir, f), 'utf8'));
+      inquiries.push(j);
+      // 1) Exact saved filename
+      if (j.prospectusFilename === filename) return j;
+      // 2) Same as "expected" filename (recomputed)
+      try { if (generateFilename(j) === filename) return j; } catch {}
+    } catch {}
+  }
+
+  if (!parsed) return null;
+
+  // 3) Match by parsed family/first/year
+  const byParsed = inquiries.find(j =>
+    normaliseSegment(j.familySurname) === parsed.familySeg &&
+    normaliseSegment(j.firstName)    === parsed.firstSeg &&
+    String(j.entryYear)              === parsed.yearSeg
+  );
+  if (byParsed) return byParsed;
+
+  // 4) Fallback: unique match on first+year
+  const candidates = inquiries.filter(j =>
+    normaliseSegment(j.firstName) === parsed.firstSeg &&
+    String(j.entryYear)           === parsed.yearSeg
+  );
+  if (candidates.length === 1) return candidates[0];
+
+  return null;
+}
+
+async function findInquiryBySlug(slug) {
+  try {
+    const files = await fs.readdir(path.join(__dirname, 'data'));
+    for (const f of files.filter(x => x.startsWith('inquiry-') && x.endsWith('.json'))) {
+      try {
+        const j = JSON.parse(await fs.readFile(path.join(__dirname, 'data', f), 'utf8'));
+        if ((j.slug || '').toLowerCase() === slug) return j;
+      } catch {}
+    }
+  } catch {}
+  return null;
+}
+
 async function rebuildSlugIndexFromData() {
   let added = 0;
   try {
@@ -215,34 +226,8 @@ async function rebuildSlugIndexFromData() {
   return added;
 }
 
-async function findInquiryBySlug(slug) {
-  try {
-    const files = await fs.readdir(path.join(__dirname, 'data'));
-    for (const f of files.filter(x => x.startsWith('inquiry-') && x.endsWith('.json'))) {
-      try {
-        const j = JSON.parse(await fs.readFile(path.join(__dirname, 'data', f), 'utf8'));
-        if ((j.slug || '').toLowerCase() === slug) return j;
-      } catch {}
-    }
-  } catch {}
-  return null;
-}
-
-async function findInquiryByFilename(filename) {
-  try {
-    const files = await fs.readdir(path.join(__dirname, 'data'));
-    for (const f of files.filter(x => x.startsWith('inquiry-') && x.endsWith('.json'))) {
-      try {
-        const j = JSON.parse(await fs.readFile(path.join(__dirname, 'data', f), 'utf8'));
-        if ((j.prospectusFilename || '') === filename) return j;
-      } catch {}
-    }
-  } catch {}
-  return null;
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
-// Prospectus generation
+// Prospectus Generation
 // ─────────────────────────────────────────────────────────────────────────────
 async function generateProspectus(inquiry) {
   console.log(`🎨 Generating prospectus for ${inquiry.firstName} ${inquiry.familySurname}`);
@@ -309,8 +294,8 @@ async function updateInquiryStatus(inquiryId, pInfo) {
     if (j.id === inquiryId) {
       j.prospectusGenerated = true;
       j.prospectusFilename  = pInfo.filename;
-      j.prospectusUrl       = pInfo.url;          // /prospectuses/...
-      j.prospectusPrettyPath= pInfo.prettyPath;   // /the-...-family-...
+      j.prospectusUrl       = pInfo.url;          
+      j.prospectusPrettyPath= pInfo.prettyPath;   
       j.slug                = pInfo.slug;
       j.prospectusGeneratedAt = pInfo.generatedAt;
       j.status              = 'prospectus_generated';
@@ -319,7 +304,7 @@ async function updateInquiryStatus(inquiryId, pInfo) {
     }
   }
 
-  // Best-effort DB update (ignore failures)
+  // Best-effort DB update
   if (db) {
     try {
       await db.query(
@@ -341,7 +326,7 @@ async function updateInquiryStatus(inquiryId, pInfo) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Tracking (DB is optional)
+// Tracking Functions (UNIFIED - NO CONFLICTS)
 // ─────────────────────────────────────────────────────────────────────────────
 async function trackEngagementEvent(ev) {
   if (!db) return null;
@@ -400,6 +385,142 @@ async function updateEngagementMetrics(m) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// AI Analysis Functions
+// ─────────────────────────────────────────────────────────────────────────────
+function extractInterests(inquiry) {
+  const academic = [];
+  const creative = [];
+  
+  if (inquiry.sciences) academic.push('Sciences');
+  if (inquiry.mathematics) academic.push('Mathematics');
+  if (inquiry.english) academic.push('English');
+  if (inquiry.languages) academic.push('Languages');
+  if (inquiry.humanities) academic.push('Humanities');
+  if (inquiry.business) academic.push('Business');
+  
+  if (inquiry.drama) creative.push('Drama');
+  if (inquiry.music) creative.push('Music');
+  if (inquiry.art) creative.push('Art');
+  if (inquiry.creative_writing) creative.push('Creative Writing');
+  
+  return { academic, creative };
+}
+
+function extractPriorities(inquiry) {
+  const priorities = [];
+  
+  if (inquiry.academic_excellence) priorities.push('Academic Excellence');
+  if (inquiry.pastoral_care) priorities.push('Pastoral Care');
+  if (inquiry.university_preparation) priorities.push('University Preparation');
+  if (inquiry.personal_development) priorities.push('Personal Development');
+  if (inquiry.career_guidance) priorities.push('Career Guidance');
+  if (inquiry.extracurricular_opportunities) priorities.push('Extracurricular Opportunities');
+  
+  return priorities;
+}
+
+async function analyzeFamily(inquiry, engagementData) {
+  try {
+    // Build context for Claude
+    const familyContext = {
+      name: `${inquiry.firstName} ${inquiry.familySurname}`,
+      ageGroup: inquiry.ageGroup,
+      entryYear: inquiry.entryYear,
+      interests: extractInterests(inquiry),
+      priorities: extractPriorities(inquiry),
+      engagement: engagementData ? {
+        timeOnPage: engagementData.time_on_page || 0,
+        scrollDepth: engagementData.scroll_depth || 0,
+        totalVisits: engagementData.total_visits || 0,
+        lastVisit: engagementData.last_visit
+      } : null
+    };
+
+    // Construct prompt for Claude
+    const prompt = `As an expert education consultant for More House School, analyze this family's profile and provide insights for our admissions team.
+
+FAMILY PROFILE:
+- Student: ${familyContext.name}
+- Age Group: ${familyContext.ageGroup}
+- Entry Year: ${familyContext.entryYear}
+- Academic Interests: ${familyContext.interests.academic.join(', ') || 'None specified'}
+- Creative Interests: ${familyContext.interests.creative.join(', ') || 'None specified'}
+- Family Priorities: ${familyContext.priorities.join(', ') || 'None specified'}
+${familyContext.engagement ? `
+ENGAGEMENT DATA:
+- Time spent on prospectus: ${Math.round(familyContext.engagement.timeOnPage / 60)} minutes
+- Content engagement: ${familyContext.engagement.scrollDepth}% scroll depth
+- Visit frequency: ${familyContext.engagement.totalVisits} visits
+- Last active: ${familyContext.engagement.lastVisit ? new Date(familyContext.engagement.lastVisit).toLocaleDateString() : 'Unknown'}
+` : ''}
+
+Please provide a JSON response with insights for admissions teams.
+
+Respond ONLY with valid JSON in this format:
+{
+  "leadScore": 85,
+  "conversationStarters": [
+    "Ask about their interest in our science facilities",
+    "Discuss our small class sizes for individual attention"
+  ],
+  "sellingPoints": [
+    "Exceptional science laboratories", 
+    "Individual attention in small classes"
+  ],
+  "urgencyLevel": "high",
+  "nextAction": "Schedule immediate callback - highly engaged family",
+  "insights": {
+    "studentProfile": "Science-focused with strong academic drive",
+    "familyPriorities": "Academic excellence and individual attention"
+  },
+  "confidence": 0.92
+}`;
+
+    // Call Claude API
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 1000,
+        messages: [
+          { role: "user", content: prompt }
+        ]
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Claude API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    let responseText = data.content[0].text;
+    
+    // Clean up response (remove any markdown)
+    responseText = responseText.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+    
+    const analysis = JSON.parse(responseText);
+    
+    return {
+      leadScore: analysis.leadScore || 50,
+      conversationStarters: analysis.conversationStarters || [],
+      sellingPoints: analysis.sellingPoints || [],
+      urgencyLevel: analysis.urgencyLevel || 'medium',
+      nextAction: analysis.nextAction || 'Follow up as needed',
+      insights: analysis.insights || {},
+      confidence_score: analysis.confidence || 0.5,
+      recommendations: analysis.conversationStarters || []
+    };
+
+  } catch (error) {
+    console.error('Claude API analysis failed:', error);
+    return null;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Preflight
 // ─────────────────────────────────────────────────────────────────────────────
 app.options('*', (req, res) => {
@@ -411,8 +532,10 @@ app.options('*', (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Webhook: create inquiry + generate prospectus
+// Main Routes
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Webhook: create inquiry + generate prospectus
 app.post(['/webhook', '/api/inquiry'], async (req, res) => {
   try {
     const data = req.body || {};
@@ -435,7 +558,7 @@ app.post(['/webhook', '/api/inquiry'], async (req, res) => {
     // Persist JSON (always)
     await saveInquiryJson(record);
 
-    // Best-effort DB insert (includes interest booleans to support Top Interests)
+    // Best-effort DB insert
     if (db) {
       try {
         await db.query(`
@@ -481,8 +604,8 @@ app.post(['/webhook', '/api/inquiry'], async (req, res) => {
       receivedAt: record.receivedAt,
       prospectus: {
         filename: p.filename,
-        url: `${base}${p.prettyPath}`,      // pretty link
-        directFile: `${base}${p.url}`,      // direct file
+        url: `${base}${p.prettyPath}`,      
+        directFile: `${base}${p.url}`,      
         slug: p.slug,
         generatedAt: p.generatedAt
       }
@@ -527,36 +650,34 @@ app.post('/api/generate-prospectus/:inquiryId', async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Tracking endpoints
+// TRACKING ENDPOINT (UNIFIED - NO CONFLICTS)
 // ─────────────────────────────────────────────────────────────────────────────
-app.post('/api/track', async (req, res) => {
-  try {
-    const { events = [], engagementMetrics } = req.body || {};
-    const clientIP = req.ip || req.connection?.remoteAddress;
-
-    for (const ev of events) await trackEngagementEvent({ ...ev, ip: clientIP });
-    if (engagementMetrics) await updateEngagementMetrics(engagementMetrics);
-
-    res.json({ success:true, eventsProcessed: events.length });
-  } catch (e) {
-    console.error('track error:', e);
-    res.status(500).json({ success:false, error:'Failed to record tracking' });
-  }
-});
-
 app.post('/api/track-engagement', async (req, res) => {
   try {
     const { events = [], sessionInfo } = req.body || {};
+    const clientIP = req.ip || req.connection?.remoteAddress;
+    
+    console.log(`📊 Tracking: ${events.length} events from ${sessionInfo?.inquiryId || 'unknown'}`);
+    
+    // Process individual events
     for (const e of (events.length ? events : [req.body])) {
       const { inquiryId, sessionId, eventType, timestamp, data = {}, url, currentSection } = e;
       if (!inquiryId || !sessionId || !eventType) continue;
+      
       await trackEngagementEvent({
-        inquiryId, sessionId, eventType,
+        inquiryId, 
+        sessionId, 
+        eventType,
         timestamp: timestamp || new Date().toISOString(),
-        eventData: data, url, currentSection,
-        deviceInfo: data.deviceInfo
+        eventData: data, 
+        url, 
+        currentSection,
+        deviceInfo: data.deviceInfo,
+        ip: clientIP
       });
     }
+    
+    // Process session summary
     if (sessionInfo?.inquiryId) {
       await updateEngagementMetrics({
         inquiryId: sessionInfo.inquiryId,
@@ -568,10 +689,115 @@ app.post('/api/track-engagement', async (req, res) => {
         prospectusFilename: 'unknown'
       });
     }
-    res.json({ success:true, message:`Tracked ${(events.length||1)} event(s)` });
+    
+    res.json({ 
+      success: true, 
+      message: `Tracked ${(events.length || 1)} event(s)`,
+      eventsProcessed: events.length || 1
+    });
   } catch (e) {
-    console.error('track-engagement error:', e);
-    res.status(500).json({ success:false, error:e.message });
+    console.error('❌ track-engagement error:', e);
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AI ANALYSIS ENDPOINTS
+// ─────────────────────────────────────────────────────────────────────────────
+app.post('/api/ai/analyze-all-families', async (req, res) => {
+  try {
+    console.log('🤖 Starting AI analysis for all families...');
+    
+    // Get all inquiries
+    const files = await fs.readdir(path.join(__dirname, 'data'));
+    const inquiries = [];
+    for (const f of files.filter(x => x.startsWith('inquiry-') && x.endsWith('.json'))) {
+      try {
+        const j = JSON.parse(await fs.readFile(path.join(__dirname, 'data', f), 'utf8'));
+        inquiries.push(j);
+      } catch {}
+    }
+
+    console.log(`📊 Found ${inquiries.length} families to analyze`);
+
+    let analysisCount = 0;
+    const errors = [];
+
+    for (const inquiry of inquiries) {
+      try {
+        // Get engagement data if available
+        let engagementData = null;
+        if (db) {
+          const r = await db.query(`
+            SELECT time_on_page, scroll_depth, clicks_on_links, total_visits, last_visit
+            FROM engagement_metrics
+            WHERE inquiry_id = $1
+            ORDER BY last_visit DESC
+            LIMIT 1
+          `, [inquiry.id]);
+          if (r.rows.length) {
+            engagementData = r.rows[0];
+          }
+        }
+
+        // Call Claude API for analysis
+        const analysis = await analyzeFamily(inquiry, engagementData);
+        
+        if (analysis) {
+          // Store analysis in database if available
+          if (db) {
+            try {
+              await db.query(`
+                INSERT INTO ai_family_insights (
+                  inquiry_id, analysis_type, insights_json, confidence_score, 
+                  recommendations, generated_at
+                ) VALUES ($1, $2, $3, $4, $5, $6)
+                ON CONFLICT (inquiry_id, analysis_type) DO UPDATE SET
+                  insights_json = EXCLUDED.insights_json,
+                  confidence_score = EXCLUDED.confidence_score,
+                  recommendations = EXCLUDED.recommendations,
+                  generated_at = EXCLUDED.generated_at
+              `, [
+                inquiry.id,
+                'family_profile',
+                JSON.stringify(analysis.insights),
+                analysis.confidence_score,
+                analysis.recommendations,
+                new Date()
+              ]);
+            } catch (dbError) {
+              console.warn(`DB insert failed for ${inquiry.id}:`, dbError.message);
+            }
+          }
+
+          analysisCount++;
+        }
+      } catch (error) {
+        console.error(`❌ Analysis failed for ${inquiry.id}:`, error.message);
+        errors.push({ inquiryId: inquiry.id, error: error.message });
+      }
+    }
+
+    console.log(`✅ AI analysis complete: ${analysisCount}/${inquiries.length} successful`);
+    
+    res.json({
+      success: true,
+      message: `AI analysis completed`,
+      results: {
+        total: inquiries.length,
+        analyzed: analysisCount,
+        errors: errors.length
+      },
+      errors: errors.length > 0 ? errors : undefined
+    });
+
+  } catch (error) {
+    console.error('❌ AI analysis error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'AI analysis failed',
+      message: error.message
+    });
   }
 });
 
@@ -854,7 +1080,6 @@ app.get('/prospectuses/:filename', async (req, res) => {
   }
 });
 
-
 // Keep static serving for any other static assets in /prospectuses
 app.use('/prospectuses', express.static(path.join(__dirname, 'prospectuses')));
 
@@ -889,7 +1114,8 @@ app.get('/health', (req, res) => {
       dashboard: 'enabled',
       database: db ? 'connected' : 'json-only',
       prettyUrls: true,
-      selfHealing: true
+      selfHealing: true,
+      aiAnalysis: 'enabled'
     }
   });
 });
@@ -904,19 +1130,20 @@ app.get('/', (req, res) => {
   <ul>
     <li>Health: <a href="${base}/health">${base}/health</a></li>
     <li>Webhook (POST JSON): <code>${base}/webhook</code></li>
-    <li>Dashboard: <a href="${base}/dashboard.html">${base}/dashboard.html</a></li>
+    <li>Dashboard: <a href="${base}/smart_analytics_dashboard.html">${base}/smart_analytics_dashboard.html</a></li>
     <li>Inquiries (JSON): <a href="${base}/api/analytics/inquiries">${base}/api/analytics/inquiries</a></li>
     <li>Dashboard data (JSON): <a href="${base}/api/dashboard-data">${base}/api/dashboard-data</a></li>
     <li>Rebuild slugs: <a href="${base}/admin/rebuild-slugs">${base}/admin/rebuild-slugs</a></li>
   </ul>
   <p>Pretty links look like: <code>${base}/the-smith-family-abc123</code></p>
+  <p>🤖 AI Analysis: <code>POST ${base}/api/ai/analyze-all-families</code></p>
 </body></html>`);
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Pretty URL resolver (self-healing)
 // ─────────────────────────────────────────────────────────────────────────────
-const RESERVED = new Set(['api','prospectuses','health','tracking','dashboard','favicon','robots','sitemap','metrics','config','webhook','admin']);
+const RESERVED = new Set(['api','prospectuses','health','tracking','dashboard','favicon','robots','sitemap','metrics','config','webhook','admin','smart_analytics_dashboard.html']);
 app.get('/:slug', async (req, res, next) => {
   const slug = String(req.params.slug || '').toLowerCase();
   if (!/^[a-z0-9-]+$/.test(slug)) return next();
@@ -979,12 +1206,15 @@ async function startServer() {
   await rebuildSlugIndexFromData();
 
   app.listen(PORT, '0.0.0.0', () => {
-    console.log('\n🚀 Server started (pretty URLs + self-healing enabled)');
-    console.log(`🌐 Port: ${PORT}`);
-    console.log(`📋 Webhook: /webhook`);
-    console.log(`📈 Dashboard: /dashboard.html`);
-    console.log(`🔗 Pretty URL pattern: /the-<family>-family-<shortid>`);
+    console.log('\n🚀 MORE HOUSE SCHOOL SYSTEM STARTED');
+    console.log('═══════════════════════════════════════');
+    console.log(`🌐 Server: http://localhost:${PORT}`);
+    console.log(`📋 Webhook: http://localhost:${PORT}/webhook`);
+    console.log(`📊 Dashboard: http://localhost:${PORT}/smart_analytics_dashboard.html`);
+    console.log(`🤖 AI Analysis: POST http://localhost:${PORT}/api/ai/analyze-all-families`);
+    console.log(`🔗 Pretty URL pattern: http://localhost:${PORT}/the-<family>-family-<shortid>`);
     console.log(`📊 DB: ${dbConnected ? 'Connected' : 'JSON-only'}`);
+    console.log('═══════════════════════════════════════');
   });
 }
 
@@ -998,5 +1228,6 @@ module.exports = {
   updateInquiryStatus,
   generateFilename,
   trackEngagementEvent,
-  updateEngagementMetrics
+  updateEngagementMetrics,
+  analyzeFamily
 };

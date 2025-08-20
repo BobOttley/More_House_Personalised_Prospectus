@@ -1,0 +1,247 @@
+Last login: Wed Aug 20 06:44:28 on console
+You have new mail.
+robertottley@Jesss-MacBook-Pro More House Personalise Prospectus  % psql "postgresql://personalised_prospectus_db_tapg_user:3uNIuUoZ40YHTcGvVQb8UdtHDJEFHEI6@dpg-d2hhm0odl3ps738bve7g-a.frankfurt-postgres.render.com/personalised_prospectus_db_tapg"
+psql (17.6)
+SSL connection (protocol: TLSv1.3, cipher: TLS_AES_128_GCM_SHA256, compression: off, ALPN: none)
+Type "help" for help.
+
+personalised_prospectus_db_tapg=> \dt
+                                  List of relations
+ Schema |            Name             | Type  |                Owner
+--------+-----------------------------+-------+--------------------------------------
+ public | ai_analysis_logs            | table | personalised_prospectus_db_tapg_user
+ public | ai_insights_cache           | table | personalised_prospectus_db_tapg_user
+ public | ai_performance_metrics      | table | personalised_prospectus_db_tapg_user
+ public | behavioral_patterns         | table | personalised_prospectus_db_tapg_user
+ public | conversion_signals_tracking | table | personalised_prospectus_db_tapg_user
+ public | engagement_metrics          | table | personalised_prospectus_db_tapg_user
+ public | inquiries                   | table | personalised_prospectus_db_tapg_user
+ public | section_engagement_analysis | table | personalised_prospectus_db_tapg_user
+ public | session_summaries           | table | personalised_prospectus_db_tapg_user
+ public | tracking_events             | table | personalised_prospectus_db_tapg_user
+ public | video_engagement_tracking   | table | personalised_prospectus_db_tapg_user
+(11 rows)
+
+personalised_prospectus_db_tapg=> SELECT
+personalised_prospectus_db_tapg->     table_name,
+personalised_prospectus_db_tapg->     column_name,
+personalised_prospectus_db_tapg->     data_type,
+personalised_prospectus_db_tapg->     is_nullable,
+personalised_prospectus_db_tapg->     column_default,
+personalised_prospectus_db_tapg->     character_maximum_length
+personalised_prospectus_db_tapg-> FROM information_schema.columns
+personalised_prospectus_db_tapg-> WHERE table_schema = 'public'
+personalised_prospectus_db_tapg-> ORDER BY table_name, ordinal_position;
+             table_name             |           column_name           |          data_type          | is_nullable |                     column_default                      | character_maximum_length
+------------------------------------+---------------------------------+-----------------------------+-------------+---------------------------------------------------------+--------------------------
+ ai_analysis_logs                   | id                              | integer                     | NO          | nextval('ai_analysis_logs_id_seq'::regclass)            |
+ ai_analysis_logs                   | inquiry_id                      | character varying           | NO          |                                                         |                      255
+ ai_analysis_logs                   | analysis_type                   | character varying           | NO          |                                                         |                       50
+ ai_analysis_logs                   | trigger_reason                  | character varying           | YES         |                                                         |                      100
+ ai_analysis_logs                   | analysis_start_time             | timestamp with time zone    | YES         | CURRENT_TIMESTAMP                                       |
+ ai_analysis_logs                   | analysis_end_time               | timestamp with time zone    | YES         |                                                         |
+ ai_analysis_logs                   | processing_duration_ms          | integer                     | YES         |                                                         |
+ ai_analysis_logs                   | input_data_points               | integer                     | YES         |                                                         |
+ ai_analysis_logs                   | confidence_score                | numeric                     | YES         |                                                         |
+ ai_analysis_logs                   | previous_score                  | integer                     | YES         |                                                         |
+ ai_analysis_logs                   | new_score                       | integer                     | YES         |                                                         |
+ ai_analysis_logs                   | score_change                    | integer                     | YES         |                                                         |
+ ai_analysis_logs                   | previous_action                 | character varying           | YES         |                                                         |                       50
+ ai_analysis_logs                   | new_action                      | character varying           | YES         |                                                         |                       50
+ ai_analysis_logs                   | action_changed                  | boolean                     | YES         | false                                                   |
+ ai_analysis_logs                   | analysis_metadata               | jsonb                       | YES         |                                                         |
+Could not send cancel request: PQcancel() -- connect() failed: error 56
+personalised_prospectus_db_tapg=> \d inquiries
+                                                  Table "public.inquiries"
+            Column             |            Type             | Collation | Nullable |                Default
+-------------------------------+-----------------------------+-----------+----------+----------------------------------------
+ id                            | character varying(50)       |           | not null |
+ first_name                    | character varying(100)      |           | not null |
+ family_surname                | character varying(100)      |           | not null |
+ parent_email                  | character varying(255)      |           | not null |
+ age_group                     | character varying(20)       |           | not null |
+ entry_year                    | character varying(10)       |           | not null |
+ sciences                      | boolean                     |           |          | false
+ mathematics                   | boolean                     |           |          | false
+ english                       | boolean                     |           |          | false
+ languages                     | boolean                     |           |          | false
+ humanities                    | boolean                     |           |          | false
+ business                      | boolean                     |           |          | false
+ drama                         | boolean                     |           |          | false
+ music                         | boolean                     |           |          | false
+ art                           | boolean                     |           |          | false
+ creative_writing              | boolean                     |           |          | false
+ sport                         | boolean                     |           |          | false
+ leadership                    | boolean                     |           |          | false
+ community_service             | boolean                     |           |          | false
+ outdoor_education             | boolean                     |           |          | false
+ academic_excellence           | boolean                     |           |          | false
+ pastoral_care                 | boolean                     |           |          | false
+ university_preparation        | boolean                     |           |          | false
+ personal_development          | boolean                     |           |          | false
+ career_guidance               | boolean                     |           |          | false
+ extracurricular_opportunities | boolean                     |           |          | false
+ received_at                   | timestamp without time zone |           |          | CURRENT_TIMESTAMP
+ status                        | character varying(50)       |           |          | 'received'::character varying
+ prospectus_generated          | boolean                     |           |          | false
+ prospectus_filename           | character varying(255)      |           |          |
+ prospectus_url                | character varying(500)      |           |          |
+ prospectus_generated_at       | timestamp without time zone |           |          |
+ user_agent                    | text                        |           |          |
+personalised_prospectus_db_tapg=> \d tracking_events
+                                             Table "public.tracking_events"
+       Column        |            Type             | Collation | Nullable |                   Default
+---------------------+-----------------------------+-----------+----------+---------------------------------------------
+ id                  | integer                     |           | not null | nextval('tracking_events_id_seq'::regclass)
+ inquiry_id          | text                        |           |          |
+ session_id          | text                        |           |          |
+ event_type          | text                        |           |          |
+ timestamp           | timestamp without time zone |           |          |
+ event_data          | jsonb                       |           |          |
+ url                 | text                        |           |          |
+ current_section     | text                        |           |          |
+ device_info         | jsonb                       |           |          |
+ user_agent          | text                        |           |          |
+ ip_address          | text                        |           |          |
+ engagement_score    | integer                     |           |          | 0
+ scroll_depth        | integer                     |           |          | 0
+ time_on_page        | integer                     |           |          | 0
+ conversion_signals  | integer                     |           |          | 0
+ video_id            | character varying(100)      |           |          |
+ interaction_quality | character varying(20)       |           |          | 'low'::character varying
+ content_type        | character varying(50)       |           |          |
+ reading_speed       | integer                     |           |          | 0
+ page_url            | text                        |           |          |
+Indexes:
+    "tracking_events_pkey" PRIMARY KEY, btree (id)
+    "idx_tracking_events_content_type" btree (content_type)
+    "idx_tracking_events_conversion" btree (conversion_signals DESC)
+    "idx_tracking_events_engagement" btree (engagement_score DESC)
+    "idx_tracking_events_inquiry_id" btree (inquiry_id)
+    "idx_tracking_events_section" btree (current_section)
+    "idx_tracking_events_timestamp" btree ("timestamp")
+    "idx_tracking_events_video" btree (video_id)
+    "tracking_events_inquiry_ts_idx" btree (inquiry_id, "timestamp" DESC)
+
+personalised_prospectus_db_tapg=> \d engagement_metrics
+                                             Table "public.engagement_metrics"
+       Column        |            Type             | Collation | Nullable |                    Default
+---------------------+-----------------------------+-----------+----------+------------------------------------------------
+ id                  | integer                     |           | not null | nextval('engagement_metrics_id_seq'::regclass)
+ inquiry_id          | text                        |           |          |
+ session_id          | text                        |           |          |
+ prospectus_filename | text                        |           |          |
+ time_on_page        | integer                     |           |          | 0
+ pages_viewed        | integer                     |           |          | 1
+ scroll_depth        | integer                     |           |          | 0
+ clicks_on_links     | integer                     |           |          | 0
+ device_type         | text                        |           |          |
+ browser             | text                        |           |          |
+ operating_system    | text                        |           |          |
+ total_visits        | integer                     |           |          | 1
+ last_visit          | timestamp without time zone |           |          | CURRENT_TIMESTAMP
+Indexes:
+    "engagement_metrics_pkey" PRIMARY KEY, btree (id)
+    "engagement_metrics_inquiry_id_session_id_key" UNIQUE CONSTRAINT, btree (inquiry_id, session_id)
+    "engagement_metrics_last_visit_idx" btree (last_visit DESC)
+    "idx_engagement_metrics_inquiry_id" btree (inquiry_id)
+
+personalised_prospectus_db_tapg=> SELECT
+personalised_prospectus_db_tapg->     'inquiries' as table_name, COUNT(*) as records
+personalised_prospectus_db_tapg-> FROM inquiries
+personalised_prospectus_db_tapg-> UNION ALL
+personalised_prospectus_db_tapg-> SELECT
+personalised_prospectus_db_tapg->     'tracking_events', COUNT(*)
+personalised_prospectus_db_tapg-> FROM tracking_events
+personalised_prospectus_db_tapg-> UNION ALL
+personalised_prospectus_db_tapg-> SELECT
+personalised_prospectus_db_tapg->     'engagement_metrics', COUNT(*)
+personalised_prospectus_db_tapg-> FROM engagement_metrics;
+     table_name     | records
+--------------------+---------
+ inquiries          |      36
+ tracking_events    |    2696
+ engagement_metrics |      21
+(3 rows)
+
+personalised_prospectus_db_tapg=> SELECT
+personalised_prospectus_db_tapg->     age_group,
+personalised_prospectus_db_tapg->     entry_year,
+personalised_prospectus_db_tapg->     SUM(CASE WHEN sciences THEN 1 ELSE 0 END) as sciences_count,
+personalised_prospectus_db_tapg->     SUM(CASE WHEN mathematics THEN 1 ELSE 0 END) as math_count,
+personalised_prospectus_db_tapg->     SUM(CASE WHEN drama THEN 1 ELSE 0 END) as drama_count,
+personalised_prospectus_db_tapg->     SUM(CASE WHEN music THEN 1 ELSE 0 END) as music_count,
+personalised_prospectus_db_tapg->     SUM(CASE WHEN sport THEN 1 ELSE 0 END) as sport_count,
+personalised_prospectus_db_tapg->     COUNT(*) as total_families
+personalised_prospectus_db_tapg-> FROM inquiries
+personalised_prospectus_db_tapg-> GROUP BY age_group, entry_year
+personalised_prospectus_db_tapg-> ORDER BY entry_year, age_group;
+  age_group   | entry_year | sciences_count | math_count | drama_count | music_count | sport_count | total_families
+--------------+------------+----------------+------------+-------------+-------------+-------------+----------------
+ 11-16        | 2025       |              2 |          2 |           2 |           1 |           1 |              2
+ 7-11         | 2025       |              1 |          1 |           1 |           0 |           0 |              1
+ 9-11         | 2025       |             20 |          7 |          22 |           8 |          21 |             22
+ 11-16        | 2026       |              0 |          0 |           0 |           0 |           0 |              3
+ 9-11         | 2026       |              4 |          4 |           4 |           3 |           4 |              4
+ Years 7 to 8 | 2026       |              0 |          0 |           0 |           0 |           1 |              1
+ 9-11         | 2027       |              2 |          1 |           2 |           1 |           2 |              2
+ 9-11         | 2028       |              1 |          1 |           1 |           1 |           1 |              1
+(8 rows)
+
+personalised_prospectus_db_tapg=> SELECT
+personalised_prospectus_db_tapg->     event_type,
+personalised_prospectus_db_tapg->     COUNT(*) as event_count,
+personalised_prospectus_db_tapg->     COUNT(DISTINCT inquiry_id) as unique_families
+personalised_prospectus_db_tapg-> FROM tracking_events
+personalised_prospectus_db_tapg-> GROUP BY event_type
+personalised_prospectus_db_tapg-> ORDER BY event_count DESC;
+       event_type        | event_count | unique_families
+-------------------------+-------------+-----------------
+ heartbeat               |        1944 |               9
+ scroll_behavior         |         174 |               2
+ scroll_depth            |         133 |               8
+ page_hidden             |          79 |              13
+ section_enter           |          64 |               3
+ page_visible            |          55 |              10
+ section_exit            |          40 |               3
+ page_blur               |          36 |               3
+ page_focus              |          30 |               3
+ element_click           |          28 |               2
+ page_load               |          23 |               9
+ user_idle               |          13 |               2
+ session_end             |          12 |               2
+ section_interaction     |          10 |               1
+ window_resize           |          10 |               2
+ enhanced_heartbeat      |           9 |               1
+ scroll_milestone        |           6 |               1
+ session_start           |           6 |               2
+ general_click           |           4 |               1
+ ai_analysis_trigger     |           3 |               1
+ entry_point_interaction |           3 |               1
+ navigation_action       |           3 |               1
+ timeline_item_hover     |           2 |               1
+ link_click              |           2 |               2
+ image_click             |           1 |               1
+ enhanced_page_load      |           1 |               1
+ conversion_action       |           1 |               1
+ content_interaction     |           1 |               1
+ prospectus_opened       |           1 |               1
+ youtube_video_open      |           1 |               1
+ photo_modal_open        |           1 |               1
+(31 rows)
+
+personalised_prospectus_db_tapg=> SELECT
+personalised_prospectus_db_tapg->     COUNT(*) as total_sessions,
+personalised_prospectus_db_tapg->     COUNT(DISTINCT inquiry_id) as unique_families,
+personalised_prospectus_db_tapg->     AVG(time_on_page) as avg_time_minutes,
+personalised_prospectus_db_tapg->     AVG(scroll_depth) as avg_scroll_percent,
+personalised_prospectus_db_tapg->     AVG(clicks_on_links) as avg_clicks,
+personalised_prospectus_db_tapg->     MAX(total_visits) as max_visits
+personalised_prospectus_db_tapg-> FROM engagement_metrics;
+ total_sessions | unique_families |   avg_time_minutes    | avg_scroll_percent  |     avg_clicks     | max_visits
+----------------+-----------------+-----------------------+---------------------+--------------------+------------
+             21 |              12 | 1945.6190476190476190 | 58.6666666666666667 | 2.0476190476190476 |       1110
+(1 row)
+
+personalised_prospectus_db_tapg=> \q
+robertottley@Jesss-MacBook-Pro More House Personalise Prospectus  %
