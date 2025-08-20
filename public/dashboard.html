@@ -40,7 +40,7 @@
             font-size: 14px;
         }
 
-        /* Header - Matching SMART Reply Style */
+        /* Header */
         .dashboard-header {
             background: linear-gradient(135deg, var(--blazer-navy) 0%, var(--sport-blue) 100%);
             color: var(--white);
@@ -184,6 +184,7 @@
             color: var(--white);
             background: var(--award-gold);
             position: relative;
+            font-size: 1.5rem;
         }
 
         .metric-icon.hot { 
@@ -542,6 +543,21 @@
             100% { transform: rotate(360deg); }
         }
 
+        /* Error State */
+        .error {
+            background: #FEF2F2;
+            border: 1px solid #FECACA;
+            color: #DC2626;
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+        }
+
+        .error-title {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
         /* AI Analysis Indicator */
         .ai-analyzing {
             display: inline-flex;
@@ -624,10 +640,10 @@
     <section class="metrics-bar">
         <div class="metric-card hot">
             <div class="metric-header">
-                <div class="metric-icon hot"></div>
+                <div class="metric-icon hot">🔥</div>
                 <div class="metric-content">
                     <div class="metric-title">Hot Leads</div>
-                    <div class="metric-value" id="hotLeads">0</div>
+                    <div class="metric-value" id="hotLeads">-</div>
                     <div class="metric-trend">Score 80+ • Ready for Contact</div>
                 </div>
             </div>
@@ -635,10 +651,10 @@
 
         <div class="metric-card warm">
             <div class="metric-header">
-                <div class="metric-icon warm"></div>
+                <div class="metric-icon warm">⚡</div>
                 <div class="metric-content">
                     <div class="metric-title">Warm Leads</div>
-                    <div class="metric-value" id="warmLeads">0</div>
+                    <div class="metric-value" id="warmLeads">-</div>
                     <div class="metric-trend">Score 60-79 • Contact Soon</div>
                 </div>
             </div>
@@ -646,21 +662,21 @@
 
         <div class="metric-card engagement">
             <div class="metric-header">
-                <div class="metric-icon engagement"></div>
+                <div class="metric-icon engagement">📊</div>
                 <div class="metric-content">
                     <div class="metric-title">Avg Engagement</div>
-                    <div class="metric-value" id="avgEngagement">0</div>
-                    <div class="metric-trend">Minutes per session</div>
+                    <div class="metric-value" id="avgEngagement">-</div>
+                    <div class="metric-trend">Total time spent</div>
                 </div>
             </div>
         </div>
 
         <div class="metric-card total">
             <div class="metric-header">
-                <div class="metric-icon total"></div>
+                <div class="metric-icon total">👨‍👩‍👧‍👦</div>
                 <div class="metric-content">
                     <div class="metric-title">Total Families</div>
-                    <div class="metric-value" id="totalFamilies">0</div>
+                    <div class="metric-value" id="totalFamilies">-</div>
                     <div class="metric-trend">Active prospects</div>
                 </div>
             </div>
@@ -718,7 +734,7 @@
                 <div class="family-cards-container" id="familyCards">
                     <div class="loading">
                         <div class="spinner"></div>
-                        Loading family data...
+                        Loading real family data...
                     </div>
                 </div>
             </div>
@@ -729,7 +745,7 @@
             <div class="panel-header">
                 <h2>Live Activity Feed</h2>
                 <div style="font-size: 0.9rem; opacity: 0.9;">
-                    Family-level interactions
+                    Real tracking events
                 </div>
             </div>
             <div class="panel-content">
@@ -748,12 +764,7 @@
         let dashboardData = {
             families: [],
             activities: [],
-            metrics: {
-                hotLeads: 0,
-                warmLeads: 0,
-                avgEngagement: 0,
-                totalFamilies: 0
-            }
+            metrics: {}
         };
 
         let autoRefreshInterval;
@@ -761,6 +772,7 @@
 
         // Initialize Dashboard
         document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 Dashboard initializing...');
             loadDashboardData();
             setupEventListeners();
             startAutoRefresh();
@@ -790,66 +802,79 @@
             isRefreshing = true;
             
             try {
-                console.log('🔄 Loading dashboard data...');
+                console.log('📡 Fetching real data from server...');
                 
                 // Update refresh icon
                 document.getElementById('refreshIcon').style.animation = 'spin 1s linear infinite';
                 
-                // Fetch dashboard data with proper metrics
-                const dashboardResponse = await fetch('/api/dashboard-data');
-                if (!dashboardResponse.ok) {
-                    throw new Error(`Dashboard API failed: ${dashboardResponse.status}`);
+                // FIXED: Use your actual server.js endpoints
+                const inquiriesResponse = await fetch('/api/analytics/inquiries');
+                if (!inquiriesResponse.ok) {
+                    throw new Error(`Inquiries API failed: ${inquiriesResponse.status} - ${inquiriesResponse.statusText}`);
                 }
-                const dashboardData = await dashboardResponse.json();
-                console.log('📊 Dashboard data received:', dashboardData);
                 
-                // Fetch detailed family analytics
-                const analyticsResponse = await fetch('/api/analytics/inquiries');
-                if (!analyticsResponse.ok) {
-                    throw new Error(`Analytics API failed: ${analyticsResponse.status}`);
+                const inquiriesData = await inquiriesResponse.json();
+                console.log('✅ Raw inquiries data:', Array.isArray(inquiriesData) ? inquiriesData.length : 'object', 'families');
+                
+                // FIXED: Use dashboard-data endpoint for tracking activities since /api/analytics/tracking doesn't exist
+                let dashboardDataResponse;
+                try {
+                    dashboardDataResponse = await fetch('/api/dashboard-data');
+                    const dashboardApiData = await dashboardDataResponse.json();
+                    console.log('✅ Dashboard API data received:', dashboardApiData);
+                } catch (e) {
+                    console.warn('⚠️ Dashboard API failed, proceeding with inquiries only');
+                    dashboardApiData = { recentlyActive: [] };
                 }
-                const familiesData = await analyticsResponse.json();
-                console.log('👨‍👩‍👧‍👦 Families data received:', familiesData.length, 'families');
                 
-                // Process data using the actual database metrics
-                dashboardData.families = processFamilyDataWithRealMetrics(familiesData);
-                dashboardData.activities = generateActivityFeed(dashboardData.recentlyActive || []);
-                dashboardData.metrics = {
-                    hotLeads: dashboardData.summary?.hotLeads || 0,
-                    warmLeads: dashboardData.summary?.warmLeads || 0,
-                    avgEngagement: dashboardData.summary?.avgEngagement || 0,
-                    totalFamilies: dashboardData.summary?.totalFamilies || familiesData.length
-                };
+                // FIXED: Handle both array and object responses from your server
+                const familiesArray = Array.isArray(inquiriesData) ? inquiriesData : [inquiriesData];
                 
-                console.log('📈 Processed metrics:', dashboardData.metrics);
-                console.log('🔍 Processed families with engagement:', dashboardData.families.filter(f => f.engagement).length);
+                // Process the real data using your actual API structure
+                dashboardData.families = processRealFamilyData(familiesArray);
+                dashboardData.activities = processRealActivityData(dashboardApiData?.recentlyActive || []);
+                dashboardData.metrics = calculateRealMetrics(dashboardData.families);
                 
-                // Update UI
+                console.log('🔄 Processed data:', {
+                    families: dashboardData.families.length,
+                    activities: dashboardData.activities.length,
+                    metrics: dashboardData.metrics
+                });
+                
+                // Update UI with real data
                 updateMetrics();
                 renderFamilyCards();
                 renderActivityFeed();
                 
             } catch (error) {
                 console.error('❌ Failed to load dashboard data:', error);
-                showError('Failed to load dashboard data: ' + error.message);
+                showError('Failed to load real data', error.message);
             } finally {
                 isRefreshing = false;
                 document.getElementById('refreshIcon').style.animation = '';
             }
         }
 
-        function processFamilyDataWithRealMetrics(familiesData) {
-            return familiesData.map(family => {
-                // Use the actual engagement data from the database
-                const engagement = family.engagement || {};
+        function processRealFamilyData(inquiriesData) {
+            console.log('🔄 Processing real family data...');
+            
+            return inquiriesData.map(family => {
+                // Use engagement data directly from your server.js response structure
+                const engagement = family.engagement || {
+                    timeOnPage: family.time_on_page || 0,
+                    scrollDepth: family.scroll_depth || 0,
+                    clickCount: family.clicks_on_links || family.click_count || 0,
+                    totalVisits: family.total_visits || 1,
+                    lastVisit: family.last_visit || family.received_at
+                };
                 
-                // Calculate score using server-side data
-                const score = calculateEngagementScoreFromDB(engagement, family);
+                // Extract real interests from your server.js structure
+                const interests = extractRealInterests(family);
                 
-                // Extract interests from form data
-                const interests = extractInterestsFromFamily(family);
+                // Calculate engagement score from real data
+                const score = calculateRealEngagementScore(engagement, family);
                 
-                console.log(`👪 Processing ${family.first_name} ${family.family_surname}:`, {
+                console.log(`👪 ${family.first_name} ${family.family_surname}:`, {
                     engagement,
                     score,
                     interests: interests.length
@@ -857,56 +882,89 @@
                 
                 return {
                     ...family,
+                    // Use consistent naming for dashboard
+                    inquiry_id: family.id,
+                    firstName: family.first_name,
+                    familySurname: family.family_surname,
+                    parentEmail: family.parent_email,
+                    entryYear: family.entry_year,
+                    ageGroup: family.age_group,
+                    receivedAt: family.received_at,
+                    
                     engagementScore: score,
                     temperature: getTemperature(score),
-                    isOnline: isCurrentlyOnline(engagement.lastVisit),
+                    isOnline: isCurrentlyOnline(engagement.lastVisit || engagement.lastActivity),
                     interests: interests,
                     contactReady: score >= 80,
-                    engagement: engagement
+                    engagement: engagement,
+                    trackingEvents: 0 // Will be updated if tracking data available
                 };
             });
         }
 
-        function calculateEngagementScoreFromDB(engagement, family) {
-            // Use actual database metrics for scoring
-            let score = 0;
+        function calculateRealEngagement(trackingEvents) {
+            if (!trackingEvents || trackingEvents.length === 0) {
+                return {
+                    totalTime: 0,
+                    visits: 0,
+                    scrollDepth: 0,
+                    clicks: 0,
+                    lastActivity: null,
+                    videoWatched: 0
+                };
+            }
             
-            // Time spent (40% weight) - using actual timeOnPage from DB
-            const timeMinutes = (engagement.timeOnPage || 0) / 60;
-            if (timeMinutes >= 30) score += 40;
-            else if (timeMinutes >= 15) score += 30;
-            else if (timeMinutes >= 5) score += 20;
-            else score += Math.min(timeMinutes * 4, 15);
+            // Calculate metrics from real tracking events
+            const sessions = groupEventsBySessions(trackingEvents);
+            const totalTime = sessions.reduce((sum, session) => sum + session.duration, 0);
+            const maxScrollDepth = Math.max(...trackingEvents
+                .filter(e => e.event_type === 'scroll_depth' && e.data?.percentage)
+                .map(e => e.data.percentage), 0);
+            const clicks = trackingEvents.filter(e => e.event_type === 'click').length;
+            const lastActivity = new Date(Math.max(...trackingEvents.map(e => new Date(e.timestamp))));
+            const videoEvents = trackingEvents.filter(e => e.event_type?.includes('video'));
             
-            // Content depth (30% weight) - using actual scrollDepth from DB
-            const scrollDepth = engagement.scrollDepth || 0;
-            score += Math.min(scrollDepth * 0.3, 30);
-            
-            // Return visits (20% weight) - using actual totalVisits from DB
-            const visits = engagement.totalVisits || 1;
-            if (visits >= 7) score += 20;
-            else if (visits >= 4) score += 15;
-            else if (visits >= 2) score += 10;
-            else score += 5;
-            
-            // Interaction quality (10% weight) - using actual clickCount from DB
-            const clicks = engagement.clickCount || 0;
-            score += Math.min(clicks * 2, 10);
-            
-            const finalScore = Math.min(Math.round(score), 100);
-            
-            console.log(`💯 Score calculation for ${family.first_name}:`, {
-                timeMinutes: timeMinutes.toFixed(1),
-                scrollDepth,
-                visits,
-                clicks,
-                finalScore
-            });
-            
-            return finalScore;
+            return {
+                totalTime: Math.round(totalTime / 1000), // Convert to seconds
+                visits: sessions.length,
+                scrollDepth: maxScrollDepth,
+                clicks: clicks,
+                lastActivity: lastActivity,
+                videoWatched: videoEvents.length
+            };
         }
 
-        function extractInterestsFromFamily(family) {
+        function groupEventsBySessions(events) {
+            // Group events into sessions (events within 30 minutes of each other)
+            const sessions = [];
+            const sortedEvents = events.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+            
+            let currentSession = null;
+            
+            for (const event of sortedEvents) {
+                const eventTime = new Date(event.timestamp);
+                
+                if (!currentSession || eventTime - currentSession.end > 30 * 60 * 1000) {
+                    // Start new session
+                    currentSession = {
+                        start: eventTime,
+                        end: eventTime,
+                        events: [event],
+                        duration: 0
+                    };
+                    sessions.push(currentSession);
+                } else {
+                    // Continue current session
+                    currentSession.end = eventTime;
+                    currentSession.events.push(event);
+                    currentSession.duration = currentSession.end - currentSession.start;
+                }
+            }
+            
+            return sessions;
+        }
+
+        function extractRealInterests(family) {
             const interests = [];
             const interestFields = [
                 'sciences', 'mathematics', 'english', 'languages', 'humanities',
@@ -915,7 +973,7 @@
             ];
             
             interestFields.forEach(field => {
-                if (family[field]) {
+                if (family[field] === true || family[field] === 'true' || family[field] === 1) {
                     interests.push(field.charAt(0).toUpperCase() + field.slice(1).replace('_', ' '));
                 }
             });
@@ -923,34 +981,60 @@
             return interests;
         }
 
-        function getTemperature(score) {
-            if (score >= 80) return 'hot';
-            if (score >= 60) return 'warm';
-            if (score >= 40) return 'cold';
-            return 'low';
+        function calculateRealEngagementScore(engagement, family) {
+            let score = 0;
+            
+            // Time spent (40% weight) - handle both timeOnPage and time_on_page
+            const timeSeconds = engagement.timeOnPage || engagement.time_on_page || 0;
+            const timeMinutes = timeSeconds / 60;
+            if (timeMinutes >= 30) score += 40;
+            else if (timeMinutes >= 15) score += 30;
+            else if (timeMinutes >= 5) score += 20;
+            else score += Math.min(timeMinutes * 4, 15);
+            
+            // Content depth (30% weight) - handle both scrollDepth and scroll_depth
+            const scrollDepth = engagement.scrollDepth || engagement.scroll_depth || 0;
+            score += Math.min(scrollDepth * 0.3, 30);
+            
+            // Return visits (20% weight) - handle both totalVisits and total_visits
+            const visits = engagement.totalVisits || engagement.total_visits || 1;
+            if (visits >= 5) score += 20;
+            else if (visits >= 3) score += 15;
+            else if (visits >= 2) score += 10;
+            else score += 5;
+            
+            // Interaction quality (10% weight) - handle multiple field names
+            const clicks = engagement.clickCount || engagement.clicks_on_links || engagement.click_count || 0;
+            score += Math.min(clicks * 2, 10);
+            
+            return Math.min(Math.round(score), 100);
         }
 
-        function isCurrentlyOnline(lastVisit) {
-            if (!lastVisit) return false;
-            const lastVisitTime = new Date(lastVisit);
-            const now = new Date();
-            const diffMinutes = (now - lastVisitTime) / (1000 * 60);
-            return diffMinutes < 30; // Online if active within 30 minutes
-        }
-
-        function generateActivityFeed(recentActivityData) {
-            // Use the recentlyActive data from the dashboard API
-            return (recentActivityData || []).map(activity => ({
+        function processRealActivityData(recentActivityData) {
+            // Use the recentlyActive data from your dashboard API or create from inquiries
+            if (!recentActivityData || recentActivityData.length === 0) {
+                return dashboardData.families ? dashboardData.families.slice(0, 10).map(family => ({
+                    family: `${family.firstName || family.first_name} ${family.familySurname || family.family_surname}`,
+                    action: 'Submitted inquiry',
+                    time: formatTimeAgo(new Date(family.receivedAt || family.received_at)),
+                    type: 'medium',
+                    timestamp: family.receivedAt || family.received_at
+                })) : [];
+            }
+            
+            return recentActivityData.slice(0, 20).map(activity => ({
                 family: activity.name || 'Unknown Family',
-                action: getActivityDescription(activity.activity),
-                time: formatTimeAgo(new Date(activity.when)),
-                type: getActivityType(activity.activity),
-                score: 0
+                action: getActivityDescription(activity.activity || 'inquiry'),
+                time: formatTimeAgo(new Date(activity.when || activity.timestamp)),
+                type: getActivityPriority(activity.activity || 'inquiry'),
+                timestamp: activity.when || activity.timestamp
             }));
         }
 
         function getActivityDescription(activityType) {
             const descriptions = {
+                'inquiry': 'Submitted inquiry',
+                'prospectus_generated': 'Prospectus generated',
                 'page_load': 'Opened prospectus',
                 'scroll_depth': 'Engaged with content',
                 'link_click': 'Clicked links',
@@ -960,16 +1044,44 @@
                 'youtube_video_progress': 'Watched video content'
             };
             
-            return descriptions[activityType] || `${activityType.replace('_', ' ')} activity`;
+            return descriptions[activityType] || `${activityType.replace(/_/g, ' ')} activity`;
         }
 
-        function getActivityType(activityType) {
-            const highEngagement = ['youtube_video_progress', 'scroll_depth', 'link_click'];
-            const mediumEngagement = ['page_load', 'page_visible'];
+        function getActivityPriority(activityType) {
+            const highPriority = ['youtube_video_progress', 'form_interaction', 'prospectus_generated'];
+            const mediumPriority = ['click', 'scroll_depth', 'inquiry'];
             
-            if (highEngagement.includes(activityType)) return 'high';
-            if (mediumEngagement.includes(activityType)) return 'medium';
+            if (highPriority.includes(activityType)) return 'high';
+            if (mediumPriority.includes(activityType)) return 'medium';
             return 'low';
+        }
+
+        function calculateRealMetrics(families) {
+            const hotLeads = families.filter(f => f.engagementScore >= 80).length;
+            const warmLeads = families.filter(f => f.engagementScore >= 60 && f.engagementScore < 80).length;
+            const totalTime = families.reduce((sum, f) => sum + (f.engagement.totalTime || 0), 0);
+            const avgEngagement = families.length > 0 ? Math.round(totalTime / families.length / 60) : 0; // avg minutes
+            
+            return {
+                hotLeads,
+                warmLeads,
+                avgEngagement,
+                totalFamilies: families.length
+            };
+        }
+
+        function getTemperature(score) {
+            if (score >= 80) return 'hot';
+            if (score >= 60) return 'warm';
+            if (score >= 40) return 'cold';
+            return 'low';
+        }
+
+        function isCurrentlyOnline(lastActivity) {
+            if (!lastActivity) return false;
+            const now = new Date();
+            const diffMinutes = (now - new Date(lastActivity)) / (1000 * 60);
+            return diffMinutes < 30; // Online if active within 30 minutes
         }
 
         function formatTimeAgo(date) {
@@ -980,19 +1092,21 @@
             const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
             
             if (diffMins < 1) return 'Just now';
-            if (diffMins < 60) return `${diffMins} minutes ago`;
-            if (diffHours < 24) return `${diffHours} hours ago`;
-            if (diffDays < 7) return `${diffDays} days ago`;
+            if (diffMins < 60) return `${diffMins} min ago`;
+            if (diffHours < 24) return `${diffHours}h ago`;
+            if (diffDays < 7) return `${diffDays}d ago`;
             return date.toLocaleDateString();
         }
 
         function updateMetrics() {
-            document.getElementById('hotLeads').textContent = dashboardData.metrics.hotLeads;
-            document.getElementById('warmLeads').textContent = dashboardData.metrics.warmLeads;
-            document.getElementById('avgEngagement').textContent = dashboardData.metrics.avgEngagement;
-            document.getElementById('totalFamilies').textContent = dashboardData.metrics.totalFamilies;
+            const metrics = dashboardData.metrics;
             
-            console.log('📊 Updated UI metrics:', dashboardData.metrics);
+            document.getElementById('hotLeads').textContent = metrics.hotLeads || 0;
+            document.getElementById('warmLeads').textContent = metrics.warmLeads || 0;
+            document.getElementById('avgEngagement').textContent = metrics.avgEngagement || 0;
+            document.getElementById('totalFamilies').textContent = metrics.totalFamilies || 0;
+            
+            console.log('📊 Updated metrics:', metrics);
         }
 
         function renderFamilyCards() {
@@ -1002,27 +1116,39 @@
             console.log('🎨 Rendering', families.length, 'family cards');
             
             if (families.length === 0) {
-                container.innerHTML = '<div class="loading">No families match your filters</div>';
+                container.innerHTML = `
+                    <div class="error">
+                        <div class="error-title">No Family Data Found</div>
+                        <p>No inquiries match your current filters. Try:</p>
+                        <ul>
+                            <li>Clearing the search box</li>
+                            <li>Selecting "All Families" in filters</li>
+                            <li>Checking if families have submitted inquiries</li>
+                        </ul>
+                    </div>
+                `;
                 return;
             }
             
             container.innerHTML = families.map(family => {
-                const lastActivity = family.engagement?.lastVisit || family.received_at;
-                const totalTime = Math.round((family.engagement?.timeOnPage || 0) / 60);
-                
-                return `
-                    <div class="family-card" data-id="${family.id}">
-                        <div class="family-card-header" onclick="toggleFamilyCard('${family.id}')">
+                const engagement = family.engagement;
+                const totalTimeMinutes = Math.round((engagement.timeOnPage || engagement.time_on_page || 0) / 60);
+                const visits = engagement.totalVisits || engagement.total_visits || 1;
+                const scrollDepth = engagement.scrollDepth || engagement.scroll_depth || 0;
+                const clicks = engagement.clickCount || engagement.clicks_on_links || engagement.click_count || 0;
+                    <div class="family-card" data-id="${family.inquiry_id}">
+                        <div class="family-card-header" onclick="toggleFamilyCard('${family.inquiry_id}')">
                             <div class="family-info">
                                 <div class="family-name">
                                     <div class="status-indicator ${family.isOnline ? 'online' : 'offline'}"></div>
                                     ${family.first_name} ${family.family_surname} Family
                                 </div>
                                 <div class="family-meta">
-                                    <span>Entry ${family.entry_year || 'Unknown'}</span>
-                                    <span>${totalTime} mins total</span>
-                                    <span>${family.engagement?.totalVisits || 1} visits</span>
-                                    <span>${formatTimeAgo(new Date(lastActivity))}</span>
+                                    <span>Entry ${family.entryYear || family.entry_year || 'Unknown'}</span>
+                                    <span>${totalTimeMinutes} mins</span>
+                                    <span>${visits} visits</span>
+                                    <span>${family.trackingEvents || 0} events</span>
+                                    <span>${formatTimeAgo(new Date(family.receivedAt || family.received_at))}</span>
                                 </div>
                             </div>
                             <div class="family-score">
@@ -1036,24 +1162,30 @@
                             <div class="family-details-content">
                                 <div class="details-grid">
                                     <div class="detail-item">
-                                        <h4>Engagement Summary</h4>
-                                        <p>${family.engagement?.totalVisits || 1} visits • ${family.engagement?.scrollDepth || 0}% scroll depth</p>
-                                        <p>Total time: ${totalTime} minutes</p>
+                                        <h4>Real Engagement</h4>
+                                        <p>${visits} visits • ${scrollDepth}% max scroll</p>
+                                        <p>Total time: ${totalTimeMinutes} minutes</p>
+                                        <p>Clicks: ${clicks} • Video: ${engagement.videoWatched || 0}</p>
                                     </div>
                                     <div class="detail-item">
                                         <h4>Contact Status</h4>
                                         <p>${family.contactReady ? '✅ Ready for immediate contact' : '⏳ Continue nurturing'}</p>
+                                        <p>Last activity: ${engagement.lastVisit || engagement.lastActivity ? formatTimeAgo(new Date(engagement.lastVisit || engagement.lastActivity)) : 'Never'}</p>
                                     </div>
                                     <div class="detail-item">
-                                        <h4>Interests</h4>
+                                        <h4>Real Interests</h4>
                                         <div class="interests-tags">
-                                            ${family.interests.map(interest => `<span class="interest-tag">${interest}</span>`).join('')}
+                                            ${family.interests.length > 0 ? 
+                                                family.interests.map(interest => `<span class="interest-tag">${interest}</span>`).join('') :
+                                                '<span class="interest-tag">No interests selected</span>'
+                                            }
                                         </div>
                                     </div>
                                     <div class="detail-item">
-                                        <h4>Technical Info</h4>
-                                        <p>Age Group: ${family.age_group || 'Unknown'}</p>
-                                        <p>Email: ${family.parent_email || 'Unknown'}</p>
+                                        <h4>Family Details</h4>
+                                        <p>Age Group: ${family.ageGroup || family.age_group || 'Unknown'}</p>
+                                        <p>Email: ${family.parentEmail || family.parent_email || 'Unknown'}</p>
+                                        <p>Entry Year: ${family.entryYear || family.entry_year || 'Unknown'}</p>
                                     </div>
                                 </div>
                             </div>
@@ -1070,7 +1202,17 @@
             console.log('📢 Rendering', activities.length, 'activity items');
             
             if (activities.length === 0) {
-                container.innerHTML = '<div class="loading">No recent activity</div>';
+                container.innerHTML = `
+                    <div class="error">
+                        <div class="error-title">No Activity Data</div>
+                        <p>No tracking events found. This means:</p>
+                        <ul>
+                            <li>No prospectuses have been viewed yet</li>
+                            <li>Tracking script may not be working</li>
+                            <li>Database tracking table is empty</li>
+                        </ul>
+                    </div>
+                `;
                 return;
             }
             
@@ -1108,13 +1250,14 @@
             
             // Entry year filter
             if (entryYearFilter !== 'all') {
-                families = families.filter(f => f.entry_year == entryYearFilter);
+                families = families.filter(f => (f.entryYear || f.entry_year) == entryYearFilter);
             }
             
             // Search filter
             if (searchTerm) {
                 families = families.filter(f => 
-                    `${f.first_name} ${f.family_surname}`.toLowerCase().includes(searchTerm)
+                    `${f.firstName || f.first_name} ${f.familySurname || f.family_surname}`.toLowerCase().includes(searchTerm) ||
+                    (f.parentEmail || f.parent_email || '').toLowerCase().includes(searchTerm)
                 );
             }
             
@@ -1124,13 +1267,13 @@
                     families.sort((a, b) => b.engagementScore - a.engagementScore);
                     break;
                 case 'recent':
-                    families.sort((a, b) => new Date(b.engagement?.lastVisit || b.received_at) - new Date(a.engagement?.lastVisit || a.received_at));
+                    families.sort((a, b) => new Date(b.engagement?.lastVisit || b.engagement?.lastActivity || b.receivedAt || b.received_at) - new Date(a.engagement?.lastVisit || a.engagement?.lastActivity || a.receivedAt || a.received_at));
                     break;
                 case 'inquiryDate':
-                    families.sort((a, b) => new Date(b.received_at) - new Date(a.received_at));
+                    families.sort((a, b) => new Date(b.receivedAt || b.received_at) - new Date(a.receivedAt || a.received_at));
                     break;
                 case 'timeSpent':
-                    families.sort((a, b) => (b.engagement?.timeOnPage || 0) - (a.engagement?.timeOnPage || 0));
+                    families.sort((a, b) => (b.engagement?.timeOnPage || b.engagement?.time_on_page || 0) - (a.engagement?.timeOnPage || a.engagement?.time_on_page || 0));
                     break;
             }
             
@@ -1149,6 +1292,7 @@
         }
 
         function refreshDashboard() {
+            console.log('🔄 Manual refresh triggered');
             loadDashboardData();
         }
 
@@ -1156,6 +1300,7 @@
             stopAutoRefresh();
             autoRefreshInterval = setInterval(() => {
                 if (document.getElementById('autoRefresh').checked) {
+                    console.log('🔄 Auto refresh triggered');
                     loadDashboardData();
                 }
             }, 30000); // Refresh every 30 seconds
@@ -1168,9 +1313,22 @@
             }
         }
 
-        function showError(message) {
-            console.error('❌ Dashboard Error:', message);
-            // Could add toast notification here
+        function showError(title, message) {
+            console.error('❌ Dashboard Error:', title, message);
+            
+            const familyContainer = document.getElementById('familyCards');
+            const activityContainer = document.getElementById('activityFeed');
+            
+            const errorHtml = `
+                <div class="error">
+                    <div class="error-title">${title}</div>
+                    <p>${message}</p>
+                    <p>Check the console for technical details.</p>
+                </div>
+            `;
+            
+            familyContainer.innerHTML = errorHtml;
+            activityContainer.innerHTML = errorHtml;
         }
 
         // AI Analysis Functions
@@ -1182,7 +1340,7 @@
             if (buttonElement) buttonElement.disabled = true;
             
             try {
-                console.log('🤖 Starting AI analysis...');
+                console.log('🤖 Starting real AI analysis...');
                 
                 const response = await fetch('/api/ai/analyze-all-families', {
                     method: 'POST',
@@ -1200,9 +1358,9 @@
                     
                     // Show success message
                     if (result.success) {
-                        alert(`✅ AI Analysis completed successfully!\n\nAnalyzed: ${result.results.analyzed}/${result.results.total} families`);
+                        alert(`✅ AI Analysis completed!\n\nAnalyzed: ${result.results.analyzed}/${result.results.total} families`);
                     } else {
-                        alert('⚠️ AI Analysis completed with some errors. Check console for details.');
+                        alert('⚠️ AI Analysis completed with errors. Check console.');
                     }
                 } else {
                     const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
@@ -1210,7 +1368,7 @@
                 }
             } catch (error) {
                 console.error('❌ AI Analysis error:', error);
-                alert(`❌ AI Analysis failed: ${error.message}\n\nPlease try again or contact support.`);
+                alert(`❌ AI Analysis failed: ${error.message}`);
             } finally {
                 if (aiStatusElement) aiStatusElement.style.display = 'none';
                 if (buttonElement) buttonElement.disabled = false;
