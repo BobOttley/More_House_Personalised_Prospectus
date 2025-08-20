@@ -874,7 +874,8 @@
                         score,
                         temp: processedFamily.temperature,
                         online: processedFamily.isOnline,
-                        interests: interests.length
+                        interests: interests.length,
+                        prospectusUrl: family.prospectus_pretty_url ? '✅' : '❌'
                     });
                     
                     return processedFamily;
@@ -1079,7 +1080,15 @@
                                         </div>
                                     </div>
                                     <div class="detail-item">
-                                        <h4>Technical Info</h4>
+                                        <h4>Prospectus Link</h4>
+                                        ${family.prospectus_pretty_url ? 
+                                            `<p><a href="${family.prospectus_pretty_url}" target="_blank" style="color: var(--sport-blue); text-decoration: none; font-weight: 600;">🔗 View Personalized Prospectus</a></p>` : 
+                                            '<p style="color: #999;">Prospectus not generated yet</p>'
+                                        }
+                                        <p style="font-size: 0.75rem; color: #999; margin-top: 0.25rem;">Opens in new tab</p>
+                                    </div>
+                                    <div class="detail-item">
+                                        <h4>Contact Info</h4>
                                         <p>Age Group: ${family.age_group || 'Unknown'}</p>
                                         <p>Email: ${family.parent_email || 'Unknown'}</p>
                                     </div>
