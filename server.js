@@ -1037,12 +1037,31 @@ app.get('/api/analytics/inquiries', async (req, res) => {
   try {
     console.log('📋 Analytics inquiries request received...');
     const base = getBaseUrl(req);
-    const files = await fs.readdir(path.join(__dirname, 'data'));
+    
+    // Check if data directory exists
+    const dataDir = path.join(__dirname, 'data');
+    console.log(`📁 Checking data directory: ${dataDir}`);
+    
+    const files = await fs.readdir(dataDir).catch(err => {
+      console.error(`❌ Error reading data directory: ${err.message}`);
+      return [];
+    });
+    
+    console.log(`📄 Found ${files.length} files in data directory`);
+    const jsonFiles = files.filter(x => x.startsWith('inquiry-') && x.endsWith('.json'));
+    console.log(`📋 Found ${jsonFiles.length} inquiry JSON files: ${jsonFiles.slice(0, 3).join(', ')}${jsonFiles.length > 3 ? '...' : ''}`);
+    
     const out = [];
     
-    for (const f of files.filter(x => x.startsWith('inquiry-') && x.endsWith('.json'))) {
-      const j = JSON.parse(await fs.readFile(path.join(__dirname, 'data', f), 'utf8'));
-      const prettyPath = j.prospectusPrettyPath || (j.slug ? `/${j.slug}` : null);
+    for (const f of jsonFiles) {
+      try {
+        console.log(`📖 Reading file: ${f}`);
+        const filePath = path.join(dataDir, f);
+        const fileContent = await fs.readFile(filePath, 'utf8');
+        const j = JSON.parse(fileContent);
+        console.log(`✅ Parsed inquiry: ${j.firstName} ${j.familySurname} (ID: ${j.id})`);
+        
+        const prettyPath = j.prospectusPrettyPath || (j.slug ? `/${j.slug}` : null);
       
       const rec = {
         id: j.id,
@@ -1104,9 +1123,12 @@ app.get('/api/analytics/inquiries', async (req, res) => {
         } catch (engagementError) {
           console.warn(`⚠️ Failed to get engagement for ${j.id}:`, engagementError.message);
         }
+        
+        out.push(rec);
+        console.log(`📝 Added inquiry record for ${j.firstName} ${j.familySurname}`);
+      } catch (fileError) {
+        console.error(`❌ Error processing file ${f}:`, fileError.message);
       }
-      
-      out.push(rec);
     }
     
     // Sort by engagement score (calculated) then by received date
@@ -1227,7 +1249,42 @@ app.post('/api/ai/analyze-all-families', async (req, res) => {
   }
 });
 
-// Legacy raw list (kept for parity)
+// Debug endpoint to check data directory
+app.get('/api/debug/data-files', async (req, res) => {
+  try {
+    const dataDir = path.join(__dirname, 'data');
+    const files = await fs.readdir(dataDir).catch(() => []);
+    const inquiryFiles = files.filter(x => x.startsWith('inquiry-') && x.endsWith('.json'));
+    
+    const fileDetails = [];
+    for (const f of inquiryFiles.slice(0, 5)) { // Just check first 5 files
+      try {
+        const content = await fs.readFile(path.join(dataDir, f), 'utf8');
+        const parsed = JSON.parse(content);
+        fileDetails.push({
+          filename: f,
+          id: parsed.id,
+          name: `${parsed.firstName} ${parsed.familySurname}`,
+          receivedAt: parsed.receivedAt
+        });
+      } catch (e) {
+        fileDetails.push({ filename: f, error: e.message });
+      }
+    }
+    
+    res.json({
+      dataDirectory: dataDir,
+      totalFiles: files.length,
+      inquiryFiles: inquiryFiles.length,
+      allFiles: files,
+      sampleInquiries: fileDetails
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+
 app.get('/api/inquiries', async (_req, res) => {
   try {
     const files = await fs.readdir(path.join(__dirname, 'data'));
