@@ -383,7 +383,50 @@ async function updateEngagementMetrics(m) {
     return null;
   }
 }
+// Dashboard metrics calculation
+async function getDashboardMetrics() {
+  try {
+    if (db) {
+      // Database version
+      const [{ c: totalFamilies }] = (await db.query(`SELECT COUNT(*)::int AS c FROM inquiries`)).rows;
+      const [{ c: hotLeads }] = (await db.query(`
+        SELECT COUNT(*)::int AS c 
+        FROM engagement_metrics 
+        WHERE time_on_page > 600 AND scroll_depth > 80
+      `)).rows;
+      const [{ c: warmLeads }] = (await db.query(`
+        SELECT COUNT(*)::int AS c 
+        FROM engagement_metrics 
+        WHERE time_on_page > 300 AND scroll_depth > 50
+      `)).rows;
+      const [{ avg_time }] = (await db.query(`
+        SELECT AVG(time_on_page) as avg_time 
+        FROM engagement_metrics
+      `)).rows;
 
+      return {
+        hotLeads,
+        warmLeads,
+        totalFamilies,
+        avgEngagement: Math.round((avg_time || 0) / 60) // Convert to minutes
+      };
+    } else {
+      // JSON fallback
+      const files = await fs.readdir(path.join(__dirname, 'data'));
+      const totalFamilies = files.filter(x => x.startsWith('inquiry-') && x.endsWith('.json')).length;
+      
+      return {
+        hotLeads: 0,
+        warmLeads: 0,
+        totalFamilies,
+        avgEngagement: 0
+      };
+    }
+  } catch (error) {
+    console.error('Error getting dashboard metrics:', error);
+    return { hotLeads: 0, warmLeads: 0, totalFamilies: 0, avgEngagement: 0 };
+  }
+}
 // ─────────────────────────────────────────────────────────────────────────────
 // AI Analysis Functions
 // ─────────────────────────────────────────────────────────────────────────────
@@ -700,7 +743,118 @@ app.post('/api/track-engagement', async (req, res) => {
     res.status(500).json({ success: false, error: e.message });
   }
 });
+// Add this function before the /api/dashboard-data endpoint
+async function getDashboardMetrics() {
+  try {
+    if (db) {
+      // Database version - get real engagement data
+      const [{ c: totalFamilies }] = (await db.query(`SELECT COUNT(*)::int AS c FROM inquiries`)).rows;
+      
+      // Hot leads: families with high engagement (>10 minutes + >80% scroll)
+      const [{ c: hotLeads }] = (await db.query(`
+        SELECT COUNT(DISTINCT inquiry_id)::int AS c 
+        FROM engagement_metrics 
+        WHERE time_on_page > 600 AND scroll_depth > 80
+      `)).rows;
+      
+      // Warm leads: families with moderate engagement (>5 minutes + >50% scroll)
+      const [{ c: warmLeads }] = (await db.query(`
+        SELECT COUNT(DISTINCT inquiry_id)::int AS c 
+        FROM engagement_metrics 
+        WHERE time_on_page > 300 AND scroll_depth > 50 
+        AND inquiry_id NOT IN (
+          SELECT DISTINCT inquiry_id FROM engagement_metrics 
+          WHERE time_on_page > 600 AND scroll_depth > 80
+        )
+      `)).rows;
+      
+      // Average engagement time in minutes
+      const [{ avg_time }] = (await db.query(`
+        SELECT AVG(time_on_page) as avg_time 
+        FROM engagement_metrics
+      `)).rows;
 
+      return {
+        hotLeads,
+        warmLeads,
+        totalFamilies,
+        avgEngagement: Math.round((avg_time || 0) / 60) // Convert to minutes
+      };
+    } else {
+      // JSON fallback
+      const files = await fs.readdir(path.join(__dirname, 'data'));
+      const totalFamilies = files.filter(x => x.startsWith('inquiry-') && x.endsWith('.json')).length;
+      
+      return {
+        hotLeads: 0,
+        warmLeads: 0,
+        totalFamilies,
+        avgEngagement: 0
+      };
+    }
+  } catch (error) {
+    console.error('Error getting dashboard metrics:', error);
+    return { hotLeads: 0, warmLeads: 0, totalFamilies: 0, avgEngagement: 0 };
+  }
+}
+// Dashboard-compatible inquiries endpoint with engagement data
+app.get('/api/analytics/inquiries', async (req, res) => {
+  try {
+    const base = getBaseUrl(req);
+    const files = await fs.readdir(path.join(__dirname, 'data'));
+    const out = [];
+    
+    for (const f of files.filter(x => x.startsWith('inquiry-') && x.endsWith('.json'))) {
+      const j = JSON.parse(await fs.readFile(path.join(__dirname, 'data', f), 'utf8'));
+      
+      // Get engagement data from DB if available
+      let engagement = null;
+      if (db) {
+        try {
+          const r = await db.query(`
+            SELECT time_on_page, scroll_depth, clicks_on_links, total_visits, last_visit
+            FROM engagement_metrics
+            WHERE inquiry_id = $1
+            ORDER BY last_visit DESC
+            LIMIT 1
+          `, [j.id]);
+          if (r.rows.length) {
+            const em = r.rows[0];
+            engagement = {
+              timeOnPage: em.time_on_page || 0,
+              scrollDepth: em.scroll_depth || 0,
+              clickCount: em.clicks_on_links || 0,
+              totalVisits: em.total_visits || 0,
+              lastVisit: em.last_visit
+            };
+          }
+        } catch (e) {
+          console.warn('Engagement query failed:', e.message);
+        }
+      }
+      
+      const rec = {
+        id: j.id,
+        first_name: j.firstName,
+        family_surname: j.familySurname,
+        parent_email: j.parentEmail,
+        entry_year: j.entryYear,
+        age_group: j.ageGroup,
+        received_at: j.receivedAt,
+        status: j.status || (j.prospectusGenerated ? 'prospectus_generated' : 'received'),
+        engagement: engagement
+      };
+      
+      out.push(rec);
+    }
+    
+    out.sort((a,b) => new Date(b.received_at) - new Date(a.received_at));
+    res.json(out);
+  } catch (e) {
+    console.error('analytics/inquiries error:', e);
+    res.status(500).json({ error: 'Failed to get analytics inquiries' });
+  }
+});
 // ─────────────────────────────────────────────────────────────────────────────
 // AI ANALYSIS ENDPOINTS
 // ─────────────────────────────────────────────────────────────────────────────
