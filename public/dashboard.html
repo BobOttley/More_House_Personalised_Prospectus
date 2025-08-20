@@ -1080,10 +1080,14 @@
                                         </div>
                                     </div>
                                     <div class="detail-item">
-                                        <h4>Prospectus Link</h4>
+                                        <h4>Prospectus Access</h4>
                                         ${family.prospectus_pretty_url ? 
                                             `<p><a href="${family.prospectus_pretty_url}" target="_blank" style="color: var(--sport-blue); text-decoration: none; font-weight: 600;">🔗 View Personalized Prospectus</a></p>` : 
-                                            '<p style="color: #999;">Prospectus not generated yet</p>'
+                                            family.slug ? 
+                                                `<p><a href="/${family.slug}" target="_blank" style="color: var(--sport-blue); text-decoration: none; font-weight: 600;">🔗 View Personalized Prospectus</a></p>` :
+                                                family.prospectus_direct_url ? 
+                                                    `<p><a href="${family.prospectus_direct_url}" target="_blank" style="color: var(--sport-blue); text-decoration: none; font-weight: 600;">🔗 View Prospectus (Direct)</a></p>` :
+                                                    `<p style="color: #999;">Prospectus not generated yet</p><button onclick="generateProspectusFor('${family.id}')" style="margin-top:8px;padding:4px 8px;background:var(--award-gold);color:white;border:none;border-radius:4px;cursor:pointer;font-size:0.8rem;">📄 Generate Now</button>`
                                         }
                                         <p style="font-size: 0.75rem; color: #999; margin-top: 0.25rem;">Opens in new tab</p>
                                     </div>
@@ -1260,6 +1264,36 @@
             } finally {
                 if (aiStatusElement) aiStatusElement.style.display = 'none';
                 if (buttonElement) buttonElement.disabled = false;
+            }
+        }
+
+        // Generate prospectus for families that don't have one yet
+        async function generateProspectusFor(inquiryId) {
+            try {
+                console.log(`📄 Generating prospectus for inquiry ${inquiryId}...`);
+                
+                const response = await fetch(`/api/generate-prospectus/${inquiryId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    console.log('✅ Prospectus generated:', result);
+                    
+                    // Refresh dashboard to show new prospectus link
+                    await loadDashboardData();
+                    
+                    alert(`✅ Prospectus generated successfully!\n\nYou can now access it from the family card.`);
+                } else {
+                    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+                    throw new Error(`Generation failed: ${errorData.error || response.statusText}`);
+                }
+            } catch (error) {
+                console.error('❌ Prospectus generation error:', error);
+                alert(`❌ Failed to generate prospectus: ${error.message}`);
             }
         }
     </script>
