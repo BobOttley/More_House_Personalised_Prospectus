@@ -1,4 +1,3 @@
-// server.js - Complete working version with proper tracking injection and dashboard endpoints
 const express = require('express');
 const cors = require('cors');
 const fs = require('fs').promises;
@@ -10,7 +9,6 @@ const app = express();
 app.set('trust proxy', true);
 const PORT = process.env.PORT || 3000;
 
-// Database connection
 let db = null;
 
 async function initializeDatabase() {
@@ -18,7 +16,7 @@ async function initializeDatabase() {
   const haveParts = !!(process.env.DB_HOST && process.env.DB_USER && process.env.DB_NAME);
   
   if (!haveUrl && !haveParts) {
-    console.log('📉 No DB credentials — running in JSON-only mode.');
+    console.log('No DB credentials - running in JSON-only mode.');
     return false;
   }
   
@@ -34,17 +32,16 @@ async function initializeDatabase() {
       connectionTimeoutMillis: 3000
     });
     await db.connect();
-    console.log('✅ Connected to Postgres');
+    console.log('Connected to Postgres');
     return true;
   } catch (e) {
-    console.warn('⚠️ Postgres connection failed:', e.message);
-    console.warn('➡️ Continuing in JSON-only mode.');
+    console.warn('Postgres connection failed:', e.message);
+    console.warn('Continuing in JSON-only mode.');
     db = null;
     return false;
   }
 }
 
-// Helper functions
 function getBaseUrl(req) {
   if (process.env.PUBLIC_BASE_URL) return process.env.PUBLIC_BASE_URL.replace(/\/+$/, '');
   const proto = req.headers['x-forwarded-proto'] || req.protocol || 'https';
@@ -85,7 +82,6 @@ function makeSlug(inquiry) {
   return `the-${familyName}-family-${shortId}`;
 }
 
-// File management
 let slugIndex = {};
 
 async function ensureDirectories() {
@@ -97,10 +93,10 @@ async function loadSlugIndex() {
   try {
     const p = path.join(__dirname, 'data', 'slug-index.json');
     slugIndex = JSON.parse(await fs.readFile(p, 'utf8'));
-    console.log(`🔎 Loaded ${Object.keys(slugIndex).length} slug mappings`);
+    console.log(`Loaded ${Object.keys(slugIndex).length} slug mappings`);
   } catch {
     slugIndex = {};
-    console.log('ℹ️ No slug-index.json yet; will create on first save.');
+    console.log('No slug-index.json yet; will create on first save.');
   }
 }
 
@@ -116,7 +112,6 @@ async function saveInquiryJson(record) {
   return p;
 }
 
-// Middleware setup
 const corsOptions = {
   origin(origin, cb) {
     if (!origin) return cb(null, true);
@@ -134,14 +129,12 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true }));
-app.use((req, _res, next) => { console.log('↩', req.method, req.url); next(); });
+app.use((req, _res, next) => { console.log(req.method, req.url); next(); });
 
-// Static public files
 app.use(express.static(path.join(__dirname, 'public')));
 
-// FIXED: Prospectus generation with PROPER tracking injection
 async function generateProspectus(inquiry) {
-  console.log(`🎨 Generating prospectus for ${inquiry.firstName} ${inquiry.familySurname}`);
+  console.log(`Generating prospectus for ${inquiry.firstName} ${inquiry.familySurname}`);
   const templatePath = path.join(__dirname, 'public', 'prospectus_template.html');
   
   try {
@@ -151,7 +144,6 @@ async function generateProspectus(inquiry) {
     const relPath = `/prospectuses/${filename}`;
     const absPath = path.join(__dirname, 'prospectuses', filename);
 
-    // STEP 1: Add meta tags to <head>
     const meta = `
 <meta name="inquiry-id" content="${inquiry.id}">
 <meta name="generated-date" content="${new Date().toISOString()}">
@@ -162,33 +154,29 @@ async function generateProspectus(inquiry) {
 
     html = html.replace('</head>', `${meta}\n</head>`);
 
-    // STEP 2: Update title
     const title = `${inquiry.firstName} ${inquiry.familySurname} - More House School Prospectus ${inquiry.entryYear}`;
     html = html.replace(/<title>.*?<\/title>/, `<title>${title}</title>`);
 
-    // STEP 3: Create personalization script
     const personalizeBoot = `<script>
 document.addEventListener('DOMContentLoaded', function(){
   const userData = ${JSON.stringify(inquiry, null, 2)};
-  console.log('🎯 Initializing prospectus with data:', userData);
+  console.log('Initializing prospectus with data:', userData);
   if (typeof initializeProspectus === 'function') {
     initializeProspectus(userData);
-    console.log('✅ Prospectus personalized successfully');
+    console.log('Prospectus personalized successfully');
   } else {
-    console.error('❌ initializeProspectus function not found');
+    console.error('initializeProspectus function not found');
   }
 });
 </script>`;
 
-    // STEP 4: CRITICAL FIX - Create proper tracking script injection
     const trackingInject = `<!-- More House Analytics Tracking -->
 <script>
 window.MORE_HOUSE_INQUIRY_ID='${inquiry.id}';
-console.log('📊 Inquiry ID set for tracking:', window.MORE_HOUSE_INQUIRY_ID);
+console.log('Inquiry ID set for tracking:', window.MORE_HOUSE_INQUIRY_ID);
 </script>
 <script src="/tracking.js"></script>`;
 
-    // STEP 5: Find and inject BOTH scripts before </body>
     const bodyCloseIndex = html.lastIndexOf('</body>');
     if (bodyCloseIndex === -1) {
       throw new Error('Template missing </body> tag');
@@ -197,29 +185,26 @@ console.log('📊 Inquiry ID set for tracking:', window.MORE_HOUSE_INQUIRY_ID);
     const allScripts = personalizeBoot + '\n' + trackingInject + '\n';
     const finalHtml = html.slice(0, bodyCloseIndex) + allScripts + html.slice(bodyCloseIndex);
 
-    // STEP 6: Save the file
     await fs.writeFile(absPath, finalHtml, 'utf8');
 
-    // STEP 7: Create and save slug mapping
     const slug = makeSlug(inquiry);
     const prettyPath = `/${slug}`;
     slugIndex[slug] = relPath;
     await saveSlugIndex();
 
-    // STEP 8: Verify the injection worked
     const savedContent = await fs.readFile(absPath, 'utf8');
     const hasTrackingJs = savedContent.includes('<script src="/tracking.js"></script>');
     const hasInquiryId = savedContent.includes(`window.MORE_HOUSE_INQUIRY_ID='${inquiry.id}'`);
     const hasPersonalization = savedContent.includes('initializeProspectus');
 
-    console.log(`📄 Prospectus saved: ${filename}`);
-    console.log(`🌐 Pretty URL: ${prettyPath}`);
-    console.log(`📊 Tracking script: ${hasTrackingJs ? '✅ VERIFIED' : '❌ MISSING'}`);
-    console.log(`🔑 Inquiry ID: ${hasInquiryId ? '✅ VERIFIED' : '❌ MISSING'}`);
-    console.log(`🎯 Personalization: ${hasPersonalization ? '✅ VERIFIED' : '❌ MISSING'}`);
+    console.log(`Prospectus saved: ${filename}`);
+    console.log(`Pretty URL: ${prettyPath}`);
+    console.log(`Tracking script: ${hasTrackingJs ? 'VERIFIED' : 'MISSING'}`);
+    console.log(`Inquiry ID: ${hasInquiryId ? 'VERIFIED' : 'MISSING'}`);
+    console.log(`Personalization: ${hasPersonalization ? 'VERIFIED' : 'MISSING'}`);
 
     if (!hasTrackingJs || !hasInquiryId) {
-      console.error('🚨 CRITICAL: Tracking script injection FAILED!');
+      console.error('CRITICAL: Tracking script injection FAILED!');
     }
 
     return {
@@ -230,13 +215,12 @@ console.log('📊 Inquiry ID set for tracking:', window.MORE_HOUSE_INQUIRY_ID);
       generatedAt: new Date().toISOString()
     };
   } catch (e) {
-    console.error('❌ Prospectus generation failed:', e.message);
+    console.error('Prospectus generation failed:', e.message);
     throw new Error(`prospectus_template.html error: ${e.message}`);
   }
 }
 
 async function updateInquiryStatus(inquiryId, pInfo) {
-  // Update JSON files
   const files = await fs.readdir(path.join(__dirname, 'data'));
   for (const f of files.filter(x => x.startsWith('inquiry-') && x.endsWith('.json'))) {
     const p = path.join(__dirname, 'data', f);
@@ -254,7 +238,6 @@ async function updateInquiryStatus(inquiryId, pInfo) {
     }
   }
 
-  // Update database if available
   if (db) {
     try {
       await db.query(
@@ -269,14 +252,13 @@ async function updateInquiryStatus(inquiryId, pInfo) {
          WHERE id=$1`,
         [inquiryId, pInfo.filename, pInfo.url, pInfo.slug, new Date(pInfo.generatedAt)]
       );
-      console.log(`✅ Database updated: ${inquiryId} -> ${pInfo.prettyPath}`);
+      console.log(`Database updated: ${inquiryId} -> ${pInfo.prettyPath}`);
     } catch (e) {
-      console.warn('❌ DB update failed (non-fatal):', e.message);
+      console.warn('DB update failed (non-fatal):', e.message);
     }
   }
 }
 
-// Tracking functions
 async function trackEngagementEvent(ev) {
   if (!db) return null;
   try {
@@ -338,32 +320,27 @@ function calculateEngagementScore(engagement) {
   
   let score = 0;
   
-  // Time spent (40% weight)
   const timeMinutes = (engagement.timeOnPage || engagement.time_on_page || 0) / 60;
   if (timeMinutes >= 30) score += 40;
   else if (timeMinutes >= 15) score += 30;
   else if (timeMinutes >= 5) score += 20;
   else score += Math.min(timeMinutes * 4, 15);
   
-  // Content depth (30% weight)
   const scrollDepth = engagement.scrollDepth || engagement.scroll_depth || 0;
   score += Math.min(scrollDepth * 0.3, 30);
   
-  // Return visits (20% weight)
   const visits = engagement.totalVisits || engagement.total_visits || 1;
   if (visits >= 7) score += 20;
   else if (visits >= 4) score += 15;
   else if (visits >= 2) score += 10;
   else score += 5;
   
-  // Interaction quality (10% weight)
   const clicks = engagement.clickCount || engagement.clicks_on_links || 0;
   score += Math.min(clicks * 2, 10);
   
   return Math.min(Math.round(score), 100);
 }
 
-// AI Analysis functions
 function extractInterests(inquiry) {
   const academic = [];
   const creative = [];
@@ -398,9 +375,8 @@ function extractPriorities(inquiry) {
 
 async function analyzeFamily(inquiry, engagementData) {
   try {
-    console.log(`🤖 Analyzing family: ${inquiry.firstName} ${inquiry.familySurname}`);
+    console.log(`Analyzing family: ${inquiry.firstName} ${inquiry.familySurname}`);
     
-    // Build comprehensive context for Claude
     const familyContext = {
       name: `${inquiry.firstName} ${inquiry.familySurname}`,
       ageGroup: inquiry.ageGroup,
@@ -417,10 +393,8 @@ async function analyzeFamily(inquiry, engagementData) {
       } : null
     };
 
-    // Calculate engagement score
     const engagementScore = calculateEngagementScore(familyContext.engagement);
 
-    // Enhanced prompt for Claude
     const prompt = `As an expert education consultant for More House School, analyze this family's profile and provide actionable insights for our admissions team.
 
 FAMILY PROFILE:
@@ -475,14 +449,13 @@ RESPOND ONLY WITH VALID JSON IN THIS EXACT FORMAT:
 
 DO NOT INCLUDE ANY TEXT OUTSIDE THE JSON OBJECT.`;
 
-    // Call Claude API with retry logic
     let attempts = 0;
     const maxAttempts = 3;
     
     while (attempts < maxAttempts) {
       try {
         attempts++;
-        console.log(`🔄 Claude API call attempt ${attempts}/${maxAttempts} for ${inquiry.id}`);
+        console.log(`Claude API call attempt ${attempts}/${maxAttempts} for ${inquiry.id}`);
         
         const response = await fetch("https://api.anthropic.com/v1/messages", {
           method: "POST",
@@ -506,18 +479,15 @@ DO NOT INCLUDE ANY TEXT OUTSIDE THE JSON OBJECT.`;
         const data = await response.json();
         let responseText = data.content[0].text;
         
-        // Clean up response (remove any markdown formatting)
         responseText = responseText.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
         
-        // Parse the JSON response
         const analysis = JSON.parse(responseText);
         
-        // Validate required fields
         if (!analysis.leadScore || !analysis.urgencyLevel) {
           throw new Error('Invalid analysis response - missing required fields');
         }
         
-        console.log(`✅ Claude analysis completed for ${inquiry.id} (score: ${analysis.leadScore})`);
+        console.log(`Claude analysis completed for ${inquiry.id} (score: ${analysis.leadScore})`);
         
         return {
           leadScore: analysis.leadScore || 50,
@@ -529,30 +499,28 @@ DO NOT INCLUDE ANY TEXT OUTSIDE THE JSON OBJECT.`;
           insights: analysis.insights || {},
           keyObservations: analysis.keyObservations || [],
           confidence_score: analysis.confidence || 0.5,
-          recommendations: analysis.conversationStarters || [], // For backward compatibility
+          recommendations: analysis.conversationStarters || [],
           engagementScore: engagementScore,
           analysisDate: new Date().toISOString()
         };
 
       } catch (error) {
-        console.warn(`⚠️ Claude API attempt ${attempts} failed for ${inquiry.id}:`, error.message);
+        console.warn(`Claude API attempt ${attempts} failed for ${inquiry.id}:`, error.message);
         
         if (attempts >= maxAttempts) {
           throw error;
         }
         
-        // Wait before retry (exponential backoff)
         await new Promise(resolve => setTimeout(resolve, 1000 * attempts));
       }
     }
 
   } catch (error) {
-    console.error(`❌ Family analysis failed for ${inquiry.id}:`, error.message);
+    console.error(`Family analysis failed for ${inquiry.id}:`, error.message);
     
-    // Return fallback analysis based on engagement data
     const engagementScore = calculateEngagementScore(engagementData);
     return {
-      leadScore: Math.max(engagementScore, 25), // Minimum score based on engagement
+      leadScore: Math.max(engagementScore, 25),
       urgencyLevel: engagementScore > 70 ? 'high' : engagementScore > 40 ? 'medium' : 'low',
       leadTemperature: engagementScore > 70 ? 'hot' : engagementScore > 40 ? 'warm' : 'cold',
       conversationStarters: ['Follow up on their inquiry', 'Discuss school offerings'],
@@ -574,7 +542,6 @@ DO NOT INCLUDE ANY TEXT OUTSIDE THE JSON OBJECT.`;
   }
 }
 
-// Routes
 app.options('*', (req, res) => {
   res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
@@ -583,7 +550,6 @@ app.options('*', (req, res) => {
   res.sendStatus(200);
 });
 
-// Main webhook endpoint
 app.post(['/webhook', '/api/inquiry'], async (req, res) => {
   try {
     const data = req.body || {};
@@ -604,10 +570,8 @@ app.post(['/webhook', '/api/inquiry'], async (req, res) => {
       ...data
     };
 
-    // Persist JSON (always)
     await saveInquiryJson(record);
 
-    // Save to database if available
     if (db) {
       try {
         await db.query(`
@@ -637,13 +601,12 @@ app.post(['/webhook', '/api/inquiry'], async (req, res) => {
           !!record.personal_development, !!record.career_guidance, !!record.extracurricular_opportunities,
           new Date(record.receivedAt), record.status, record.userAgent, record.referrer, record.ip
         ]);
-        console.log(`✅ Database record created: ${record.id}`);
+        console.log(`Database record created: ${record.id}`);
       } catch (e) { 
-        console.warn('❌ DB insert failed (non-fatal):', e.message); 
+        console.warn('DB insert failed (non-fatal):', e.message); 
       }
     }
 
-    // Generate prospectus
     const p = await generateProspectus(record);
     await updateInquiryStatus(record.id, p);
 
@@ -665,13 +628,11 @@ app.post(['/webhook', '/api/inquiry'], async (req, res) => {
   }
 });
 
-// Manual prospectus generation
 app.post('/api/generate-prospectus/:inquiryId', async (req, res) => {
   try {
     const inquiryId = req.params.inquiryId;
     let inquiry = null;
     
-    // Try database first
     if (db) {
       const result = await db.query('SELECT * FROM inquiries WHERE id = $1', [inquiryId]);
       if (result.rows.length > 0) {
@@ -707,7 +668,6 @@ app.post('/api/generate-prospectus/:inquiryId', async (req, res) => {
       }
     }
     
-    // Fallback to JSON files
     if (!inquiry) {
       const files = await fs.readdir(path.join(__dirname, 'data'));
       for (const f of files.filter(x => x.startsWith('inquiry-') && x.endsWith('.json'))) {
@@ -739,15 +699,13 @@ app.post('/api/generate-prospectus/:inquiryId', async (req, res) => {
   }
 });
 
-// FIXED: Tracking endpoint with proper handling
 app.post('/api/track-engagement', async (req, res) => {
   try {
     const { events = [], sessionInfo } = req.body || {};
     const clientIP = req.ip || req.connection?.remoteAddress;
     
-    console.log(`📊 Tracking: ${events.length} events from ${sessionInfo?.inquiryId || 'unknown'}`);
+    console.log(`Tracking: ${events.length} events from ${sessionInfo?.inquiryId || 'unknown'}`);
     
-    // Process individual events
     for (const e of (events.length ? events : [req.body])) {
       const { inquiryId, sessionId, eventType, timestamp, data = {}, url, currentSection } = e;
       if (!inquiryId || !sessionId || !eventType) continue;
@@ -765,7 +723,6 @@ app.post('/api/track-engagement', async (req, res) => {
       });
     }
     
-    // Process session summary
     if (sessionInfo?.inquiryId) {
       await updateEngagementMetrics({
         inquiryId: sessionInfo.inquiryId,
@@ -784,22 +741,20 @@ app.post('/api/track-engagement', async (req, res) => {
       eventsProcessed: events.length || 1
     });
   } catch (e) {
-    console.error('❌ track-engagement error:', e);
+    console.error('track-engagement error:', e);
     res.status(500).json({ success: false, error: e.message });
   }
 });
 
-// FIXED: Dashboard data endpoint that works with JSON files
 app.get('/api/dashboard-data', async (req, res) => {
   try {
-    console.log('📊 Dashboard data request...');
+    console.log('Dashboard data request...');
     const base = getBaseUrl(req);
 
-    // Load from JSON files (primary source)
     const files = await fs.readdir(path.join(__dirname, 'data')).catch(() => []);
     const inquiries = [];
     
-    console.log(`📁 Found ${files.length} files in data directory`);
+    console.log(`Found ${files.length} files in data directory`);
     
     for (const f of files.filter(x => x.startsWith('inquiry-') && x.endsWith('.json'))) {
       try { 
@@ -807,11 +762,11 @@ app.get('/api/dashboard-data', async (req, res) => {
         const inquiry = JSON.parse(content);
         inquiries.push(inquiry);
       } catch (e) {
-        console.warn(`❌ Failed to read ${f}:`, e.message);
+        console.warn(`Failed to read ${f}:`, e.message);
       }
     }
 
-    console.log(`📋 Loaded ${inquiries.length} inquiries from JSON files`);
+    console.log(`Loaded ${inquiries.length} inquiries from JSON files`);
 
     const now = Date.now();
     const totalFamilies = inquiries.length;
@@ -821,10 +776,8 @@ app.get('/api/dashboard-data', async (req, res) => {
     }).length;
     const readyForContact = inquiries.filter(i => i.prospectusGenerated || i.status === 'prospectus_generated').length;
 
-    // Calculate engagement stats (simplified for JSON mode)
-    const highlyEngaged = Math.floor(totalFamilies * 0.3); // Estimate
+    const highlyEngaged = Math.floor(totalFamilies * 0.3);
 
-    // Interest analysis
     const interestKeys = [
       'sciences','mathematics','english','languages','humanities','business',
       'drama','music','art','creative_writing','sport','leadership','community_service','outdoor_education',
@@ -839,7 +792,6 @@ app.get('/api/dashboard-data', async (req, res) => {
         count
       }));
 
-    // Recent families
     const recentlyActive = inquiries
       .sort((a, b) => new Date(b.receivedAt) - new Date(a.receivedAt))
       .slice(0, 10)
@@ -854,7 +806,6 @@ app.get('/api/dashboard-data', async (req, res) => {
         temperature: 'warm'
       }));
 
-    // Priority families (those with prospectuses)
     const priorityFamilies = inquiries
       .filter(i => i.prospectusGenerated || i.status === 'prospectus_generated')
       .sort((a, b) => new Date(b.prospectusGeneratedAt || b.receivedAt) - new Date(a.prospectusGeneratedAt || a.receivedAt))
@@ -871,7 +822,6 @@ app.get('/api/dashboard-data', async (req, res) => {
         hasProspectus: true
       }));
 
-    // Latest prospectuses
     const latestProspectuses = inquiries
       .filter(i => i.prospectusGenerated || i.status === 'prospectus_generated')
       .sort((a,b) => new Date(b.prospectusGeneratedAt || b.receivedAt) - new Date(a.prospectusGeneratedAt || a.receivedAt))
@@ -905,7 +855,7 @@ app.get('/api/dashboard-data', async (req, res) => {
       latestProspectuses
     };
     
-    console.log('✅ Dashboard data response prepared:', {
+    console.log('Dashboard data response prepared:', {
       totalFamilies: response.summary.totalFamilies,
       recentlyActive: response.recentlyActive.length,
       priorityFamilies: response.priorityFamilies.length,
@@ -914,18 +864,16 @@ app.get('/api/dashboard-data', async (req, res) => {
     
     return res.json(response);
   } catch (e) {
-    console.error('❌ Dashboard data error:', e);
+    console.error('Dashboard data error:', e);
     res.status(500).json({ error:'Failed to build dashboard data', message:e.message });
   }
 });
 
-// FIXED: Analytics inquiries endpoint that works with JSON files
 app.get('/api/analytics/inquiries', async (req, res) => {
   try {
-    console.log('📋 Analytics inquiries request...');
+    console.log('Analytics inquiries request...');
     const base = getBaseUrl(req);
     
-    // Load from JSON files
     const files = await fs.readdir(path.join(__dirname, 'data')).catch(() => []);
     const inquiries = [];
     
@@ -935,7 +883,7 @@ app.get('/api/analytics/inquiries', async (req, res) => {
         const inquiry = JSON.parse(content);
         inquiries.push(inquiry);
       } catch (e) {
-        console.warn(`❌ Failed to read ${f}:`, e.message);
+        console.warn(`Failed to read ${f}:`, e.message);
       }
     }
     
@@ -966,7 +914,6 @@ app.get('/api/analytics/inquiries', async (req, res) => {
           lastVisit: inquiry.receivedAt,
           engagementScore: 25
         },
-        // Include interest fields
         sciences: inquiry.sciences,
         mathematics: inquiry.mathematics,
         english: inquiry.english,
@@ -980,7 +927,6 @@ app.get('/api/analytics/inquiries', async (req, res) => {
         leadership: inquiry.leadership,
         community_service: inquiry.community_service,
         outdoor_education: inquiry.outdoor_education,
-        // AI insights placeholder
         aiInsights: {
           leadScore: null,
           urgencyLevel: 'unknown',
@@ -991,21 +937,19 @@ app.get('/api/analytics/inquiries', async (req, res) => {
       };
     });
     
-    console.log(`✅ Returning ${out.length} inquiries`);
+    console.log(`Returning ${out.length} inquiries`);
     res.json(out);
     
   } catch (e) {
-    console.error('❌ Analytics inquiries error:', e);
+    console.error('Analytics inquiries error:', e);
     res.status(500).json({ error: 'Failed to get inquiries' });
   }
 });
 
-// AI Analysis endpoints
 app.post('/api/ai/analyze-all-families', async (req, res) => {
   try {
-    console.log('🤖 Starting AI analysis for all families...');
+    console.log('Starting AI analysis for all families...');
     
-    // Load inquiries from JSON files
     const files = await fs.readdir(path.join(__dirname, 'data'));
     const inquiries = [];
     
@@ -1014,11 +958,11 @@ app.post('/api/ai/analyze-all-families', async (req, res) => {
         const j = JSON.parse(await fs.readFile(path.join(__dirname, 'data', f), 'utf8'));
         inquiries.push(j);
       } catch (fileError) {
-        console.warn(`⚠️ Failed to read ${f}:`, fileError.message);
+        console.warn(`Failed to read ${f}:`, fileError.message);
       }
     }
 
-    console.log(`📊 Found ${inquiries.length} families to analyze`);
+    console.log(`Found ${inquiries.length} families to analyze`);
     
     if (inquiries.length === 0) {
       return res.json({
@@ -1033,12 +977,10 @@ app.post('/api/ai/analyze-all-families', async (req, res) => {
     const errors = [];
     const successDetails = [];
 
-    // Process each family
     for (const inquiry of inquiries) {
       try {
-        console.log(`🔍 Processing ${inquiry.firstName} ${inquiry.familySurname} (${inquiry.id})`);
+        console.log(`Processing ${inquiry.firstName} ${inquiry.familySurname} (${inquiry.id})`);
         
-        // Get engagement data if available from database
         let engagementData = null;
         if (db) {
           const engagementResult = await db.query(`
@@ -1054,11 +996,9 @@ app.post('/api/ai/analyze-all-families', async (req, res) => {
           }
         }
 
-        // Call Claude API for analysis
         const analysis = await analyzeFamily(inquiry, engagementData);
         
         if (analysis) {
-          // Store analysis in database if available
           if (db) {
             try {
               await db.query(`
@@ -1086,9 +1026,9 @@ app.post('/api/ai/analyze-all-families', async (req, res) => {
                 analysis.leadTemperature
               ]);
               
-              console.log(`💾 Stored analysis for ${inquiry.id} in database`);
+              console.log(`Stored analysis for ${inquiry.id} in database`);
             } catch (dbError) {
-              console.warn(`⚠️ DB insert failed for ${inquiry.id}:`, dbError.message);
+              console.warn(`DB insert failed for ${inquiry.id}:`, dbError.message);
             }
           }
 
@@ -1101,11 +1041,11 @@ app.post('/api/ai/analyze-all-families', async (req, res) => {
             confidence: analysis.confidence_score
           });
           
-          console.log(`✅ Analysis completed for ${inquiry.firstName} ${inquiry.familySurname} (score: ${analysis.leadScore})`);
+          console.log(`Analysis completed for ${inquiry.firstName} ${inquiry.familySurname} (score: ${analysis.leadScore})`);
         }
         
       } catch (error) {
-        console.error(`❌ Analysis failed for ${inquiry.id}:`, error.message);
+        console.error(`Analysis failed for ${inquiry.id}:`, error.message);
         errors.push({ 
           inquiryId: inquiry.id, 
           name: `${inquiry.firstName || ''} ${inquiry.familySurname || ''}`.trim(),
@@ -1114,7 +1054,7 @@ app.post('/api/ai/analyze-all-families', async (req, res) => {
       }
     }
 
-    console.log(`🎯 AI analysis complete: ${analysisCount}/${inquiries.length} successful`);
+    console.log(`AI analysis complete: ${analysisCount}/${inquiries.length} successful`);
     
     const response = {
       success: true,
@@ -1132,7 +1072,7 @@ app.post('/api/ai/analyze-all-families', async (req, res) => {
     res.json(response);
 
   } catch (error) {
-    console.error('❌ Batch AI analysis error:', error);
+    console.error('Batch AI analysis error:', error);
     res.status(500).json({
       success: false,
       error: 'AI analysis failed',
@@ -1142,13 +1082,11 @@ app.post('/api/ai/analyze-all-families', async (req, res) => {
   }
 });
 
-// Individual family AI analysis
 app.post('/api/ai/analyze-family/:inquiryId', async (req, res) => {
   try {
     const inquiryId = req.params.inquiryId;
-    console.log(`🤖 Starting individual AI analysis for family: ${inquiryId}`);
+    console.log(`Starting individual AI analysis for family: ${inquiryId}`);
     
-    // Get inquiry from JSON files
     const files = await fs.readdir(path.join(__dirname, 'data'));
     let inquiry = null;
     
@@ -1160,7 +1098,7 @@ app.post('/api/ai/analyze-family/:inquiryId', async (req, res) => {
           break;
         }
       } catch (fileError) {
-        console.warn(`⚠️ Failed to read ${f}:`, fileError.message);
+        console.warn(`Failed to read ${f}:`, fileError.message);
       }
     }
     
@@ -1172,9 +1110,8 @@ app.post('/api/ai/analyze-family/:inquiryId', async (req, res) => {
       });
     }
     
-    console.log(`🔍 Processing ${inquiry.firstName} ${inquiry.familySurname} (${inquiry.id})`);
+    console.log(`Processing ${inquiry.firstName} ${inquiry.familySurname} (${inquiry.id})`);
     
-    // Get engagement data if available
     let engagementData = null;
     if (db) {
       const engagementResult = await db.query(`
@@ -1190,7 +1127,6 @@ app.post('/api/ai/analyze-family/:inquiryId', async (req, res) => {
       }
     }
 
-    // Call Claude API for analysis
     const analysis = await analyzeFamily(inquiry, engagementData);
     
     if (!analysis) {
@@ -1201,7 +1137,6 @@ app.post('/api/ai/analyze-family/:inquiryId', async (req, res) => {
       });
     }
     
-    // Store analysis in database if available
     if (db) {
       try {
         await db.query(`
@@ -1229,13 +1164,13 @@ app.post('/api/ai/analyze-family/:inquiryId', async (req, res) => {
           analysis.leadTemperature
         ]);
         
-        console.log(`💾 Stored individual analysis for ${inquiry.id} in database`);
+        console.log(`Stored individual analysis for ${inquiry.id} in database`);
       } catch (dbError) {
-        console.warn(`⚠️ DB insert failed for ${inquiry.id}:`, dbError.message);
+        console.warn(`DB insert failed for ${inquiry.id}:`, dbError.message);
       }
     }
     
-    console.log(`✅ Individual analysis completed for ${inquiry.firstName} ${inquiry.familySurname} (score: ${analysis.leadScore})`);
+    console.log(`Individual analysis completed for ${inquiry.firstName} ${inquiry.familySurname} (score: ${analysis.leadScore})`);
     
     res.json({
       success: true,
@@ -1254,7 +1189,7 @@ app.post('/api/ai/analyze-family/:inquiryId', async (req, res) => {
     });
     
   } catch (error) {
-    console.error(`❌ Individual AI analysis error for ${req.params.inquiryId}:`, error);
+    console.error(`Individual AI analysis error for ${req.params.inquiryId}:`, error);
     res.status(500).json({
       success: false,
       error: 'Individual AI analysis failed',
@@ -1264,7 +1199,6 @@ app.post('/api/ai/analyze-family/:inquiryId', async (req, res) => {
   }
 });
 
-// Legacy endpoints for compatibility
 app.get('/api/inquiries', async (_req, res) => {
   try {
     const files = await fs.readdir(path.join(__dirname, 'data'));
@@ -1280,10 +1214,8 @@ app.get('/api/inquiries', async (_req, res) => {
   }
 });
 
-// Prospectus serving and slug handling
 async function findInquiryBySlug(slug) {
   try {
-    // Try database first
     if (db) {
       const result = await db.query('SELECT * FROM inquiries WHERE slug = $1 LIMIT 1', [slug]);
       if (result.rows.length > 0) {
@@ -1295,7 +1227,6 @@ async function findInquiryBySlug(slug) {
           parentEmail: row.parent_email,
           ageGroup: row.age_group,
           entryYear: row.entry_year,
-          // ... include all other fields as needed
           receivedAt: row.received_at,
           status: row.status,
           slug: row.slug
@@ -1303,7 +1234,6 @@ async function findInquiryBySlug(slug) {
       }
     }
     
-    // Fallback to JSON files
     const files = await fs.readdir(path.join(__dirname, 'data'));
     for (const f of files.filter(x => x.startsWith('inquiry-') && x.endsWith('.json'))) {
       try {
@@ -1319,10 +1249,9 @@ async function findInquiryBySlug(slug) {
 
 async function rebuildSlugIndexFromData() {
   let added = 0;
-  console.log('🔨 Rebuilding slug index...');
+  console.log('Rebuilding slug index...');
   
   try {
-    // Try JSON files first
     const files = await fs.readdir(path.join(__dirname, 'data'));
     const js = files.filter(f => f.startsWith('inquiry-') && f.endsWith('.json'));
     
@@ -1333,10 +1262,9 @@ async function rebuildSlugIndexFromData() {
         
         if (!slug) {
           slug = makeSlug(j);
-          // Update JSON file with slug
           j.slug = slug;
           await fs.writeFile(path.join(__dirname, 'data', f), JSON.stringify(j, null, 2));
-          console.log(`🔧 Generated missing slug for ${j.firstName} ${j.familySurname}: ${slug}`);
+          console.log(`Generated missing slug for ${j.firstName} ${j.familySurname}: ${slug}`);
         }
         
         slug = slug.toLowerCase();
@@ -1350,36 +1278,33 @@ async function rebuildSlugIndexFromData() {
           added++;
         }
       } catch (e) {
-        console.warn(`⚠️ Skipped ${f}: ${e.message}`);
+        console.warn(`Skipped ${f}: ${e.message}`);
       }
     }
     
     if (added > 0) {
       await saveSlugIndex();
-      console.log(`💾 Saved ${added} new slug mappings to slug-index.json`);
+      console.log(`Saved ${added} new slug mappings to slug-index.json`);
     }
     
-    console.log(`🔨 Slug index rebuilt: ${added} new mappings, ${Object.keys(slugIndex).length} total`);
+    console.log(`Slug index rebuilt: ${added} new mappings, ${Object.keys(slugIndex).length} total`);
     return added;
   } catch (e) {
-    console.error('❌ rebuildSlugIndexFromData error:', e.message);
+    console.error('rebuildSlugIndexFromData error:', e.message);
     return 0;
   }
 }
 
-// Direct file serving with auto-recovery
 app.get('/prospectuses/:filename', async (req, res) => {
   try {
     const filename = String(req.params.filename || '');
     let abs = path.join(__dirname, 'prospectuses', filename);
 
-    // Serve if present
     try { 
       await fs.access(abs); 
       return res.sendFile(abs); 
     } catch {}
 
-    // File missing, try to find and regenerate
     const files = await fs.readdir(path.join(__dirname, 'data'));
     for (const f of files.filter(x => x.startsWith('inquiry-') && x.endsWith('.json'))) {
       try {
@@ -1395,15 +1320,13 @@ app.get('/prospectuses/:filename', async (req, res) => {
 
     return res.status(404).send('Prospectus file not found');
   } catch (e) {
-    console.error('❌ Direct file recover failed:', e);
+    console.error('Direct file recover failed:', e);
     return res.status(500).send('Failed to load prospectus file');
   }
 });
 
-// Keep static serving for any other static assets in /prospectuses
 app.use('/prospectuses', express.static(path.join(__dirname, 'prospectuses')));
 
-// Pretty URL handler
 const RESERVED = new Set([
   'api','prospectuses','health','tracking','dashboard','favicon','robots',
   'sitemap','metrics','config','webhook','admin','smart_analytics_dashboard.html'
@@ -1412,15 +1335,39 @@ const RESERVED = new Set([
 app.get('/:slug', async (req, res, next) => {
   const slug = String(req.params.slug || '').toLowerCase();
   
-  // Skip if invalid slug format or reserved
   if (!/^[a-z0-9-]+$/.test(slug)) return next();
   if (RESERVED.has(slug)) return next();
 
-  console.log(`🔍 Looking up slug: ${slug}`);
+  console.log(`Looking up slug: ${slug}`);
 
   let rel = slugIndex[slug];
   if (!rel) {
-    console.log(`❌ Slug not found: ${slug}`);
+    console.log(`Slug not in index, rebuilding...`);
+    await rebuildSlugIndexFromData();
+    rel = slugIndex[slug];
+  }
+
+  if (!rel) {
+    console.log(`Searching for inquiry with slug: ${slug}`);
+    const inquiry = await findInquiryBySlug(slug);
+    if (inquiry) {
+      try {
+        console.log(`Regenerating prospectus for found inquiry: ${inquiry.id}`);
+        const p = await generateProspectus(inquiry);
+        await updateInquiryStatus(inquiry.id, p);
+        rel = p.url;
+        slugIndex[slug] = rel;
+        await saveSlugIndex();
+        console.log(`Regenerated and mapped: ${slug} -> ${rel}`);
+      } catch (e) {
+        console.error('Auto-regen failed for slug', slug, e.message);
+        return res.status(500).send('Failed to generate prospectus');
+      }
+    }
+  }
+
+  if (!rel) {
+    console.log(`Slug not found: ${slug}`);
     return res.status(404).send(`
       <h1>Prospectus Not Found</h1>
       <p>The link /${slug} could not be found.</p>
@@ -1428,16 +1375,14 @@ app.get('/:slug', async (req, res, next) => {
     `);
   }
 
-  // Serve the file
   let abs = path.join(__dirname, rel);
   try {
     await fs.access(abs);
-    console.log(`✅ Serving: ${slug} -> ${rel}`);
+    console.log(`Serving: ${slug} -> ${rel}`);
     return res.sendFile(abs);
   } catch (accessError) {
-    console.log(`🔍 File missing, attempting to regenerate: ${abs}`);
+    console.log(`File missing, attempting to regenerate: ${abs}`);
     
-    // Try to regenerate the file
     const inquiry = await findInquiryBySlug(slug);
     if (inquiry) {
       try {
@@ -1446,22 +1391,21 @@ app.get('/:slug', async (req, res, next) => {
         slugIndex[slug] = p.url;
         await saveSlugIndex();
         abs = path.join(__dirname, 'prospectuses', p.filename);
-        console.log(`✅ Regenerated and serving: ${slug} -> ${p.url}`);
+        console.log(`Regenerated and serving: ${slug} -> ${p.url}`);
         return res.sendFile(abs);
       } catch (regenError) {
-        console.error('❌ Regeneration failed:', regenError.message);
+        console.error('Regeneration failed:', regenError.message);
       }
     }
     
-    console.error('❌ Failed to serve slug:', slug);
+    console.error('Failed to serve slug:', slug);
     return res.status(500).send('Failed to load prospectus');
   }
 });
 
-// Admin debug endpoints
 app.get('/admin/rebuild-slugs', async (req, res) => {
   try {
-    console.log('🔧 Manual slug rebuild requested...');
+    console.log('Manual slug rebuild requested...');
     const added = await rebuildSlugIndexFromData();
     
     const summary = {
@@ -1474,10 +1418,10 @@ app.get('/admin/rebuild-slugs', async (req, res) => {
       }
     };
     
-    console.log('✅ Manual slug rebuild complete:', summary);
+    console.log('Manual slug rebuild complete:', summary);
     res.json(summary);
   } catch (error) {
-    console.error('❌ Manual slug rebuild failed:', error);
+    console.error('Manual slug rebuild failed:', error);
     res.status(500).json({
       success: false,
       error: 'Slug rebuild failed',
@@ -1492,7 +1436,6 @@ app.get('/admin/debug-database', async (req, res) => {
       return res.json({ error: 'Database not connected' });
     }
     
-    // Check what columns exist
     const columns = await db.query(`
       SELECT column_name, data_type 
       FROM information_schema.columns 
@@ -1500,7 +1443,6 @@ app.get('/admin/debug-database', async (req, res) => {
       ORDER BY column_name
     `);
     
-    // Get sample inquiry data
     const sample = await db.query(`
       SELECT id, first_name, family_surname, slug, prospectus_url, 
              prospectus_filename, prospectus_generated, status
@@ -1508,10 +1450,8 @@ app.get('/admin/debug-database', async (req, res) => {
       LIMIT 5
     `);
     
-    // Count total inquiries
     const [{ count }] = (await db.query(`SELECT COUNT(*) as count FROM inquiries`)).rows;
     
-    // Check AI insights table
     let aiCount = 0;
     try {
       const [{ count: aiInsights }] = (await db.query(`SELECT COUNT(*) as count FROM ai_family_insights`)).rows;
@@ -1532,7 +1472,6 @@ app.get('/admin/debug-database', async (req, res) => {
   }
 });
 
-// Health and info endpoints
 app.get('/config.json', (req, res) => {
   const base = getBaseUrl(req);
   res.json({ baseUrl: base, webhook: `${base}/webhook`, health: `${base}/health` });
@@ -1544,7 +1483,7 @@ app.get('/health', (req, res) => {
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
     environment: process.env.NODE_ENV || 'development',
-    version: '4.0.0-fixed',
+    version: '4.0.0-clean',
     features: {
       analytics: 'enabled',
       tracking: 'enabled',
@@ -1566,30 +1505,30 @@ app.get('/', (req, res) => {
 <style>body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;padding:24px;max-width:780px;margin:auto;line-height:1.55}</style></head>
 <body>
   <h1>More House Prospectus Service</h1>
-  <p><strong>🎯 Version 4.0.0 - FIXED!</strong></p>
+  <p><strong>Version 4.0.0 - CLEAN FIXED!</strong></p>
   <ul>
     <li>Health: <a href="${base}/health">${base}/health</a></li>
     <li>Webhook (POST JSON): <code>${base}/webhook</code></li>
     <li>Dashboard: <a href="${base}/dashboard.html">${base}/dashboard.html</a></li>
     <li>Inquiries (JSON): <a href="${base}/api/analytics/inquiries">${base}/api/analytics/inquiries</a></li>
     <li>Dashboard data (JSON): <a href="${base}/api/dashboard-data">${base}/api/dashboard-data</a></li>
-    <li>🤖 AI Analysis: <code>POST ${base}/api/ai/analyze-all-families</code></li>
+    <li>AI Analysis: <code>POST ${base}/api/ai/analyze-all-families</code></li>
     <li>Rebuild slugs: <a href="${base}/admin/rebuild-slugs">${base}/admin/rebuild-slugs</a></li>
   </ul>
-  <h3>✅ FIXES APPLIED:</h3>
+  <h3>FIXES APPLIED:</h3>
   <ul>
-    <li>✅ Tracking script injection fixed</li>
-    <li>✅ Dashboard endpoints working with JSON files</li>
-    <li>✅ AI analysis endpoints functional</li>
-    <li>✅ Proper engagement tracking</li>
-    <li>✅ No more 404 errors</li>
+    <li>Tracking script injection fixed</li>
+    <li>Dashboard endpoints working with JSON files</li>
+    <li>AI analysis endpoints functional</li>
+    <li>Proper engagement tracking</li>
+    <li>No more 404 errors</li>
+    <li>Clean syntax - no encoding issues</li>
   </ul>
   <p>Pretty links: <code>${base}/the-smith-family-abc123</code></p>
-  <p>🤖 AI Analysis: <code>POST ${base}/api/ai/analyze-all-families</code></p>
+  <p>AI Analysis: <code>POST ${base}/api/ai/analyze-all-families</code></p>
 </body></html>`);
 });
 
-// 404 handler
 app.use((req, res) => {
   res.status(404).json({ 
     success: false, 
@@ -1598,9 +1537,8 @@ app.use((req, res) => {
   });
 });
 
-// Startup sequence
 async function startServer() {
-  console.log('🏫 Starting More House School System...');
+  console.log('Starting More House School System...');
   
   const dbConnected = await initializeDatabase();
   await ensureDirectories();
@@ -1608,50 +1546,26 @@ async function startServer() {
   await rebuildSlugIndexFromData();
 
   app.listen(PORT, '0.0.0.0', () => {
-    console.log('\n🚀 MORE HOUSE SCHOOL SYSTEM STARTED');
-    console.log('╔═══════════════════════════════════════════════════════════════════════════╗');
-    console.log(`🌐 Server: http://localhost:${PORT}`);
-    console.log(`📋 Webhook: http://localhost:${PORT}/webhook`);
-    console.log(`📊 Dashboard: http://localhost:${PORT}/dashboard.html`);
-    console.log(`🤖 AI Analysis: POST http://localhost:${PORT}/api/ai/analyze-all-families`);
-    console.log(`🔗 Pretty URL pattern: http://localhost:${PORT}/the-<family>-family-<shortid>`);
-    console.log(`🗄️ DB: ${dbConnected ? 'Connected' : 'JSON-only'}`);
-    console.log('🎯 CRITICAL FIXES APPLIED:');
-    console.log('   ✅ Tracking script injection works properly');
-    console.log('   ✅ Dashboard endpoints return real data from JSON files');
-    console.log('   ✅ AI analysis endpoints functional');
-    console.log('   ✅ No more 404 errors on dashboard');
-    console.log('   ✅ Engagement tracking pipeline complete');
-    console.log('╚═══════════════════════════════════════════════════════════════════════════╝');
+    console.log('\nMORE HOUSE SCHOOL SYSTEM STARTED');
+    console.log('===============================================');
+    console.log(`Server: http://localhost:${PORT}`);
+    console.log(`Webhook: http://localhost:${PORT}/webhook`);
+    console.log(`Dashboard: http://localhost:${PORT}/dashboard.html`);
+    console.log(`AI Analysis: POST http://localhost:${PORT}/api/ai/analyze-all-families`);
+    console.log(`Pretty URLs: http://localhost:${PORT}/the-<family>-family-<id>`);
+    console.log(`DB: ${dbConnected ? 'Connected' : 'JSON-only'}`);
+    console.log('CRITICAL FIXES APPLIED:');
+    console.log('- Tracking script injection works properly');
+    console.log('- Dashboard endpoints return real data from JSON files');
+    console.log('- AI analysis endpoints functional');
+    console.log('- No more 404 errors on dashboard');
+    console.log('- Clean syntax - no encoding issues');
+    console.log('- Engagement tracking pipeline complete');
+    console.log('===============================================');
   });
 }
 
 process.on('SIGINT', async () => { if (db) await db.end(); process.exit(0); });
 process.on('SIGTERM', async () => { if (db) await db.end(); process.exit(0); });
 
-startServer();❓ Slug not in index, rebuilding...`);
-    await rebuildSlugIndexFromData();
-    rel = slugIndex[slug];
-  }
-
-  if (!rel) {
-    console.log(`🔎 Searching for inquiry with slug: ${slug}`);
-    const inquiry = await findInquiryBySlug(slug);
-    if (inquiry) {
-      try {
-        console.log(`🔧 Regenerating prospectus for found inquiry: ${inquiry.id}`);
-        const p = await generateProspectus(inquiry);
-        await updateInquiryStatus(inquiry.id, p);
-        rel = p.url;
-        slugIndex[slug] = rel;
-        await saveSlugIndex();
-        console.log(`✅ Regenerated and mapped: ${slug} -> ${rel}`);
-      } catch (e) {
-        console.error('❌ Auto-regen failed for slug', slug, e.message);
-        return res.status(500).send('Failed to generate prospectus');
-      }
-    }
-  }
-
-  if (!rel) {
-    console.log(`
+startServer();
