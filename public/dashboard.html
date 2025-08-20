@@ -182,11 +182,11 @@ document.addEventListener('DOMContentLoaded', function(){
 
     // STEP 4: CRITICAL FIX - Create proper tracking script injection
     const trackingInject = `<!-- More House Analytics Tracking -->
-    const trackingScript = `<script>
-        window.MORE_HOUSE_INQUIRY_ID='${inquiry.id}';
-        console.log('📊 Inquiry ID set for tracking:', window.MORE_HOUSE_INQUIRY_ID);
-        </script>
-        <script src="/tracking.js"></script>`;
+    <script>
+    window.MORE_HOUSE_INQUIRY_ID='${inquiry.id}';
+    console.log('📊 Inquiry ID set for tracking:', window.MORE_HOUSE_INQUIRY_ID);
+    </script>
+    <script src="/tracking.js"></script>`;
 
     // STEP 5: Find and inject BOTH scripts before </body>
     const bodyCloseIndex = html.lastIndexOf('</body>');
