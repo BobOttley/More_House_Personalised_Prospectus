@@ -1,319 +1,1215 @@
-<!doctype html>
-<html lang="en-GB">
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Admissions Dashboard</title>
-  <style>
-    :root { --bg:#0b0c10; --panel:#12141a; --muted:#7d8590; --text:#e6edf3; --accent:#3fb950; --warn:#f0883e; --danger:#ff6b6b; --line:#23262d; }
-    * { box-sizing: border-box }
-    html,body { height:100% }
-    body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background: var(--bg); color: var(--text) }
-    .wrap { max-width: 1200px; margin: 24px auto 80px; padding: 0 20px }
-    header { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom: 18px }
-    h1 { font-size: 20px; margin: 0 }
-    .sub { color: var(--muted); font-size: 12px }
-    .row { display:grid; gap:14px }
-    @media(min-width:720px){ .row.cols-4 { grid-template-columns: repeat(4, 1fr) } .row.cols-2 { grid-template-columns: repeat(2, 1fr) } }
-    .card { background: var(--panel); border:1px solid var(--line); border-radius: 10px; padding: 14px }
-    .kpi { display:flex; flex-direction:column; gap:4px }
-    .kpi .label { color: var(--muted); font-size: 12px }
-    .kpi .value { font-size: 28px; font-weight: 700; line-height: 1.1 }
-    .kpi .delta { font-size: 12px; color: var(--muted) }
-    .controls { display:flex; gap:8px; align-items:center }
-    button { background:#1f232b; color:var(--text); border:1px solid var(--line); padding:8px 12px; border-radius:8px; cursor:pointer }
-    button:hover { border-color:#2b3038 }
-    table { width: 100%; border-collapse: collapse; }
-    th, td { padding: 10px 10px; border-bottom: 1px solid var(--line); font-size: 14px; vertical-align: top }
-    th { text-align:left; color: var(--muted); font-weight:600 }
-    td.right { text-align:right }
-    .pill { display:inline-block; padding:2px 8px; border-radius:999px; background:#1f232b; border:1px solid var(--line) }
-    .ok { color: var(--accent) }
-    .warn { color: var(--warn) }
-    .bad { color: var(--danger) }
-    .muted { color: var(--muted) }
-    .link { color:#58a6ff; text-decoration:none }
-    .link:hover { text-decoration: underline }
-    .section { margin-top: 18px }
-    .section h2 { font-size: 16px; margin: 0 0 10px }
-    .empty { color: var(--muted); font-style: italic; padding: 8px 0 }
-    .errorbar { background:#2b1515; border:1px solid #5a1e1e; color:#ffd2d2; padding:10px 12px; border-radius:8px; display:none; margin-bottom:12px }
-    .loading { opacity: .6 }
-    code.inline { background:#1f232b; border:1px solid var(--line); padding:1px 6px; border-radius:6px }
-    .grid-2 { display:grid; gap:14px }
-    @media(min-width:900px){ .grid-2 { grid-template-columns: 1fr 1fr } }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SMART Analytics - More House School</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* More House SMART Analytics Brand Colors */
+        :root {
+            --blazer-navy: #091825;
+            --award-gold: #FF9F1C;
+            --sport-blue: #034674;
+            --text-primary: #2C3E50;
+            --white: #FFFFFF;
+            --light-grey: #F8FAFC;
+            --border-grey: #E5E7EB;
+            --success: #10B981;
+            --warning: #F59E0B;
+            --error: #EF4444;
+            --hot-lead: #FF4444;
+            --warm-lead: #FF9F1C;
+            --cold-lead: #034674;
+            
+            --font-heading: 'Playfair Display', serif;
+            --font-body: 'Inter', sans-serif;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-body);
+            background: linear-gradient(135deg, var(--light-grey) 0%, #f1f5f9 100%);
+            min-height: 100vh;
+            color: var(--text-primary);
+            font-size: 14px;
+        }
+
+        /* Header - Matching SMART Reply Style */
+        .dashboard-header {
+            background: linear-gradient(135deg, var(--blazer-navy) 0%, var(--sport-blue) 100%);
+            color: var(--white);
+            padding: 2rem;
+            box-shadow: 0 4px 20px rgba(9, 24, 37, 0.3);
+            text-align: center;
+        }
+
+        .header-brand {
+            display: inline-block;
+            position: relative;
+        }
+
+        .brand-glow {
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--award-gold), #FFB84D);
+            opacity: 0.3;
+            filter: blur(20px);
+        }
+
+        .header-brand h1 {
+            position: relative;
+            font-family: var(--font-heading);
+            font-size: 4rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+
+        .header-brand h1 .smart-text {
+            background: linear-gradient(135deg, var(--award-gold), #FFB84D);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header-brand h1 .analytics-text {
+            color: white;
+        }
+
+        .header-subtitle {
+            font-size: 1.2rem;
+            font-weight: 300;
+            color: rgba(255, 255, 255, 0.9);
+            margin-bottom: 0.5rem;
+        }
+
+        .header-meta {
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .header-controls {
+            position: absolute;
+            top: 2rem;
+            right: 2rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .refresh-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 0.9rem;
+        }
+
+        .refresh-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .auto-refresh-toggle {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        /* Metrics Bar */
+        .metrics-bar {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1.5rem;
+            padding: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .metric-card {
+            background: var(--white);
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 16px rgba(9, 24, 37, 0.08);
+            border: 1px solid var(--border-grey);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .metric-card:hover {
+            box-shadow: 0 8px 25px rgba(9, 24, 37, 0.12);
+            transform: translateY(-2px);
+        }
+
+        .metric-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--award-gold), var(--sport-blue));
+        }
+
+        .metric-card.hot::before { background: var(--hot-lead); }
+        .metric-card.warm::before { background: var(--warm-lead); }
+        .metric-card.engagement::before { background: var(--success); }
+        .metric-card.total::before { background: var(--sport-blue); }
+
+        .metric-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        /* Metric Icons - Clean and Simple */
+        .metric-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--white);
+            background: var(--award-gold);
+            position: relative;
+        }
+
+        .metric-icon.hot { 
+            background: linear-gradient(135deg, var(--hot-lead), #ff6666); 
+        }
+        .metric-icon.warm { 
+            background: linear-gradient(135deg, var(--warm-lead), #ffb347); 
+        }
+        .metric-icon.engagement { 
+            background: linear-gradient(135deg, var(--success), #34d399); 
+        }
+        .metric-icon.total { 
+            background: linear-gradient(135deg, var(--sport-blue), #0ea5e9); 
+        }
+
+        .metric-content {
+            flex: 1;
+        }
+
+        .metric-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #64748b;
+            margin-bottom: 0.5rem;
+        }
+
+        .metric-value {
+            font-size: 2.25rem;
+            font-weight: 700;
+            color: var(--blazer-navy);
+            margin-bottom: 0.25rem;
+            font-family: var(--font-heading);
+        }
+
+        .metric-trend {
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: var(--success);
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        /* Dashboard Grid */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 2rem;
+            margin: 0 2rem 2rem;
+            max-width: 1400px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .panel {
+            background: var(--white);
+            border-radius: 16px;
+            box-shadow: 0 4px 16px rgba(9, 24, 37, 0.08);
+            border: 1px solid var(--border-grey);
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .panel:hover {
+            box-shadow: 0 8px 25px rgba(9, 24, 37, 0.12);
+        }
+
+        .panel-header {
+            background: linear-gradient(135deg, var(--blazer-navy) 0%, var(--sport-blue) 100%);
+            color: var(--white);
+            padding: 1.25rem 1.5rem;
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .panel-content {
+            padding: 1.5rem;
+        }
+
+        /* Family Cards */
+        .family-cards-container {
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .family-card {
+            border: 1px solid var(--border-grey);
+            border-radius: 12px;
+            margin-bottom: 1rem;
+            transition: all 0.3s ease;
+            background: var(--white);
+        }
+
+        .family-card:hover {
+            box-shadow: 0 4px 15px rgba(9, 24, 37, 0.1);
+            transform: translateY(-1px);
+        }
+
+        .family-card-header {
+            padding: 1rem 1.5rem;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-grey);
+        }
+
+        .family-info {
+            flex: 1;
+        }
+
+        .family-name {
+            font-weight: 600;
+            color: var(--blazer-navy);
+            font-size: 1rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .family-meta {
+            font-size: 0.85rem;
+            color: #64748b;
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .family-score {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .score-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+
+        .score-badge.hot {
+            background: var(--hot-lead);
+            color: white;
+        }
+
+        .score-badge.warm {
+            background: var(--warm-lead);
+            color: white;
+        }
+
+        .score-badge.cold {
+            background: var(--cold-lead);
+            color: white;
+        }
+
+        .score-badge.low {
+            background: #E5E7EB;
+            color: #6B7280;
+        }
+
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 0.5rem;
+        }
+
+        .status-indicator.online {
+            background: var(--success);
+            box-shadow: 0 0 4px var(--success);
+        }
+
+        .status-indicator.recent {
+            background: var(--warning);
+        }
+
+        .status-indicator.offline {
+            background: #D1D5DB;
+        }
+
+        .expand-btn {
+            color: var(--sport-blue);
+            transition: transform 0.3s;
+        }
+
+        .family-card.expanded .expand-btn {
+            transform: rotate(180deg);
+        }
+
+        .family-card-details {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .family-card.expanded .family-card-details {
+            max-height: 500px;
+        }
+
+        .family-details-content {
+            padding: 1.5rem;
+            border-top: 1px solid var(--border-grey);
+        }
+
+        .details-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .detail-item h4 {
+            color: var(--blazer-navy);
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+
+        .detail-item p {
+            color: #64748b;
+            font-size: 0.85rem;
+        }
+
+        .interests-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+
+        .interest-tag {
+            background: var(--light-grey);
+            color: var(--blazer-navy);
+            padding: 0.25rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .contact-btn {
+            background: var(--award-gold);
+            color: var(--blazer-navy);
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            width: 100%;
+        }
+
+        .contact-btn:hover {
+            background: #e88a00;
+            transform: translateY(-1px);
+        }
+
+        /* Live Activity Feed */
+        .activity-feed {
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .activity-item {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border-grey);
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .activity-item:last-child {
+            border-bottom: none;
+        }
+
+        .activity-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--award-gold);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            color: var(--blazer-navy);
+            flex-shrink: 0;
+        }
+
+        .activity-content {
+            flex: 1;
+        }
+
+        .activity-text {
+            font-size: 0.9rem;
+            color: var(--text-primary);
+            margin-bottom: 0.25rem;
+        }
+
+        .activity-time {
+            font-size: 0.75rem;
+            color: #64748b;
+        }
+
+        .activity-type {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .activity-type.high { background: var(--hot-lead); }
+        .activity-type.medium { background: var(--warm-lead); }
+        .activity-type.low { background: var(--cold-lead); }
+
+        /* Controls */
+        .controls-bar {
+            padding: 1rem 2rem;
+            background: var(--white);
+            border-bottom: 1px solid var(--border-grey);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .filter-group {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .filter-select {
+            padding: 0.5rem 1rem;
+            border: 1px solid var(--border-grey);
+            border-radius: 8px;
+            background: var(--white);
+            color: var(--text-primary);
+            font-size: 0.9rem;
+        }
+
+        .search-box {
+            padding: 0.5rem 1rem;
+            border: 1px solid var(--border-grey);
+            border-radius: 8px;
+            width: 250px;
+            font-size: 0.9rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+                margin: 0 1rem 2rem;
+            }
+            
+            .metrics-bar {
+                padding: 1rem;
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            }
+        }
+
+        @media (max-width: 768px) {
+            .header-brand h1 {
+                font-size: 1.4rem;
+            }
+            
+            .metric-value {
+                font-size: 1.8rem;
+            }
+            
+            .family-meta {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+            
+            .details-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Loading States */
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem;
+            color: #64748b;
+        }
+
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--border-grey);
+            border-top: 2px solid var(--award-gold);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 0.5rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* AI Analysis Indicator */
+        .ai-analyzing {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--award-gold);
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .pulse {
+            width: 8px;
+            height: 8px;
+            background: var(--award-gold);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.4; }
+            50% { opacity: 1; }
+            100% { opacity: 0.4; }
+        }
+    </style>
 </head>
 <body>
-  <div class="wrap">
-    <header>
-      <div>
-        <h1>Admissions Dashboard</h1>
-        <div class="sub" id="lastUpdated">Loading…</div>
-      </div>
-      <div class="controls">
-        <button id="refreshBtn" type="button">Refresh</button>
-      </div>
+    <!-- Header - Exactly Like SMART Reply -->
+    <header class="dashboard-header">
+        <div class="header-controls">
+            <div class="auto-refresh-toggle">
+                <input type="checkbox" id="autoRefresh" checked>
+                <label for="autoRefresh">Auto-refresh</label>
+            </div>
+            <button class="refresh-btn" onclick="refreshDashboard()">
+                <span id="refreshIcon">↻</span> Refresh
+            </button>
+        </div>
+        
+        <div class="header-brand">
+            <div class="brand-glow"></div>
+            <h1><span class="smart-text">SMART</span> <span class="analytics-text">Analytics</span></h1>
+        </div>
+        <div class="header-subtitle">More House School</div>
+        <div class="header-meta">Admissions Intelligence Dashboard</div>
     </header>
 
-    <div class="errorbar" id="errorBar"></div>
+    <!-- Metrics Bar -->
+    <section class="metrics-bar">
+        <div class="metric-card hot">
+            <div class="metric-header">
+                <div class="metric-icon hot"></div>
+                <div class="metric-content">
+                    <div class="metric-title">Hot Leads</div>
+                    <div class="metric-value" id="hotLeads">0</div>
+                    <div class="metric-trend">Score 80+ • Ready for Contact</div>
+                </div>
+            </div>
+        </div>
 
-    <!-- KPIs -->
-    <div class="row cols-4" id="kpis">
-      <div class="card kpi">
-        <div class="label">Ready for Contact</div>
-        <div class="value" id="statReady">0</div>
-        <div class="delta muted">Families with prospectuses generated</div>
-      </div>
-      <div class="card kpi">
-        <div class="label">Highly Engaged</div>
-        <div class="value" id="statEngaged">0</div>
-        <div class="delta muted">&gt; 5 minutes dwell time</div>
-      </div>
-      <div class="card kpi">
-        <div class="label">New Inquiries (7d)</div>
-        <div class="value" id="statNew">0</div>
-        <div class="delta muted">Rolling last 7 days</div>
-      </div>
-      <div class="card kpi">
-        <div class="label">Total Families</div>
-        <div class="value" id="statTotal">0</div>
-        <div class="delta muted">All inquiries</div>
-      </div>
-    </div>
+        <div class="metric-card warm">
+            <div class="metric-header">
+                <div class="metric-icon warm"></div>
+                <div class="metric-content">
+                    <div class="metric-title">Warm Leads</div>
+                    <div class="metric-value" id="warmLeads">0</div>
+                    <div class="metric-trend">Score 60-79 • Contact Soon</div>
+                </div>
+            </div>
+        </div>
 
-    <!-- Latest Prospectuses -->
-    <div class="section card">
-      <h2>Latest Prospectuses</h2>
-      <div id="latestProspectusesWrap">
-        <table>
-          <thead>
-            <tr><th>Name</th><th>Generated</th><th>Pretty Link</th><th>Direct File</th></tr>
-          </thead>
-          <tbody id="latestProspectusesBody"><tr><td colspan="4" class="muted">Loading…</td></tr></tbody>
-        </table>
-      </div>
-    </div>
+        <div class="metric-card engagement">
+            <div class="metric-header">
+                <div class="metric-icon engagement"></div>
+                <div class="metric-content">
+                    <div class="metric-title">Avg Engagement</div>
+                    <div class="metric-value" id="avgEngagement">0</div>
+                    <div class="metric-trend">Minutes per session</div>
+                </div>
+            </div>
+        </div>
 
-    <div class="grid-2">
-      <!-- Recently Active -->
-      <div class="section card">
-        <h2>Recently Active</h2>
-        <table>
-          <thead>
-          <tr><th>Name</th><th>Activity</th><th>When</th></tr>
-          </thead>
-          <tbody id="recentBody"><tr><td colspan="3" class="muted">Loading…</td></tr></tbody>
-        </table>
-      </div>
+        <div class="metric-card total">
+            <div class="metric-header">
+                <div class="metric-icon total"></div>
+                <div class="metric-content">
+                    <div class="metric-title">Total Families</div>
+                    <div class="metric-value" id="totalFamilies">0</div>
+                    <div class="metric-trend">Active prospects</div>
+                </div>
+            </div>
+        </div><div class="metric-title">Total Families</div>
+                    <div class="metric-value" id="totalFamilies">0</div>
+                    <div class="metric-trend">Active prospects</div>
+                </div>
+            </div>
+        </div>
+    </section>
 
-      <!-- Priority Families -->
-      <div class="section card">
-        <h2>Priority Families</h2>
-        <table>
-          <thead>
-          <tr><th>Name</th><th>Age Group</th><th>Entry Year</th><th class="right">Score</th></tr>
-          </thead>
-          <tbody id="priorityBody"><tr><td colspan="4" class="muted">Loading…</td></tr></tbody>
-        </table>
-      </div>
-    </div>
+    <!-- Controls -->
+    <section class="controls-bar">
+        <div class="filter-group">
+            <select class="filter-select" id="sortFilter">
+                <option value="score">Sort by Engagement Score</option>
+                <option value="recent">Sort by Recent Activity</option>
+                <option value="inquiryDate">Sort by Inquiry Date</option>
+                <option value="timeSpent">Sort by Time Spent</option>
+            </select>
+            
+            <select class="filter-select" id="statusFilter">
+                <option value="all">All Families</option>
+                <option value="hot">Hot Leads Only</option>
+                <option value="warm">Warm Leads Only</option>
+                <option value="online">Currently Online</option>
+            </select>
+            
+            <select class="filter-select" id="entryYearFilter">
+                <option value="all">All Entry Years</option>
+                <option value="2025">Entry 2025</option>
+                <option value="2026">Entry 2026</option>
+                <option value="2027">Entry 2027+</option>
+            </select>
+        </div>
+        
+        <input type="text" class="search-box" placeholder="Search families..." id="searchBox">
+    </section>
 
-    <div class="grid-2">
-      <!-- Top Interests -->
-      <div class="section card">
-        <h2>Top Interests (from inquiries)</h2>
-        <table>
-          <thead>
-          <tr><th>Subject</th><th class="right">Count</th></tr>
-          </thead>
-          <tbody id="interestsBody"><tr><td colspan="2" class="muted">Loading…</td></tr></tbody>
-        </table>
-      </div>
+    <!-- Main Dashboard Grid -->
+    <main class="dashboard-grid">
+        <!-- Family Cards Panel -->
+        <div class="panel">
+            <div class="panel-header">
+                <div>
+                    <h2>Family Prospects</h2>
+                    <div style="font-size: 0.9rem; opacity: 0.9; margin-top: 0.25rem;">
+                        Real-time engagement tracking
+                    </div>
+                </div>
+                <div class="ai-analyzing" id="aiStatus" style="display: none;">
+                    <div class="pulse"></div>
+                    AI Analyzing...
+                </div>
+                <button class="refresh-btn" onclick="triggerAIAnalysis()" style="background: white; border: 1px solid rgba(255,255,255,0.3); margin-left: 1rem;">
+                    <span style="color: var(--award-gold); font-weight: 600;">SMART</span> <span style="color: var(--blazer-navy);">AI Analysis</span>
+                </button>
+            </div>
+            <div class="panel-content">
+                <div class="family-cards-container" id="familyCards">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        Loading family data...
+                    </div>
+                </div>
+            </div>
+        </div>
 
-      <!-- Raw Inquiries (debug) -->
-      <div class="section card">
-        <h2>Raw Inquiries (for debugging)</h2>
-        <table>
-          <thead>
-          <tr>
-            <th>Family</th><th>Email</th><th>Age Group</th><th>Entry Year</th><th>Status</th><th>Received</th><th>Links</th>
-          </tr>
-          </thead>
-          <tbody id="rawBody"><tr><td colspan="7" class="muted">Loading…</td></tr></tbody>
-        </table>
-      </div>
-    </div>
+        <!-- Live Activity Feed -->
+        <div class="panel">
+            <div class="panel-header">
+                <h2>Live Activity Feed</h2>
+                <div style="font-size: 0.9rem; opacity: 0.9;">
+                    Family-level interactions
+                </div>
+            </div>
+            <div class="panel-content">
+                <div class="activity-feed" id="activityFeed">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        Loading activity...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
 
-  </div>
+    <script>
+        // Dashboard State
+        let dashboardData = {
+            families: [],
+            activities: [],
+            metrics: {
+                hotLeads: 0,
+                warmLeads: 0,
+                avgEngagement: 0,
+                totalFamilies: 0
+            }
+        };
 
-  <script>
-    // ---------- Utilities ----------
-    const $ = (id) => document.getElementById(id);
-    const setText = (id, v) => { const el = $(id); if (el) el.textContent = (v ?? '') + ''; }
-    const esc = (s) => (s == null) ? '' : (s+'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-    const fmtDateTime = (iso) => {
-      if (!iso) return '—';
-      try { return new Date(iso).toLocaleString('en-GB', { hour12:false }); } catch { return iso; }
-    };
-    const fmtTime = (secs) => {
-      secs = Math.max(0, Math.floor(+secs || 0));
-      const m = Math.floor(secs/60), s = secs%60;
-      return `${m}:${String(s).padStart(2,'0')}`;
-    };
-    const link = (url, text) => url ? `<a class="link" href="${esc(url)}" target="_blank" rel="noopener">${esc(text||url)}</a>` : '<span class="muted">—</span>';
+        let autoRefreshInterval;
+        let isRefreshing = false;
 
-    function showError(msg) {
-      const bar = $('errorBar');
-      bar.textContent = msg;
-      bar.style.display = 'block';
-      console.error('[Dashboard]', msg);
+        // Initialize Dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            loadDashboardData();
+            setupEventListeners();
+            startAutoRefresh();
+        });
+
+        function setupEventListeners() {
+            // Search functionality
+            document.getElementById('searchBox').addEventListener('input', filterFamilies);
+            
+            // Filter dropdowns
+            document.getElementById('sortFilter').addEventListener('change', filterFamilies);
+            document.getElementById('statusFilter').addEventListener('change', filterFamilies);
+            document.getElementById('entryYearFilter').addEventListener('change', filterFamilies);
+            
+            // Auto-refresh toggle
+            document.getElementById('autoRefresh').addEventListener('change', function() {
+                if (this.checked) {
+                    startAutoRefresh();
+                } else {
+                    stopAutoRefresh();
+                }
+            });
+        }
+
+        async function loadDashboardData() {
+            if (isRefreshing) return;
+            isRefreshing = true;
+            
+            try {
+                // Update refresh icon
+                document.getElementById('refreshIcon').style.animation = 'spin 1s linear infinite';
+                
+                // Fetch dashboard data
+                const response = await fetch('/api/dashboard-data');
+                const data = await response.json();
+                
+                // Fetch detailed family analytics
+                const analyticsResponse = await fetch('/api/analytics/inquiries');
+                const familiesData = await analyticsResponse.json();
+                
+                // Process and store data
+                dashboardData.families = processFamilyData(familiesData);
+                dashboardData.activities = generateActivityFeed(familiesData);
+                dashboardData.metrics = calculateMetrics(dashboardData.families);
+                
+                // Update UI
+                updateMetrics();
+                renderFamilyCards();
+                renderActivityFeed();
+                
+            } catch (error) {
+                console.error('Failed to load dashboard data:', error);
+                showError('Failed to load dashboard data');
+            } finally {
+                isRefreshing = false;
+                document.getElementById('refreshIcon').style.animation = '';
+            }
+        }
+
+        function processFamilyData(familiesData) {
+            return familiesData.map(family => {
+                const engagement = family.engagement || {};
+                const score = calculateEngagementScore(engagement, family);
+                
+                return {
+                    ...family,
+                    engagementScore: score,
+                    temperature: getTemperature(score),
+                    isOnline: isCurrentlyOnline(engagement.lastVisit),
+                    interests: extractInterests(family),
+                    contactReady: score >= 80
+                };
+            });
+        }
+
+        function calculateEngagementScore(engagement, family) {
+            // SMART Analytics Scoring Algorithm (0-100)
+            let score = 0;
+            
+            // Time spent (40% weight)
+            const timeMinutes = (engagement.timeOnPage || 0) / 60;
+            if (timeMinutes >= 30) score += 40;
+            else if (timeMinutes >= 15) score += 30;
+            else if (timeMinutes >= 5) score += 20;
+            else score += Math.min(timeMinutes * 4, 15);
+            
+            // Content depth (30% weight)
+            const scrollDepth = engagement.scrollDepth || 0;
+            score += Math.min(scrollDepth * 0.3, 30);
+            
+            // Return visits (20% weight)
+            const visits = engagement.totalVisits || 1;
+            if (visits >= 7) score += 20;
+            else if (visits >= 4) score += 15;
+            else if (visits >= 2) score += 10;
+            else score += 5;
+            
+            // Interaction quality (10% weight)
+            const clicks = engagement.clickCount || 0;
+            score += Math.min(clicks * 2, 10);
+            
+            return Math.min(Math.round(score), 100);
+        }
+
+        function getTemperature(score) {
+            if (score >= 80) return 'hot';
+            if (score >= 60) return 'warm';
+            if (score >= 40) return 'cold';
+            return 'low';
+        }
+
+        function isCurrentlyOnline(lastVisit) {
+            if (!lastVisit) return false;
+            const lastVisitTime = new Date(lastVisit);
+            const now = new Date();
+            const diffMinutes = (now - lastVisitTime) / (1000 * 60);
+            return diffMinutes < 30; // Online if active within 30 minutes
+        }
+
+        function extractInterests(family) {
+            const interests = [];
+            const interestFields = [
+                'sciences', 'mathematics', 'english', 'languages', 'humanities',
+                'business', 'drama', 'music', 'art', 'sport', 'leadership'
+            ];
+            
+            interestFields.forEach(field => {
+                if (family[field]) {
+                    interests.push(field.charAt(0).toUpperCase() + field.slice(1));
+                }
+            });
+            
+            return interests;
+        }
+
+        function calculateMetrics(families) {
+            const metrics = {
+                hotLeads: families.filter(f => f.temperature === 'hot').length,
+                warmLeads: families.filter(f => f.temperature === 'warm').length,
+                totalFamilies: families.length,
+                avgEngagement: 0
+            };
+            
+            if (families.length > 0) {
+                const totalEngagement = families.reduce((sum, f) => sum + (f.engagement?.timeOnPage || 0), 0);
+                metrics.avgEngagement = Math.round(totalEngagement / families.length / 60); // Convert to minutes
+            }
+            
+            return metrics;
+        }
+
+        function generateActivityFeed(familiesData) {
+            // Generate sample activity based on recent engagement
+            const activities = [];
+            
+            familiesData.forEach(family => {
+                if (family.engagement && family.engagement.lastVisit) {
+                    const lastVisit = new Date(family.engagement.lastVisit);
+                    const now = new Date();
+                    const hoursAgo = Math.floor((now - lastVisit) / (1000 * 60 * 60));
+                    
+                    if (hoursAgo < 24) {
+                        activities.push({
+                            family: `${family.first_name} ${family.family_surname}`,
+                            action: getActivityAction(family),
+                            time: formatTimeAgo(lastVisit),
+                            type: family.temperature || 'low',
+                            score: family.engagementScore || 0
+                        });
+                    }
+                }
+            });
+            
+            return activities.sort((a, b) => b.score - a.score).slice(0, 10);
+        }
+
+        function getActivityAction(family) {
+            const actions = [
+                'Viewed prospectus sections',
+                'Engaged with video content', 
+                'Explored academic programmes',
+                'Downloaded prospectus materials',
+                'Browsed entry point information'
+            ];
+            
+            const score = family.engagementScore || 0;
+            if (score >= 80) return 'Highly engaged with content - Ready for contact!';
+            if (score >= 60) return 'Showing strong interest - Consider reaching out';
+            
+            return actions[Math.floor(Math.random() * actions.length)];
+        }
+
+        function formatTimeAgo(date) {
+            const now = new Date();
+            const diffMs = now - date;
+            const diffMins = Math.floor(diffMs / (1000 * 60));
+            const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+            
+            if (diffMins < 60) return `${diffMins} minutes ago`;
+            if (diffHours < 24) return `${diffHours} hours ago`;
+            return date.toLocaleDateString();
+        }
+
+        function updateMetrics() {
+            document.getElementById('hotLeads').textContent = dashboardData.metrics.hotLeads;
+            document.getElementById('warmLeads').textContent = dashboardData.metrics.warmLeads;
+            document.getElementById('avgEngagement').textContent = dashboardData.metrics.avgEngagement;
+            document.getElementById('totalFamilies').textContent = dashboardData.metrics.totalFamilies;
+        }
+
+        function renderFamilyCards() {
+            const container = document.getElementById('familyCards');
+            const families = getFilteredFamilies();
+            
+            if (families.length === 0) {
+                container.innerHTML = '<div class="loading">No families match your filters</div>';
+                return;
+            }
+            
+            container.innerHTML = families.map(family => `
+                <div class="family-card" data-id="${family.id}">
+                    <div class="family-card-header" onclick="toggleFamilyCard('${family.id}')">
+                        <div class="family-info">
+                        <div class="family-name">
+                            <div class="status-indicator ${family.isOnline ? 'online' : 'offline'}"></div>
+                            ${family.first_name} ${family.family_surname} Family
+                        </div>
+                        <div class="family-meta">
+                            <span>Entry ${family.entry_year}</span>
+                            <span>${Math.round((family.engagement?.timeOnPage || 0) / 60)} mins total</span>
+                            <span>${formatTimeAgo(new Date(family.engagement?.lastVisit || family.received_at))}</span>
+                        </div>
+                        </div>
+                        <div class="family-score">
+                            <div class="score-badge ${family.temperature}">
+                                ${family.engagementScore}
+                            </div>
+                            <div class="expand-btn">▼</div>
+                        </div>
+                    </div>
+                    <div class="family-card-details">
+                        <div class="family-details-content">
+                            <div class="details-grid">
+                                <div class="detail-item">
+                                    <h4>Engagement Summary</h4>
+                                    <p>${family.engagement?.totalVisits || 1} visits • ${family.engagement?.scrollDepth || 0}% scroll depth</p>
+                                </div>
+                                <div class="detail-item">
+                                    <h4>Contact Status</h4>
+                                    <p>${family.contactReady ? 'Ready for immediate contact' : 'Continue nurturing'}</p>
+                                </div>
+                                <div class="detail-item">
+                                    <h4>Interests</h4>
+                                    <div class="interests-tags">
+                                        ${family.interests.map(interest => `<span class="interest-tag">${interest}</span>`).join('')}
+                                    </div>
+                                </div>
+                                <div class="detail-item">
+                                    <h4>Device & Browser</h4>
+                                    <p>${family.engagement?.deviceType || 'Unknown'} • ${family.engagement?.browser || 'Unknown'}</p>
+                                </div>
+                            </div>
+                            ${family.contactReady ? '' : ''}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderActivityFeed() {
+            const container = document.getElementById('activityFeed');
+            const activities = dashboardData.activities;
+            
+            if (activities.length === 0) {
+                container.innerHTML = '<div class="loading">No recent activity</div>';
+                return;
+            }
+            
+            container.innerHTML = activities.map(activity => `
+                <div class="activity-item">
+                    <div class="activity-avatar">${activity.family.split(' ')[0][0]}${activity.family.split(' ')[1][0]}</div>
+                    <div class="activity-content">
+                        <div class="activity-text">
+                            <strong>${activity.family}</strong> ${activity.action}
+                        </div>
+                        <div class="activity-time">${activity.time} • Score: ${activity.score}</div>
+                    </div>
+                    <div class="activity-type ${activity.type}"></div>
+                </div>
+            `).join('');
+        }
+
+        function getFilteredFamilies() {
+            let families = [...dashboardData.families];
+            
+            // Apply filters
+            const statusFilter = document.getElementById('statusFilter').value;
+            const entryYearFilter = document.getElementById('entryYearFilter').value;
+            const searchTerm = document.getElementById('searchBox').value.toLowerCase();
+            const sortBy = document.getElementById('sortFilter').value;
+            
+            // Status filter
+            if (statusFilter !== 'all') {
+                if (statusFilter === 'online') {
+                    families = families.filter(f => f.isOnline);
+                } else {
+                    families = families.filter(f => f.temperature === statusFilter);
+                }
+            }
+            
+            // Entry year filter
+            if (entryYearFilter !== 'all') {
+                families = families.filter(f => f.entry_year === entryYearFilter);
+            }
+            
+            // Search filter
+            if (searchTerm) {
+                families = families.filter(f => 
+                    `${f.first_name} ${f.family_surname}`.toLowerCase().includes(searchTerm)
+                );
+            }
+            
+            // Sort
+            switch (sortBy) {
+                case 'score':
+                    families.sort((a, b) => b.engagementScore - a.engagementScore);
+                    break;
+                case 'recent':
+                    families.sort((a, b) => new Date(b.engagement?.lastVisit || b.received_at) - new Date(a.engagement?.lastVisit || a.received_at));
+                    break;
+                case 'inquiryDate':
+                    families.sort((a, b) => new Date(b.received_at) - new Date(a.received_at));
+                    break;
+                case 'timeSpent':
+                    families.sort((a, b) => (b.engagement?.timeOnPage || 0) - (a.engagement?.timeOnPage || 0));
+                    break;
+            }
+            
+            return families;
+        }
+
+        function filterFamilies() {
+            renderFamilyCards();
+        }
+
+        function toggleFamilyCard(familyId) {
+            const card = document.querySelector(`[data-id="${familyId}"]`);
+            if (card) {
+                card.classList.toggle('expanded');
+            }
+        }
+
+        function contactFamily(familyId) {
+            // REMOVED - This is a reporting platform only
+        }
+
+        function refreshDashboard() {
+            loadDashboardData();
+        }
+
+        function startAutoRefresh() {
+            stopAutoRefresh();
+            autoRefreshInterval = setInterval(() => {
+                if (document.getElementById('autoRefresh').checked) {
+                    loadDashboardData();
+                }
+            }, 30000); // Refresh every 30 seconds
+        }
+
+        function stopAutoRefresh() {
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+                autoRefreshInterval = null;
+            }
+        }
+
+        function showError(message) {
+            console.error(message);
+            // Could add toast notification here
+        }
+        
+        
+
+        // Replace the triggerAIAnalysis function in your dashboard.html file
+
+// AI Analysis Functions
+async function triggerAIAnalysis() {
+    const aiStatusElement = document.getElementById('aiStatus');
+    const buttonElement = document.querySelector('.refresh-btn[onclick="triggerAIAnalysis()"]');
+    
+    if (aiStatusElement) aiStatusElement.style.display = 'flex';
+    if (buttonElement) buttonElement.disabled = true;
+    
+    try {
+        console.log('🤖 Starting AI analysis...');
+        
+        // Call your AI analysis endpoint
+        const response = await fetch('/api/ai/analyze-all-families', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            console.log('✅ AI Analysis completed:', result);
+            
+            // Refresh dashboard data after AI analysis
+            await loadDashboardData();
+            
+            // Show success message
+            if (result.success) {
+                alert(`✅ AI Analysis completed successfully!\n\nAnalyzed: ${result.results.analyzed}/${result.results.total} families`);
+            } else {
+                alert('⚠️ AI Analysis completed with some errors. Check console for details.');
+            }
+        } else {
+            const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+            throw new Error(`AI Analysis failed: ${errorData.error || response.statusText}`);
+        }
+    } catch (error) {
+        console.error('❌ AI Analysis error:', error);
+        alert(`❌ AI Analysis failed: ${error.message}\n\nPlease try again or contact support.`);
+    } finally {
+        if (aiStatusElement) aiStatusElement.style.display = 'none';
+        if (buttonElement) buttonElement.disabled = false;
     }
-
-    // ---------- Data fetch ----------
-    async function fetchJson(url, timeoutMs = 20000) {
-      const ctrl = new AbortController();
-      const t = setTimeout(() => ctrl.abort(), timeoutMs);
-      try {
-        const res = await fetch(url, { signal: ctrl.signal, headers: { 'Accept':'application/json' }});
-        if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-        return await res.json();
-      } finally { clearTimeout(t); }
-    }
-
-    async function loadAll() {
-      $('errorBar').style.display = 'none';
-      setText('lastUpdated', 'Loading…');
-
-      let dash = null, raw = null, dashErr = null, rawErr = null;
-
-      await Promise.allSettled([
-        fetchJson('/api/dashboard-data').then(j => dash = j).catch(e => dashErr = e),
-        fetchJson('/api/analytics/inquiries').then(j => raw = j).catch(e => rawErr = e)
-      ]);
-
-      if (dashErr) showError('Failed to load /api/dashboard-data: ' + dashErr.message);
-      if (rawErr)  showError('Failed to load /api/analytics/inquiries: ' + rawErr.message);
-
-      try { renderDashboard(dash || {}); }
-      catch (e) { showError('Dashboard render error: ' + e.message); }
-
-      try { renderRaw(raw || []); }
-      catch (e) { showError('Raw inquiries render error: ' + e.message); }
-
-      setText('lastUpdated', 'Updated: ' + new Date().toLocaleString('en-GB', { hour12:false }));
-    }
-
-    // ---------- Renderers ----------
-    function renderDashboard(data) {
-      // KPI summary – be tolerant to old/next schemas
-      const summary = data.summary || data.metrics || {};
-      const ready        = summary.readyForContact ?? 0;
-      const engaged      = summary.highlyEngaged ?? 0;
-      const new7d        = (summary.newInquiries ?? summary.newInquiries7d) ?? 0;
-      const total        = summary.totalFamilies ?? 0;
-
-      setText('statReady', ready);
-      setText('statEngaged', engaged);
-      setText('statNew', new7d);
-      setText('statTotal', total);
-
-      // Latest prospectuses
-      const lp = Array.isArray(data.latestProspectuses) ? data.latestProspectuses : [];
-      const lpBody = $('latestProspectusesBody');
-      if (!lp.length) {
-        lpBody.innerHTML = `<tr><td colspan="4" class="muted">No prospectuses yet</td></tr>`;
-      } else {
-        lpBody.innerHTML = lp.map(r => {
-          const pretty = r.prospectusPrettyUrl || r.prettyUrl || null;
-          const direct = r.prospectusDirectUrl || r.directUrl || null;
-          return `<tr>
-            <td>${esc(r.name || '')}</td>
-            <td>${fmtDateTime(r.generatedAt)}</td>
-            <td>${link(pretty, 'Open pretty link')}</td>
-            <td>${link(direct, 'Open direct file')}</td>
-          </tr>`;
-        }).join('');
-      }
-
-      // Recently Active
-      const recent = (data.recentlyActive || []).map(r => ({
-        name: r.name,
-        activity: r.activity,
-        when: r.when || r.timestamp
-      }));
-      const recentBody = $('recentBody');
-      if (!recent.length) {
-        recentBody.innerHTML = `<tr><td colspan="3" class="muted">No recent activity yet</td></tr>`;
-      } else {
-        recentBody.innerHTML = recent.map(r => `<tr>
-          <td>${esc(r.name || '—')}</td>
-          <td>${esc(r.activity || '—')}</td>
-          <td>${fmtDateTime(r.when)}</td>
-        </tr>`).join('');
-      }
-
-      // Priority Families – derive a score if not provided
-      const pfBody = $('priorityBody');
-      const pf = (data.priorityFamilies || []).map(p => {
-        const score = (typeof p.engagementScore === 'number')
-          ? p.engagementScore
-          : Math.min(100, Math.round((Number(p.timeOnPage||0)/600)*70 + (Number(p.totalVisits||0)*10)));
-        return { ...p, engagementScore: score };
-      });
-      if (!pf.length) {
-        pfBody.innerHTML = `<tr><td colspan="4" class="muted">No priority families yet</td></tr>`;
-      } else {
-        pfBody.innerHTML = pf.map(p => `<tr>
-          <td>${esc(p.name || '—')}</td>
-          <td>${esc(p.ageGroup || '—')}</td>
-          <td>${esc(p.entryYear || '—')}</td>
-          <td class="right"><span class="pill">${p.engagementScore || 0}/100</span></td>
-        </tr>`).join('');
-      }
-
-      // Top Interests
-      const interests = data.topInterests || (data.analytics && data.analytics.topInterests) || [];
-      const intBody = $('interestsBody');
-      if (!interests.length) {
-        intBody.innerHTML = `<tr><td colspan="2" class="muted">No interests recorded yet</td></tr>`;
-      } else {
-        intBody.innerHTML = interests.map(t => `<tr>
-          <td>${esc(t.subject)}</td>
-          <td class="right">${Number(t.count||0)}</td>
-        </tr>`).join('');
-      }
-    }
-
-    function renderRaw(list) {
-      // list is an array of inquiry objects from /api/analytics/inquiries
-      const body = $('rawBody');
-      if (!Array.isArray(list) || !list.length) {
-        body.innerHTML = `<tr><td colspan="7" class="muted">No inquiries yet</td></tr>`;
-        return;
-      }
-      body.innerHTML = list.map(i => {
-        const name = `${i.first_name||''} ${i.family_surname||''}`.trim() || '—';
-        const pretty = i.prospectus_pretty_url;
-        const direct = i.prospectus_direct_url;
-        const links = (pretty || direct)
-          ? [link(pretty, 'Pretty'), link(direct, 'Direct')].join(' · ')
-          : '<span class="muted">—</span>';
-        return `<tr>
-          <td>${esc(name)}</td>
-          <td>${esc(i.parent_email || '—')}</td>
-          <td>${esc(i.age_group || '—')}</td>
-          <td>${esc(i.entry_year || '—')}</td>
-          <td>${esc(i.status || '—')}</td>
-          <td>${fmtDateTime(i.received_at)}</td>
-          <td>${links}</td>
-        </tr>`;
-      }).join('');
-    }
-
-    // ---------- Init ----------
-    $('refreshBtn').addEventListener('click', () => loadAll());
-    loadAll();
-  </script>
+}
+    </script>
 </body>
 </html>
