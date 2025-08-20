@@ -1723,6 +1723,204 @@ app.get('/', (req, res) => {
 </body></html>`);
 });
 
+// Add these endpoints to your server.js file
+
+// 📊 Dashboard Data Endpoint
+app.get('/api/dashboard-data', async (req, res) => {
+  try {
+    console.log('📊 Dashboard data request received...');
+    
+    if (db) {
+      // Get basic counts from database
+      const totalFamilies = (await db.query('SELECT COUNT(*) as count FROM inquiries')).rows[0].count;
+      const newInquiries7d = (await db.query(`
+        SELECT COUNT(*) as count FROM inquiries 
+        WHERE received_at >= NOW() - INTERVAL '7 days'
+      `)).rows[0].count;
+      
+      // Calculate engagement metrics
+      const hotLeads = (await db.query(`
+        SELECT COUNT(DISTINCT inquiry_id) as count 
+        FROM engagement_metrics 
+        WHERE time_on_page > 600 AND scroll_depth > 80
+      `)).rows[0].count || 0;
+      
+      const warmLeads = (await db.query(`
+        SELECT COUNT(DISTINCT inquiry_id) as count 
+        FROM engagement_metrics 
+        WHERE time_on_page > 300 AND scroll_depth > 50
+        AND inquiry_id NOT IN (
+          SELECT DISTINCT inquiry_id FROM engagement_metrics 
+          WHERE time_on_page > 600 AND scroll_depth > 80
+        )
+      `)).rows[0].count || 0;
+      
+      // Average engagement time
+      const avgTime = (await db.query(`
+        SELECT AVG(time_on_page) as avg_time 
+        FROM engagement_metrics WHERE time_on_page > 0
+      `)).rows[0].avg_time || 0;
+      
+      // Recent activity
+      const recentActivity = (await db.query(`
+        SELECT DISTINCT ON (te.inquiry_id) 
+               te.inquiry_id, te.event_type, te.timestamp,
+               i.first_name, i.family_surname
+        FROM tracking_events te
+        JOIN inquiries i ON i.id = te.inquiry_id
+        WHERE te.timestamp >= NOW() - INTERVAL '24 hours'
+        ORDER BY te.inquiry_id, te.timestamp DESC
+        LIMIT 10
+      `)).rows.map(r => ({
+        name: `${r.first_name} ${r.family_surname}`,
+        inquiryId: r.inquiry_id,
+        activity: r.event_type,
+        when: r.timestamp
+      }));
+      
+      res.json({
+        summary: {
+          hotLeads,
+          warmLeads,
+          totalFamilies: parseInt(totalFamilies),
+          avgEngagement: Math.round(avgTime / 60), // Convert to minutes
+          readyForContact: hotLeads + warmLeads,
+          newInquiries7d: parseInt(newInquiries7d)
+        },
+        recentlyActive: recentActivity,
+        topInterests: [], // Add if needed
+        priorityFamilies: [], // Add if needed  
+        latestProspectuses: [] // Add if needed
+      });
+      
+    } else {
+      // JSON fallback
+      const files = await fs.readdir(path.join(__dirname, 'data')).catch(() => []);
+      const totalFamilies = files.filter(x => x.startsWith('inquiry-') && x.endsWith('.json')).length;
+      
+      res.json({
+        summary: {
+          hotLeads: 0,
+          warmLeads: 0,
+          totalFamilies,
+          avgEngagement: 0,
+          readyForContact: 0,
+          newInquiries7d: 0
+        },
+        recentlyActive: [],
+        topInterests: [],
+        priorityFamilies: [],
+        latestProspectuses: []
+      });
+    }
+    
+  } catch (error) {
+    console.error('❌ Dashboard data error:', error);
+    res.status(500).json({ error: 'Failed to get dashboard data' });
+  }
+});
+
+// 📋 Analytics Inquiries Endpoint
+app.get('/api/analytics/inquiries', async (req, res) => {
+  try {
+    console.log('📋 Analytics inquiries request...');
+    const base = getBaseUrl(req);
+    
+    if (db) {
+      // Get all inquiries with engagement data
+      const inquiries = await db.query(`
+        SELECT 
+          i.id, i.first_name, i.family_surname, i.parent_email,
+          i.entry_year, i.age_group, i.received_at, i.status,
+          i.prospectus_filename, i.prospectus_url, i.slug,
+          i.sciences, i.mathematics, i.english, i.languages,
+          i.humanities, i.business, i.drama, i.music, i.art,
+          i.sport, i.leadership, i.community_service,
+          em.time_on_page, em.scroll_depth, em.clicks_on_links,
+          em.total_visits, em.last_visit
+        FROM inquiries i
+        LEFT JOIN engagement_metrics em ON i.id = em.inquiry_id
+        ORDER BY i.received_at DESC
+      `);
+      
+      const processed = inquiries.rows.map(row => ({
+        id: row.id,
+        first_name: row.first_name,
+        family_surname: row.family_surname,
+        parent_email: row.parent_email,
+        entry_year: row.entry_year,
+        age_group: row.age_group,
+        received_at: row.received_at,
+        status: row.status,
+        prospectus_filename: row.prospectus_filename,
+        prospectus_url: row.prospectus_url,
+        prospectus_pretty_url: row.slug ? `${base}/${row.slug}` : null,
+        prospectus_direct_url: row.prospectus_url ? `${base}${row.prospectus_url}` : null,
+        slug: row.slug,
+        
+        // Interest fields
+        sciences: row.sciences,
+        mathematics: row.mathematics,
+        english: row.english,
+        languages: row.languages,
+        humanities: row.humanities,
+        business: row.business,
+        drama: row.drama,
+        music: row.music,
+        art: row.art,
+        sport: row.sport,
+        leadership: row.leadership,
+        community_service: row.community_service,
+        
+        // Engagement data
+        engagement: row.time_on_page ? {
+          timeOnPage: row.time_on_page,
+          scrollDepth: row.scroll_depth,
+          clickCount: row.clicks_on_links,
+          totalVisits: row.total_visits,
+          lastVisit: row.last_visit
+        } : null
+      }));
+      
+      res.json(processed);
+      
+    } else {
+      // JSON fallback
+      const files = await fs.readdir(path.join(__dirname, 'data'));
+      const inquiries = [];
+      
+      for (const f of files.filter(x => x.startsWith('inquiry-') && x.endsWith('.json'))) {
+        try {
+          const j = JSON.parse(await fs.readFile(path.join(__dirname, 'data', f), 'utf8'));
+          inquiries.push({
+            id: j.id,
+            first_name: j.firstName,
+            family_surname: j.familySurname,
+            parent_email: j.parentEmail,
+            entry_year: j.entryYear,
+            age_group: j.ageGroup,
+            received_at: j.receivedAt,
+            status: j.status || 'received',
+            prospectus_filename: j.prospectusFilename,
+            prospectus_url: j.prospectusUrl,
+            prospectus_pretty_url: j.slug ? `${base}/${j.slug}` : null,
+            slug: j.slug,
+            engagement: null // No engagement data in JSON mode
+          });
+        } catch (e) {
+          console.error(`Error reading ${f}:`, e.message);
+        }
+      }
+      
+      res.json(inquiries);
+    }
+    
+  } catch (error) {
+    console.error('❌ Analytics inquiries error:', error);
+    res.status(500).json({ error: 'Failed to get inquiries' });
+  }
+});
+
 // ────────────────────────────────────────────────────────────────────────────────
 // 🔧 ENHANCED PRETTY URL HANDLER (Replace your existing /:slug route)
 // ────────────────────────────────────────────────────────────────────────────────
