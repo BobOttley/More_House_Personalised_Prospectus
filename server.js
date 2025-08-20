@@ -1289,27 +1289,87 @@ app.get('/api/analytics/inquiries', async (req, res) => {
 
 app.post('/api/ai/analyze-all-families', async (req, res) => {
   try {
-    console.log('Starting AI analysis for all families...');
+    console.log('🤖 Starting AI analysis for all families...');
     
-    const files = await fs.readdir(path.join(__dirname, 'data'));
-    const inquiries = [];
-    
-    for (const f of files.filter(x => x.startsWith('inquiry-') && x.endsWith('.json'))) {
+    let inquiries = [];
+
+    // 🎯 PRIORITY 1: Read from DATABASE first if connected
+    if (db) {
       try {
-        const j = JSON.parse(await fs.readFile(path.join(__dirname, 'data', f), 'utf8'));
-        inquiries.push(j);
-      } catch (fileError) {
-        console.warn(`Failed to read ${f}:`, fileError.message);
+        console.log('📊 Reading inquiries from DATABASE for AI analysis...');
+        const result = await db.query(`
+          SELECT id, first_name, family_surname, parent_email, age_group, entry_year,
+                 sciences, mathematics, english, languages, humanities, business,
+                 drama, music, art, creative_writing, sport, leadership, 
+                 community_service, outdoor_education, academic_excellence, 
+                 pastoral_care, university_preparation, personal_development, 
+                 career_guidance, extracurricular_opportunities,
+                 received_at, status
+          FROM inquiries 
+          ORDER BY received_at DESC
+        `);
+        
+        inquiries = result.rows.map(row => ({
+          id: row.id,
+          firstName: row.first_name,
+          familySurname: row.family_surname,
+          parentEmail: row.parent_email,
+          ageGroup: row.age_group,
+          entryYear: row.entry_year,
+          receivedAt: row.received_at,
+          status: row.status,
+          sciences: row.sciences,
+          mathematics: row.mathematics,
+          english: row.english,
+          languages: row.languages,
+          humanities: row.humanities,
+          business: row.business,
+          drama: row.drama,
+          music: row.music,
+          art: row.art,
+          creative_writing: row.creative_writing,
+          sport: row.sport,
+          leadership: row.leadership,
+          community_service: row.community_service,
+          outdoor_education: row.outdoor_education,
+          academic_excellence: row.academic_excellence,
+          pastoral_care: row.pastoral_care,
+          university_preparation: row.university_preparation,
+          personal_development: row.personal_development,
+          career_guidance: row.career_guidance,
+          extracurricular_opportunities: row.extracurricular_opportunities
+        }));
+        
+        console.log(`✅ Loaded ${inquiries.length} inquiries from DATABASE for AI analysis`);
+        
+      } catch (dbError) {
+        console.warn('⚠️ Database read failed for AI analysis, falling back to JSON:', dbError.message);
       }
     }
 
-    console.log(`Found ${inquiries.length} families to analyze`);
+    // 🎯 FALLBACK: Only try JSON files if database failed or empty
+    if (inquiries.length === 0) {
+      console.log('📁 Falling back to JSON files for AI analysis...');
+      const files = await fs.readdir(path.join(__dirname, 'data'));
+      
+      for (const f of files.filter(x => x.startsWith('inquiry-') && x.endsWith('.json'))) {
+        try {
+          const j = JSON.parse(await fs.readFile(path.join(__dirname, 'data', f), 'utf8'));
+          inquiries.push(j);
+        } catch (fileError) {
+          console.warn(`Failed to read ${f}:`, fileError.message);
+        }
+      }
+      console.log(`📁 Loaded ${inquiries.length} inquiries from JSON files`);
+    }
+
+    console.log(`📊 Found ${inquiries.length} families to analyze`);
     
     if (inquiries.length === 0) {
       return res.json({
         success: true,
         message: 'No families found to analyze',
-        results: { total: 0, analyzed: 0, errors: 0 },
+        results: { total: 0, analyzed: 0, errors: 0, successRate: 0 },
         details: []
       });
     }
@@ -1320,7 +1380,7 @@ app.post('/api/ai/analyze-all-families', async (req, res) => {
 
     for (const inquiry of inquiries) {
       try {
-        console.log(`Processing ${inquiry.firstName} ${inquiry.familySurname} (${inquiry.id})`);
+        console.log(`🔍 Processing ${inquiry.firstName} ${inquiry.familySurname} (${inquiry.id})`);
         
         let engagementData = null;
         if (db) {
@@ -1367,9 +1427,9 @@ app.post('/api/ai/analyze-all-families', async (req, res) => {
                 analysis.leadTemperature
               ]);
               
-              console.log(`Stored analysis for ${inquiry.id} in database`);
+              console.log(`💾 Stored analysis for ${inquiry.id} in database`);
             } catch (dbError) {
-              console.warn(`DB insert failed for ${inquiry.id}:`, dbError.message);
+              console.warn(`⚠️ DB insert failed for ${inquiry.id}:`, dbError.message);
             }
           }
 
@@ -1382,11 +1442,11 @@ app.post('/api/ai/analyze-all-families', async (req, res) => {
             confidence: analysis.confidence_score
           });
           
-          console.log(`Analysis completed for ${inquiry.firstName} ${inquiry.familySurname} (score: ${analysis.leadScore})`);
+          console.log(`✅ Analysis completed for ${inquiry.firstName} ${inquiry.familySurname} (score: ${analysis.leadScore})`);
         }
         
       } catch (error) {
-        console.error(`Analysis failed for ${inquiry.id}:`, error.message);
+        console.error(`❌ Analysis failed for ${inquiry.id}:`, error.message);
         errors.push({ 
           inquiryId: inquiry.id, 
           name: `${inquiry.firstName || ''} ${inquiry.familySurname || ''}`.trim(),
@@ -1395,7 +1455,7 @@ app.post('/api/ai/analyze-all-families', async (req, res) => {
       }
     }
 
-    console.log(`AI analysis complete: ${analysisCount}/${inquiries.length} successful`);
+    console.log(`🎯 AI analysis complete: ${analysisCount}/${inquiries.length} successful`);
     
     const response = {
       success: true,
@@ -1413,12 +1473,12 @@ app.post('/api/ai/analyze-all-families', async (req, res) => {
     res.json(response);
 
   } catch (error) {
-    console.error('Batch AI analysis error:', error);
+    console.error('❌ Batch AI analysis error:', error);
     res.status(500).json({
       success: false,
       error: 'AI analysis failed',
       message: error.message,
-      results: { total: 0, analyzed: 0, errors: 1 }
+      results: { total: 0, analyzed: 0, errors: 1, successRate: 0 }
     });
   }
 });
