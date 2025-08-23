@@ -433,52 +433,66 @@
         /* AI Insights Section */
         .ai-insights-section {
             background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
-            border-radius: 8px;
-            padding: 1rem;
-            margin-top: 1rem;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-top: 1.5rem;
             border: 1px solid #bfdbfe;
         }
 
         .ai-insights-header {
             display: flex;
             align-items: center;
-            gap: 0.5rem;
-            margin-bottom: 0.75rem;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #bfdbfe;
         }
 
         .ai-badge {
             background: linear-gradient(135deg, var(--award-gold), #FFB84D);
             color: var(--blazer-navy);
-            padding: 0.25rem 0.5rem;
-            border-radius: 6px;
-            font-size: 0.75rem;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-size: 0.8rem;
             font-weight: 700;
             text-transform: uppercase;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
 
         .ai-confidence {
             color: #64748b;
-            font-size: 0.75rem;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .ai-summary-section, .ai-engagement-section, 
+        .ai-student-section, .ai-priorities-section {
+            margin-bottom: 1rem;
         }
 
         .ai-insights-content {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 1rem;
+            margin-top: 1rem;
         }
 
         .ai-insight-item {
             background: white;
-            padding: 0.75rem;
-            border-radius: 6px;
+            padding: 1rem;
+            border-radius: 8px;
             border: 1px solid var(--border-grey);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         }
 
         .ai-insight-item h5 {
             color: var(--sport-blue);
-            font-size: 0.8rem;
-            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+            margin-bottom: 0.75rem;
             font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
         }
 
         .ai-insight-item ul {
@@ -488,11 +502,12 @@
         }
 
         .ai-insight-item li {
-            font-size: 0.75rem;
+            font-size: 0.8rem;
             color: #475569;
-            margin-bottom: 0.25rem;
+            margin-bottom: 0.5rem;
             padding-left: 1rem;
             position: relative;
+            line-height: 1.4;
         }
 
         .ai-insight-item li:before {
@@ -500,6 +515,7 @@
             position: absolute;
             left: 0;
             color: var(--award-gold);
+            font-weight: bold;
         }
 
         /* Prospectus Link */
@@ -984,7 +1000,7 @@
                                      family.prospectus_pretty_path ? `${baseUrl}${family.prospectus_pretty_path}` :
                                      family.slug ? `${baseUrl}/${family.slug}` : null;
                 
-                console.log(`👪 ${family.first_name} ${family.family_surname}:`, {
+                console.log(`💪 ${family.first_name} ${family.family_surname}:`, {
                     engagement: engagementScore,
                     aiScore: aiScore,
                     hasAI: hasAI,
@@ -1211,52 +1227,223 @@
                 let aiInsightsHTML = '';
                 if (family.hasAIAnalysis && family.aiInsights) {
                     const ai = family.aiInsights;
+                    const insights = ai.insights || {};
+                    
                     aiInsightsHTML = `
                         <div class="ai-insights-section">
                             <div class="ai-insights-header">
-                                <span class="ai-badge">AI ANALYZED</span>
+                                <span class="ai-badge">🤖 SMART AI ANALYSIS</span>
                                 <span class="ai-confidence">Confidence: ${Math.round((ai.confidence || 0) * 100)}%</span>
                                 <span style="margin-left: auto; font-weight: 600; color: var(--blazer-navy);">
-                                    AI Score: ${ai.leadScore}/100
+                                    🎯 AI Score: ${ai.leadScore}/100 • ${ai.temperature?.toUpperCase() || 'WARM'} LEAD
                                 </span>
                             </div>
+                            
+                            <!-- AI Summary -->
+                            ${insights.summary ? `
+                                <div class="ai-summary-section">
+                                    <h4 style="color: var(--blazer-navy); margin-bottom: 0.5rem; font-size: 1rem;">
+                                        📊 AI Summary
+                                    </h4>
+                                    <p style="background: #f8fafc; padding: 1rem; border-radius: 8px; margin: 0; font-size: 0.9rem; line-height: 1.4;">
+                                        ${insights.summary}
+                                    </p>
+                                </div>
+                            ` : ''}
+                            
+                            <!-- Engagement Analysis -->
+                            ${insights.engagementPatterns ? `
+                                <div class="ai-engagement-section">
+                                    <h4 style="color: var(--sport-blue); margin: 1rem 0 0.5rem 0; font-size: 1rem;">
+                                        🔍 What They Actually Did
+                                    </h4>
+                                    <div style="background: #f0f9ff; padding: 1rem; border-radius: 8px; font-size: 0.9rem;">
+                                        ${insights.engagementPatterns}
+                                    </div>
+                                </div>
+                            ` : ''}
+                            
+                            <!-- Student Profile -->
+                            ${insights.studentProfile ? `
+                                <div class="ai-student-section">
+                                    <h4 style="color: var(--award-gold); margin: 1rem 0 0.5rem 0; font-size: 1rem;">
+                                        👤 Student Profile Analysis
+                                    </h4>
+                                    <div style="background: #fffbeb; padding: 1rem; border-radius: 8px; font-size: 0.9rem;">
+                                        ${insights.studentProfile}
+                                    </div>
+                                </div>
+                            ` : ''}
+                            
+                            <!-- Family Priorities -->
+                            ${insights.familyPriorities ? `
+                                <div class="ai-priorities-section">
+                                    <h4 style="color: var(--hot-lead); margin: 1rem 0 0.5rem 0; font-size: 1rem;">
+                                        🎯 Family Priorities & Interests
+                                    </h4>
+                                    <div style="background: #fef2f2; padding: 1rem; border-radius: 8px; font-size: 0.9rem;">
+                                        ${insights.familyPriorities}
+                                    </div>
+                                </div>
+                            ` : ''}
+                            
                             <div class="ai-insights-content">
+                                <!-- Conversation Starters -->
                                 ${ai.conversationStarters && ai.conversationStarters.length > 0 ? `
-                                    <div class="ai-insight-item">
-                                        <h5>Conversation Starters</h5>
-                                        <ul>
-                                            ${ai.conversationStarters.slice(0, 2).map(starter => 
-                                                `<li>${starter}</li>`
+                                    <div class="ai-insight-item" style="grid-column: span 2;">
+                                        <h5>💬 Conversation Starters</h5>
+                                        <ul style="margin: 0; padding: 0; list-style: none;">
+                                            ${ai.conversationStarters.map(starter => 
+                                                `<li style="margin-bottom: 0.5rem; padding: 0.5rem; background: #f8fafc; border-radius: 6px; font-size: 0.85rem;">"${starter}"</li>`
                                             ).join('')}
                                         </ul>
                                     </div>
                                 ` : ''}
+                                
+                                <!-- Next Actions -->
                                 ${ai.nextActions && ai.nextActions.length > 0 ? `
                                     <div class="ai-insight-item">
-                                        <h5>Recommended Actions</h5>
+                                        <h5>⚡ Recommended Actions</h5>
                                         <ul>
-                                            ${ai.nextActions.slice(0, 2).map(action => 
+                                            ${ai.nextActions.map(action => 
                                                 `<li>${action}</li>`
                                             ).join('')}
                                         </ul>
                                     </div>
                                 ` : ''}
-                                ${ai.insights && ai.insights.studentProfile ? `
+                                
+                                <!-- Selling Points -->
+                                ${ai.sellingPoints && ai.sellingPoints.length > 0 ? `
                                     <div class="ai-insight-item">
-                                        <h5>Student Profile</h5>
-                                        <p style="font-size: 0.75rem; color: #475569; margin: 0;">
-                                            ${ai.insights.studentProfile}
-                                        </p>
+                                        <h5>🎯 Key Selling Points</h5>
+                                        <ul>
+                                            ${ai.sellingPoints.map(point => 
+                                                `<li>${point}</li>`
+                                            ).join('')}
+                                        </ul>
                                     </div>
                                 ` : ''}
-                                ${ai.insights && ai.insights.recommendedApproach ? `
-                                    <div class="ai-insight-item">
-                                        <h5>Approach Strategy</h5>
-                                        <p style="font-size: 0.75rem; color: #475569; margin: 0;">
-                                            ${ai.insights.recommendedApproach}
-                                        </p>
+                                
+                                <!-- Approach Strategy -->
+                                ${insights.recommendedApproach ? `
+                                    <div class="ai-insight-item" style="grid-column: span 2;">
+                                        <h5>🎯 Recommended Approach Strategy</h5>
+                                        <div style="background: #f0f9ff; padding: 0.75rem; border-radius: 6px; font-size: 0.85rem;">
+                                            ${insights.recommendedApproach}
+                                        </div>
                                     </div>
                                 ` : ''}
+                                
+                                <!-- Urgency & Timeline -->
+                                <div class="ai-insight-item">
+                                    <h5>⏰ Urgency & Timeline</h5>
+                                    <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                                            <span style="font-size: 0.8rem; color: #64748b;">Urgency Level:</span>
+                                            <span style="font-weight: 600; color: var(--${ai.temperature === 'hot' ? 'hot-lead' : ai.temperature === 'warm' ? 'warm-lead' : 'cold-lead'});">
+                                                ${(ai.urgencyLevel || 'Medium').toUpperCase()}
+                                            </span>
+                                        </div>
+                                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                                            <span style="font-size: 0.8rem; color: #64748b;">Temperature:</span>
+                                            <span style="font-weight: 600; color: var(--${ai.temperature === 'hot' ? 'hot-lead' : ai.temperature === 'warm' ? 'warm-lead' : 'cold-lead'});">
+                                                ${(ai.temperature || 'Warm').toUpperCase()}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- AI Confidence Breakdown -->
+                                <div class="ai-insight-item">
+                                    <h5>🎯 AI Confidence</h5>
+                                    <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                                        <div style="background: #f1f5f9; padding: 0.5rem; border-radius: 4px;">
+                                            <div style="font-size: 0.75rem; color: #64748b; margin-bottom: 0.25rem;">Analysis Confidence</div>
+                                            <div style="background: #e2e8f0; height: 8px; border-radius: 4px; overflow: hidden;">
+                                                <div style="background: var(--award-gold); height: 100%; width: ${Math.round((ai.confidence || 0) * 100)}%; transition: width 0.3s;"></div>
+                                            </div>
+                                            <div style="font-size: 0.75rem; color: var(--blazer-navy); font-weight: 600; margin-top: 0.25rem;">
+                                                ${Math.round((ai.confidence || 0) * 100)}% Confident
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;8fafc; border-radius: 6px; font-size: 0.85rem;">"${starter}"</li>`
+                                            ).join('')}
+                                        </ul>
+                                    </div>
+                                ` : ''}
+                                
+                                <!-- Next Actions -->
+                                ${ai.nextActions && ai.nextActions.length > 0 ? `
+                                    <div class="ai-insight-item">
+                                        <h5>⚡ Recommended Actions</h5>
+                                        <ul>
+                                            ${ai.nextActions.map(action => 
+                                                `<li>${action}</li>`
+                                            ).join('')}
+                                        </ul>
+                                    </div>
+                                ` : ''}
+                                
+                                <!-- Selling Points -->
+                                ${ai.sellingPoints && ai.sellingPoints.length > 0 ? `
+                                    <div class="ai-insight-item">
+                                        <h5>🎯 Key Selling Points</h5>
+                                        <ul>
+                                            ${ai.sellingPoints.map(point => 
+                                                `<li>${point}</li>`
+                                            ).join('')}
+                                        </ul>
+                                    </div>
+                                ` : ''}
+                                
+                                <!-- Approach Strategy -->
+                                ${insights.recommendedApproach ? `
+                                    <div class="ai-insight-item" style="grid-column: span 2;">
+                                        <h5>🎯 Recommended Approach Strategy</h5>
+                                        <div style="background: #f0f9ff; padding: 0.75rem; border-radius: 6px; font-size: 0.85rem;">
+                                            ${insights.recommendedApproach}
+                                        </div>
+                                    </div>
+                                ` : ''}
+                                
+                                <!-- Urgency & Timeline -->
+                                <div class="ai-insight-item">
+                                    <h5>⏰ Urgency & Timeline</h5>
+                                    <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                                            <span style="font-size: 0.8rem; color: #64748b;">Urgency Level:</span>
+                                            <span style="font-weight: 600; color: var(--${ai.temperature === 'hot' ? 'hot-lead' : ai.temperature === 'warm' ? 'warm-lead' : 'cold-lead'});">
+                                                ${(ai.urgencyLevel || 'Medium').toUpperCase()}
+                                            </span>
+                                        </div>
+                                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                                            <span style="font-size: 0.8rem; color: #64748b;">Temperature:</span>
+                                            <span style="font-weight: 600; color: var(--${ai.temperature === 'hot' ? 'hot-lead' : ai.temperature === 'warm' ? 'warm-lead' : 'cold-lead'});">
+                                                ${(ai.temperature || 'Warm').toUpperCase()}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- AI Confidence Breakdown -->
+                                <div class="ai-insight-item">
+                                    <h5>🎯 AI Confidence</h5>
+                                    <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                                        <div style="background: #f1f5f9; padding: 0.5rem; border-radius: 4px;">
+                                            <div style="font-size: 0.75rem; color: #64748b; margin-bottom: 0.25rem;">Analysis Confidence</div>
+                                            <div style="background: #e2e8f0; height: 8px; border-radius: 4px; overflow: hidden;">
+                                                <div style="background: var(--award-gold); height: 100%; width: ${Math.round((ai.confidence || 0) * 100)}%; transition: width 0.3s;"></div>
+                                            </div>
+                                            <div style="font-size: 0.75rem; color: var(--blazer-navy); font-weight: 600; margin-top: 0.25rem;">
+                                                ${Math.round((ai.confidence || 0) * 100)}% Confident
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     `;
