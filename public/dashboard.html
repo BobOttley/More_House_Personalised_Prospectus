@@ -386,7 +386,7 @@
         }
 
         .family-card.expanded .family-card-details {
-            max-height: 800px;
+            max-height: 1200px;
         }
 
         .family-details-content {
@@ -871,7 +871,6 @@
         </div>
     </main>
 
-    
     <script>
         // Dashboard State
         let dashboardData = {
@@ -885,22 +884,18 @@
 
         // Initialize Dashboard
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('🚀 Dashboard initializing...');
+            console.log('Dashboard initializing...');
             loadDashboardData();
             setupEventListeners();
             startAutoRefresh();
         });
 
         function setupEventListeners() {
-            // Search functionality
             document.getElementById('searchBox').addEventListener('input', filterFamilies);
-            
-            // Filter dropdowns
             document.getElementById('sortFilter').addEventListener('change', filterFamilies);
             document.getElementById('statusFilter').addEventListener('change', filterFamilies);
             document.getElementById('entryYearFilter').addEventListener('change', filterFamilies);
             
-            // Auto-refresh toggle
             document.getElementById('autoRefresh').addEventListener('change', function() {
                 if (this.checked) {
                     startAutoRefresh();
@@ -915,52 +910,46 @@
             isRefreshing = true;
             
             try {
-                console.log('📡 Fetching real data from server...');
+                console.log('Fetching real data from server...');
                 
-                // Update refresh icon
                 document.getElementById('refreshIcon').style.animation = 'spin 1s linear infinite';
                 
-                // Fetch inquiries with AI data
                 const inquiriesResponse = await fetch('/api/analytics/inquiries');
                 if (!inquiriesResponse.ok) {
-                    throw new Error(`Inquiries API failed: ${inquiriesResponse.status} - ${inquiriesResponse.statusText}`);
+                    throw new Error('Inquiries API failed: ' + inquiriesResponse.status + ' - ' + inquiriesResponse.statusText);
                 }
                 
                 const inquiriesData = await inquiriesResponse.json();
-                console.log('✅ Raw inquiries data:', Array.isArray(inquiriesData) ? inquiriesData.length : 'object', 'families');
+                console.log('Raw inquiries data:', Array.isArray(inquiriesData) ? inquiriesData.length : 'object', 'families');
                 
-                // Get dashboard data for activities
                 let dashboardApiData = { recentlyActive: [] };
                 try {
                     const dashboardDataResponse = await fetch('/api/dashboard-data');
                     dashboardApiData = await dashboardDataResponse.json();
-                    console.log('✅ Dashboard API data received:', dashboardApiData);
+                    console.log('Dashboard API data received:', dashboardApiData);
                 } catch (e) {
-                    console.warn('⚠️ Dashboard API failed, proceeding with inquiries only');
+                    console.warn('Dashboard API failed, proceeding with inquiries only');
                 }
                 
-                // Handle both array and object responses
                 const familiesArray = Array.isArray(inquiriesData) ? inquiriesData : [inquiriesData];
                 
-                // Process the real data
                 dashboardData.families = processRealFamilyData(familiesArray);
-                dashboardData.activities = processRealActivityData(dashboardApiData?.recentlyActive || []);
+                dashboardData.activities = processRealActivityData(dashboardApiData.recentlyActive || []);
                 dashboardData.metrics = calculateRealMetrics(dashboardData.families);
                 
-                console.log('📊 Processed data:', {
+                console.log('Processed data:', {
                     families: dashboardData.families.length,
                     activities: dashboardData.activities.length,
                     aiAnalyzed: dashboardData.families.filter(f => f.hasAIAnalysis).length,
                     metrics: dashboardData.metrics
                 });
                 
-                // Update UI with real data
                 updateMetrics();
                 renderFamilyCards();
                 renderActivityFeed();
                 
             } catch (error) {
-                console.error('❌ Failed to load dashboard data:', error);
+                console.error('Failed to load dashboard data:', error);
                 showError('Failed to load real data', error.message);
             } finally {
                 isRefreshing = false;
@@ -969,38 +958,33 @@
         }
 
         function processRealFamilyData(inquiriesData) {
-            console.log('📊 Processing real family data...');
+            console.log('Processing real family data...');
             
             return inquiriesData.map(family => {
-                // Get engagement data
                 const engagement = family.engagement || {
                     timeOnPage: family.time_on_page || 0,
                     scrollDepth: family.scroll_depth || 0,
                     clickCount: family.clicks_on_links || family.click_count || 0,
                     totalVisits: family.total_visits || 1,
                     lastVisit: family.last_visit || family.received_at,
-                    engagementScore: family.engagement?.engagementScore || 25
+                    engagementScore: family.engagement ? family.engagement.engagementScore : 25
                 };
                 
-                // Get AI insights if available
                 const aiInsights = family.aiInsights || {};
                 const hasAI = aiInsights.hasAnalysis === true || aiInsights.leadScore !== null;
                 
-                // Extract interests
                 const interests = extractRealInterests(family);
                 
-                // Calculate scores
                 const engagementScore = engagement.engagementScore || calculateRealEngagementScore(engagement, family);
                 const aiScore = aiInsights.leadScore || null;
                 const finalScore = aiScore || engagementScore;
                 
-                // Get URLs - BUILD THEM CORRECTLY
                 const baseUrl = window.location.origin;
                 const prospectusUrl = family.prospectus_pretty_url || 
-                                     family.prospectus_pretty_path ? `${baseUrl}${family.prospectus_pretty_path}` :
-                                     family.slug ? `${baseUrl}/${family.slug}` : null;
+                                     (family.prospectus_pretty_path ? baseUrl + family.prospectus_pretty_path :
+                                     (family.slug ? baseUrl + '/' + family.slug : null));
                 
-                console.log(`💪 ${family.first_name} ${family.family_surname}:`, {
+                console.log(family.first_name + ' ' + family.family_surname + ':', {
                     engagement: engagementScore,
                     aiScore: aiScore,
                     hasAI: hasAI,
@@ -1008,8 +992,7 @@
                 });
                 
                 return {
-                    ...family,
-                    // Normalize naming
+                    id: family.id,
                     inquiry_id: family.id,
                     firstName: family.first_name,
                     familySurname: family.family_surname,
@@ -1018,32 +1001,28 @@
                     ageGroup: family.age_group,
                     receivedAt: family.received_at,
                     
-                    // Scores and analysis
                     engagementScore: engagementScore,
                     aiScore: aiScore,
                     finalScore: finalScore,
                     temperature: aiInsights.temperature || getTemperature(finalScore),
                     
-                    // AI data
                     hasAIAnalysis: hasAI,
                     aiInsights: hasAI ? {
                         leadScore: aiInsights.leadScore,
                         urgencyLevel: aiInsights.urgencyLevel,
                         temperature: aiInsights.temperature,
                         confidence: aiInsights.confidence,
-                        conversationStarters: aiInsights.fullInsights?.conversationStarters || [],
-                        sellingPoints: aiInsights.fullInsights?.sellingPoints || [],
-                        nextActions: aiInsights.fullInsights?.nextActions || [],
-                        insights: aiInsights.fullInsights?.insights || {}
+                        conversationStarters: (aiInsights.fullInsights && aiInsights.fullInsights.conversationStarters) || [],
+                        sellingPoints: (aiInsights.fullInsights && aiInsights.fullInsights.sellingPoints) || [],
+                        nextActions: (aiInsights.fullInsights && aiInsights.fullInsights.nextActions) || [],
+                        insights: (aiInsights.fullInsights && aiInsights.fullInsights.insights) || {}
                     } : null,
                     
-                    // Other data
                     isOnline: isCurrentlyOnline(engagement.lastVisit || engagement.lastActivity),
                     interests: interests,
                     contactReady: finalScore >= 80,
                     engagement: engagement,
-                    prospectusUrl: prospectusUrl,
-                    trackingEvents: 0
+                    prospectusUrl: prospectusUrl
                 };
             });
         }
@@ -1051,7 +1030,6 @@
         function calculateRealEngagementScore(engagement, family) {
             let score = 0;
             
-            // Time spent (40% weight)
             const timeSeconds = engagement.timeOnPage || engagement.time_on_page || 0;
             const timeMinutes = timeSeconds / 60;
             if (timeMinutes >= 30) score += 40;
@@ -1059,18 +1037,15 @@
             else if (timeMinutes >= 5) score += 20;
             else score += Math.min(timeMinutes * 4, 15);
             
-            // Content depth (30% weight)
             const scrollDepth = engagement.scrollDepth || engagement.scroll_depth || 0;
             score += Math.min(scrollDepth * 0.3, 30);
             
-            // Return visits (20% weight)
             const visits = engagement.totalVisits || engagement.total_visits || 1;
             if (visits >= 5) score += 20;
             else if (visits >= 3) score += 15;
             else if (visits >= 2) score += 10;
             else score += 5;
             
-            // Interaction quality (10% weight)
             const clicks = engagement.clickCount || engagement.clicks_on_links || engagement.click_count || 0;
             score += Math.min(clicks * 2, 10);
             
@@ -1097,7 +1072,7 @@
         function processRealActivityData(recentActivityData) {
             if (!recentActivityData || recentActivityData.length === 0) {
                 return dashboardData.families ? dashboardData.families.slice(0, 10).map(family => ({
-                    family: `${family.firstName || family.first_name} ${family.familySurname || family.family_surname}`,
+                    family: (family.firstName || family.first_name) + ' ' + (family.familySurname || family.family_surname),
                     action: 'Submitted inquiry',
                     time: formatTimeAgo(new Date(family.receivedAt || family.received_at)),
                     type: 'medium',
@@ -1128,7 +1103,7 @@
                 'youtube_video_progress': 'Watched video content'
             };
             
-            return descriptions[activityType] || `${activityType.replace(/_/g, ' ')} activity`;
+            return descriptions[activityType] || activityType.replace(/_/g, ' ') + ' activity';
         }
 
         function getActivityPriority(activityType) {
@@ -1178,9 +1153,9 @@
             const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
             
             if (diffMins < 1) return 'Just now';
-            if (diffMins < 60) return `${diffMins} min ago`;
-            if (diffHours < 24) return `${diffHours}h ago`;
-            if (diffDays < 7) return `${diffDays}d ago`;
+            if (diffMins < 60) return diffMins + ' min ago';
+            if (diffHours < 24) return diffHours + 'h ago';
+            if (diffDays < 7) return diffDays + 'd ago';
             return date.toLocaleDateString();
         }
 
@@ -1192,380 +1167,138 @@
             document.getElementById('aiAnalyzed').textContent = metrics.aiAnalyzed || 0;
             document.getElementById('totalFamilies').textContent = metrics.totalFamilies || 0;
             
-            console.log('📊 Updated metrics:', metrics);
+            console.log('Updated metrics:', metrics);
         }
 
         function renderFamilyCards() {
             const container = document.getElementById('familyCards');
             const families = getFilteredFamilies();
             
-            console.log('🎨 Rendering', families.length, 'family cards');
+            console.log('Rendering', families.length, 'family cards');
             
             if (families.length === 0) {
-                container.innerHTML = `
-                    <div class="error">
-                        <div class="error-title">No Family Data Found</div>
-                        <p>No inquiries match your current filters. Try:</p>
-                        <ul>
-                            <li>Clearing the search box</li>
-                            <li>Selecting "All Families" in filters</li>
-                            <li>Checking if families have submitted inquiries</li>
-                        </ul>
-                    </div>
-                `;
+                container.innerHTML = '<div class="error"><div class="error-title">No Family Data Found</div><p>No inquiries match your current filters.</p></div>';
                 return;
             }
             
-            container.innerHTML = families.map(family => {
+            let html = '';
+            
+            families.forEach(family => {
                 const engagement = family.engagement || {};
                 const totalTimeMinutes = Math.round((engagement.timeOnPage || engagement.time_on_page || 0) / 60);
                 const visits = engagement.totalVisits || engagement.total_visits || 1;
                 const scrollDepth = engagement.scrollDepth || engagement.scroll_depth || 0;
                 const clicks = engagement.clickCount || engagement.clicks_on_links || engagement.click_count || 0;
                 
-                // Build AI insights HTML if available
                 let aiInsightsHTML = '';
                 if (family.hasAIAnalysis && family.aiInsights) {
                     const ai = family.aiInsights;
                     const insights = ai.insights || {};
                     
-                    aiInsightsHTML = `
-                        <div class="ai-insights-section">
-                            <div class="ai-insights-header">
-                                <span class="ai-badge">🤖 SMART AI ANALYSIS</span>
-                                <span class="ai-confidence">Confidence: ${Math.round((ai.confidence || 0) * 100)}%</span>
-                                <span style="margin-left: auto; font-weight: 600; color: var(--blazer-navy);">
-                                    🎯 AI Score: ${ai.leadScore}/100 • ${ai.temperature?.toUpperCase() || 'WARM'} LEAD
-                                </span>
-                            </div>
-                            
-                            <!-- AI Summary -->
-                            ${insights.summary ? `
-                                <div class="ai-summary-section">
-                                    <h4 style="color: var(--blazer-navy); margin-bottom: 0.5rem; font-size: 1rem;">
-                                        📊 AI Summary
-                                    </h4>
-                                    <p style="background: #f8fafc; padding: 1rem; border-radius: 8px; margin: 0; font-size: 0.9rem; line-height: 1.4;">
-                                        ${insights.summary}
-                                    </p>
-                                </div>
-                            ` : ''}
-                            
-                            <!-- Engagement Analysis -->
-                            ${insights.engagementPatterns ? `
-                                <div class="ai-engagement-section">
-                                    <h4 style="color: var(--sport-blue); margin: 1rem 0 0.5rem 0; font-size: 1rem;">
-                                        🔍 What They Actually Did
-                                    </h4>
-                                    <div style="background: #f0f9ff; padding: 1rem; border-radius: 8px; font-size: 0.9rem;">
-                                        ${insights.engagementPatterns}
-                                    </div>
-                                </div>
-                            ` : ''}
-                            
-                            <!-- Student Profile -->
-                            ${insights.studentProfile ? `
-                                <div class="ai-student-section">
-                                    <h4 style="color: var(--award-gold); margin: 1rem 0 0.5rem 0; font-size: 1rem;">
-                                        👤 Student Profile Analysis
-                                    </h4>
-                                    <div style="background: #fffbeb; padding: 1rem; border-radius: 8px; font-size: 0.9rem;">
-                                        ${insights.studentProfile}
-                                    </div>
-                                </div>
-                            ` : ''}
-                            
-                            <!-- Family Priorities -->
-                            ${insights.familyPriorities ? `
-                                <div class="ai-priorities-section">
-                                    <h4 style="color: var(--hot-lead); margin: 1rem 0 0.5rem 0; font-size: 1rem;">
-                                        🎯 Family Priorities & Interests
-                                    </h4>
-                                    <div style="background: #fef2f2; padding: 1rem; border-radius: 8px; font-size: 0.9rem;">
-                                        ${insights.familyPriorities}
-                                    </div>
-                                </div>
-                            ` : ''}
-                            
-                            <div class="ai-insights-content">
-                                <!-- Conversation Starters -->
-                                ${ai.conversationStarters && ai.conversationStarters.length > 0 ? `
-                                    <div class="ai-insight-item" style="grid-column: span 2;">
-                                        <h5>💬 Conversation Starters</h5>
-                                        <ul style="margin: 0; padding: 0; list-style: none;">
-                                            ${ai.conversationStarters.map(starter => 
-                                                `<li style="margin-bottom: 0.5rem; padding: 0.5rem; background: #f8fafc; border-radius: 6px; font-size: 0.85rem;">"${starter}"</li>`
-                                            ).join('')}
-                                        </ul>
-                                    </div>
-                                ` : ''}
-                                
-                                <!-- Next Actions -->
-                                ${ai.nextActions && ai.nextActions.length > 0 ? `
-                                    <div class="ai-insight-item">
-                                        <h5>⚡ Recommended Actions</h5>
-                                        <ul>
-                                            ${ai.nextActions.map(action => 
-                                                `<li>${action}</li>`
-                                            ).join('')}
-                                        </ul>
-                                    </div>
-                                ` : ''}
-                                
-                                <!-- Selling Points -->
-                                ${ai.sellingPoints && ai.sellingPoints.length > 0 ? `
-                                    <div class="ai-insight-item">
-                                        <h5>🎯 Key Selling Points</h5>
-                                        <ul>
-                                            ${ai.sellingPoints.map(point => 
-                                                `<li>${point}</li>`
-                                            ).join('')}
-                                        </ul>
-                                    </div>
-                                ` : ''}
-                                
-                                <!-- Approach Strategy -->
-                                ${insights.recommendedApproach ? `
-                                    <div class="ai-insight-item" style="grid-column: span 2;">
-                                        <h5>🎯 Recommended Approach Strategy</h5>
-                                        <div style="background: #f0f9ff; padding: 0.75rem; border-radius: 6px; font-size: 0.85rem;">
-                                            ${insights.recommendedApproach}
-                                        </div>
-                                    </div>
-                                ` : ''}
-                                
-                                <!-- Urgency & Timeline -->
-                                <div class="ai-insight-item">
-                                    <h5>⏰ Urgency & Timeline</h5>
-                                    <div style="display: flex; flex-direction: column; gap: 0.5rem;">
-                                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                                            <span style="font-size: 0.8rem; color: #64748b;">Urgency Level:</span>
-                                            <span style="font-weight: 600; color: var(--${ai.temperature === 'hot' ? 'hot-lead' : ai.temperature === 'warm' ? 'warm-lead' : 'cold-lead'});">
-                                                ${(ai.urgencyLevel || 'Medium').toUpperCase()}
-                                            </span>
-                                        </div>
-                                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                                            <span style="font-size: 0.8rem; color: #64748b;">Temperature:</span>
-                                            <span style="font-weight: 600; color: var(--${ai.temperature === 'hot' ? 'hot-lead' : ai.temperature === 'warm' ? 'warm-lead' : 'cold-lead'});">
-                                                ${(ai.temperature || 'Warm').toUpperCase()}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <!-- AI Confidence Breakdown -->
-                                <div class="ai-insight-item">
-                                    <h5>🎯 AI Confidence</h5>
-                                    <div style="display: flex; flex-direction: column; gap: 0.5rem;">
-                                        <div style="background: #f1f5f9; padding: 0.5rem; border-radius: 4px;">
-                                            <div style="font-size: 0.75rem; color: #64748b; margin-bottom: 0.25rem;">Analysis Confidence</div>
-                                            <div style="background: #e2e8f0; height: 8px; border-radius: 4px; overflow: hidden;">
-                                                <div style="background: var(--award-gold); height: 100%; width: ${Math.round((ai.confidence || 0) * 100)}%; transition: width 0.3s;"></div>
-                                            </div>
-                                            <div style="font-size: 0.75rem; color: var(--blazer-navy); font-weight: 600; margin-top: 0.25rem;">
-                                                ${Math.round((ai.confidence || 0) * 100)}% Confident
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    `;8fafc; border-radius: 6px; font-size: 0.85rem;">"${starter}"</li>`
-                                            ).join('')}
-                                        </ul>
-                                    </div>
-                                ` : ''}
-                                
-                                <!-- Next Actions -->
-                                ${ai.nextActions && ai.nextActions.length > 0 ? `
-                                    <div class="ai-insight-item">
-                                        <h5>⚡ Recommended Actions</h5>
-                                        <ul>
-                                            ${ai.nextActions.map(action => 
-                                                `<li>${action}</li>`
-                                            ).join('')}
-                                        </ul>
-                                    </div>
-                                ` : ''}
-                                
-                                <!-- Selling Points -->
-                                ${ai.sellingPoints && ai.sellingPoints.length > 0 ? `
-                                    <div class="ai-insight-item">
-                                        <h5>🎯 Key Selling Points</h5>
-                                        <ul>
-                                            ${ai.sellingPoints.map(point => 
-                                                `<li>${point}</li>`
-                                            ).join('')}
-                                        </ul>
-                                    </div>
-                                ` : ''}
-                                
-                                <!-- Approach Strategy -->
-                                ${insights.recommendedApproach ? `
-                                    <div class="ai-insight-item" style="grid-column: span 2;">
-                                        <h5>🎯 Recommended Approach Strategy</h5>
-                                        <div style="background: #f0f9ff; padding: 0.75rem; border-radius: 6px; font-size: 0.85rem;">
-                                            ${insights.recommendedApproach}
-                                        </div>
-                                    </div>
-                                ` : ''}
-                                
-                                <!-- Urgency & Timeline -->
-                                <div class="ai-insight-item">
-                                    <h5>⏰ Urgency & Timeline</h5>
-                                    <div style="display: flex; flex-direction: column; gap: 0.5rem;">
-                                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                                            <span style="font-size: 0.8rem; color: #64748b;">Urgency Level:</span>
-                                            <span style="font-weight: 600; color: var(--${ai.temperature === 'hot' ? 'hot-lead' : ai.temperature === 'warm' ? 'warm-lead' : 'cold-lead'});">
-                                                ${(ai.urgencyLevel || 'Medium').toUpperCase()}
-                                            </span>
-                                        </div>
-                                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                                            <span style="font-size: 0.8rem; color: #64748b;">Temperature:</span>
-                                            <span style="font-weight: 600; color: var(--${ai.temperature === 'hot' ? 'hot-lead' : ai.temperature === 'warm' ? 'warm-lead' : 'cold-lead'});">
-                                                ${(ai.temperature || 'Warm').toUpperCase()}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <!-- AI Confidence Breakdown -->
-                                <div class="ai-insight-item">
-                                    <h5>🎯 AI Confidence</h5>
-                                    <div style="display: flex; flex-direction: column; gap: 0.5rem;">
-                                        <div style="background: #f1f5f9; padding: 0.5rem; border-radius: 4px;">
-                                            <div style="font-size: 0.75rem; color: #64748b; margin-bottom: 0.25rem;">Analysis Confidence</div>
-                                            <div style="background: #e2e8f0; height: 8px; border-radius: 4px; overflow: hidden;">
-                                                <div style="background: var(--award-gold); height: 100%; width: ${Math.round((ai.confidence || 0) * 100)}%; transition: width 0.3s;"></div>
-                                            </div>
-                                            <div style="font-size: 0.75rem; color: var(--blazer-navy); font-weight: 600; margin-top: 0.25rem;">
-                                                ${Math.round((ai.confidence || 0) * 100)}% Confident
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    `;
+                    let conversationStarters = '';
+                    if (ai.conversationStarters && ai.conversationStarters.length > 0) {
+                        conversationStarters = '<div class="ai-insight-item"><h5>💬 Conversation Starters</h5><ul>';
+                        ai.conversationStarters.forEach(starter => {
+                            conversationStarters += '<li>' + starter + '</li>';
+                        });
+                        conversationStarters += '</ul></div>';
+                    }
+                    
+                    let nextActions = '';
+                    if (ai.nextActions && ai.nextActions.length > 0) {
+                        nextActions = '<div class="ai-insight-item"><h5>⚡ Recommended Actions</h5><ul>';
+                        ai.nextActions.forEach(action => {
+                            nextActions += '<li>' + action + '</li>';
+                        });
+                        nextActions += '</ul></div>';
+                    }
+                    
+                    let summary = '';
+                    if (insights.summary) {
+                        summary = '<div style="margin-bottom: 1rem;"><h4 style="color: var(--blazer-navy); margin-bottom: 0.5rem; font-size: 1rem;">📊 AI Summary</h4><p style="background: #f8fafc; padding: 1rem; border-radius: 8px; margin: 0; font-size: 0.9rem; line-height: 1.4;">' + insights.summary + '</p></div>';
+                    }
+                    
+                    let engagementPatterns = '';
+                    if (insights.engagementPatterns) {
+                        engagementPatterns = '<div style="margin-bottom: 1rem;"><h4 style="color: var(--sport-blue); margin: 1rem 0 0.5rem 0; font-size: 1rem;">🔍 What They Actually Did</h4><div style="background: #f0f9ff; padding: 1rem; border-radius: 8px; font-size: 0.9rem;">' + insights.engagementPatterns + '</div></div>';
+                    }
+                    
+                    aiInsightsHTML = '<div class="ai-insights-section"><div class="ai-insights-header"><span class="ai-badge">🤖 SMART AI ANALYSIS</span><span class="ai-confidence">Confidence: ' + Math.round((ai.confidence || 0) * 100) + '%</span><span style="margin-left: auto; font-weight: 600; color: var(--blazer-navy);">🎯 AI Score: ' + ai.leadScore + '/100</span></div>' + summary + engagementPatterns + '<div class="ai-insights-content">' + conversationStarters + nextActions + '</div></div>';
                 }
                 
-                // Use the AI score if available, otherwise engagement score
                 const displayScore = family.aiScore || family.engagementScore;
-                const scoreLabel = family.hasAIAnalysis ? `AI: ${displayScore}` : displayScore;
+                const scoreLabel = family.hasAIAnalysis ? 'AI: ' + displayScore : displayScore;
                 
-                return `
-                    <div class="family-card" data-id="${family.inquiry_id || family.id}">
-                        <div class="family-card-header" onclick="toggleFamilyCard('${family.inquiry_id || family.id}')">
-                            <div class="family-info">
-                                <div class="family-name">
-                                    <div class="status-indicator ${family.isOnline ? 'online' : 'offline'}"></div>
-                                    ${family.firstName || family.first_name} ${family.familySurname || family.family_surname} Family
-                                </div>
-                                <div class="family-meta">
-                                    <span>Entry ${family.entryYear || family.entry_year || 'Unknown'}</span>
-                                    <span>${totalTimeMinutes} mins</span>
-                                    <span>${visits} visits</span>
-                                    ${family.hasAIAnalysis ? '<span style="color: var(--award-gold); font-weight: 600;">✨ AI</span>' : ''}
-                                    <span>${formatTimeAgo(new Date(family.receivedAt || family.received_at))}</span>
-                                </div>
-                            </div>
-                            <div class="family-score">
-                                <div class="score-badge ${family.temperature}">
-                                    ${scoreLabel}
-                                </div>
-                                <div class="expand-btn">▼</div>
-                            </div>
-                        </div>
-                        <div class="family-card-details">
-                            <div class="family-details-content">
-                                ${aiInsightsHTML}
-                                <div class="details-grid">
-                                    <div class="detail-item">
-                                        <h4>Real Engagement</h4>
-                                        <p>${visits} visits • ${scrollDepth}% max scroll</p>
-                                        <p>Total time: ${totalTimeMinutes} minutes</p>
-                                        <p>Clicks: ${clicks} • Engagement Score: ${family.engagementScore}</p>
-                                        ${family.prospectusUrl ? `
-                                            <a href="${family.prospectusUrl}" target="_blank" class="prospectus-link">
-                                                📄 View Prospectus
-                                            </a>
-                                        ` : ''}
-                                    </div>
-                                    <div class="detail-item">
-                                        <h4>Contact Status</h4>
-                                        <p>${family.contactReady ? '✅ Ready for immediate contact' : '⏳ Continue nurturing'}</p>
-                                        <p>Last activity: ${engagement.lastVisit || engagement.lastActivity ? formatTimeAgo(new Date(engagement.lastVisit || engagement.lastActivity)) : 'Never'}</p>
-                                        ${family.hasAIAnalysis && family.aiInsights ? `
-                                            <p style="margin-top: 0.5rem;">
-                                                <strong>Urgency:</strong> ${family.aiInsights.urgencyLevel || 'Unknown'}<br>
-                                                <strong>Temperature:</strong> ${family.aiInsights.temperature || 'Unknown'}
-                                            </p>
-                                        ` : ''}
-                                    </div>
-                                    <div class="detail-item">
-                                        <h4>Real Interests</h4>
-                                        <div class="interests-tags">
-                                            ${family.interests && family.interests.length > 0 ? 
-                                                family.interests.map(interest => `<span class="interest-tag">${interest}</span>`).join('') :
-                                                '<span class="interest-tag">No interests selected</span>'
-                                            }
-                                        </div>
-                                    </div>
-                                    <div class="detail-item">
-                                        <h4>Family Details</h4>
-                                        <p>Age Group: ${family.ageGroup || family.age_group || 'Unknown'}</p>
-                                        <p>Email: ${family.parentEmail || family.parent_email || 'Unknown'}</p>
-                                        <p>Entry Year: ${family.entryYear || family.entry_year || 'Unknown'}</p>
-                                        <p>Inquiry ID: ${family.inquiry_id || family.id}</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }).join('');
+                const prospectusLink = family.prospectusUrl ? '<a href="' + family.prospectusUrl + '" target="_blank" class="prospectus-link">📄 View Prospectus</a>' : '';
+                
+                let interestsHTML = '';
+                if (family.interests && family.interests.length > 0) {
+                    family.interests.forEach(interest => {
+                        interestsHTML += '<span class="interest-tag">' + interest + '</span>';
+                    });
+                } else {
+                    interestsHTML = '<span class="interest-tag">No interests selected</span>';
+                }
+                
+                html += '<div class="family-card" data-id="' + (family.inquiry_id || family.id) + '">';
+                html += '<div class="family-card-header" onclick="toggleFamilyCard(\'' + (family.inquiry_id || family.id) + '\')">';
+                html += '<div class="family-info">';
+                html += '<div class="family-name"><div class="status-indicator ' + (family.isOnline ? 'online' : 'offline') + '"></div>' + (family.firstName || family.first_name) + ' ' + (family.familySurname || family.family_surname) + ' Family</div>';
+                html += '<div class="family-meta"><span>Entry ' + (family.entryYear || family.entry_year || 'Unknown') + '</span><span>' + totalTimeMinutes + ' mins</span><span>' + visits + ' visits</span>';
+                if (family.hasAIAnalysis) {
+                    html += '<span style="color: var(--award-gold); font-weight: 600;">✨ AI</span>';
+                }
+                html += '<span>' + formatTimeAgo(new Date(family.receivedAt || family.received_at)) + '</span></div></div>';
+                html += '<div class="family-score"><div class="score-badge ' + family.temperature + '">' + scoreLabel + '</div><div class="expand-btn">▼</div></div>';
+                html += '</div>';
+                html += '<div class="family-card-details"><div class="family-details-content">';
+                html += aiInsightsHTML;
+                html += '<div class="details-grid">';
+                html += '<div class="detail-item"><h4>Real Engagement</h4><p>' + visits + ' visits • ' + scrollDepth + '% max scroll</p><p>Total time: ' + totalTimeMinutes + ' minutes</p><p>Clicks: ' + clicks + ' • Engagement Score: ' + family.engagementScore + '</p>' + prospectusLink + '</div>';
+                html += '<div class="detail-item"><h4>Contact Status</h4><p>' + (family.contactReady ? '✅ Ready for immediate contact' : '⏳ Continue nurturing') + '</p><p>Last activity: ' + (engagement.lastVisit || engagement.lastActivity ? formatTimeAgo(new Date(engagement.lastVisit || engagement.lastActivity)) : 'Never') + '</p></div>';
+                html += '<div class="detail-item"><h4>Real Interests</h4><div class="interests-tags">' + interestsHTML + '</div></div>';
+                html += '<div class="detail-item"><h4>Family Details</h4><p>Age Group: ' + (family.ageGroup || family.age_group || 'Unknown') + '</p><p>Email: ' + (family.parentEmail || family.parent_email || 'Unknown') + '</p><p>Entry Year: ' + (family.entryYear || family.entry_year || 'Unknown') + '</p><p>Inquiry ID: ' + (family.inquiry_id || family.id) + '</p></div>';
+                html += '</div></div></div>';
+                html += '</div>';
+            });
+            
+            container.innerHTML = html;
         }
 
         function renderActivityFeed() {
             const container = document.getElementById('activityFeed');
             const activities = dashboardData.activities;
             
-            console.log('📢 Rendering', activities.length, 'activity items');
+            console.log('Rendering', activities.length, 'activity items');
             
             if (activities.length === 0) {
-                container.innerHTML = `
-                    <div class="error">
-                        <div class="error-title">No Activity Data</div>
-                        <p>No recent activity found. Waiting for families to engage with prospectuses.</p>
-                    </div>
-                `;
+                container.innerHTML = '<div class="error"><div class="error-title">No Activity Data</div><p>No recent activity found.</p></div>';
                 return;
             }
             
-            container.innerHTML = activities.map(activity => `
-                <div class="activity-item">
-                    <div class="activity-avatar">${activity.family.charAt(0)}</div>
-                    <div class="activity-content">
-                        <div class="activity-text">
-                            <strong>${activity.family}</strong> ${activity.action}
-                        </div>
-                        <div class="activity-time">${activity.time}</div>
-                    </div>
-                    <div class="activity-type ${activity.type}"></div>
-                </div>
-            `).join('');
+            let html = '';
+            activities.forEach(activity => {
+                html += '<div class="activity-item">';
+                html += '<div class="activity-avatar">' + activity.family.charAt(0) + '</div>';
+                html += '<div class="activity-content">';
+                html += '<div class="activity-text"><strong>' + activity.family + '</strong> ' + activity.action + '</div>';
+                html += '<div class="activity-time">' + activity.time + '</div>';
+                html += '</div>';
+                html += '<div class="activity-type ' + activity.type + '"></div>';
+                html += '</div>';
+            });
+            
+            container.innerHTML = html;
         }
 
         function getFilteredFamilies() {
-            let families = [...dashboardData.families];
+            let families = dashboardData.families.slice();
             
-            // Apply filters
             const statusFilter = document.getElementById('statusFilter').value;
             const entryYearFilter = document.getElementById('entryYearFilter').value;
             const searchTerm = document.getElementById('searchBox').value.toLowerCase();
             const sortBy = document.getElementById('sortFilter').value;
             
-            // Status filter
             if (statusFilter !== 'all') {
                 if (statusFilter === 'online') {
                     families = families.filter(f => f.isOnline);
@@ -1576,7 +1309,6 @@
                 }
             }
             
-            // Entry year filter
             if (entryYearFilter !== 'all') {
                 if (entryYearFilter === '2027') {
                     families = families.filter(f => (f.entryYear || f.entry_year) >= 2027);
@@ -1585,15 +1317,13 @@
                 }
             }
             
-            // Search filter
             if (searchTerm) {
                 families = families.filter(f => 
-                    `${f.firstName || f.first_name} ${f.familySurname || f.family_surname}`.toLowerCase().includes(searchTerm) ||
+                    ((f.firstName || f.first_name) + ' ' + (f.familySurname || f.family_surname)).toLowerCase().includes(searchTerm) ||
                     (f.parentEmail || f.parent_email || '').toLowerCase().includes(searchTerm)
                 );
             }
             
-            // Sort
             switch (sortBy) {
                 case 'aiScore':
                     families.sort((a, b) => (b.aiScore || 0) - (a.aiScore || 0));
@@ -1622,14 +1352,14 @@
         }
 
         function toggleFamilyCard(familyId) {
-            const card = document.querySelector(`[data-id="${familyId}"]`);
+            const card = document.querySelector('[data-id="' + familyId + '"]');
             if (card) {
                 card.classList.toggle('expanded');
             }
         }
 
         function refreshDashboard() {
-            console.log('🔄 Manual refresh triggered');
+            console.log('Manual refresh triggered');
             loadDashboardData();
         }
 
@@ -1637,10 +1367,10 @@
             stopAutoRefresh();
             autoRefreshInterval = setInterval(() => {
                 if (document.getElementById('autoRefresh').checked) {
-                    console.log('🔄 Auto refresh triggered');
+                    console.log('Auto refresh triggered');
                     loadDashboardData();
                 }
-            }, 30000); // Refresh every 30 seconds
+            }, 30000);
         }
 
         function stopAutoRefresh() {
@@ -1651,24 +1381,17 @@
         }
 
         function showError(title, message) {
-            console.error('❌ Dashboard Error:', title, message);
+            console.error('Dashboard Error:', title, message);
             
             const familyContainer = document.getElementById('familyCards');
             const activityContainer = document.getElementById('activityFeed');
             
-            const errorHtml = `
-                <div class="error">
-                    <div class="error-title">${title}</div>
-                    <p>${message}</p>
-                    <p>Check the console for technical details.</p>
-                </div>
-            `;
+            const errorHtml = '<div class="error"><div class="error-title">' + title + '</div><p>' + message + '</p><p>Check the console for technical details.</p></div>';
             
             familyContainer.innerHTML = errorHtml;
             activityContainer.innerHTML = errorHtml;
         }
 
-        // AI Analysis Functions
         async function triggerAIAnalysis() {
             const aiStatusElement = document.getElementById('aiStatus');
             const buttonElement = document.querySelector('.refresh-btn[onclick="triggerAIAnalysis()"]');
@@ -1677,7 +1400,7 @@
             if (buttonElement) buttonElement.disabled = true;
             
             try {
-                console.log('🤖 Starting real AI analysis...');
+                console.log('Starting real AI analysis...');
                 
                 const response = await fetch('/api/ai/analyze-all-families', {
                     method: 'POST',
@@ -1688,24 +1411,22 @@
                 
                 if (response.ok) {
                     const result = await response.json();
-                    console.log('✅ AI Analysis completed:', result);
+                    console.log('AI Analysis completed:', result);
                     
-                    // Refresh dashboard data after AI analysis
                     await loadDashboardData();
                     
-                    // Show success message
                     if (result.success) {
-                        alert(`✅ AI Analysis completed!\n\nAnalyzed: ${result.results.analyzed}/${result.results.total} families\nSuccess Rate: ${result.results.successRate}%`);
+                        alert('AI Analysis completed!\n\nAnalyzed: ' + result.results.analyzed + '/' + result.results.total + ' families\nSuccess Rate: ' + result.results.successRate + '%');
                     } else {
-                        alert('⚠️ AI Analysis completed with errors. Check console.');
+                        alert('AI Analysis completed with errors. Check console.');
                     }
                 } else {
                     const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-                    throw new Error(`AI Analysis failed: ${errorData.error || response.statusText}`);
+                    throw new Error('AI Analysis failed: ' + (errorData.error || response.statusText));
                 }
             } catch (error) {
-                console.error('❌ AI Analysis error:', error);
-                alert(`❌ AI Analysis failed: ${error.message}`);
+                console.error('AI Analysis error:', error);
+                alert('AI Analysis failed: ' + error.message);
             } finally {
                 if (aiStatusElement) aiStatusElement.style.display = 'none';
                 if (buttonElement) buttonElement.disabled = false;
