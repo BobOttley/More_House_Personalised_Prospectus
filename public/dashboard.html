@@ -1400,38 +1400,35 @@
             if (buttonElement) buttonElement.disabled = true;
             
             try {
-                console.log('Starting real AI analysis...');
+                console.log('🤖 Starting real AI analysis...');
                 
-                const response = await fetch('/api/ai/analyze-smart', {
+                const response = await fetch('/api/ai/analyze-all-families', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        onlyNew: true,
-                        onlyActive: false,
-                        scoreThreshold: 30
-                    })
+                    }
                 });
                 
                 if (response.ok) {
                     const result = await response.json();
-                    console.log('AI Analysis completed:', result);
+                    console.log('✅ AI Analysis completed:', result);
                     
+                    // Refresh dashboard data after AI analysis
                     await loadDashboardData();
                     
+                    // Show success message
                     if (result.success) {
-                        alert('AI Analysis completed!\n\nAnalyzed: ' + result.results.analyzed + '/' + result.results.total + ' families\nSuccess Rate: ' + result.results.successRate + '%');
+                        alert(`✅ AI Analysis completed!\n\nAnalyzed: ${result.results.analyzed}/${result.results.total} families\nSuccess Rate: ${result.results.successRate}%`);
                     } else {
-                        alert('AI Analysis completed with errors. Check console.');
+                        alert('⚠️ AI Analysis completed with errors. Check console.');
                     }
                 } else {
                     const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-                    throw new Error('AI Analysis failed: ' + (errorData.error || response.statusText));
+                    throw new Error(`AI Analysis failed: ${errorData.error || response.statusText}`);
                 }
             } catch (error) {
-                console.error('AI Analysis error:', error);
-                alert('AI Analysis failed: ' + error.message);
+                console.error('❌ AI Analysis error:', error);
+                alert(`❌ AI Analysis failed: ${error.message}`);
             } finally {
                 if (aiStatusElement) aiStatusElement.style.display = 'none';
                 if (buttonElement) buttonElement.disabled = false;
