@@ -266,10 +266,10 @@ async function updateInquiryStatus(inquiryId, pInfo) {
 async function trackEngagementEvent(ev) {
   if (!db) return null;
   try {
+    // Ensure currentSection is persisted inside event_data for reliable aggregation
     const eventData = Object.assign({}, ev.eventData || {}, {
       currentSection: ev.currentSection || (ev.eventData && ev.eventData.currentSection) || null
     });
-
     const q = `
       INSERT INTO tracking_events (
         inquiry_id, event_type, event_data, page_url,
@@ -349,7 +349,7 @@ function calculateEngagementScore(engagement) {
   return Math.min(Math.round(score), 100);
 }
 
-// ——— Friendly names for tracked sections (used in summaries) ———
+// ===== AI Engagement Summary helpers (descriptive only) =====
 const PROSPECTUS_SECTION_NAMES = {
   cover_page: 'Cover Page',
   heads_welcome: "Head’s Welcome",
@@ -377,9 +377,6 @@ function formatHM(totalSeconds) {
   return `${m}m ${s.toString().padStart(2, '0')}s`;
 }
 
-// ---------------------------------------------------------------------------
-// Build metrics from raw events (section_exit + YT milestones)
-// ---------------------------------------------------------------------------
 async function buildEngagementMetrics(inquiryId) {
   if (!db) throw new Error('Database not available');
 
@@ -486,6 +483,9 @@ function buildEngagementNarrative({ timeframe, totals, sections, videos }) {
 
   return bits.join(' ');
 }
+
+
+
 function extractInterests(inquiry) {
   const academic = [];
   const creative = [];
@@ -1185,7 +1185,11 @@ app.get('/api/analytics/inquiries', async (req, res) => {
           }));
           
           console.log(`✅ Merged AI insights for ${Object.keys(aiMap).length} families`);
-        // Merge engagement_summary (narrative only)
+        // Disable legacy 'family_profile' in dashboard feed
+        inquiries = inquiries.map(inquiry => ({ ...inquiry, aiInsights: null }));
+        console.log('✅ Disabled legacy family_profile AI in dashboard feed');
+
+        // Merge engagement_summary narrative
         try {
           const eg = await db.query(`
             SELECT inquiry_id, insights_json
@@ -1195,16 +1199,11 @@ app.get('/api/analytics/inquiries', async (req, res) => {
           const egMap = {};
           eg.rows.forEach(row => {
             try {
-              const insights = typeof row.insights_json === 'string'
-                ? JSON.parse(row.insights_json)
-                : row.insights_json;
+              const insights = typeof row.insights_json === 'string' ? JSON.parse(row.insights_json) : row.insights_json;
               egMap[row.inquiry_id] = insights;
             } catch {}
           });
-          inquiries = inquiries.map(inquiry => ({
-            ...inquiry,
-            aiEngagement: egMap[inquiry.id] || null
-          }));
+          inquiries = inquiries.map(inq => ({ ...inq, aiEngagement: egMap[inq.id] || null }));
           console.log(`✅ Merged engagement summaries for ${Object.keys(egMap).length} families`);
         } catch (e) {
           console.warn('⚠️ Engagement summary merge failed:', e.message);
@@ -1992,28 +1991,12 @@ async function startServer() {
   await rebuildSlugIndexFromData();
 
   
-// Upsert helper: ai_family_insights (inquiry_id, analysis_type) UNIQUE
-async function upsertAIInsight({ inquiryId, analysisType, insightsJson, confidence = 1.0 }) {
-  if (!db) throw new Error('Database not available');
-  const q = `
-    INSERT INTO ai_family_insights (inquiry_id, analysis_type, insights_json, confidence_score)
-    VALUES ($1, $2, $3, $4)
-    ON CONFLICT (inquiry_id, analysis_type) DO UPDATE SET
-      insights_json = EXCLUDED.insights_json,
-      confidence_score = EXCLUDED.confidence_score
-    RETURNING *`;
-  const vals = [inquiryId, analysisType, insightsJson, confidence];
-  const r = await db.query(q, vals);
-  return r.rows[0];
-}
-
-// Build & store a single enquiry's engagement summary (descriptive only)
+// ===== AI Engagement Summary endpoints =====
 app.post('/api/ai/engagement-summary/:inquiryId', async (req, res) => {
   try {
     const inquiryId = req.params.inquiryId;
     const m = await buildEngagementMetrics(inquiryId);
     const narrative = buildEngagementNarrative(m);
-
     const payload = {
       analysis_type: 'engagement_summary',
       inquiryId,
@@ -2025,14 +2008,14 @@ app.post('/api/ai/engagement-summary/:inquiryId', async (req, res) => {
       lastActive: m.lastActive,
       generatedAt: new Date().toISOString()
     };
-
-    await upsertAIInsight({
-      inquiryId,
-      analysisType: 'engagement_summary',
-      insightsJson: payload,
-      confidence: 1.0
-    });
-
+    if (!db) throw new Error('Database not available');
+    await db.query(`
+      INSERT INTO ai_family_insights (inquiry_id, analysis_type, insights_json, confidence_score)
+      VALUES ($1,$2,$3,$4)
+      ON CONFLICT (inquiry_id, analysis_type) DO UPDATE SET
+        insights_json = EXCLUDED.insights_json,
+        confidence_score = EXCLUDED.confidence_score
+    `, [inquiryId, 'engagement_summary', JSON.stringify(payload), 1.0]);
     res.json({ success: true, engagement_summary: payload });
   } catch (e) {
     console.error('engagement-summary error:', e);
@@ -2040,19 +2023,13 @@ app.post('/api/ai/engagement-summary/:inquiryId', async (req, res) => {
   }
 });
 
-// Generate summaries for all enquiries (idempotent)
 app.post('/api/ai/engagement-summary/all', async (req, res) => {
   try {
-    let inquiries = [];
-    if (db) {
-      const r = await db.query(`SELECT id FROM inquiries ORDER BY received_at DESC`);
-      inquiries = r.rows.map(x => x.id);
-    } else {
-      inquiries = [];
-    }
-
+    if (!db) throw new Error('Database not available');
+    const r = await db.query('SELECT id FROM inquiries ORDER BY received_at DESC');
+    const ids = r.rows.map(x => x.id);
     const results = [];
-    for (const id of inquiries) {
+    for (const id of ids) {
       try {
         const m = await buildEngagementMetrics(id);
         const narrative = buildEngagementNarrative(m);
@@ -2067,14 +2044,19 @@ app.post('/api/ai/engagement-summary/all', async (req, res) => {
           lastActive: m.lastActive,
           generatedAt: new Date().toISOString()
         };
-        await upsertAIInsight({ inquiryId: id, analysisType: 'engagement_summary', insightsJson: payload, confidence: 1.0 });
+        await db.query(\`
+          INSERT INTO ai_family_insights (inquiry_id, analysis_type, insights_json, confidence_score)
+          VALUES ($1,$2,$3,$4)
+          ON CONFLICT (inquiry_id, analysis_type) DO UPDATE SET
+            insights_json = EXCLUDED.insights_json,
+            confidence_score = EXCLUDED.confidence_score
+        \`, [id, 'engagement_summary', JSON.stringify(payload), 1.0]);
         results.push({ inquiryId: id, ok: true });
       } catch (e) {
         results.push({ inquiryId: id, ok: false, error: e.message });
       }
     }
-
-    res.json({ success: true, total: inquiries.length, processed: results.length, results });
+    res.json({ success:true, total: ids.length, processed: results.length, results });
   } catch (e) {
     console.error('engagement-summary/all error:', e);
     res.status(500).json({ success:false, error:e.message });
