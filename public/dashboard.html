@@ -870,10 +870,52 @@
         // Initialize Dashboard
         document.addEventListener('DOMContentLoaded', function() {
             console.log('🚀 Dashboard initializing...');
+            console.log('📍 Current URL:', window.location.href);
+            console.log('📡 Testing API endpoints...');
+            
+            // Test basic connectivity first
+            testAPIEndpoints();
+            
             loadDashboardData();
             setupEventListeners();
             startAutoRefresh();
         });
+
+        async function testAPIEndpoints() {
+            const baseUrl = window.location.origin;
+            console.log('🔍 Testing endpoints on:', baseUrl);
+            
+            // Test root endpoint first
+            try {
+                const rootResponse = await fetch('/');
+                const rootData = await rootResponse.json();
+                console.log('✅ Root endpoint working:', rootData.version);
+                console.log('📋 Available endpoints:', rootData.endpoints);
+            } catch (e) {
+                console.error('❌ Root endpoint failed:', e);
+            }
+            
+            // Test each endpoint
+            const endpointsToTest = [
+                '/api/analytics/inquiries',
+                '/api/dashboard-data',
+                '/health'
+            ];
+            
+            for (const endpoint of endpointsToTest) {
+                try {
+                    const response = await fetch(endpoint);
+                    console.log(`${response.ok ? '✅' : '❌'} ${endpoint}: ${response.status} ${response.statusText}`);
+                    
+                    if (!response.ok) {
+                        const text = await response.text();
+                        console.error(`📄 Response body:`, text.substring(0, 200));
+                    }
+                } catch (e) {
+                    console.error(`❌ ${endpoint} failed:`, e.message);
+                }
+            }
+        }
 
         function setupEventListeners() {
             // Search functionality
@@ -906,8 +948,17 @@
                 
                 // Fetch inquiries with AI data
                 const inquiriesResponse = await fetch('/api/analytics/inquiries');
+                
                 if (!inquiriesResponse.ok) {
                     throw new Error(`Inquiries API failed: ${inquiriesResponse.status} - ${inquiriesResponse.statusText}`);
+                }
+                
+                // Check content type to catch HTML responses
+                const contentType = inquiriesResponse.headers.get('content-type') || '';
+                if (!contentType.includes('application/json')) {
+                    const responseText = await inquiriesResponse.text();
+                    console.error('❌ Expected JSON but got:', contentType, responseText.substring(0, 300));
+                    throw new Error(`Server returned ${contentType} instead of JSON. This usually means the endpoint doesn't exist or server error.`);
                 }
                 
                 const inquiriesData = await inquiriesResponse.json();
@@ -945,7 +996,19 @@
                 
             } catch (error) {
                 console.error('❌ Failed to load dashboard data:', error);
-                showError('Failed to load real data', error.message);
+                
+                // Detailed debugging info
+                const debugInfo = {
+                    currentUrl: window.location.href,
+                    baseUrl: window.location.origin,
+                    timestamp: new Date().toISOString(),
+                    error: error.message,
+                    stack: error.stack
+                };
+                
+                console.log('🐛 Debug info:', debugInfo);
+                
+                showError('Failed to load dashboard data', error.message, debugInfo);
             } finally {
                 isRefreshing = false;
                 document.getElementById('refreshIcon').style.animation = '';
@@ -1463,17 +1526,50 @@
             }
         }
 
-        function showError(title, message) {
+        function showError(title, message, debugInfo = null) {
             console.error('❌ Dashboard Error:', title, message);
             
             const familyContainer = document.getElementById('familyCards');
             const activityContainer = document.getElementById('activityFeed');
             
+            const debugSection = debugInfo ? `
+                <details style="margin-top: 1rem; background: #f8fafc; padding: 1rem; border-radius: 4px;">
+                    <summary style="cursor: pointer; font-weight: 600;">🐛 Debug Information</summary>
+                    <pre style="font-size: 0.8rem; margin-top: 0.5rem; white-space: pre-wrap; overflow: auto;">${JSON.stringify(debugInfo, null, 2)}</pre>
+                </details>
+            ` : '';
+            
             const errorHtml = `
                 <div class="error">
                     <div class="error-title">${title}</div>
-                    <p>${message}</p>
-                    <p>Check the console for technical details.</p>
+                    <p><strong>Error:</strong> ${message}</p>
+                    
+                    <div style="margin: 1rem 0; padding: 1rem; background: #fef3c7; border: 1px solid #f59e0b; border-radius: 4px;">
+                        <strong>🔧 Troubleshooting Steps:</strong>
+                        <ol style="margin-top: 0.5rem; padding-left: 1.5rem;">
+                            <li>Check if server is running on port 10000</li>
+                            <li>Verify API endpoints are responding</li>
+                            <li>Check browser console for detailed errors</li>
+                            <li>Try refreshing the page</li>
+                        </ol>
+                    </div>
+                    
+                    <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; margin: 1rem 0;">
+                        <button onclick="testAPIEndpoints()" style="padding: 0.75rem 1.5rem; background: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">
+                            🔍 Test APIs
+                        </button>
+                        <button onclick="loadDashboardData()" style="padding: 0.75rem 1.5rem; background: #ef4444; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">
+                            🔄 Retry
+                        </button>
+                        <button onclick="window.open('/health', '_blank')" style="padding: 0.75rem 1.5rem; background: #059669; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">
+                            💚 Health Check
+                        </button>
+                        <button onclick="window.open('/api/analytics/inquiries', '_blank')" style="padding: 0.75rem 1.5rem; background: #6b7280; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">
+                            📋 Inquiries API
+                        </button>
+                    </div>
+                    
+                    ${debugSection}
                 </div>
             `;
             
