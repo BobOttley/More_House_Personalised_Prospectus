@@ -1402,11 +1402,16 @@
             try {
                 console.log('Starting real AI analysis...');
                 
-                const response = await fetch('/api/ai/analyze-all-families', {
+                const response = await fetch('/api/ai/analyze-smart', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
-                    }
+                    },
+                    body: JSON.stringify({
+                        onlyNew: true,
+                        onlyActive: false,
+                        scoreThreshold: 30
+                    })
                 });
                 
                 if (response.ok) {
