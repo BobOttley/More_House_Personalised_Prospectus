@@ -430,8 +430,8 @@
             font-weight: 500;
         }
 
-        /* PEN.ai Engagement Summary Section */
-        .pen-ai-summary {
+        /* SMART AI Engagement Summary Section */
+        .smart-ai-summary {
             background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
             border-radius: 12px;
             padding: 1.5rem;
@@ -439,7 +439,7 @@
             border: 1px solid #bfdbfe;
         }
 
-        .pen-ai-header {
+        .smart-ai-header {
             display: flex;
             align-items: center;
             gap: 1rem;
@@ -448,7 +448,7 @@
             border-bottom: 1px solid #bfdbfe;
         }
 
-        .pen-ai-badge {
+        .smart-ai-badge {
             background: linear-gradient(135deg, var(--award-gold), #FFB84D);
             color: var(--blazer-navy);
             padding: 0.5rem 1rem;
@@ -459,14 +459,14 @@
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
 
-        .pen-ai-confidence {
+        .smart-ai-confidence {
             color: #64748b;
             font-size: 0.85rem;
             font-weight: 500;
             margin-left: auto;
         }
 
-        .pen-ai-narrative {
+        .smart-ai-narrative {
             font-size: 0.95rem;
             line-height: 1.6;
             color: var(--text-primary);
@@ -477,21 +477,21 @@
             border: 1px solid var(--border-grey);
         }
 
-        .pen-ai-insights {
+        .smart-ai-insights {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 1rem;
             margin-bottom: 1rem;
         }
 
-        .pen-ai-insight-item {
+        .smart-ai-insight-item {
             background: white;
             padding: 1rem;
             border-radius: 8px;
             border: 1px solid var(--border-grey);
         }
 
-        .pen-ai-insight-item h5 {
+        .smart-ai-insight-item h5 {
             color: var(--sport-blue);
             font-size: 0.85rem;
             margin-bottom: 0.75rem;
@@ -501,13 +501,13 @@
             gap: 0.5rem;
         }
 
-        .pen-ai-insight-item ul {
+        .smart-ai-insight-item ul {
             list-style: none;
             padding: 0;
             margin: 0;
         }
 
-        .pen-ai-insight-item li {
+        .smart-ai-insight-item li {
             font-size: 0.8rem;
             color: #475569;
             margin-bottom: 0.5rem;
@@ -516,7 +516,13 @@
             line-height: 1.4;
         }
 
-        .pen-ai-insight-item li:before {
+        .smart-ai-insight-item li:before {
+            content: '→';
+            position: absolute;
+            left: 0;
+            color: var(--award-gold);
+            font-weight: bold;
+        }
             content: '→';
             position: absolute;
             left: 0;
@@ -822,7 +828,7 @@
                 <div class="metric-content">
                     <div class="metric-title">AI Analysed</div>
                     <div class="metric-value" id="aiAnalyzed">-</div>
-                    <div class="metric-trend">Families with PEN.ai insights</div>
+                    <div class="metric-trend">Families with SMART AI insights</div>
                 </div>
             </div>
         </div>
@@ -877,15 +883,15 @@
                 <div>
                     <h2>Family Engagement Tracking</h2>
                     <div style="font-size: 0.9rem; opacity: 0.9; margin-top: 0.25rem;">
-                        Real-time prospectus engagement with PEN.ai insights
+                        Real-time prospectus engagement with SMART AI insights
                     </div>
                 </div>
                 <div class="ai-analyzing" id="aiStatus" style="display: none;">
                     <div class="pulse"></div>
-                    PEN.ai Analysing...
+                    SMART AI Analysing...
                 </div>
                 <button class="refresh-btn" onclick="generateAllSummaries()" style="background: white; border: 1px solid rgba(255,255,255,0.3); margin-left: 1rem;">
-                    <span style="color: var(--award-gold); font-weight: 600;">PEN.ai</span> <span style="color: var(--blazer-navy);">Analysis</span>
+                    <span style="color: var(--award-gold); font-weight: 600;">SMART</span> <span style="color: var(--blazer-navy);">AI Analysis</span>
                 </button>
             </div>
             <div class="panel-content">
@@ -1304,22 +1310,22 @@
                         <div class="family-card-details">
                             <div class="family-details-content">`;
                 
-                // Add PEN.ai Summary if available
+                // Add SMART AI Summary if available
                 if (family.hasAINarrative) {
                     html += `
-                        <div class="pen-ai-summary">
-                            <div class="pen-ai-header">
-                                <span class="pen-ai-badge">PEN.ai Summary</span>
-                                <span class="pen-ai-confidence">
+                        <div class="smart-ai-summary">
+                            <div class="smart-ai-header">
+                                <span class="smart-ai-badge">SMART AI Summary</span>
+                                <span class="smart-ai-confidence">
                                     Last analysed: ${formatTimeAgo(new Date(family.aiEngagement.lastActive || Date.now()))}
                                 </span>
                             </div>
-                            <div class="pen-ai-narrative">
+                            <div class="smart-ai-narrative">
                                 ${family.aiNarrative}
                             </div>
-                            <div class="pen-ai-insights">
+                            <div class="smart-ai-insights">
                                 ${family.topSections.length > 0 ? `
-                                    <div class="pen-ai-insight-item">
+                                    <div class="smart-ai-insight-item">
                                         <h5>📍 Top Sections Viewed</h5>
                                         <ul>
                                             ${topSectionsHTML}
@@ -1327,7 +1333,7 @@
                                     </div>
                                 ` : ''}
                                 ${family.intentTags.length > 0 ? `
-                                    <div class="pen-ai-insight-item">
+                                    <div class="smart-ai-insight-item">
                                         <h5>🎯 Intent Signals</h5>
                                         <div class="intent-tags">
                                             ${intentTagsHTML}
@@ -1341,13 +1347,13 @@
                         </div>`;
                 } else {
                     html += `
-                        <div class="pen-ai-summary">
-                            <div class="pen-ai-header">
-                                <span class="pen-ai-badge">PEN.ai Summary</span>
+                        <div class="smart-ai-summary">
+                            <div class="smart-ai-header">
+                                <span class="smart-ai-badge">SMART AI Summary</span>
                             </div>
                             <p style="opacity: 0.7; margin: 1rem 0;">No engagement summary available yet.</p>
                             <button class="prospectus-link" onclick="generateEngagementSummary('${family.id}', this)">
-                                Generate PEN.ai Summary
+                                Generate SMART AI Summary
                             </button>
                         </div>`;
                 }
@@ -1528,7 +1534,7 @@
             } finally {
                 if (btn) { 
                     btn.disabled = false; 
-                    btn.textContent = 'Generate PEN.ai Summary'; 
+                    btn.textContent = 'Generate SMART AI Summary'; 
                 }
             }
         }
@@ -1541,7 +1547,7 @@
             if (buttonElement) buttonElement.disabled = true;
             
             try {
-                console.log('🤖 Starting PEN.ai analysis for all families...');
+                console.log('🤖 Starting SMART AI analysis for all families...');
                 
                 const response = await fetch('/api/ai/engagement-summary/all', {
                     method: 'POST',
@@ -1552,20 +1558,20 @@
                 
                 if (response.ok) {
                     const result = await response.json();
-                    console.log('✅ PEN.ai Analysis completed:', result);
+                    console.log('✅ SMART AI Analysis completed:', result);
                     
                     // Refresh dashboard data
                     await loadDashboardData();
                     
                     if (result.success) {
-                        alert(`✅ PEN.ai Analysis completed!\n\nAnalysed: ${result.processed} families`);
+                        alert(`✅ SMART AI Analysis completed!\n\nAnalysed: ${result.processed} families`);
                     }
                 } else {
                     throw new Error('Analysis failed');
                 }
             } catch (error) {
-                console.error('❌ PEN.ai Analysis error:', error);
-                alert(`❌ PEN.ai Analysis failed: ${error.message}`);
+                console.error('❌ SMART AI Analysis error:', error);
+                alert(`❌ SMART AI Analysis failed: ${error.message}`);
             } finally {
                 if (aiStatusElement) aiStatusElement.style.display = 'none';
                 if (buttonElement) buttonElement.disabled = false;
