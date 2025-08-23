@@ -1078,334 +1078,234 @@ app.get('/api/dashboard-data', async (req, res) => {
   }
 });
 
-// Add this new endpoint to your server.js file
-// This replaces the existing /api/analytics/inquiries endpoint
+// Fix for the /api/ai/engagement-summary/:inquiryId endpoint
+// This REPLACES the existing endpoint in your server.js
 
-app.get('/api/analytics/enquiries', async (req, res) => {
+app.post('/api/ai/engagement-summary/:inquiryId', async (req, res) => {
   try {
-    console.log('📊 Analytics enquiries request...');
-    const base = getBaseUrl(req);
-    let enquiries = [];
-
-    if (db) {
-      try {
-        console.log('📊 Reading enquiries from DATABASE...');
-        
-        // Fetch all enquiries with engagement metrics
-        const result = await db.query(`
-          SELECT i.*, 
-                 em.time_on_page, em.scroll_depth, em.clicks_on_links, 
-                 em.total_visits, em.last_visit
-          FROM inquiries i
-          LEFT JOIN engagement_metrics em ON i.id = em.inquiry_id
-          ORDER BY i.received_at DESC
-        `);
-        
-        // Map database results to enquiry objects with British spelling
-        enquiries = result.rows.map(row => ({
-          id: row.id,
-          enquiry_id: row.id, // British spelling
-          first_name: row.first_name,
-          family_surname: row.family_surname,
-          parent_email: row.parent_email, // Use real email, not db@test.com
-          entry_year: row.entry_year,
-          age_group: row.age_group,
-          received_at: row.received_at,
-          updated_at: row.prospectus_generated_at || row.received_at,
-          status: row.status || (row.prospectus_generated ? 'prospectus_generated' : 'received'),
-          prospectus_filename: row.prospectus_filename,
-          slug: row.slug,
-          prospectus_generated_at: row.prospectus_generated_at,
-          prospectus_pretty_path: row.slug ? `/${row.slug}` : null,
-          prospectus_pretty_url: row.slug ? `${base}/${row.slug}` : null,
-          prospectus_direct_url: row.prospectus_url ? `${base}${row.prospectus_url}` : null,
-          
-          // Engagement metrics
-          engagement: {
-            timeOnPage: row.time_on_page || 0,
-            scrollDepth: row.scroll_depth || 0,
-            clickCount: row.clicks_on_links || 0,
-            totalVisits: row.total_visits || 1,
-            lastVisit: row.last_visit || row.received_at,
-            engagementScore: calculateEngagementScore({
-              timeOnPage: row.time_on_page || 0,
-              scrollDepth: row.scroll_depth || 0,
-              totalVisits: row.total_visits || 1,
-              clickCount: row.clicks_on_links || 0
-            })
-          },
-          
-          // Academic interests
-          sciences: row.sciences,
-          mathematics: row.mathematics,
-          english: row.english,
-          languages: row.languages,
-          humanities: row.humanities,
-          business: row.business,
-          drama: row.drama,
-          music: row.music,
-          art: row.art,
-          sport: row.sport,
-          leadership: row.leadership,
-          community_service: row.community_service,
-          outdoor_education: row.outdoor_education
-        }));
-        
-        console.log(`✅ Loaded ${enquiries.length} enquiries from DATABASE with engagement data`);
-        
-        // Merge AI engagement summaries (PEN.ai narratives)
-        try {
-          const egResult = await db.query(`
-            SELECT inquiry_id, insights_json, confidence_score, generated_at
-            FROM ai_family_insights
-            WHERE analysis_type = 'engagement_summary'
-          `);
-          
-          const egMap = {};
-          egResult.rows.forEach(row => {
-            try {
-              const insights = typeof row.insights_json === 'string' 
-                ? JSON.parse(row.insights_json) 
-                : row.insights_json;
-              egMap[row.inquiry_id] = {
-                ...insights,
-                confidence: row.confidence_score || 1.0,
-                generatedAt: row.generated_at
-              };
-            } catch (e) {
-              console.warn(`Failed to parse engagement summary for ${row.inquiry_id}`);
-            }
-          });
-          
-          // Add AI engagement narratives to enquiries
-          enquiries = enquiries.map(enquiry => ({
-            ...enquiry,
-            aiEngagement: egMap[enquiry.id] || null,
-            hasAINarrative: !!egMap[enquiry.id]
-          }));
-          
-          console.log(`✅ Merged engagement summaries for ${Object.keys(egMap).length} families`);
-          
-        } catch (aiError) {
-          console.warn('⚠️ AI engagement summary merge failed:', aiError.message);
-        }
-        
-        // Now build the proper response format for each enquiry
-        enquiries = enquiries.map(enquiry => {
-          const eg = enquiry.aiEngagement;
-          let summary = null;
-          let leadTemperature = 'cool';
-          let confidence = 0;
-          let topSections = [];
-          let intentTags = [];
-          let recommendedAction = 'Schedule initial contact';
-          let lastSeen = enquiry.engagement.lastVisit || enquiry.received_at;
-          
-          if (eg && eg.narrative) {
-            summary = eg.narrative;
-            confidence = eg.confidence || 1.0;
-            lastSeen = eg.lastActive || lastSeen;
-            
-            // Calculate lead temperature based on engagement
-            const score = eg.leadScore || enquiry.engagement.engagementScore;
-            if (score >= 80) {
-              leadTemperature = 'hot';
-              recommendedAction = 'Immediate phone call - high intent shown';
-            } else if (score >= 60) {
-              leadTemperature = 'warm';
-              recommendedAction = 'Send personalised follow-up within 24 hours';
-            } else {
-              leadTemperature = 'cool';
-              recommendedAction = 'Nurture with relevant content';
-            }
-            
-            // Extract top sections
-            if (eg.sections && Array.isArray(eg.sections)) {
-              topSections = eg.sections.slice(0, 5).map(s => ({
-                name: s.name || s.label || 'Unknown Section',
-                dwellTime: s.dwellSeconds || 0,
-                scrollDepth: s.maxScrollPct || 0,
-                visits: s.visits || 1
-              }));
-              
-              // Detect high-intent signals from sections
-              eg.sections.forEach(section => {
-                const sectionName = (section.name || section.label || '').toLowerCase();
-                if (sectionName.includes('fee') || sectionName.includes('cost')) {
-                  if (!intentTags.includes('Fees Enquiry')) intentTags.push('Fees Enquiry');
-                }
-                if (sectionName.includes('scholarship') || sectionName.includes('bursary')) {
-                  if (!intentTags.includes('Financial Aid')) intentTags.push('Financial Aid');
-                }
-                if (sectionName.includes('apply') || sectionName.includes('admission')) {
-                  if (!intentTags.includes('Application Ready')) intentTags.push('Application Ready');
-                }
-                if (sectionName.includes('visit') || sectionName.includes('tour')) {
-                  if (!intentTags.includes('Visit Interest')) intentTags.push('Visit Interest');
-                }
-                if (sectionName.includes('curriculum') || sectionName.includes('academic')) {
-                  if (!intentTags.includes('Academic Focus')) intentTags.push('Academic Focus');
-                }
-              });
-            }
-            
-            // Add intent tags based on behaviour
-            if (eg.totals) {
-              if (eg.totals.returnVisits > 0) {
-                intentTags.push('Return Visitor');
-              }
-              if (eg.totals.timeSeconds > 600) { // More than 10 minutes
-                intentTags.push('Deep Engagement');
-              }
-            }
-            
-            // Check for video engagement
-            if (eg.videos && eg.videos.length > 0) {
-              intentTags.push('Video Watcher');
-            }
-          }
-          
-          // Return the properly formatted enquiry object
-          return {
-            enquiry_id: enquiry.id,
-            parent_name: `${enquiry.first_name} ${enquiry.family_surname}`,
-            child_name: enquiry.first_name,
-            family_surname: enquiry.family_surname,
-            parent_email: enquiry.parent_email,
-            entry_year: enquiry.entry_year,
-            age_group: enquiry.age_group,
-            
-            // Prospectus URLs
-            prospectus_urls: [
-              enquiry.prospectus_pretty_url,
-              enquiry.prospectus_direct_url
-            ].filter(Boolean),
-            
-            // AI-generated narrative summary
-            summary: summary,
-            score: enquiry.engagement.engagementScore,
-            lead_temperature: leadTemperature,
-            confidence: confidence,
-            last_seen: lastSeen,
-            
-            // Analytics
-            top_sections: topSections,
-            intent_tags: intentTags,
-            recommended_action: recommendedAction,
-            
-            // Roll-up metrics
-            sessions: eg?.totals?.returnVisits ? (eg.totals.returnVisits + 1) : 1,
-            avg_dwell: eg?.totals?.timeSeconds || enquiry.engagement.timeOnPage || 0,
-            percent_scrolled: eg?.totals?.avgScroll || enquiry.engagement.scrollDepth || 0,
-            video_stats: eg?.videos ? {
-              count: eg.videos.length,
-              watched: eg.videos.filter(v => v.watchedPct > 50).length
-            } : null,
-            
-            // Raw engagement data for fallback
-            engagement: enquiry.engagement,
-            
-            // Interests
-            interests: extractInterests(enquiry),
-            
-            // Metadata
-            received_at: enquiry.received_at,
-            status: enquiry.status
-          };
-        });
-        
-      } catch (dbError) {
-        console.warn('⚠️ Database read failed, falling back to JSON:', dbError.message);
-      }
-    }
-
-    // Fallback to JSON files if no database or empty
-    if (enquiries.length === 0) {
-      console.log('📂 Falling back to JSON files...');
-      const files = await fs.readdir(path.join(__dirname, 'data')).catch(() => []);
+    const inquiryId = req.params.inquiryId;
+    console.log(`📊 Generating engagement summary for inquiry: ${inquiryId}`);
+    
+    // Check if tracking events exist for this inquiry
+    const eventCheck = await db.query(
+      'SELECT COUNT(*) as count FROM tracking_events WHERE inquiry_id = $1',
+      [inquiryId]
+    );
+    
+    const eventCount = parseInt(eventCheck.rows[0].count || '0');
+    console.log(`Found ${eventCount} tracking events for ${inquiryId}`);
+    
+    let narrative = '';
+    let metrics = null;
+    
+    if (eventCount > 0) {
+      // We have tracking data - build full metrics
+      metrics = await buildEngagementMetrics(inquiryId);
+      narrative = buildEngagementNarrative(metrics);
+    } else {
+      // No tracking data yet - check engagement_metrics table as fallback
+      const engagementCheck = await db.query(
+        `SELECT time_on_page, scroll_depth, clicks_on_links, total_visits, last_visit
+         FROM engagement_metrics 
+         WHERE inquiry_id = $1`,
+        [inquiryId]
+      );
       
-      for (const f of files.filter(x => x.startsWith('inquiry-') && x.endsWith('.json'))) {
-        try { 
-          const content = await fs.readFile(path.join(__dirname, 'data', f), 'utf8');
-          const inquiry = JSON.parse(content);
-          
-          const base = getBaseUrl(req);
-          const prettyUrl = inquiry.slug ? `${base}/${inquiry.slug}` : null;
-          
-          enquiries.push({
-            enquiry_id: inquiry.id,
-            parent_name: `${inquiry.firstName} ${inquiry.familySurname}`,
-            child_name: inquiry.firstName,
-            family_surname: inquiry.familySurname,
-            parent_email: inquiry.parentEmail,
-            entry_year: inquiry.entryYear,
-            age_group: inquiry.ageGroup,
-            
-            prospectus_urls: [
-              prettyUrl,
-              inquiry.prospectusUrl ? `${base}${inquiry.prospectusUrl}` : null
-            ].filter(Boolean),
-            
-            summary: null,
-            score: 25,
-            lead_temperature: 'cool',
-            confidence: 0,
-            last_seen: inquiry.receivedAt,
-            
-            top_sections: [],
-            intent_tags: [],
-            recommended_action: 'Generate prospectus and track engagement',
-            
-            sessions: 1,
-            avg_dwell: 0,
-            percent_scrolled: 0,
-            video_stats: null,
-            
-            engagement: {
-              timeOnPage: 0,
-              scrollDepth: 0,
-              clickCount: 0,
-              totalVisits: 1,
-              lastVisit: inquiry.receivedAt,
-              engagementScore: 25
-            },
-            
-            interests: extractInterests(inquiry),
-            received_at: inquiry.receivedAt,
-            status: inquiry.status || 'received'
-          });
-        } catch (e) {
-          console.warn(`Failed to read ${f}:`, e.message);
+      if (engagementCheck.rows.length > 0) {
+        const eng = engagementCheck.rows[0];
+        // Build basic narrative from engagement_metrics
+        const timeMinutes = Math.round((eng.time_on_page || 0) / 60);
+        const visits = eng.total_visits || 1;
+        const scrollDepth = eng.scroll_depth || 0;
+        const clicks = eng.clicks_on_links || 0;
+        
+        narrative = `${visits} visit${visits !== 1 ? 's' : ''} recorded. `;
+        if (timeMinutes > 0) {
+          narrative += `${timeMinutes} minute${timeMinutes !== 1 ? 's' : ''} total engagement. `;
         }
+        if (scrollDepth > 0) {
+          narrative += `${scrollDepth}% max scroll depth. `;
+        }
+        if (clicks > 0) {
+          narrative += `${clicks} link${clicks !== 1 ? 's' : ''} clicked. `;
+        }
+        
+        metrics = {
+          timeframe: { 
+            start: eng.last_visit || new Date(), 
+            end: eng.last_visit || new Date() 
+          },
+          totals: {
+            timeSeconds: eng.time_on_page || 0,
+            sectionsViewed: 0,
+            returnVisits: Math.max(0, (eng.total_visits || 1) - 1)
+          },
+          sections: [],
+          videos: [],
+          lastActive: eng.last_visit
+        };
+      } else {
+        // No data at all - provide minimal summary
+        narrative = 'Prospectus generated. Awaiting first visit.';
+        metrics = {
+          timeframe: { start: new Date(), end: new Date() },
+          totals: { timeSeconds: 0, sectionsViewed: 0, returnVisits: 0 },
+          sections: [],
+          videos: [],
+          lastActive: new Date()
+        };
       }
-      console.log(`📂 Loaded ${enquiries.length} enquiries from JSON files`);
     }
     
-    console.log(`📊 Returning ${enquiries.length} enquiries with AI narratives to dashboard`);
-    res.json(enquiries);
+    const payload = {
+      analysis_type: 'engagement_summary',
+      inquiryId,
+      timeframe: metrics.timeframe,
+      totals: metrics.totals,
+      sections: metrics.sections,
+      videos: metrics.videos,
+      narrative,
+      lastActive: metrics.lastActive,
+      generatedAt: new Date().toISOString()
+    };
     
-  } catch (e) {
-    console.error('Analytics enquiries error:', e);
-    res.status(500).json({ error: 'Failed to get enquiries', message: e.message });
+    console.log(`📝 Generated narrative: "${narrative}"`);
+    
+    // Store in database
+    await db.query(`
+      INSERT INTO ai_family_insights (
+        inquiry_id, 
+        analysis_type, 
+        insights_json, 
+        confidence_score,
+        generated_at
+      )
+      VALUES ($1, $2, $3, $4, $5)
+      ON CONFLICT (inquiry_id, analysis_type) 
+      DO UPDATE SET
+        insights_json = EXCLUDED.insights_json,
+        confidence_score = EXCLUDED.confidence_score,
+        generated_at = EXCLUDED.generated_at
+    `, [
+      inquiryId, 
+      'engagement_summary', 
+      JSON.stringify(payload), 
+      1.0,
+      new Date()
+    ]);
+    
+    console.log(`✅ Engagement summary saved for ${inquiryId}`);
+    
+    res.json({ 
+      success: true, 
+      engagement_summary: payload 
+    });
+    
+  } catch (error) {
+    console.error('❌ Engagement summary error:', error);
+    console.error('Full error details:', error.stack);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
   }
 });
 
-// Helper function to extract interests (add if not exists)
-function extractInterests(inquiry) {
-  const interests = [];
-  const interestFields = [
-    'sciences', 'mathematics', 'english', 'languages', 'humanities',
-    'business', 'drama', 'music', 'art', 'sport', 'leadership',
-    'community_service', 'outdoor_education'
-  ];
-  
-  interestFields.forEach(field => {
-    if (inquiry[field] === true || inquiry[field] === 'true' || inquiry[field] === 1) {
-      interests.push(field.charAt(0).toUpperCase() + field.slice(1).replace('_', ' '));
-    }
-  });
-  
-  return interests;
+// Also ensure buildEngagementMetrics handles the case where event_data might be null
+async function buildEngagementMetrics(inquiryId) {
+  try {
+    const secExit = await db.query(
+      `SELECT
+         COALESCE(event_data->>'currentSection', 'unknown') AS section_id,
+         COALESCE((event_data->>'timeInSectionSec')::int, 0) AS dwell_sec,
+         COALESCE((event_data->>'maxScrollPct')::int, 0) AS max_scroll_pct,
+         COALESCE((event_data->>'clicks')::int, 0) AS clicks,
+         COALESCE((event_data->>'videoWatchSec')::int, 0) AS video_sec,
+         session_id,
+         timestamp
+       FROM tracking_events
+       WHERE inquiry_id = $1 
+         AND event_type = 'section_exit'
+         AND event_data IS NOT NULL
+       ORDER BY timestamp ASC`,
+      [inquiryId]
+    );
+
+    // Get video events
+    const yt = await db.query(
+      `SELECT
+         COALESCE(event_data->>'currentSection', 'unknown') AS section_id,
+         MAX(COALESCE((event_data->>'milestonePct')::int, 0)) AS watched_pct
+       FROM tracking_events
+       WHERE inquiry_id = $1 
+         AND event_type IN ('youtube_video_progress','youtube_video_complete')
+         AND event_data IS NOT NULL
+       GROUP BY 1`,
+      [inquiryId]
+    );
+    const ytBySection = Object.fromEntries(yt.rows.map(r => [r.section_id, r.watched_pct || 0]));
+
+    // Get timeframe
+    const minMax = await db.query(
+      `SELECT 
+         MIN(timestamp) AS min_ts, 
+         MAX(timestamp) AS max_ts, 
+         COUNT(DISTINCT session_id) AS sessions
+       FROM tracking_events
+       WHERE inquiry_id = $1`,
+      [inquiryId]
+    );
+    
+    const timeframe = {
+      start: minMax.rows[0]?.min_ts || null,
+      end: minMax.rows[0]?.max_ts || null
+    };
+    const distinctSessions = parseInt(minMax.rows[0]?.sessions || '0', 10);
+
+    // Build section map
+    const sectionMap = new Map();
+    secExit.rows.forEach(r => {
+      const id = r.section_id || 'unknown';
+      const prev = sectionMap.get(id) || {
+        id, 
+        name: prettySectionName(id),
+        dwellSeconds: 0,
+        maxScrollPct: 0,
+        clicks: 0,
+        videoSeconds: 0,
+        visits: 0
+      };
+      prev.dwellSeconds += r.dwell_sec || 0;
+      prev.maxScrollPct = Math.max(prev.maxScrollPct, r.max_scroll_pct || 0);
+      prev.clicks += r.clicks || 0;
+      prev.videoSeconds += r.video_sec || 0;
+      prev.visits += 1;
+      sectionMap.set(id, prev);
+    });
+
+    const sections = Array.from(sectionMap.values())
+      .sort((a, b) => b.dwellSeconds - a.dwellSeconds);
+
+    const totals = {
+      timeSeconds: sections.reduce((a, b) => a + (b.dwellSeconds || 0), 0),
+      sectionsViewed: sections.filter(s => s.dwellSeconds > 0).length,
+      returnVisits: Math.max(0, distinctSessions - 1)
+    };
+
+    const videos = Object.keys(ytBySection).map(sectionId => ({
+      sectionId,
+      sectionName: prettySectionName(sectionId),
+      watchedPct: ytBySection[sectionId] || 0
+    })).sort((a, b) => b.watchedPct - a.watchedPct);
+
+    const lastActive = timeframe.end || null;
+
+    return { timeframe, totals, sections, videos, lastActive };
+    
+  } catch (error) {
+    console.error('Error in buildEngagementMetrics:', error);
+    throw error; // Re-throw to handle in calling function
+  }
 }
 
 
