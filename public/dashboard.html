@@ -50,11 +50,26 @@
             position: relative;
         }
 
+        .header-brand {
+            display: inline-block;
+            position: relative;
+        }
+
+        .brand-glow {
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--award-gold), #FFB84D);
+            opacity: 0.3;
+            filter: blur(20px);
+        }
+
         .header-brand h1 {
+            position: relative;
             font-family: var(--font-heading);
-            font-size: 3rem;
+            font-size: 4rem;
             font-weight: 700;
-            margin-bottom: 0.5rem;
+            margin-bottom: 1rem;
         }
 
         .header-brand h1 .smart-text {
@@ -62,6 +77,53 @@
             background-clip: text;
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
+        }
+
+        .header-brand h1 .analytics-text {
+            color: white;
+        }
+
+        .header-subtitle {
+            font-size: 1.2rem;
+            font-weight: 300;
+            color: rgba(255, 255, 255, 0.9);
+            margin-bottom: 0.5rem;
+        }
+
+        .header-meta {
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .header-controls {
+            position: absolute;
+            top: 2rem;
+            right: 2rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .refresh-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 0.9rem;
+        }
+
+        .refresh-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .auto-refresh-toggle {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
         }
 
         /* Metrics Bar */
@@ -80,8 +142,14 @@
             padding: 1.5rem;
             box-shadow: 0 4px 16px rgba(9, 24, 37, 0.08);
             border: 1px solid var(--border-grey);
+            transition: all 0.3s ease;
             position: relative;
             overflow: hidden;
+        }
+
+        .metric-card:hover {
+            box-shadow: 0 8px 25px rgba(9, 24, 37, 0.12);
+            transform: translateY(-2px);
         }
 
         .metric-card::before {
@@ -94,14 +162,75 @@
             background: linear-gradient(90deg, var(--award-gold), var(--sport-blue));
         }
 
+        .metric-card.hot::before { background: var(--hot-lead); }
+        .metric-card.warm::before { background: var(--warm-lead); }
+        .metric-card.engagement::before { background: var(--success); }
+        .metric-card.total::before { background: var(--sport-blue); }
+
+        .metric-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .metric-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--white);
+            background: var(--award-gold);
+            position: relative;
+            font-size: 1.5rem;
+        }
+
+        .metric-icon.hot { 
+            background: linear-gradient(135deg, var(--hot-lead), #ff6666); 
+        }
+        .metric-icon.warm { 
+            background: linear-gradient(135deg, var(--warm-lead), #ffb347); 
+        }
+        .metric-icon.engagement { 
+            background: linear-gradient(135deg, var(--success), #34d399); 
+        }
+        .metric-icon.total { 
+            background: linear-gradient(135deg, var(--sport-blue), #0ea5e9); 
+        }
+
+        .metric-content {
+            flex: 1;
+        }
+
+        .metric-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #64748b;
+            margin-bottom: 0.5rem;
+        }
+
         .metric-value {
             font-size: 2.25rem;
             font-weight: 700;
             color: var(--blazer-navy);
+            margin-bottom: 0.25rem;
             font-family: var(--font-heading);
         }
 
-        /* Main Grid */
+        .metric-trend {
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: var(--success);
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        /* Dashboard Grid */
         .dashboard-grid {
             display: grid;
             grid-template-columns: 2fr 1fr;
@@ -118,6 +247,11 @@
             box-shadow: 0 4px 16px rgba(9, 24, 37, 0.08);
             border: 1px solid var(--border-grey);
             overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .panel:hover {
+            box-shadow: 0 8px 25px rgba(9, 24, 37, 0.12);
         }
 
         .panel-header {
@@ -130,57 +264,79 @@
             align-items: center;
         }
 
+        .panel-content {
+            padding: 1.5rem;
+        }
+
         /* Family Cards */
+        .family-cards-container {
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
         .family-card {
             border: 1px solid var(--border-grey);
             border-radius: 12px;
-            margin-bottom: 1.5rem;
-            background: var(--white);
+            margin-bottom: 1rem;
             transition: all 0.3s ease;
+            background: var(--white);
         }
 
         .family-card:hover {
-            box-shadow: 0 8px 25px rgba(9, 24, 37, 0.12);
-            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(9, 24, 37, 0.1);
+            transform: translateY(-1px);
         }
 
         .family-card-header {
-            padding: 1.5rem;
+            padding: 1rem 1.5rem;
             cursor: pointer;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            background: linear-gradient(to right, #f8fafc, #ffffff);
+            border-bottom: 1px solid var(--border-grey);
+        }
+
+        .family-info {
+            flex: 1;
         }
 
         .family-name {
             font-weight: 600;
             color: var(--blazer-navy);
-            font-size: 1.1rem;
-            margin-bottom: 0.5rem;
+            font-size: 1rem;
+            margin-bottom: 0.25rem;
+            display: flex;
+            align-items: center;
         }
 
         .family-meta {
-            display: flex;
-            gap: 1rem;
             font-size: 0.85rem;
             color: #64748b;
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .family-score {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
         }
 
         .score-badge {
-            padding: 0.5rem 1rem;
+            padding: 0.25rem 0.75rem;
             border-radius: 20px;
-            font-weight: 700;
-            font-size: 1rem;
+            font-weight: 600;
+            font-size: 0.85rem;
         }
 
         .score-badge.hot {
-            background: linear-gradient(135deg, var(--hot-lead), #ff6666);
+            background: var(--hot-lead);
             color: white;
         }
 
         .score-badge.warm {
-            background: linear-gradient(135deg, var(--warm-lead), #ffb347);
+            background: var(--warm-lead);
             color: white;
         }
 
@@ -189,138 +345,207 @@
             color: white;
         }
 
-        .score-badge.unknown {
+        .score-badge.low {
             background: #E5E7EB;
             color: #6B7280;
         }
 
-        /* AI Analysis Section */
-        .ai-full-analysis {
-            display: none;
-            background: #f0f9ff;
-            border-top: 3px solid var(--award-gold);
-            padding: 2rem;
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 0.5rem;
         }
 
-        .family-card.expanded .ai-full-analysis {
-            display: block;
+        .status-indicator.online {
+            background: var(--success);
+            box-shadow: 0 0 4px var(--success);
         }
 
-        .ai-header {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            margin-bottom: 2rem;
-            padding-bottom: 1rem;
-            border-bottom: 2px solid #e0f2fe;
+        .status-indicator.recent {
+            background: var(--warning);
         }
 
-        .ai-badge-large {
-            background: linear-gradient(135deg, var(--award-gold), #FFB84D);
-            color: var(--blazer-navy);
-            padding: 0.5rem 1rem;
-            border-radius: 8px;
-            font-weight: 700;
-            font-size: 0.9rem;
-            text-transform: uppercase;
+        .status-indicator.offline {
+            background: #D1D5DB;
         }
 
-        .ai-scores {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 1rem;
-            margin-bottom: 2rem;
+        .expand-btn {
+            color: var(--sport-blue);
+            transition: transform 0.3s;
         }
 
-        .ai-score-item {
-            background: white;
-            padding: 1rem;
-            border-radius: 8px;
-            text-align: center;
-            border: 1px solid #e0f2fe;
+        .family-card.expanded .expand-btn {
+            transform: rotate(180deg);
         }
 
-        .ai-score-label {
-            font-size: 0.75rem;
-            color: #64748b;
-            text-transform: uppercase;
-            margin-bottom: 0.5rem;
+        .family-card-details {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
         }
 
-        .ai-score-value {
-            font-size: 1.8rem;
-            font-weight: 700;
-            color: var(--blazer-navy);
+        .family-card.expanded .family-card-details {
+            max-height: 800px;
         }
 
-        .ai-insights-grid {
+        .family-details-content {
+            padding: 1.5rem;
+            border-top: 1px solid var(--border-grey);
+        }
+
+        .details-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 1.5rem;
-            margin-bottom: 2rem;
+            margin-bottom: 1.5rem;
         }
 
-        .ai-insight-panel {
-            background: white;
-            border-radius: 8px;
-            padding: 1.5rem;
-            border: 1px solid #e0f2fe;
-        }
-
-        .ai-insight-panel h3 {
-            color: var(--sport-blue);
-            font-size: 1rem;
-            margin-bottom: 1rem;
+        .detail-item h4 {
+            color: var(--blazer-navy);
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
             font-weight: 600;
+        }
+
+        .detail-item p {
+            color: #64748b;
+            font-size: 0.85rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .interests-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+
+        .interest-tag {
+            background: var(--light-grey);
+            color: var(--blazer-navy);
+            padding: 0.25rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        /* AI Insights Section */
+        .ai-insights-section {
+            background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+            border: 1px solid #bfdbfe;
+        }
+
+        .ai-insights-header {
             display: flex;
             align-items: center;
             gap: 0.5rem;
+            margin-bottom: 0.75rem;
         }
 
-        .ai-insight-panel ul {
+        .ai-badge {
+            background: linear-gradient(135deg, var(--award-gold), #FFB84D);
+            color: var(--blazer-navy);
+            padding: 0.25rem 0.5rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .ai-confidence {
+            color: #64748b;
+            font-size: 0.75rem;
+        }
+
+        .ai-insights-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .ai-insight-item {
+            background: white;
+            padding: 0.75rem;
+            border-radius: 6px;
+            border: 1px solid var(--border-grey);
+        }
+
+        .ai-insight-item h5 {
+            color: var(--sport-blue);
+            font-size: 0.8rem;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+
+        .ai-insight-item ul {
             list-style: none;
             padding: 0;
+            margin: 0;
         }
 
-        .ai-insight-panel li {
-            padding: 0.5rem 0;
-            padding-left: 1.5rem;
+        .ai-insight-item li {
+            font-size: 0.75rem;
+            color: #475569;
+            margin-bottom: 0.25rem;
+            padding-left: 1rem;
             position: relative;
-            font-size: 0.9rem;
-            line-height: 1.6;
         }
 
-        .ai-insight-panel li:before {
-            content: "→";
+        .ai-insight-item li:before {
+            content: '→';
             position: absolute;
             left: 0;
             color: var(--award-gold);
-            font-weight: bold;
+        }
+
+        /* Prospectus Link */
+        .prospectus-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: var(--sport-blue);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            text-decoration: none;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.3s;
+            margin-top: 0.5rem;
+        }
+
+        .prospectus-link:hover {
+            background: var(--blazer-navy);
+            transform: translateY(-1px);
         }
 
         /* Activity Feed */
+        .activity-feed {
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
         .activity-item {
             padding: 1rem;
             border-bottom: 1px solid var(--border-grey);
             display: flex;
             gap: 1rem;
             align-items: center;
-            transition: background 0.2s;
         }
-        
-        .activity-item:hover {
-            background: #f8fafc;
-        }
-        
+
         .activity-item:last-child {
             border-bottom: none;
         }
-        
+
         .activity-avatar {
             width: 40px;
             height: 40px;
             border-radius: 50%;
-            background: linear-gradient(135deg, var(--award-gold), #FFB84D);
+            background: var(--award-gold);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -328,29 +553,29 @@
             color: var(--blazer-navy);
             flex-shrink: 0;
         }
-        
+
         .activity-content {
             flex: 1;
         }
-        
+
         .activity-text {
             font-size: 0.9rem;
             color: var(--text-primary);
             margin-bottom: 0.25rem;
         }
-        
+
         .activity-time {
             font-size: 0.75rem;
             color: #64748b;
         }
-        
+
         .activity-type {
             width: 8px;
             height: 8px;
             border-radius: 50%;
             flex-shrink: 0;
         }
-        
+
         .activity-type.high { background: var(--hot-lead); }
         .activity-type.medium { background: var(--warm-lead); }
         .activity-type.low { background: var(--cold-lead); }
@@ -365,6 +590,12 @@
             align-items: center;
         }
 
+        .filter-group {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
         .filter-select {
             padding: 0.5rem 1rem;
             border: 1px solid var(--border-grey);
@@ -374,161 +605,257 @@
             font-size: 0.9rem;
         }
 
-        .action-btn {
-            padding: 0.75rem 1.5rem;
+        .search-box {
+            padding: 0.5rem 1rem;
+            border: 1px solid var(--border-grey);
             border-radius: 8px;
-            font-weight: 600;
+            width: 250px;
             font-size: 0.9rem;
-            cursor: pointer;
-            transition: all 0.3s;
-            border: none;
-            text-decoration: none;
+        }
+
+        /* Loading States */
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem;
+            color: #64748b;
+        }
+
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--border-grey);
+            border-top: 2px solid var(--award-gold);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 0.5rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Error State */
+        .error {
+            background: #FEF2F2;
+            border: 1px solid #FECACA;
+            color: #DC2626;
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+        }
+
+        .error-title {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        /* AI Analysis Indicator */
+        .ai-analyzing {
             display: inline-flex;
             align-items: center;
             gap: 0.5rem;
+            color: var(--award-gold);
+            font-size: 0.8rem;
+            font-weight: 500;
         }
 
-        .action-btn.primary {
-            background: var(--sport-blue);
-            color: white;
+        .pulse {
+            width: 8px;
+            height: 8px;
+            background: var(--award-gold);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
         }
 
-        .action-btn.secondary {
-            background: white;
-            color: var(--sport-blue);
-            border: 2px solid var(--sport-blue);
+        @keyframes pulse {
+            0% { opacity: 0.4; }
+            50% { opacity: 1; }
+            100% { opacity: 0.4; }
         }
 
-        .expand-btn {
-            color: var(--sport-blue);
-            transition: transform 0.3s;
-            cursor: pointer;
-            font-size: 1.2rem;
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+                margin: 0 1rem 2rem;
+            }
+            
+            .metrics-bar {
+                padding: 1rem;
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            }
         }
 
-        .family-card.expanded .expand-btn {
-            transform: rotate(180deg);
-        }
-
-        /* Status Pills */
-        .status-pill {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.25rem;
-            padding: 0.25rem 0.75rem;
-            border-radius: 12px;
-            font-size: 0.75rem;
-            font-weight: 600;
-        }
-
-        .status-pill.urgent {
-            background: #FEE2E2;
-            color: #DC2626;
-        }
-
-        .status-pill.ai-analyzed {
-            background: #FEF3C7;
-            color: #D97706;
+        @media (max-width: 768px) {
+            .header-brand h1 {
+                font-size: 2.5rem;
+            }
+            
+            .metric-value {
+                font-size: 1.8rem;
+            }
+            
+            .family-meta {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+            
+            .details-grid {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
 <body>
     <!-- Header -->
     <header class="dashboard-header">
-        <div class="header-brand">
-            <h1><span class="smart-text">SMART</span> Analytics</h1>
-            <div style="font-size: 1.2rem; opacity: 0.9;">More House School - AI-Powered Admissions Intelligence</div>
+        <div class="header-controls">
+            <div class="auto-refresh-toggle">
+                <input type="checkbox" id="autoRefresh" checked>
+                <label for="autoRefresh">Auto-refresh</label>
+            </div>
+            <button class="refresh-btn" onclick="refreshDashboard()">
+                <span id="refreshIcon">↻</span> Refresh
+            </button>
         </div>
+        
+        <div class="header-brand">
+            <div class="brand-glow"></div>
+            <h1><span class="smart-text">SMART</span> <span class="analytics-text">Analytics</span></h1>
+        </div>
+        <div class="header-subtitle">More House School</div>
+        <div class="header-meta">Admissions Intelligence Dashboard</div>
     </header>
 
     <!-- Metrics Bar -->
     <section class="metrics-bar">
-        <div class="metric-card">
-            <div class="metric-value" id="hotLeads">0</div>
-            <div style="display: flex; align-items: center; gap: 0.5rem; color: #64748b;">
-                Hot Leads (80+ Score)
+        <div class="metric-card hot">
+            <div class="metric-header">
+                <div class="metric-icon hot">🔥</div>
+                <div class="metric-content">
+                    <div class="metric-title">Hot Leads</div>
+                    <div class="metric-value" id="hotLeads">-</div>
+                    <div class="metric-trend">Score 80+ • Ready for Contact</div>
+                </div>
             </div>
         </div>
-        <div class="metric-card">
-            <div class="metric-value" id="warmLeads">0</div>
-            <div style="display: flex; align-items: center; gap: 0.5rem; color: #64748b;">
-                Warm Leads (60-79)
+
+        <div class="metric-card warm">
+            <div class="metric-header">
+                <div class="metric-icon warm">⚡</div>
+                <div class="metric-content">
+                    <div class="metric-title">Warm Leads</div>
+                    <div class="metric-value" id="warmLeads">-</div>
+                    <div class="metric-trend">Score 60-79 • Contact Soon</div>
+                </div>
             </div>
         </div>
-        <div class="metric-card">
-            <div class="metric-value" id="aiAnalyzed">0</div>
-            <div style="display: flex; align-items: center; gap: 0.5rem; color: #64748b;">
-                AI Analyzed
+
+        <div class="metric-card engagement">
+            <div class="metric-header">
+                <div class="metric-icon engagement">📊</div>
+                <div class="metric-content">
+                    <div class="metric-title">AI Analyzed</div>
+                    <div class="metric-value" id="aiAnalyzed">-</div>
+                    <div class="metric-trend">Families with AI insights</div>
+                </div>
             </div>
         </div>
-        <div class="metric-card">
-            <div class="metric-value" id="totalFamilies">0</div>
-            <div style="display: flex; align-items: center; gap: 0.5rem; color: #64748b;">
-                Total Families
+
+        <div class="metric-card total">
+            <div class="metric-header">
+                <div class="metric-icon total">👨‍👩‍👧‍👦</div>
+                <div class="metric-content">
+                    <div class="metric-title">Total Families</div>
+                    <div class="metric-value" id="totalFamilies">-</div>
+                    <div class="metric-trend">Active prospects</div>
+                </div>
             </div>
         </div>
     </section>
 
     <!-- Controls -->
     <section class="controls-bar">
-        <div style="display: flex; gap: 1rem;">
+        <div class="filter-group">
             <select class="filter-select" id="sortFilter">
                 <option value="aiScore">Sort by AI Score</option>
-                <option value="urgency">Sort by Urgency</option>
-                <option value="engagement">Sort by Engagement</option>
+                <option value="score">Sort by Engagement Score</option>
                 <option value="recent">Sort by Recent Activity</option>
+                <option value="inquiryDate">Sort by Inquiry Date</option>
+                <option value="timeSpent">Sort by Time Spent</option>
             </select>
             
             <select class="filter-select" id="statusFilter">
                 <option value="all">All Families</option>
                 <option value="hot">Hot Leads Only</option>
-                <option value="urgent">Urgent Action Required</option>
+                <option value="warm">Warm Leads Only</option>
+                <option value="online">Currently Online</option>
                 <option value="aiAnalyzed">AI Analyzed Only</option>
             </select>
             
-            <input type="text" id="searchBox" placeholder="Search families..." style="padding: 0.5rem 1rem; border: 1px solid var(--border-grey); border-radius: 8px; width: 250px; font-size: 0.9rem;">
+            <select class="filter-select" id="entryYearFilter">
+                <option value="all">All Entry Years</option>
+                <option value="2025">Entry 2025</option>
+                <option value="2026">Entry 2026</option>
+                <option value="2027">Entry 2027+</option>
+            </select>
         </div>
         
-        <button class="action-btn primary" onclick="refreshDashboard()">
-            Refresh Data
-        </button>
+        <input type="text" class="search-box" placeholder="Search families..." id="searchBox">
     </section>
 
-    <!-- Main Dashboard -->
+    <!-- Main Dashboard Grid -->
     <main class="dashboard-grid">
-        <!-- Family Prospects Panel -->
+        <!-- Family Cards Panel -->
         <div class="panel">
             <div class="panel-header">
-                <h2>Family Prospects with AI Intelligence</h2>
-                <button class="action-btn secondary" style="background: white; border: 1px solid rgba(255,255,255,0.3);" onclick="triggerAIAnalysis()">
-                    <span style="color: var(--award-gold); font-weight: 700;">SMART</span> <span style="color: var(--blazer-navy);">AI Analysis</span>
+                <div>
+                    <h2>Family Prospects</h2>
+                    <div style="font-size: 0.9rem; opacity: 0.9; margin-top: 0.25rem;">
+                        Real-time engagement tracking with AI insights
+                    </div>
+                </div>
+                <div class="ai-analyzing" id="aiStatus" style="display: none;">
+                    <div class="pulse"></div>
+                    AI Analyzing...
+                </div>
+                <button class="refresh-btn" onclick="triggerAIAnalysis()" style="background: white; border: 1px solid rgba(255,255,255,0.3); margin-left: 1rem;">
+                    <span style="color: var(--award-gold); font-weight: 600;">SMART</span> <span style="color: var(--blazer-navy);">AI Analysis</span>
                 </button>
             </div>
-            <div style="padding: 1.5rem;">
-                <div id="familyCards">
-                    <div style="padding: 2rem; text-align: center; color: #64748b;">
-                        Loading families...
+            <div class="panel-content">
+                <div class="family-cards-container" id="familyCards">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        Loading real family data...
                     </div>
                 </div>
             </div>
         </div>
-        
-        <!-- Live Activity Feed Panel -->
+
+        <!-- Live Activity Feed -->
         <div class="panel">
             <div class="panel-header">
                 <h2>Live Activity Feed</h2>
-                <div style="font-size: 0.9rem; opacity: 0.9;">Real-time tracking events</div>
+                <div style="font-size: 0.9rem; opacity: 0.9;">
+                    Real tracking events
+                </div>
             </div>
-            <div style="padding: 1.5rem; max-height: 600px; overflow-y: auto;">
-                <div id="activityFeed">
-                    <div style="padding: 1rem; text-align: center; color: #64748b;">
-                        Loading activities...
+            <div class="panel-content">
+                <div class="activity-feed" id="activityFeed">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        Loading activity...
                     </div>
                 </div>
             </div>
         </div>
     </main>
 
+    
     <script>
         // Dashboard State
         let dashboardData = {
@@ -537,188 +864,494 @@
             metrics: {}
         };
 
-        // Initialize when page loads
-        window.addEventListener('DOMContentLoaded', function() {
-            console.log('🚀 SMART Dashboard initializing...');
+        let autoRefreshInterval;
+        let isRefreshing = false;
+
+        // Initialize Dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 Dashboard initializing...');
             loadDashboardData();
             setupEventListeners();
-            setInterval(loadDashboardData, 30000);
+            startAutoRefresh();
         });
 
         function setupEventListeners() {
-            const sortFilter = document.getElementById('sortFilter');
-            const statusFilter = document.getElementById('statusFilter');
-            const searchBox = document.getElementById('searchBox');
+            // Search functionality
+            document.getElementById('searchBox').addEventListener('input', filterFamilies);
             
-            if (sortFilter) sortFilter.addEventListener('change', renderFamilyCards);
-            if (statusFilter) statusFilter.addEventListener('change', renderFamilyCards);
-            if (searchBox) searchBox.addEventListener('input', renderFamilyCards);
+            // Filter dropdowns
+            document.getElementById('sortFilter').addEventListener('change', filterFamilies);
+            document.getElementById('statusFilter').addEventListener('change', filterFamilies);
+            document.getElementById('entryYearFilter').addEventListener('change', filterFamilies);
+            
+            // Auto-refresh toggle
+            document.getElementById('autoRefresh').addEventListener('change', function() {
+                if (this.checked) {
+                    startAutoRefresh();
+                } else {
+                    stopAutoRefresh();
+                }
+            });
         }
 
         async function loadDashboardData() {
+            if (isRefreshing) return;
+            isRefreshing = true;
+            
             try {
-                console.log('📡 Fetching data...');
+                console.log('📡 Fetching real data from server...');
                 
-                const response = await fetch('/api/analytics/inquiries');
-                if (!response.ok) throw new Error(`API failed: ${response.status}`);
+                // Update refresh icon
+                document.getElementById('refreshIcon').style.animation = 'spin 1s linear infinite';
                 
-                const inquiriesData = await response.json();
-                console.log('✅ Received', inquiriesData.length, 'inquiries');
-                
-                let dashboardApiData = { recentlyActive: [] };
-                try {
-                    const dashboardResponse = await fetch('/api/dashboard-data');
-                    if (dashboardResponse.ok) {
-                        dashboardApiData = await dashboardResponse.json();
-                    }
-                } catch (e) {
-                    console.warn('Dashboard API failed:', e);
+                // Fetch inquiries with AI data
+                const inquiriesResponse = await fetch('/api/analytics/inquiries');
+                if (!inquiriesResponse.ok) {
+                    throw new Error(`Inquiries API failed: ${inquiriesResponse.status} - ${inquiriesResponse.statusText}`);
                 }
                 
-                const families = Array.isArray(inquiriesData) ? inquiriesData : [];
+                const inquiriesData = await inquiriesResponse.json();
+                console.log('✅ Raw inquiries data:', Array.isArray(inquiriesData) ? inquiriesData.length : 'object', 'families');
                 
-                dashboardData.families = families.map(family => ({
-                    id: family.id,
-                    first_name: family.first_name || family.firstName || 'Unknown',
-                    family_surname: family.family_surname || family.familySurname || 'Family',
-                    parent_email: family.parent_email || family.parentEmail || '',
-                    entry_year: family.entry_year || family.entryYear || '',
-                    age_group: family.age_group || family.ageGroup || '',
-                    received_at: family.received_at || family.receivedAt,
-                    prospectus_generated_at: family.prospectus_generated_at,
-                    prospectus_pretty_url: family.prospectus_pretty_url,
-                    engagement: family.engagement || {},
-                    engagementScore: family.engagement?.engagementScore || 25,
-                    aiScore: family.aiInsights?.leadScore || null,
-                    hasAI: family.aiInsights?.hasAnalysis === true,
-                    finalScore: family.aiInsights?.leadScore || family.engagement?.engagementScore || 25,
-                    temperature: family.aiInsights?.temperature || family.aiInsights?.leadTemperature || 'unknown',
-                    urgency: family.aiInsights?.urgencyLevel || 'unknown',
-                    aiInsights: family.aiInsights || {}
-                }));
+                // Get dashboard data for activities
+                let dashboardApiData = { recentlyActive: [] };
+                try {
+                    const dashboardDataResponse = await fetch('/api/dashboard-data');
+                    dashboardApiData = await dashboardDataResponse.json();
+                    console.log('✅ Dashboard API data received:', dashboardApiData);
+                } catch (e) {
+                    console.warn('⚠️ Dashboard API failed, proceeding with inquiries only');
+                }
                 
-                dashboardData.activities = processActivityData(dashboardApiData.recentlyActive || [], dashboardData.families);
+                // Handle both array and object responses
+                const familiesArray = Array.isArray(inquiriesData) ? inquiriesData : [inquiriesData];
                 
-                dashboardData.metrics = {
-                    hotLeads: dashboardData.families.filter(f => f.finalScore >= 80).length,
-                    warmLeads: dashboardData.families.filter(f => f.finalScore >= 60 && f.finalScore < 80).length,
-                    aiAnalyzed: dashboardData.families.filter(f => f.hasAI).length,
-                    totalFamilies: dashboardData.families.length
-                };
+                // Process the real data
+                dashboardData.families = processRealFamilyData(familiesArray);
+                dashboardData.activities = processRealActivityData(dashboardApiData?.recentlyActive || []);
+                dashboardData.metrics = calculateRealMetrics(dashboardData.families);
                 
+                console.log('📊 Processed data:', {
+                    families: dashboardData.families.length,
+                    activities: dashboardData.activities.length,
+                    aiAnalyzed: dashboardData.families.filter(f => f.hasAIAnalysis).length,
+                    metrics: dashboardData.metrics
+                });
+                
+                // Update UI with real data
                 updateMetrics();
                 renderFamilyCards();
                 renderActivityFeed();
                 
             } catch (error) {
-                console.error('Failed to load data:', error);
-                document.getElementById('familyCards').innerHTML = `
-                    <div style="padding: 2rem; text-align: center; color: #ef4444;">
-                        <h3>Failed to Load Data</h3>
-                        <p>${error.message}</p>
-                    </div>
-                `;
+                console.error('❌ Failed to load dashboard data:', error);
+                showError('Failed to load real data', error.message);
+            } finally {
+                isRefreshing = false;
+                document.getElementById('refreshIcon').style.animation = '';
             }
         }
 
-        function processActivityData(recentActivityData, families) {
-            if (recentActivityData && recentActivityData.length > 0) {
-                return recentActivityData.slice(0, 20).map(activity => ({
-                    family: activity.name || 'Unknown Family',
-                    action: activity.activity || 'Submitted inquiry',
-                    time: formatTimeAgo(new Date(activity.when || activity.timestamp)),
+        function processRealFamilyData(inquiriesData) {
+            console.log('📊 Processing real family data...');
+            
+            return inquiriesData.map(family => {
+                // Get engagement data
+                const engagement = family.engagement || {
+                    timeOnPage: family.time_on_page || 0,
+                    scrollDepth: family.scroll_depth || 0,
+                    clickCount: family.clicks_on_links || family.click_count || 0,
+                    totalVisits: family.total_visits || 1,
+                    lastVisit: family.last_visit || family.received_at,
+                    engagementScore: family.engagement?.engagementScore || 25
+                };
+                
+                // Get AI insights if available
+                const aiInsights = family.aiInsights || {};
+                const hasAI = aiInsights.hasAnalysis === true || aiInsights.leadScore !== null;
+                
+                // Extract interests
+                const interests = extractRealInterests(family);
+                
+                // Calculate scores
+                const engagementScore = engagement.engagementScore || calculateRealEngagementScore(engagement, family);
+                const aiScore = aiInsights.leadScore || null;
+                const finalScore = aiScore || engagementScore;
+                
+                // Get URLs - BUILD THEM CORRECTLY
+                const baseUrl = window.location.origin;
+                const prospectusUrl = family.prospectus_pretty_url || 
+                                     family.prospectus_pretty_path ? `${baseUrl}${family.prospectus_pretty_path}` :
+                                     family.slug ? `${baseUrl}/${family.slug}` : null;
+                
+                console.log(`👪 ${family.first_name} ${family.family_surname}:`, {
+                    engagement: engagementScore,
+                    aiScore: aiScore,
+                    hasAI: hasAI,
+                    url: prospectusUrl
+                });
+                
+                return {
+                    ...family,
+                    // Normalize naming
+                    inquiry_id: family.id,
+                    firstName: family.first_name,
+                    familySurname: family.family_surname,
+                    parentEmail: family.parent_email,
+                    entryYear: family.entry_year,
+                    ageGroup: family.age_group,
+                    receivedAt: family.received_at,
+                    
+                    // Scores and analysis
+                    engagementScore: engagementScore,
+                    aiScore: aiScore,
+                    finalScore: finalScore,
+                    temperature: aiInsights.temperature || getTemperature(finalScore),
+                    
+                    // AI data
+                    hasAIAnalysis: hasAI,
+                    aiInsights: hasAI ? {
+                        leadScore: aiInsights.leadScore,
+                        urgencyLevel: aiInsights.urgencyLevel,
+                        temperature: aiInsights.temperature,
+                        confidence: aiInsights.confidence,
+                        conversationStarters: aiInsights.fullInsights?.conversationStarters || [],
+                        sellingPoints: aiInsights.fullInsights?.sellingPoints || [],
+                        nextActions: aiInsights.fullInsights?.nextActions || [],
+                        insights: aiInsights.fullInsights?.insights || {}
+                    } : null,
+                    
+                    // Other data
+                    isOnline: isCurrentlyOnline(engagement.lastVisit || engagement.lastActivity),
+                    interests: interests,
+                    contactReady: finalScore >= 80,
+                    engagement: engagement,
+                    prospectusUrl: prospectusUrl,
+                    trackingEvents: 0
+                };
+            });
+        }
+
+        function calculateRealEngagementScore(engagement, family) {
+            let score = 0;
+            
+            // Time spent (40% weight)
+            const timeSeconds = engagement.timeOnPage || engagement.time_on_page || 0;
+            const timeMinutes = timeSeconds / 60;
+            if (timeMinutes >= 30) score += 40;
+            else if (timeMinutes >= 15) score += 30;
+            else if (timeMinutes >= 5) score += 20;
+            else score += Math.min(timeMinutes * 4, 15);
+            
+            // Content depth (30% weight)
+            const scrollDepth = engagement.scrollDepth || engagement.scroll_depth || 0;
+            score += Math.min(scrollDepth * 0.3, 30);
+            
+            // Return visits (20% weight)
+            const visits = engagement.totalVisits || engagement.total_visits || 1;
+            if (visits >= 5) score += 20;
+            else if (visits >= 3) score += 15;
+            else if (visits >= 2) score += 10;
+            else score += 5;
+            
+            // Interaction quality (10% weight)
+            const clicks = engagement.clickCount || engagement.clicks_on_links || engagement.click_count || 0;
+            score += Math.min(clicks * 2, 10);
+            
+            return Math.min(Math.round(score), 100);
+        }
+
+        function extractRealInterests(family) {
+            const interests = [];
+            const interestFields = [
+                'sciences', 'mathematics', 'english', 'languages', 'humanities',
+                'business', 'drama', 'music', 'art', 'sport', 'leadership',
+                'community_service', 'outdoor_education'
+            ];
+            
+            interestFields.forEach(field => {
+                if (family[field] === true || family[field] === 'true' || family[field] === 1) {
+                    interests.push(field.charAt(0).toUpperCase() + field.slice(1).replace('_', ' '));
+                }
+            });
+            
+            return interests;
+        }
+
+        function processRealActivityData(recentActivityData) {
+            if (!recentActivityData || recentActivityData.length === 0) {
+                return dashboardData.families ? dashboardData.families.slice(0, 10).map(family => ({
+                    family: `${family.firstName || family.first_name} ${family.familySurname || family.family_surname}`,
+                    action: 'Submitted inquiry',
+                    time: formatTimeAgo(new Date(family.receivedAt || family.received_at)),
                     type: 'medium',
-                    timestamp: activity.when || activity.timestamp
-                }));
+                    timestamp: family.receivedAt || family.received_at
+                })) : [];
             }
             
-            return families.slice(0, 10).map(family => ({
-                family: `${family.first_name} ${family.family_surname}`,
-                action: 'Submitted inquiry',
-                time: formatTimeAgo(new Date(family.received_at)),
-                type: 'medium',
-                timestamp: family.received_at
+            return recentActivityData.slice(0, 20).map(activity => ({
+                family: activity.name || 'Unknown Family',
+                action: getActivityDescription(activity.activity || 'inquiry'),
+                time: formatTimeAgo(new Date(activity.when || activity.timestamp)),
+                type: getActivityPriority(activity.activity || 'inquiry'),
+                timestamp: activity.when || activity.timestamp
             }));
         }
 
+        function getActivityDescription(activityType) {
+            const descriptions = {
+                'inquiry': 'Submitted inquiry',
+                'Recently inquired': 'Recently inquired',
+                'prospectus_generated': 'Prospectus generated',
+                'page_load': 'Opened prospectus',
+                'scroll_depth': 'Engaged with content',
+                'link_click': 'Clicked links',
+                'heartbeat': 'Active on page',
+                'page_visible': 'Viewing prospectus',
+                'youtube_video_start': 'Started watching video',
+                'youtube_video_progress': 'Watched video content'
+            };
+            
+            return descriptions[activityType] || `${activityType.replace(/_/g, ' ')} activity`;
+        }
+
+        function getActivityPriority(activityType) {
+            const highPriority = ['youtube_video_progress', 'form_interaction', 'prospectus_generated'];
+            const mediumPriority = ['click', 'scroll_depth', 'inquiry', 'Recently inquired'];
+            
+            if (highPriority.includes(activityType)) return 'high';
+            if (mediumPriority.includes(activityType)) return 'medium';
+            return 'low';
+        }
+
+        function calculateRealMetrics(families) {
+            const hotLeads = families.filter(f => (f.aiScore || f.engagementScore) >= 80).length;
+            const warmLeads = families.filter(f => {
+                const score = f.aiScore || f.engagementScore;
+                return score >= 60 && score < 80;
+            }).length;
+            const aiAnalyzed = families.filter(f => f.hasAIAnalysis).length;
+            
+            return {
+                hotLeads,
+                warmLeads,
+                aiAnalyzed,
+                totalFamilies: families.length
+            };
+        }
+
+        function getTemperature(score) {
+            if (score >= 80) return 'hot';
+            if (score >= 60) return 'warm';
+            if (score >= 40) return 'cold';
+            return 'low';
+        }
+
+        function isCurrentlyOnline(lastActivity) {
+            if (!lastActivity) return false;
+            const now = new Date();
+            const diffMinutes = (now - new Date(lastActivity)) / (1000 * 60);
+            return diffMinutes < 30;
+        }
+
+        function formatTimeAgo(date) {
+            const now = new Date();
+            const diffMs = now - date;
+            const diffMins = Math.floor(diffMs / (1000 * 60));
+            const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+            const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+            
+            if (diffMins < 1) return 'Just now';
+            if (diffMins < 60) return `${diffMins} min ago`;
+            if (diffHours < 24) return `${diffHours}h ago`;
+            if (diffDays < 7) return `${diffDays}d ago`;
+            return date.toLocaleDateString();
+        }
+
         function updateMetrics() {
-            document.getElementById('hotLeads').textContent = dashboardData.metrics.hotLeads || 0;
-            document.getElementById('warmLeads').textContent = dashboardData.metrics.warmLeads || 0;
-            document.getElementById('aiAnalyzed').textContent = dashboardData.metrics.aiAnalyzed || 0;
-            document.getElementById('totalFamilies').textContent = dashboardData.metrics.totalFamilies || 0;
+            const metrics = dashboardData.metrics;
+            
+            document.getElementById('hotLeads').textContent = metrics.hotLeads || 0;
+            document.getElementById('warmLeads').textContent = metrics.warmLeads || 0;
+            document.getElementById('aiAnalyzed').textContent = metrics.aiAnalyzed || 0;
+            document.getElementById('totalFamilies').textContent = metrics.totalFamilies || 0;
+            
+            console.log('📊 Updated metrics:', metrics);
         }
 
         function renderFamilyCards() {
             const container = document.getElementById('familyCards');
-            let families = [...dashboardData.families];
+            const families = getFilteredFamilies();
             
-            const searchTerm = document.getElementById('searchBox')?.value?.toLowerCase() || '';
-            if (searchTerm) {
-                families = families.filter(f => 
-                    `${f.first_name} ${f.family_surname}`.toLowerCase().includes(searchTerm) ||
-                    (f.parent_email || '').toLowerCase().includes(searchTerm)
-                );
-            }
-            
-            const statusFilter = document.getElementById('statusFilter').value;
-            if (statusFilter === 'hot') families = families.filter(f => f.finalScore >= 80);
-            else if (statusFilter === 'urgent') families = families.filter(f => f.urgency === 'high');
-            else if (statusFilter === 'aiAnalyzed') families = families.filter(f => f.hasAI);
-            
-            const sortBy = document.getElementById('sortFilter').value;
-            if (sortBy === 'aiScore') families.sort((a, b) => (b.aiScore || 0) - (a.aiScore || 0));
-            else if (sortBy === 'urgency') {
-                const urgencyOrder = { high: 3, medium: 2, low: 1, unknown: 0 };
-                families.sort((a, b) => urgencyOrder[b.urgency] - urgencyOrder[a.urgency]);
-            }
-            else if (sortBy === 'engagement') families.sort((a, b) => b.engagementScore - a.engagementScore);
-            else if (sortBy === 'recent') families.sort((a, b) => new Date(b.received_at) - new Date(a.received_at));
+            console.log('🎨 Rendering', families.length, 'family cards');
             
             if (families.length === 0) {
-                container.innerHTML = '<div style="padding: 2rem; text-align: center; color: #64748b;">No families match your filters</div>';
+                container.innerHTML = `
+                    <div class="error">
+                        <div class="error-title">No Family Data Found</div>
+                        <p>No inquiries match your current filters. Try:</p>
+                        <ul>
+                            <li>Clearing the search box</li>
+                            <li>Selecting "All Families" in filters</li>
+                            <li>Checking if families have submitted inquiries</li>
+                        </ul>
+                    </div>
+                `;
                 return;
             }
             
-            container.innerHTML = families.map(family => renderFamilyCard(family)).join('');
-        }
-
-        function renderFamilyCard(family) {
-            const engagement = family.engagement || {};
-            const timeMinutes = Math.round((engagement.timeOnPage || 0) / 60);
-            const visits = engagement.totalVisits || 1;
-            const scoreClass = family.finalScore >= 80 ? 'hot' : family.finalScore >= 60 ? 'warm' : family.finalScore >= 40 ? 'cold' : 'unknown';
-            
-            return `
-                <div class="family-card" data-id="${family.id}">
-                    <div class="family-card-header" onclick="toggleCard('${family.id}')">
-                        <div>
-                            <div class="family-name">
-                                ${family.first_name} ${family.family_surname} Family
-                                ${family.hasAI ? '<span class="status-pill ai-analyzed" style="margin-left: 0.5rem;">AI</span>' : ''}
+            container.innerHTML = families.map(family => {
+                const engagement = family.engagement || {};
+                const totalTimeMinutes = Math.round((engagement.timeOnPage || engagement.time_on_page || 0) / 60);
+                const visits = engagement.totalVisits || engagement.total_visits || 1;
+                const scrollDepth = engagement.scrollDepth || engagement.scroll_depth || 0;
+                const clicks = engagement.clickCount || engagement.clicks_on_links || engagement.click_count || 0;
+                
+                // Build AI insights HTML if available
+                let aiInsightsHTML = '';
+                if (family.hasAIAnalysis && family.aiInsights) {
+                    const ai = family.aiInsights;
+                    aiInsightsHTML = `
+                        <div class="ai-insights-section">
+                            <div class="ai-insights-header">
+                                <span class="ai-badge">AI ANALYZED</span>
+                                <span class="ai-confidence">Confidence: ${Math.round((ai.confidence || 0) * 100)}%</span>
+                                <span style="margin-left: auto; font-weight: 600; color: var(--blazer-navy);">
+                                    AI Score: ${ai.leadScore}/100
+                                </span>
                             </div>
-                            <div class="family-meta">
-                                <span>Entry ${family.entry_year}</span>
-                                <span>${timeMinutes} mins • ${visits} visits</span>
-                                <span>${formatTimeAgo(new Date(family.received_at))}</span>
+                            <div class="ai-insights-content">
+                                ${ai.conversationStarters && ai.conversationStarters.length > 0 ? `
+                                    <div class="ai-insight-item">
+                                        <h5>Conversation Starters</h5>
+                                        <ul>
+                                            ${ai.conversationStarters.slice(0, 2).map(starter => 
+                                                `<li>${starter}</li>`
+                                            ).join('')}
+                                        </ul>
+                                    </div>
+                                ` : ''}
+                                ${ai.nextActions && ai.nextActions.length > 0 ? `
+                                    <div class="ai-insight-item">
+                                        <h5>Recommended Actions</h5>
+                                        <ul>
+                                            ${ai.nextActions.slice(0, 2).map(action => 
+                                                `<li>${action}</li>`
+                                            ).join('')}
+                                        </ul>
+                                    </div>
+                                ` : ''}
+                                ${ai.insights && ai.insights.studentProfile ? `
+                                    <div class="ai-insight-item">
+                                        <h5>Student Profile</h5>
+                                        <p style="font-size: 0.75rem; color: #475569; margin: 0;">
+                                            ${ai.insights.studentProfile}
+                                        </p>
+                                    </div>
+                                ` : ''}
+                                ${ai.insights && ai.insights.recommendedApproach ? `
+                                    <div class="ai-insight-item">
+                                        <h5>Approach Strategy</h5>
+                                        <p style="font-size: 0.75rem; color: #475569; margin: 0;">
+                                            ${ai.insights.recommendedApproach}
+                                        </p>
+                                    </div>
+                                ` : ''}
                             </div>
                         </div>
-                        <div style="display: flex; align-items: center; gap: 1rem;">
-                            <div class="score-badge ${scoreClass}">
-                                ${family.hasAI ? `AI: ${family.aiScore}` : family.engagementScore}
+                    `;
+                }
+                
+                // Use the AI score if available, otherwise engagement score
+                const displayScore = family.aiScore || family.engagementScore;
+                const scoreLabel = family.hasAIAnalysis ? `AI: ${displayScore}` : displayScore;
+                
+                return `
+                    <div class="family-card" data-id="${family.inquiry_id || family.id}">
+                        <div class="family-card-header" onclick="toggleFamilyCard('${family.inquiry_id || family.id}')">
+                            <div class="family-info">
+                                <div class="family-name">
+                                    <div class="status-indicator ${family.isOnline ? 'online' : 'offline'}"></div>
+                                    ${family.firstName || family.first_name} ${family.familySurname || family.family_surname} Family
+                                </div>
+                                <div class="family-meta">
+                                    <span>Entry ${family.entryYear || family.entry_year || 'Unknown'}</span>
+                                    <span>${totalTimeMinutes} mins</span>
+                                    <span>${visits} visits</span>
+                                    ${family.hasAIAnalysis ? '<span style="color: var(--award-gold); font-weight: 600;">✨ AI</span>' : ''}
+                                    <span>${formatTimeAgo(new Date(family.receivedAt || family.received_at))}</span>
+                                </div>
                             </div>
-                            <div class="expand-btn">▼</div>
+                            <div class="family-score">
+                                <div class="score-badge ${family.temperature}">
+                                    ${scoreLabel}
+                                </div>
+                                <div class="expand-btn">▼</div>
+                            </div>
+                        </div>
+                        <div class="family-card-details">
+                            <div class="family-details-content">
+                                ${aiInsightsHTML}
+                                <div class="details-grid">
+                                    <div class="detail-item">
+                                        <h4>Real Engagement</h4>
+                                        <p>${visits} visits • ${scrollDepth}% max scroll</p>
+                                        <p>Total time: ${totalTimeMinutes} minutes</p>
+                                        <p>Clicks: ${clicks} • Engagement Score: ${family.engagementScore}</p>
+                                        ${family.prospectusUrl ? `
+                                            <a href="${family.prospectusUrl}" target="_blank" class="prospectus-link">
+                                                📄 View Prospectus
+                                            </a>
+                                        ` : ''}
+                                    </div>
+                                    <div class="detail-item">
+                                        <h4>Contact Status</h4>
+                                        <p>${family.contactReady ? '✅ Ready for immediate contact' : '⏳ Continue nurturing'}</p>
+                                        <p>Last activity: ${engagement.lastVisit || engagement.lastActivity ? formatTimeAgo(new Date(engagement.lastVisit || engagement.lastActivity)) : 'Never'}</p>
+                                        ${family.hasAIAnalysis && family.aiInsights ? `
+                                            <p style="margin-top: 0.5rem;">
+                                                <strong>Urgency:</strong> ${family.aiInsights.urgencyLevel || 'Unknown'}<br>
+                                                <strong>Temperature:</strong> ${family.aiInsights.temperature || 'Unknown'}
+                                            </p>
+                                        ` : ''}
+                                    </div>
+                                    <div class="detail-item">
+                                        <h4>Real Interests</h4>
+                                        <div class="interests-tags">
+                                            ${family.interests && family.interests.length > 0 ? 
+                                                family.interests.map(interest => `<span class="interest-tag">${interest}</span>`).join('') :
+                                                '<span class="interest-tag">No interests selected</span>'
+                                            }
+                                        </div>
+                                    </div>
+                                    <div class="detail-item">
+                                        <h4>Family Details</h4>
+                                        <p>Age Group: ${family.ageGroup || family.age_group || 'Unknown'}</p>
+                                        <p>Email: ${family.parentEmail || family.parent_email || 'Unknown'}</p>
+                                        <p>Entry Year: ${family.entryYear || family.entry_year || 'Unknown'}</p>
+                                        <p>Inquiry ID: ${family.inquiry_id || family.id}</p>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                </div>
-            `;
+                `;
+            }).join('');
         }
 
         function renderActivityFeed() {
             const container = document.getElementById('activityFeed');
             const activities = dashboardData.activities;
             
+            console.log('📢 Rendering', activities.length, 'activity items');
+            
             if (activities.length === 0) {
-                container.innerHTML = '<div style="padding: 1rem; text-align: center; color: #64748b;">No recent activity</div>';
+                container.innerHTML = `
+                    <div class="error">
+                        <div class="error-title">No Activity Data</div>
+                        <p>No recent activity found. Waiting for families to engage with prospectuses.</p>
+                    </div>
+                `;
                 return;
             }
             
@@ -731,51 +1364,164 @@
                         </div>
                         <div class="activity-time">${activity.time}</div>
                     </div>
-                    <div class="activity-type medium"></div>
+                    <div class="activity-type ${activity.type}"></div>
                 </div>
             `).join('');
         }
 
-        function formatTimeAgo(date) {
-            const now = new Date();
-            const diffMs = now - date;
-            const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+        function getFilteredFamilies() {
+            let families = [...dashboardData.families];
             
-            if (diffDays === 0) return 'Today';
-            if (diffDays === 1) return 'Yesterday';
-            if (diffDays < 7) return `${diffDays} days ago`;
-            return date.toLocaleDateString();
+            // Apply filters
+            const statusFilter = document.getElementById('statusFilter').value;
+            const entryYearFilter = document.getElementById('entryYearFilter').value;
+            const searchTerm = document.getElementById('searchBox').value.toLowerCase();
+            const sortBy = document.getElementById('sortFilter').value;
+            
+            // Status filter
+            if (statusFilter !== 'all') {
+                if (statusFilter === 'online') {
+                    families = families.filter(f => f.isOnline);
+                } else if (statusFilter === 'aiAnalyzed') {
+                    families = families.filter(f => f.hasAIAnalysis);
+                } else {
+                    families = families.filter(f => f.temperature === statusFilter);
+                }
+            }
+            
+            // Entry year filter
+            if (entryYearFilter !== 'all') {
+                if (entryYearFilter === '2027') {
+                    families = families.filter(f => (f.entryYear || f.entry_year) >= 2027);
+                } else {
+                    families = families.filter(f => (f.entryYear || f.entry_year) == entryYearFilter);
+                }
+            }
+            
+            // Search filter
+            if (searchTerm) {
+                families = families.filter(f => 
+                    `${f.firstName || f.first_name} ${f.familySurname || f.family_surname}`.toLowerCase().includes(searchTerm) ||
+                    (f.parentEmail || f.parent_email || '').toLowerCase().includes(searchTerm)
+                );
+            }
+            
+            // Sort
+            switch (sortBy) {
+                case 'aiScore':
+                    families.sort((a, b) => (b.aiScore || 0) - (a.aiScore || 0));
+                    break;
+                case 'score':
+                    families.sort((a, b) => b.engagementScore - a.engagementScore);
+                    break;
+                case 'recent':
+                    families.sort((a, b) => new Date(b.engagement?.lastVisit || b.engagement?.lastActivity || b.receivedAt || b.received_at) - 
+                                           new Date(a.engagement?.lastVisit || a.engagement?.lastActivity || a.receivedAt || a.received_at));
+                    break;
+                case 'inquiryDate':
+                    families.sort((a, b) => new Date(b.receivedAt || b.received_at) - new Date(a.receivedAt || a.received_at));
+                    break;
+                case 'timeSpent':
+                    families.sort((a, b) => (b.engagement?.timeOnPage || b.engagement?.time_on_page || 0) - 
+                                           (a.engagement?.timeOnPage || a.engagement?.time_on_page || 0));
+                    break;
+            }
+            
+            return families;
         }
 
-        function toggleCard(id) {
-            const card = document.querySelector(`[data-id="${id}"]`);
-            if (card) card.classList.toggle('expanded');
+        function filterFamilies() {
+            renderFamilyCards();
+        }
+
+        function toggleFamilyCard(familyId) {
+            const card = document.querySelector(`[data-id="${familyId}"]`);
+            if (card) {
+                card.classList.toggle('expanded');
+            }
         }
 
         function refreshDashboard() {
-            console.log('Manual refresh triggered');
+            console.log('🔄 Manual refresh triggered');
             loadDashboardData();
         }
 
+        function startAutoRefresh() {
+            stopAutoRefresh();
+            autoRefreshInterval = setInterval(() => {
+                if (document.getElementById('autoRefresh').checked) {
+                    console.log('🔄 Auto refresh triggered');
+                    loadDashboardData();
+                }
+            }, 30000); // Refresh every 30 seconds
+        }
+
+        function stopAutoRefresh() {
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+                autoRefreshInterval = null;
+            }
+        }
+
+        function showError(title, message) {
+            console.error('❌ Dashboard Error:', title, message);
+            
+            const familyContainer = document.getElementById('familyCards');
+            const activityContainer = document.getElementById('activityFeed');
+            
+            const errorHtml = `
+                <div class="error">
+                    <div class="error-title">${title}</div>
+                    <p>${message}</p>
+                    <p>Check the console for technical details.</p>
+                </div>
+            `;
+            
+            familyContainer.innerHTML = errorHtml;
+            activityContainer.innerHTML = errorHtml;
+        }
+
+        // AI Analysis Functions
         async function triggerAIAnalysis() {
-            if (!confirm('Run AI analysis for all families? This may take a few minutes.')) return;
+            const aiStatusElement = document.getElementById('aiStatus');
+            const buttonElement = document.querySelector('.refresh-btn[onclick="triggerAIAnalysis()"]');
+            
+            if (aiStatusElement) aiStatusElement.style.display = 'flex';
+            if (buttonElement) buttonElement.disabled = true;
             
             try {
+                console.log('🤖 Starting real AI analysis...');
+                
                 const response = await fetch('/api/ai/analyze-all-families', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
                 });
                 
                 if (response.ok) {
                     const result = await response.json();
-                    alert(`✅ AI Analysis Complete!\n\nAnalyzed: ${result.results.analyzed} families\nSuccess Rate: ${result.results.successRate}%`);
-                    loadDashboardData();
+                    console.log('✅ AI Analysis completed:', result);
+                    
+                    // Refresh dashboard data after AI analysis
+                    await loadDashboardData();
+                    
+                    // Show success message
+                    if (result.success) {
+                        alert(`✅ AI Analysis completed!\n\nAnalyzed: ${result.results.analyzed}/${result.results.total} families\nSuccess Rate: ${result.results.successRate}%`);
+                    } else {
+                        alert('⚠️ AI Analysis completed with errors. Check console.');
+                    }
                 } else {
                     const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-                    throw new Error(errorData.error || response.statusText);
+                    throw new Error(`AI Analysis failed: ${errorData.error || response.statusText}`);
                 }
             } catch (error) {
+                console.error('❌ AI Analysis error:', error);
                 alert(`❌ AI Analysis failed: ${error.message}`);
+            } finally {
+                if (aiStatusElement) aiStatusElement.style.display = 'none';
+                if (buttonElement) buttonElement.disabled = false;
             }
         }
     </script>
