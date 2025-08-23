@@ -1329,6 +1329,12 @@ app.get('/api/analytics/inquiries', async (req, res) => {
  }
 });
 
+// Redirect old "all" calls to the bulk analyser
+app.post('/api/ai/engagement-summary/all', (req, res) => {
+  return res.redirect(307, '/api/ai/analyze-all-families');
+});
+
+
 app.post('/api/ai/engagement-summary/:inquiryId', async (req, res) => {
  try {
    const inquiryId = req.params.inquiryId;

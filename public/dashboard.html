@@ -1518,8 +1518,8 @@
                     btn.textContent = 'Generating…'; 
                 }
                 
-                const response = await fetch('/api/ai/engagement-summary/' + enquiryId, { 
-                    method: 'POST' 
+                const response = await fetch('/api/ai/analyze-all-families', { method: 'POST' });
+
                 });
                 
                 if (!response.ok) {
