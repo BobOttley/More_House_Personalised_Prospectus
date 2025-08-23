@@ -1,304 +1,305 @@
-/* tracking.js — lightweight prospectus analytics with batching + YouTube support
-   - Reads inquiryId from <meta name="inquiry-id"> or ?inquiryId=… or ?id=…
-   - Batches events to POST /api/track-engagement
-   - Tracks: page_load, page_visible/hidden, scroll_depth, link_click, heartbeat
-   - Optional: YouTube quartiles if the IFrame API is available on the page
+/* tracking.js — Behaviour-first, attention-only tracking
+   - Section enter/exit with attention seconds
+   - Per-section max scroll %, clicks, video watch (YouTube IFrame API)
+   - Idle + visibility + focus handling to avoid inflating time
+   - Batching to POST /api/track-engagement
 */
-
 (function () {
   'use strict';
 
   // ---------- Config ----------
-  var ENDPOINT = '/api/track-engagement';
-  var FLUSH_INTERVAL_MS = 10000;
-  var HEARTBEAT_MS = 15000; // periodic engagement update
-  var BATCH_SIZE = 6;
+  var POST_URL = '/api/track-engagement';
+  var HEARTBEAT_MS = 15000;         // send a heartbeat every 15s
+  var IDLE_TIMEOUT_MS = 30000;      // consider idle after 30s w/o input
+  var SECTION_VIS_RATIO = 0.5;      // ≥50% visible counts as “in section”
+  var SCROLL_DELTA_MIN = 5;         // 5% improvement before emitting section_scroll
 
-  // ---------- Identify inquiry + session ----------
-  function qs(name) {
-    var m = new RegExp('[?&]' + name + '=([^&]+)').exec(location.search);
-    return m ? decodeURIComponent(m[1].replace(/\+/g, ' ')) : null;
+  // ---------- Inquiry + Session ----------
+  function readMeta(name) {
+    var el = document.querySelector('meta[name="'+name+'"]');
+    return el && el.content;
   }
-  function getMeta(name) {
-    var el = document.querySelector('meta[name="' + name + '"]');
-    return el ? el.getAttribute('content') : null;
-  }
+  var INQUIRY_ID = (window.MORE_HOUSE_INQUIRY_ID) ||
+                   readMeta('inquiry-id') ||
+                   new URLSearchParams(location.search).get('inquiry_id') ||
+                   'UNKNOWN';
 
-  var inquiryId =
-    getMeta('inquiry-id') ||
-    qs('inquiryId') ||
-    qs('inquiry_id') ||
-    qs('id') ||
-    'unknown';
-
-  var sessionKey = 'mh_session_' + inquiryId;
-  var sessionId = (function () {
-    try {
-      var existing = localStorage.getItem(sessionKey);
-      if (existing) return existing;
-      var s = 'sess_' + Date.now() + '_' + Math.random().toString(36).slice(2, 9);
-      localStorage.setItem(sessionKey, s);
-      return s;
-    } catch (_) {
-      return 'sess_' + Date.now();
-    }
+  var SESSION_ID = (function() {
+    var KEY = 'mh_session_id';
+    var s = localStorage.getItem(KEY);
+    if (!s) { s = 'S-'+Date.now()+'-'+Math.random().toString(36).slice(2,8); localStorage.setItem(KEY, s); }
+    return s;
   })();
 
-  var sessionStart = Date.now();
-  var maxScrollPct = 0;
-  var clickCount = 0;
+  // ---------- Attention state (true “active” time only) ----------
+  var lastActivityAt = Date.now();
+  var attentionActive = true;
+  var pageVisible = !document.hidden;
+  var pageFocused = document.hasFocus();
 
-  // ---------- Device info ----------
-  function deviceInfo() {
-    var ua = navigator.userAgent || '';
-    var isMobile = /Mobi|Android/i.test(ua);
-    var os = /Windows/i.test(ua)
-      ? 'Windows'
-      : /Mac OS X/i.test(ua)
-      ? 'macOS'
-      : /iPhone|iPad|iOS/i.test(ua)
-      ? 'iOS'
-      : /Android/i.test(ua)
-      ? 'Android'
-      : 'Other';
-    var browser = /Chrome/i.test(ua)
-      ? 'Chrome'
-      : /Safari/i.test(ua) && !/Chrome/i.test(ua)
-      ? 'Safari'
-      : /Firefox/i.test(ua)
-      ? 'Firefox'
-      : /Edg/i.test(ua)
-      ? 'Edge'
-      : 'Other';
-    return {
-      deviceType: isMobile ? 'mobile' : 'desktop',
-      operatingSystem: os,
-      browser: browser,
-      viewport: window.innerWidth + 'x' + window.innerHeight,
-    };
+  function markActivity(){ lastActivityAt = Date.now(); }
+  function computeAttentionActive(){
+    var notIdle = (Date.now() - lastActivityAt) < IDLE_TIMEOUT_MS;
+    attentionActive = pageVisible && pageFocused && notIdle;
   }
 
-  // ---------- Batch + send ----------
-  var queue = [];
-  function enqueue(eventType, data) {
-    var ev = {
-      inquiryId: inquiryId,
-      sessionId: sessionId,
-      eventType: eventType,
-      timestamp: new Date().toISOString(),
-      url: location.href,
-      data: data || {},
-    };
-    queue.push(ev);
-    if (queue.length >= BATCH_SIZE) flush();
-  }
-
-  function flush(bodyOverride) {
-    var payload =
-      bodyOverride ||
-      {
-        events: queue.splice(0, queue.length),
-        sessionInfo: {
-          inquiryId: inquiryId,
-          sessionId: sessionId,
-          timeOnPage: Math.round((Date.now() - sessionStart) / 1000),
-          maxScrollDepth: Math.round(maxScrollPct),
-          clickCount: clickCount,
-          deviceInfo: deviceInfo(),
-        },
-      };
-
-    if (!payload.events || !payload.events.length) return;
-
-    try {
-      fetch(ENDPOINT, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        keepalive: true,
-        body: JSON.stringify(payload),
-      }).catch(function () {
-        // swallow – we’ll try again on next flush
-      });
-    } catch (_) {
-      // ignore
-    }
-  }
-
-  // Periodic flush
-  setInterval(function () {
-    if (queue.length) flush();
-  }, FLUSH_INTERVAL_MS);
-
-  // Heartbeat to capture time on page even without interactions
-  setInterval(function () {
-    enqueue('heartbeat', { t: Math.round((Date.now() - sessionStart) / 1000) });
-  }, HEARTBEAT_MS);
-
-  // ---------- Core event hooks ----------
-  // Page load
-  document.addEventListener('DOMContentLoaded', function () {
-    enqueue('page_load', {
-      referrer: document.referrer || '',
-      viewport: window.innerWidth + 'x' + window.innerHeight,
-      deviceInfo: deviceInfo(),
-    });
+  ['mousemove','keydown','wheel','touchstart','scroll','click'].forEach(function(ev){
+    window.addEventListener(ev, markActivity, { passive:true });
   });
-
-  // Scroll depth tracking
-  function onScroll() {
-    var h = document.documentElement;
-    var scrollTop = window.scrollY || h.scrollTop || 0;
-    var docHeight = Math.max(
-      h.scrollHeight,
-      h.offsetHeight,
-      h.clientHeight,
-      document.body ? document.body.scrollHeight : 0
-    );
-    var winHeight = window.innerHeight || h.clientHeight || 1;
-    var pct = ((scrollTop + winHeight) / Math.max(docHeight, 1)) * 100;
-    if (pct > maxScrollPct + 5) {
-      maxScrollPct = Math.min(100, pct);
-      enqueue('scroll_depth', { percent: Math.round(maxScrollPct) });
-    }
-  }
-  window.addEventListener('scroll', onScroll, { passive: true });
-
-  // Link clicks
-  document.addEventListener('click', function (e) {
-    var a = e.target.closest && e.target.closest('a');
-    if (!a) return;
-    clickCount += 1;
-    enqueue('link_click', {
-      href: a.getAttribute('href') || '',
-      text: (a.textContent || '').trim().slice(0, 120),
-    });
+  document.addEventListener('visibilitychange', function(){
+    pageVisible = !document.hidden; computeAttentionActive();
   });
+  window.addEventListener('focus', function(){ pageFocused = true; computeAttentionActive(); });
+  window.addEventListener('blur',  function(){ pageFocused = false; computeAttentionActive(); });
+  setInterval(computeAttentionActive, 1000);
 
-  // Visibility changes
-  document.addEventListener('visibilitychange', function () {
-    if (document.hidden) {
-      enqueue('page_hidden', {
-        totalTimeVisible: Math.round((Date.now() - sessionStart) / 1000),
-      });
-      flush();
-    } else {
-      enqueue('page_visible', {});
-    }
-  });
-
-  // Before unload – use sendBeacon for last batch
-  window.addEventListener('beforeunload', function () {
-    if (!queue.length) return;
-    try {
-      var payload = {
-        events: queue.splice(0, queue.length),
-        sessionInfo: {
-          inquiryId: inquiryId,
-          sessionId: sessionId,
-          sessionComplete: true,
-          timeOnPage: Math.round((Date.now() - sessionStart) / 1000),
-          maxScrollDepth: Math.round(maxScrollPct),
-          clickCount: clickCount,
-          deviceInfo: deviceInfo(),
-        },
-      };
-      navigator.sendBeacon(ENDPOINT, new Blob([JSON.stringify(payload)], { type: 'application/json' }));
-    } catch (_) {
-      // ignore
-    }
-  });
-
-  // ---------- Optional YouTube tracking ----------
-  // If the page already loaded the IFrame API (our server injects it into generated prospectuses), hook into it.
-  // Otherwise, if there are YouTube iframes present, we load the API here to enable quartile tracking.
-  var YT_READY = false;
-  var ytIfs = Array.prototype.slice.call(document.querySelectorAll('iframe[src*="youtube.com/embed/"]'));
-  if (ytIfs.length && !window.YT) {
-    var tag = document.createElement('script');
-    tag.src = 'https://www.youtube.com/iframe_api';
-    var first = document.getElementsByTagName('script')[0];
-    first.parentNode.insertBefore(tag, first);
-  }
-
-  window.onYouTubeIframeAPIReady = (function (orig) {
-    return function () {
-      YT_READY = true;
+  // ---------- Section registry ----------
+  (function applyDynamicSectionMapping(){
+    if (!window.PROSPECTUS_SECTIONS || !Array.isArray(window.PROSPECTUS_SECTIONS)) return;
+    window.PROSPECTUS_SECTIONS.forEach(function(map){
       try {
-        if (typeof orig === 'function') orig();
-      } catch (_) {}
-      setupYTPlayers();
+        var el = document.querySelector(map.selector);
+        if (el && map.id) el.setAttribute('data-track-section', map.id);
+      } catch(e){}
+    });
+  })();
+
+  var sectionEls = Array.prototype.slice.call(document.querySelectorAll('[data-track-section]'));
+  var sectionState = new Map(); // id -> state
+  sectionEls.forEach(function(el){
+    var id = el.getAttribute('data-track-section');
+    sectionState.set(id, { enteredAt:null, lastTickAt:null, attentionSec:0, maxScrollPct:0, clicks:0, videoSec:0 });
+  });
+
+  function getDeviceInfo(){
+    var ua = navigator.userAgent || '';
+    var viewport = { w: document.documentElement.clientWidth, h: document.documentElement.clientHeight };
+    function pick(re){ var m = re.exec(ua); return m ? m[0] : 'unknown'; }
+    return {
+      userAgent: ua,
+      viewport: viewport,
+      deviceType: /Mobi|Android/i.test(ua) ? 'mobile' : 'desktop',
+      operatingSystem: pick(/Mac|Win|Linux|Android|iPhone|iPad|iOS/),
+      browser: pick(/Chrome|Edg|Firefox|Safari/)
     };
-  })(window.onYouTubeIframeAPIReady);
+  }
 
-  function setupYTPlayers() {
-    var iframes = Array.prototype.slice.call(document.querySelectorAll('iframe[src*="youtube.com/embed/"]'));
-    if (!iframes.length || !window.YT || !window.YT.Player) return;
+  function sectionScrollPct(el){
+    var rect = el.getBoundingClientRect();
+    var total = el.scrollHeight || el.offsetHeight || (rect.height || 1);
+    var scrolled = Math.min(total, Math.max(0, window.scrollY + window.innerHeight - (el.offsetTop || (window.scrollY + rect.top))));
+    var pct = Math.max(0, Math.min(100, (scrolled/total)*100));
+    return Math.round(pct);
+  }
 
-    iframes.forEach(function (iframe, index) {
-      if (!/enablejsapi=1/.test(iframe.src)) {
-        var sep = iframe.src.indexOf('?') > -1 ? '&' : '?';
-        iframe.src = iframe.src + sep + 'enablejsapi=1';
+  // ---------- IntersectionObserver to find “current section” ----------
+  var currentSectionId = null;
+  var currentSectionEl = null;
+  var lastSectionScrollSent = new Map(); // id -> last pct sent
+
+  function buildThresholds(n){ var a=[]; for (var i=0;i<=n;i++) a.push(i/n); return a; }
+  function isMostlyVisible(el){
+    var r = el.getBoundingClientRect();
+    if (r.bottom <= 0 || r.top >= window.innerHeight) return false;
+    var visible = Math.min(r.bottom, window.innerHeight) - Math.max(r.top, 0);
+    var ratio = visible / Math.max(1, r.height);
+    return ratio >= SECTION_VIS_RATIO;
+  }
+
+  var io = new IntersectionObserver(function(entries){
+    var candidate = null, bestRatio = 0;
+    for (var i=0;i<entries.length;i++){
+      var e = entries[i];
+      if (!e.isIntersecting) continue;
+      if (e.intersectionRatio >= SECTION_VIS_RATIO && e.intersectionRatio > bestRatio){
+        bestRatio = e.intersectionRatio; candidate = e.target;
       }
-      if (!iframe.id) iframe.id = 'yt_' + index;
+    }
+    if (candidate) enterSection(candidate);
+    if (currentSectionEl && !isMostlyVisible(currentSectionEl)) exitCurrentSection();
+  }, { threshold: buildThresholds(12) });
 
-      var state = { started: false, watch: 0, t: null, Q25: false, Q50: false, Q75: false, pauses: 0, timer: null };
+  sectionEls.forEach(function(el){ io.observe(el); });
 
-      /* eslint-disable no-new */
-      new YT.Player(iframe.id, {
-        events: {
-          onReady: function () {
-            // nothing
-          },
-          onStateChange: function (e) {
-            var p = e.target;
-            var dur = Math.max(1, p.getDuration() || 1);
-            var cur = p.getCurrentTime() || 0;
+  function queueEvent(ev){ eventQueue.push(ev); }
+  function nowISO(){ return new Date().toISOString(); }
 
-            if (e.data === YT.PlayerState.PLAYING) {
-              if (!state.started) {
-                state.started = true;
-                enqueue('youtube_video_start', { videoId: getVideoIdFromSrc(iframe.src), duration: Math.round(dur) });
-              }
-              if (state.timer) clearInterval(state.timer);
-              state.timer = setInterval(function () {
-                var pct = (p.getCurrentTime() / dur) * 100;
-                if (pct >= 25 && !state.Q25) { state.Q25 = true; enqueue('youtube_video_progress', { videoId: getVideoIdFromSrc(iframe.src), milestone: '25%' }); }
-                if (pct >= 50 && !state.Q50) { state.Q50 = true; enqueue('youtube_video_progress', { videoId: getVideoIdFromSrc(iframe.src), milestone: '50%' }); }
-                if (pct >= 75 && !state.Q75) { state.Q75 = true; enqueue('youtube_video_progress', { videoId: getVideoIdFromSrc(iframe.src), milestone: '75%' }); }
-              }, 2000);
-              if (!state.t) state.t = Date.now();
-            } else if (e.data === YT.PlayerState.PAUSED) {
-              state.pauses += 1;
-              if (state.t) { state.watch += (Date.now() - state.t) / 1000; state.t = null; }
-              if (state.timer) { clearInterval(state.timer); state.timer = null; }
-              enqueue('youtube_video_pause', {
-                videoId: getVideoIdFromSrc(iframe.src),
-                currentTime: Math.round(cur),
-                totalWatchTime: Math.round(state.watch),
-                pauseCount: state.pauses,
-              });
-            } else if (e.data === YT.PlayerState.ENDED) {
-              if (state.t) { state.watch += (Date.now() - state.t) / 1000; state.t = null; }
-              if (state.timer) { clearInterval(state.timer); state.timer = null; }
-              enqueue('youtube_video_complete', {
-                videoId: getVideoIdFromSrc(iframe.src),
-                totalWatchTime: Math.round(state.watch),
-                completionRate: 100,
-              });
-            }
-          },
-        },
-      });
+  function enterSection(el){
+    var id = el.getAttribute('data-track-section');
+    if (currentSectionId === id) return;
+    if (currentSectionId) exitCurrentSection();
+    currentSectionId = id;
+    currentSectionEl = el;
+    var st = sectionState.get(id) || { attentionSec:0, maxScrollPct:0, clicks:0, videoSec:0 };
+    st.enteredAt = Date.now();
+    st.lastTickAt = Date.now();
+    sectionState.set(id, st);
+    queueEvent({
+      inquiryId: INQUIRY_ID, sessionId: SESSION_ID, eventType: 'section_enter',
+      currentSection: id, url: location.href, timestamp: nowISO(),
+      data: { deviceInfo: getDeviceInfo() }
     });
   }
 
-  function getVideoIdFromSrc(src) {
-    var m = /embed\/([^?&]+)/.exec(src || '');
-    return m ? m[1] : 'unknown';
+  function exitCurrentSection(){
+    if (!currentSectionId) return;
+    var id = currentSectionId;
+    var el = currentSectionEl;
+    var st = sectionState.get(id);
+    if (st){
+      var now = Date.now();
+      if (attentionActive && st.lastTickAt) st.attentionSec += Math.max(0, Math.round((now - st.lastTickAt)/1000));
+      st.enteredAt = null; st.lastTickAt = null;
+      st.maxScrollPct = Math.max(st.maxScrollPct, sectionScrollPct(el));
+      queueEvent({
+        inquiryId: INQUIRY_ID, sessionId: SESSION_ID, eventType: 'section_exit',
+        currentSection: id, url: location.href, timestamp: nowISO(),
+        data: { timeInSectionSec: st.attentionSec, maxScrollPct: st.maxScrollPct, clicks: st.clicks, videoWatchSec: st.videoSec, deviceInfo: getDeviceInfo() }
+      });
+    }
+    currentSectionId = null; currentSectionEl = null;
   }
 
-  // If the API was already available (injected by server), initialise now.
-  if (window.YT && window.YT.Player) {
-    setupYTPlayers();
+  // Tick attention inside the current section
+  setInterval(function(){
+    if (!currentSectionId) return;
+    var st = sectionState.get(currentSectionId);
+    if (!st) return;
+    var now = Date.now();
+    if (attentionActive && st.lastTickAt){
+      st.attentionSec += Math.max(0, Math.round((now - st.lastTickAt)/1000));
+      st.maxScrollPct = Math.max(st.maxScrollPct, sectionScrollPct(currentSectionEl));
+    }
+    st.lastTickAt = now;
+    var lastSent = lastSectionScrollSent.get(currentSectionId) || 0;
+    if (st.maxScrollPct - lastSent >= SCROLL_DELTA_MIN){
+      lastSectionScrollSent.set(currentSectionId, st.maxScrollPct);
+      queueEvent({
+        inquiryId: INQUIRY_ID, sessionId: SESSION_ID, eventType: 'section_scroll',
+        currentSection: currentSectionId, url: location.href, timestamp: nowISO(),
+        data: { maxScrollPct: st.maxScrollPct }
+      });
+    }
+  }, 2000);
+
+  // Attribute clicks to current section
+  document.addEventListener('click', function(){
+    if (!currentSectionId) return;
+    var st = sectionState.get(currentSectionId);
+    if (st) st.clicks += 1;
+  }, { capture:true });
+
+  // ---------- YouTube IFrame API (attention-gated) ----------
+  var ytPlayers = new Map(); // iframeId -> state
+
+  function ensureYTAPI(){
+    if (window.YT && window.YT.Player){ onYouTubeIframeAPIReady(); return; }
+    if (document.getElementById('youtube-iframe-api')) return;
+    var tag = document.createElement('script');
+    tag.id = 'youtube-iframe-api';
+    tag.src = 'https://www.youtube.com/iframe_api';
+    document.head.appendChild(tag);
   }
+
+  window.onYouTubeIframeAPIReady = function(){
+    var iframes = Array.prototype.slice.call(document.querySelectorAll('iframe[src*="youtube.com"],iframe[src*="youtu.be"]'));
+    iframes.forEach(function(iframe, idx){
+      var url = new URL(iframe.src, location.href);
+      if (!/enablejsapi=1/.test(url.search)){
+        url.searchParams.set('enablejsapi', '1');
+        iframe.src = url.toString();
+      }
+      if (!iframe.id) iframe.id = 'yt-'+idx+'-'+Math.random().toString(36).slice(2,6);
+      var container = iframe.closest('[data-track-section]');
+      var sectionId = container ? container.getAttribute('data-track-section') : currentSectionId;
+      var player = new YT.Player(iframe.id, {
+        events: { 'onStateChange': function(e){ handleYTStateChange(iframe.id, sectionId, e); } }
+      });
+      ytPlayers.set(iframe.id, { player: player, sectionId: sectionId, lastState: -1, playStartedAt: null, watchedSec: 0, milestones: {} });
+    });
+  };
+
+  function handleYTStateChange(iframeId, sectionId, event){
+    var P = ytPlayers.get(iframeId); if (!P) return;
+    var state = event.data; // -1 unstarted, 0 ended, 1 playing, 2 paused, 3 buffering, 5 cued
+    var now = Date.now();
+
+    if (state === 1){ // playing
+      if (attentionActive) P.playStartedAt = now;
+      P.lastState = 1;
+      queueEvent({ inquiryId: INQUIRY_ID, sessionId: SESSION_ID, eventType: 'youtube_video_start', currentSection: sectionId, url: location.href, timestamp: nowISO(), data: {} });
+    }
+
+    var leavingPlaying = (P.lastState === 1 && state !== 1);
+    if (leavingPlaying && P.playStartedAt){
+      var sec = Math.max(0, Math.round((now - P.playStartedAt)/1000));
+      P.watchedSec += sec; P.playStartedAt = null;
+      var st = sectionState.get(sectionId); if (st) st.videoSec += sec;
+      try {
+        var total = P.player.getDuration ? (P.player.getDuration() || 0) : 0;
+        if (total > 0){
+          var pct = Math.floor((P.watchedSec / total) * 100);
+          [25,50,75].forEach(function(m){
+            if (pct >= m && !P.milestones[m]){
+              P.milestones[m] = true;
+              queueEvent({ inquiryId: INQUIRY_ID, sessionId: SESSION_ID, eventType: 'youtube_video_progress', currentSection: sectionId, url: location.href, timestamp: nowISO(), data: { milestonePct: m } });
+            }
+          });
+        }
+      } catch(e){}
+    }
+
+    if (state === 2){ // paused
+      queueEvent({ inquiryId: INQUIRY_ID, sessionId: SESSION_ID, eventType: 'youtube_video_pause', currentSection: sectionId, url: location.href, timestamp: nowISO(), data: {} });
+    }
+    if (state === 0){ // ended
+      queueEvent({ inquiryId: INQUIRY_ID, sessionId: SESSION_ID, eventType: 'youtube_video_complete', currentSection: sectionId, url: location.href, timestamp: nowISO(), data: {} });
+    }
+    P.lastState = state;
+  }
+
+  ensureYTAPI();
+
+  // ---------- Batching + Heartbeat ----------
+  var eventQueue = [];
+  function estimateAttentionTotal(){
+    var total = 0;
+    sectionState.forEach(function(st){ total += (st.attentionSec || 0); });
+    return total;
+  }
+
+  function heartbeat(){
+    // flush partial attention without exiting section
+    if (currentSectionId){
+      var st = sectionState.get(currentSectionId);
+      if (st && attentionActive && st.lastTickAt){
+        var now = Date.now();
+        st.attentionSec += Math.max(0, Math.round((now - st.lastTickAt)/1000));
+        st.lastTickAt = now;
+        st.maxScrollPct = Math.max(st.maxScrollPct, sectionScrollPct(currentSectionEl));
+      }
+    }
+    var payload = {
+      events: eventQueue.splice(0, eventQueue.length),
+      sessionInfo: {
+        inquiryId: INQUIRY_ID,
+        sessionId: SESSION_ID,
+        timeOnPage: estimateAttentionTotal(),
+        maxScrollDepth: Math.max(0, ...Array.from(sectionState.values()).map(function(s){ return s.maxScrollPct; })),
+        clickCount: Array.from(sectionState.values()).reduce(function(a,b){ return a + (b.clicks||0); }, 0),
+        deviceInfo: getDeviceInfo()
+      }
+    };
+    var meaningful = payload.events.length > 0 || (payload.sessionInfo.timeOnPage % 15 === 0);
+    if (!meaningful) return;
+    try {
+      fetch(POST_URL, { method:'POST', headers:{ 'Content-Type':'application/json', 'Accept':'application/json' }, body: JSON.stringify(payload) });
+    } catch(e){ /* ignore */ }
+  }
+  var hb = setInterval(heartbeat, HEARTBEAT_MS);
+
+  // ---------- Finalise on unload / hide ----------
+  function flushAndExit(){ exitCurrentSection(); heartbeat(); }
+  window.addEventListener('beforeunload', flushAndExit, { capture:true });
+  document.addEventListener('visibilitychange', function(){ if (document.hidden) flushAndExit(); });
 })();
