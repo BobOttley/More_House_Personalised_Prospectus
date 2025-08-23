@@ -1024,6 +1024,9 @@
                     const result = await response.json();
                     alert(`✅ AI Analysis Complete!\n\nAnalyzed: ${result.results.analyzed} families\nSuccess Rate: ${result.results.successRate}%`);
                     loadDashboardData();
+                } else {
+                    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+                    throw new Error(errorData.error || response.statusText);
                 }
             } catch (error) {
                 alert(`❌ AI Analysis failed: ${error.message}`);

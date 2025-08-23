@@ -1532,6 +1532,197 @@ app.post('/api/ai/analyze-smart', async (req, res) => {
   }
 });
 
+// Individual family analysis with change detection - COMPLETE CODE
+app.post('/api/ai/analyze-family/:inquiryId', async (req, res) => {
+  try {
+    const inquiryId = req.params.inquiryId;
+    const { force = false } = req.body;
+    
+    console.log(`Checking if ${inquiryId} needs analysis...`);
+    
+    // Check if already analyzed
+    if (db && !force) {
+      const existing = await db.query(`
+        SELECT 
+          ai.generated_at,
+          ai.lead_score,
+          ai.insights_json,
+          em.updated_at as engagement_updated
+        FROM ai_family_insights ai
+        LEFT JOIN engagement_metrics em ON ai.inquiry_id = em.inquiry_id
+        WHERE ai.inquiry_id = $1
+      `, [inquiryId]);
+      
+      if (existing.rows.length > 0) {
+        const row = existing.rows[0];
+        const aiDate = new Date(row.generated_at);
+        const engagementDate = new Date(row.engagement_updated || 0);
+        
+        if (engagementDate <= aiDate) {
+          return res.json({
+            success: true,
+            message: 'Family already has up-to-date AI analysis',
+            upToDate: true,
+            existingScore: row.lead_score,
+            analyzedAt: row.generated_at,
+            insights: row.insights_json
+          });
+        }
+      }
+    }
+    
+    // Load the inquiry data
+    let inquiry = null;
+    let engagementData = null;
+    
+    if (db) {
+      const result = await db.query(`
+        SELECT i.*, 
+               em.time_on_page, em.scroll_depth, em.clicks_on_links, 
+               em.total_visits, em.last_visit
+        FROM inquiries i
+        LEFT JOIN engagement_metrics em ON i.id = em.inquiry_id
+        WHERE i.id = $1
+      `, [inquiryId]);
+      
+      if (result.rows.length > 0) {
+        const row = result.rows[0];
+        inquiry = {
+          id: row.id,
+          firstName: row.first_name,
+          familySurname: row.family_surname,
+          parentEmail: row.parent_email,
+          ageGroup: row.age_group,
+          entryYear: row.entry_year,
+          sciences: row.sciences,
+          mathematics: row.mathematics,
+          english: row.english,
+          languages: row.languages,
+          humanities: row.humanities,
+          business: row.business,
+          drama: row.drama,
+          music: row.music,
+          art: row.art,
+          creative_writing: row.creative_writing,
+          sport: row.sport,
+          leadership: row.leadership,
+          community_service: row.community_service,
+          outdoor_education: row.outdoor_education,
+          academic_excellence: row.academic_excellence,
+          pastoral_care: row.pastoral_care,
+          university_preparation: row.university_preparation,
+          personal_development: row.personal_development,
+          career_guidance: row.career_guidance,
+          extracurricular_opportunities: row.extracurricular_opportunities
+        };
+        
+        engagementData = {
+          time_on_page: row.time_on_page,
+          scroll_depth: row.scroll_depth,
+          clicks_on_links: row.clicks_on_links,
+          total_visits: row.total_visits,
+          last_visit: row.last_visit
+        };
+      }
+    }
+    
+    // Fallback to JSON files if not in database
+    if (!inquiry) {
+      const files = await fs.readdir(path.join(__dirname, 'data'));
+      for (const f of files.filter(x => x.startsWith('inquiry-') && x.endsWith('.json'))) {
+        const j = JSON.parse(await fs.readFile(path.join(__dirname, 'data', f), 'utf8'));
+        if (j.id === inquiryId) {
+          inquiry = j;
+          break;
+        }
+      }
+    }
+    
+    if (!inquiry) {
+      return res.status(404).json({
+        success: false,
+        error: 'Family not found',
+        inquiryId: inquiryId
+      });
+    }
+    
+    console.log(`Processing ${inquiry.firstName} ${inquiry.familySurname} (${inquiry.id})`);
+    
+    // Run the AI analysis
+    const analysis = await analyzeFamily(inquiry, engagementData);
+    
+    if (!analysis) {
+      return res.status(500).json({
+        success: false,
+        error: 'AI analysis failed',
+        inquiryId: inquiryId
+      });
+    }
+    
+    // Store in database
+    if (db) {
+      try {
+        await db.query(`
+          INSERT INTO ai_family_insights (
+            inquiry_id, analysis_type, insights_json, confidence_score, 
+            recommendations, generated_at, lead_score, urgency_level, lead_temperature
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+          ON CONFLICT (inquiry_id, analysis_type) DO UPDATE SET
+            insights_json = EXCLUDED.insights_json,
+            confidence_score = EXCLUDED.confidence_score,
+            recommendations = EXCLUDED.recommendations,
+            generated_at = EXCLUDED.generated_at,
+            lead_score = EXCLUDED.lead_score,
+            urgency_level = EXCLUDED.urgency_level,
+            lead_temperature = EXCLUDED.lead_temperature
+        `, [
+          inquiry.id,
+          'family_profile',
+          JSON.stringify(analysis),
+          analysis.confidence_score,
+          analysis.recommendations,
+          new Date(),
+          analysis.leadScore,
+          analysis.urgencyLevel,
+          analysis.leadTemperature
+        ]);
+        
+        console.log(`Stored individual analysis for ${inquiry.id} in database`);
+      } catch (dbError) {
+        console.warn(`DB insert failed for ${inquiry.id}:`, dbError.message);
+      }
+    }
+    
+    console.log(`Individual analysis completed for ${inquiry.firstName} ${inquiry.familySurname} (score: ${analysis.leadScore})`);
+    
+    res.json({
+      success: true,
+      message: `AI analysis completed for ${inquiry.firstName} ${inquiry.familySurname}`,
+      inquiryId: inquiry.id,
+      analysis: {
+        leadScore: analysis.leadScore,
+        urgencyLevel: analysis.urgencyLevel,
+        leadTemperature: analysis.leadTemperature,
+        confidence: analysis.confidence_score,
+        conversationStarters: analysis.conversationStarters,
+        sellingPoints: analysis.sellingPoints,
+        nextActions: analysis.nextActions,
+        insights: analysis.insights,
+        keyObservations: analysis.keyObservations
+      }
+    });
+    
+  } catch (error) {
+    console.error(`Individual AI analysis error for ${req.params.inquiryId}:`, error);
+    res.status(500).json({
+      success: false,
+      error: 'Individual AI analysis failed',
+      message: error.message,
+      inquiryId: req.params.inquiryId
+    });
+  }
+});
+
 // Individual family analysis with change detection
 app.post('/api/ai/analyze-family/:inquiryId', async (req, res) => {
   try {
@@ -1582,37 +1773,6 @@ app.post('/api/ai/analyze-family/:inquiryId', async (req, res) => {
   }
 });
 
-// Dashboard integration - Update the triggerAIAnalysis function
-function triggerAIAnalysis() {
-    if (!confirm('Run AI analysis for families that need it? This will skip families already analyzed.')) return;
-    
-    try {
-        // Call the SMART endpoint instead
-        const response = await fetch('/api/ai/analyze-smart', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                forceReanalyze: false,  // Don't re-analyze existing
-                onlyNew: false,         // Analyze all that need it
-                onlyActive: true,       // Focus on recently active
-                scoreThreshold: 30      // Min engagement score
-            })
-        });
-        
-        if (response.ok) {
-            const result = await response.json();
-            alert(`✅ Smart AI Analysis Complete!\n\n` +
-                  `Analyzed: ${result.results.analyzed} families\n` +
-                  `Already up-to-date: ${result.results.skipped.alreadyAnalyzed}\n` +
-                  `Skipped (no engagement): ${result.results.skipped.noEngagement}\n` +
-                  `Skipped (low score): ${result.results.skipped.lowScore}\n` +
-                  `Total families: ${result.results.total}`);
-            loadDashboardData();
-        }
-    } catch (error) {
-        alert(`❌ AI Analysis failed: ${error.message}`);
-    }
-}
 
 
 app.post('/api/ai/analyze-family/:inquiryId', async (req, res) => {
