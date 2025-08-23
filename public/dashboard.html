@@ -967,7 +967,7 @@
                 document.getElementById('refreshIcon').style.animation = 'spin 1s linear infinite';
                 
                 // Fetch enquiries data with AI narratives
-                const enquiriesResponse = await fetch('/api/analytics/enquiries');
+                const enquiriesResponse = await fetch('/api/analytics/inquiries');
                 if (!enquiriesResponse.ok) {
                     throw new Error('Enquiries API failed: ' + enquiriesResponse.status + ' - ' + enquiriesResponse.statusText);
                 }
