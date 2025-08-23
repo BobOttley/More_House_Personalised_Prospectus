@@ -1194,31 +1194,35 @@
 const eg = family.aiEngagement;
 
 if (eg && eg.narrative) {
-    aiInsightsHTML = '<div class="ai-insights"><div class="ai-insights-header">' +
+    aiInsightsHTML = '<div class="ai-insights"><div class="ai-insights-header" style="display:flex;align-items:center;gap:.5rem;">' +
                      '<h4 style="margin:0;">AI Engagement Summary</h4>' +
-                     '<span style="margin-left:auto;font-size:0.85rem;opacity:0.7;">' + new Date(eg.generatedAt || eg.lastActive || Date.now()).toLocaleString('en-GB') + '</span>' +
-                     '</div>' +
-                     '<p style="margin:0;line-height:1.5;">' + eg.narrative + '</p>' +
+                     '<span style="margin-left:auto;font-size:.85rem;opacity:.7;">' +
+                     new Date(eg.lastActive || Date.now()).toLocaleString('en-GB') +
+                     '</span></div>' +
+                     '<p style="margin:.5rem 0 0 0;line-height:1.5;">' + eg.narrative + '</p>' +
                      '<details style="margin-top:0.5rem;"><summary>View details</summary>' +
-                     '<div style="margin-top:0.5rem;font-size:0.9rem;">' +
-                     '<div><strong>Total time:</strong> ' + (eg.totals ? (Math.floor((eg.totals.timeSeconds||0)/60) + 'm ' + ((eg.totals.timeSeconds||0)%60) + 's') : '—') + '</div>' +
-                     '<div><strong>Sections viewed:</strong> ' + (eg.totals && eg.totals.sectionsViewed != null ? eg.totals.sectionsViewed : '—') + '</div>' +
-                     '<div><strong>Return visits:</strong> ' + (eg.totals && eg.totals.returnVisits != null ? eg.totals.returnVisits : '—') + '</div>' +
-                     (Array.isArray(eg.sections) && eg.sections.length ? ('<div style="margin-top:0.5rem;"><strong>Top sections:</strong><ul style="margin:0.25rem 0 0 1rem;">' +
-                      eg.sections.slice(0,5).map(function(s){return '<li>' + (s.name||s.id) + ' — ' + Math.floor((s.dwellSeconds||0)/60) + 'm ' + ((s.dwellSeconds||0)%60) + 's, scroll ' + (s.maxScrollPct||0) + '%' + (s.visits>1?', revisited':'') + '</li>';}).join('') +
-                     '</ul></div>') : '') +
-                     (Array.isArray(eg.videos) && eg.videos.some(function(v){return v.watchedPct>0;}) ? ('<div style="margin-top:0.5rem;"><strong>Videos:</strong><ul style="margin:0.25rem 0 0 1rem;">' +
-                      eg.videos.filter(function(v){return v.watchedPct>0;}).slice(0,5).map(function(v){return '<li>' + (v.sectionName||v.sectionId) + ' ~' + v.watchedPct + '%</li>';}).join('') +
-                     '</ul></div>') : '') +
-                     '</div></details></div>';
+                     '<div style="margin-top:0.5rem;font-size:0.9rem;display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;">' +
+                       '<div><strong>Lead score:</strong> ' + (eg.leadScore != null ? eg.leadScore : '—') + '/100</div>' +
+                       '<div><strong>Total time:</strong> ' + (eg.totals && eg.totals.timeSeconds != null ? (Math.floor(eg.totals.timeSeconds/60) + 'm ' + (eg.totals.timeSeconds%60) + 's') : '—') + '</div>' +
+                       '<div><strong>Sections viewed:</strong> ' + (eg.totals && eg.totals.sectionsViewed != null ? eg.totals.sectionsViewed : '—') + '</div>' +
+                       '<div><strong>Avg. scroll:</strong> ' + (eg.totals && eg.totals.avgScroll != null ? eg.totals.avgScroll + '%' : '—') + '</div>' +
+                       '<div><strong>Visits:</strong> ' + (eg.totals && eg.totals.visits != null ? eg.totals.visits : '—') + '</div>' +
+                       '<div><strong>Clicks:</strong> ' + (eg.totals && eg.totals.totalClicks != null ? eg.totals.totalClicks : '—') + '</div>' +
+                     '</div>' +
+                     (Array.isArray(eg.sections) && eg.sections.length ? '<div style="margin-top:0.5rem;"><strong>Top sections:</strong><ul style="margin:0.25rem 0 0 1rem;">' +
+                       eg.sections.slice(0,5).map(function(s){ return '<li>' + (s.label || 'Section') + ' — ' + (s.dwellSeconds||0) + 's ~' + (s.avgScroll||0) + '%</li>'; }).join('') +
+                     '</ul></div>' : '') +
+                     '</details></div>';
 } else {
     aiInsightsHTML = '<div class="ai-insights">' +
                      '<div class="ai-insights-header"><h4 style="margin:0;">AI Engagement Summary</h4></div>' +
                      '<p style="margin:0;opacity:0.7;">No engagement summary yet.</p>' +
-                     '<button class="btn btn-secondary" style="margin-top:0.5rem;" onclick="generateEngagementSummary(\'' + family.id + '\', this)">Generate/Refresh</button>' +
+                     '<button class="btn btn-secondary" style="margin-top:0.5rem;" onclick="generateEngagementSummary(\'' + (family.inquiry_id || family.id) + '\', this)">Generate/Refresh</button>' +
                      '</div>';
 }
-aiInsightsHTML;
+
+html += aiInsightsHTML;
+
                 html += '<div class="details-grid">';
                 html += '<div class="detail-item"><h4>Real Engagement</h4><p>' + visits + ' visits • ' + scrollDepth + '% max scroll</p><p>Total time: ' + totalTimeMinutes + ' minutes</p><p>Clicks: ' + clicks + ' • Engagement Score: ' + family.engagementScore + '</p>' + prospectusLink + '</div>';
                 html += '<div class="detail-item"><h4>Contact Status</h4><p>' + (family.contactReady ? '✅ Ready for immediate contact' : '⏳ Continue nurturing') + '</p><p>Last activity: ' + (engagement.lastVisit || engagement.lastActivity ? formatTimeAgo(new Date(engagement.lastVisit || engagement.lastActivity)) : 'Never') + '</p></div>';
