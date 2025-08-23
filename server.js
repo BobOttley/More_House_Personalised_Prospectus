@@ -1290,201 +1290,330 @@ app.get('/api/analytics/inquiries', async (req, res) => {
   }
 });
 
-app.post('/api/ai/analyze-all-families', async (req, res) => {
+// SMART AI Analysis Endpoint - Add this to server.js
+// Replaces the wasteful /api/ai/analyze-all-families endpoint
+
+app.post('/api/ai/analyze-smart', async (req, res) => {
   try {
-    console.log('🤖 Starting AI analysis for all families...');
+    console.log('🤖 Starting SMART AI analysis (only when needed)...');
+    
+    const { 
+      forceReanalyze = false,  // Force re-analysis even if exists
+      onlyNew = true,          // Only analyze families without AI
+      onlyActive = false,      // Only analyze recently active families
+      scoreThreshold = 50      // Only analyze if engagement > threshold
+    } = req.body;
     
     let inquiries = [];
-
-    // 🎯 PRIORITY 1: Read from DATABASE first if connected
+    
+    // Load all families
     if (db) {
-      try {
-        console.log('📊 Reading inquiries from DATABASE for AI analysis...');
-        const result = await db.query(`
-          SELECT id, first_name, family_surname, parent_email, age_group, entry_year,
-                 sciences, mathematics, english, languages, humanities, business,
-                 drama, music, art, creative_writing, sport, leadership, 
-                 community_service, outdoor_education, academic_excellence, 
-                 pastoral_care, university_preparation, personal_development, 
-                 career_guidance, extracurricular_opportunities,
-                 received_at, status
-          FROM inquiries 
-          ORDER BY received_at DESC
-        `);
-        
-        inquiries = result.rows.map(row => ({
-          id: row.id,
-          firstName: row.first_name,
-          familySurname: row.family_surname,
-          parentEmail: row.parent_email,
-          ageGroup: row.age_group,
-          entryYear: row.entry_year,
-          receivedAt: row.received_at,
-          status: row.status,
-          sciences: row.sciences,
-          mathematics: row.mathematics,
-          english: row.english,
-          languages: row.languages,
-          humanities: row.humanities,
-          business: row.business,
-          drama: row.drama,
-          music: row.music,
-          art: row.art,
-          creative_writing: row.creative_writing,
-          sport: row.sport,
-          leadership: row.leadership,
-          community_service: row.community_service,
-          outdoor_education: row.outdoor_education,
-          academic_excellence: row.academic_excellence,
-          pastoral_care: row.pastoral_care,
-          university_preparation: row.university_preparation,
-          personal_development: row.personal_development,
-          career_guidance: row.career_guidance,
-          extracurricular_opportunities: row.extracurricular_opportunities
-        }));
-        
-        console.log(`✅ Loaded ${inquiries.length} inquiries from DATABASE for AI analysis`);
-        
-      } catch (dbError) {
-        console.warn('⚠️ Database read failed for AI analysis, falling back to JSON:', dbError.message);
+      const result = await db.query(`
+        SELECT 
+          i.*,
+          em.time_on_page, 
+          em.scroll_depth, 
+          em.clicks_on_links, 
+          em.total_visits, 
+          em.last_visit,
+          em.updated_at as engagement_updated,
+          ai.generated_at as ai_generated_at,
+          ai.lead_score as existing_ai_score,
+          ai.insights_json as existing_insights
+        FROM inquiries i
+        LEFT JOIN engagement_metrics em ON i.id = em.inquiry_id
+        LEFT JOIN ai_family_insights ai ON i.id = ai.inquiry_id
+        ORDER BY i.received_at DESC
+      `);
+      
+      inquiries = result.rows;
+    } else {
+      // Fallback to JSON files
+      const files = await fs.readdir(path.join(__dirname, 'data'));
+      for (const f of files.filter(x => x.startsWith('inquiry-') && x.endsWith('.json'))) {
+        const j = JSON.parse(await fs.readFile(path.join(__dirname, 'data', f), 'utf8'));
+        inquiries.push(j);
       }
     }
-
-    // 🎯 FALLBACK: Only try JSON files if database failed or empty
-    if (inquiries.length === 0) {
-      console.log('📁 Falling back to JSON files for AI analysis...');
-      const files = await fs.readdir(path.join(__dirname, 'data'));
-      
-      for (const f of files.filter(x => x.startsWith('inquiry-') && x.endsWith('.json'))) {
-        try {
-          const j = JSON.parse(await fs.readFile(path.join(__dirname, 'data', f), 'utf8'));
-          inquiries.push(j);
-        } catch (fileError) {
-          console.warn(`Failed to read ${f}:`, fileError.message);
+    
+    console.log(`📊 Found ${inquiries.length} total families`);
+    
+    // SMART FILTERING - Only analyze when needed
+    let toAnalyze = [];
+    let skipped = {
+      alreadyAnalyzed: 0,
+      noEngagement: 0,
+      lowScore: 0,
+      inactive: 0,
+      unchanged: 0
+    };
+    
+    for (const inquiry of inquiries) {
+      // Skip if already has AI analysis (unless forced)
+      if (!forceReanalyze && inquiry.existing_ai_score !== null && inquiry.existing_insights) {
+        // Check if engagement data is newer than AI analysis
+        const aiDate = new Date(inquiry.ai_generated_at || 0);
+        const engagementDate = new Date(inquiry.engagement_updated || inquiry.last_visit || 0);
+        
+        if (engagementDate > aiDate) {
+          // Engagement updated since last AI analysis - RE-ANALYZE
+          console.log(`🔄 ${inquiry.first_name} ${inquiry.family_surname}: Engagement updated since AI analysis`);
+          toAnalyze.push(inquiry);
+        } else {
+          skipped.alreadyAnalyzed++;
+          continue;
         }
       }
-      console.log(`📁 Loaded ${inquiries.length} inquiries from JSON files`);
+      
+      // Skip if only analyzing new and this has AI
+      if (onlyNew && inquiry.existing_ai_score !== null) {
+        skipped.alreadyAnalyzed++;
+        continue;
+      }
+      
+      // Skip if no engagement data at all
+      if (!inquiry.time_on_page && !inquiry.total_visits) {
+        skipped.noEngagement++;
+        continue;
+      }
+      
+      // Skip if engagement score too low
+      const engagementScore = calculateEngagementScore({
+        timeOnPage: inquiry.time_on_page || 0,
+        scrollDepth: inquiry.scroll_depth || 0,
+        totalVisits: inquiry.total_visits || 1,
+        clickCount: inquiry.clicks_on_links || 0
+      });
+      
+      if (engagementScore < scoreThreshold) {
+        skipped.lowScore++;
+        continue;
+      }
+      
+      // Skip if not recently active (when onlyActive is true)
+      if (onlyActive) {
+        const lastActivity = new Date(inquiry.last_visit || inquiry.received_at);
+        const daysSinceActive = (Date.now() - lastActivity) / (1000 * 60 * 60 * 24);
+        
+        if (daysSinceActive > 7) {
+          skipped.inactive++;
+          continue;
+        }
+      }
+      
+      // This family needs analysis!
+      toAnalyze.push(inquiry);
     }
-
-    console.log(`📊 Found ${inquiries.length} families to analyze`);
     
-    if (inquiries.length === 0) {
+    console.log(`🎯 Smart filtering results:`, {
+      total: inquiries.length,
+      toAnalyze: toAnalyze.length,
+      skipped: skipped
+    });
+    
+    // If nothing to analyze, return early
+    if (toAnalyze.length === 0) {
       return res.json({
         success: true,
-        message: 'No families found to analyze',
-        results: { total: 0, analyzed: 0, errors: 0, successRate: 0 },
-        details: []
+        message: 'No families need AI analysis',
+        results: {
+          total: inquiries.length,
+          analyzed: 0,
+          skipped: skipped,
+          alreadyUpToDate: skipped.alreadyAnalyzed
+        }
       });
     }
-
+    
+    // Analyze only the families that need it
     let analysisCount = 0;
     const errors = [];
     const successDetails = [];
-
-    for (const inquiry of inquiries) {
+    
+    for (const inquiry of toAnalyze) {
       try {
-        console.log(`🔍 Processing ${inquiry.firstName} ${inquiry.familySurname} (${inquiry.id})`);
+        console.log(`🔍 Analyzing ${inquiry.first_name} ${inquiry.family_surname} (${inquiry.id})`);
         
-        let engagementData = null;
-        if (db) {
-          const engagementResult = await db.query(`
-            SELECT time_on_page, scroll_depth, clicks_on_links, total_visits, last_visit
-            FROM engagement_metrics
-            WHERE inquiry_id = $1
-            ORDER BY last_visit DESC
-            LIMIT 1
-          `, [inquiry.id]);
-          
-          if (engagementResult.rows.length) {
-            engagementData = engagementResult.rows[0];
-          }
-        }
-
+        const engagementData = {
+          time_on_page: inquiry.time_on_page,
+          scroll_depth: inquiry.scroll_depth,
+          clicks_on_links: inquiry.clicks_on_links,
+          total_visits: inquiry.total_visits,
+          last_visit: inquiry.last_visit
+        };
+        
         const analysis = await analyzeFamily(inquiry, engagementData);
         
-        if (analysis) {
+        if (analysis && !analysis.error) {
+          // Store in database
           if (db) {
-            try {
-              await db.query(`
-                INSERT INTO ai_family_insights (
-                  inquiry_id, analysis_type, insights_json, confidence_score, 
-                  recommendations, generated_at, lead_score, urgency_level, lead_temperature
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-                ON CONFLICT (inquiry_id, analysis_type) DO UPDATE SET
-                  insights_json = EXCLUDED.insights_json,
-                  confidence_score = EXCLUDED.confidence_score,
-                  recommendations = EXCLUDED.recommendations,
-                  generated_at = EXCLUDED.generated_at,
-                  lead_score = EXCLUDED.lead_score,
-                  urgency_level = EXCLUDED.urgency_level,
-                  lead_temperature = EXCLUDED.lead_temperature
-              `, [
-                inquiry.id,
-                'family_profile',
-                JSON.stringify(analysis),
-                analysis.confidence_score,
-                analysis.recommendations,
-                new Date(),
-                analysis.leadScore,
-                analysis.urgencyLevel,
-                analysis.leadTemperature
-              ]);
-              
-              console.log(`💾 Stored analysis for ${inquiry.id} in database`);
-            } catch (dbError) {
-              console.warn(`⚠️ DB insert failed for ${inquiry.id}:`, dbError.message);
-            }
+            await db.query(`
+              INSERT INTO ai_family_insights (
+                inquiry_id, analysis_type, insights_json, confidence_score,
+                recommendations, generated_at, lead_score, urgency_level, lead_temperature
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+              ON CONFLICT (inquiry_id, analysis_type) DO UPDATE SET
+                insights_json = EXCLUDED.insights_json,
+                confidence_score = EXCLUDED.confidence_score,
+                recommendations = EXCLUDED.recommendations,
+                generated_at = EXCLUDED.generated_at,
+                lead_score = EXCLUDED.lead_score,
+                urgency_level = EXCLUDED.urgency_level,
+                lead_temperature = EXCLUDED.lead_temperature
+            `, [
+              inquiry.id,
+              'family_profile',
+              JSON.stringify(analysis),
+              analysis.confidence_score,
+              analysis.recommendations,
+              new Date(),
+              analysis.leadScore,
+              analysis.urgencyLevel,
+              analysis.leadTemperature
+            ]);
           }
-
+          
           analysisCount++;
           successDetails.push({
             inquiryId: inquiry.id,
-            name: `${inquiry.firstName} ${inquiry.familySurname}`,
+            name: `${inquiry.first_name} ${inquiry.family_surname}`,
             leadScore: analysis.leadScore,
             urgencyLevel: analysis.urgencyLevel,
-            confidence: analysis.confidence_score
+            previousScore: inquiry.existing_ai_score,
+            scoreChange: inquiry.existing_ai_score ? 
+              (analysis.leadScore - inquiry.existing_ai_score) : null
           });
           
-          console.log(`✅ Analysis completed for ${inquiry.firstName} ${inquiry.familySurname} (score: ${analysis.leadScore})`);
+          console.log(`✅ Analysis complete: ${inquiry.first_name} ${inquiry.family_surname} (Score: ${analysis.leadScore})`);
         }
-        
       } catch (error) {
         console.error(`❌ Analysis failed for ${inquiry.id}:`, error.message);
-        errors.push({ 
-          inquiryId: inquiry.id, 
-          name: `${inquiry.firstName || ''} ${inquiry.familySurname || ''}`.trim(),
-          error: error.message 
+        errors.push({
+          inquiryId: inquiry.id,
+          name: `${inquiry.first_name} ${inquiry.family_surname}`,
+          error: error.message
         });
       }
     }
-
-    console.log(`🎯 AI analysis complete: ${analysisCount}/${inquiries.length} successful`);
     
+    // Return detailed results
     const response = {
       success: true,
-      message: `AI analysis completed for ${analysisCount} out of ${inquiries.length} families`,
+      message: `Smart analysis complete: ${analysisCount} families analyzed, ${skipped.alreadyAnalyzed} already up-to-date`,
       results: {
         total: inquiries.length,
+        needed: toAnalyze.length,
         analyzed: analysisCount,
         errors: errors.length,
-        successRate: inquiries.length > 0 ? Math.round((analysisCount / inquiries.length) * 100) : 0
+        skipped: skipped,
+        successRate: toAnalyze.length > 0 ? 
+          Math.round((analysisCount / toAnalyze.length) * 100) : 100
+      },
+      settings: {
+        forceReanalyze,
+        onlyNew,
+        onlyActive,
+        scoreThreshold
       },
       successDetails: successDetails.slice(0, 10),
       errors: errors.length > 0 ? errors.slice(0, 5) : undefined
     };
     
+    console.log(`🎯 Smart AI analysis complete:`, response.results);
     res.json(response);
-
+    
   } catch (error) {
-    console.error('❌ Batch AI analysis error:', error);
+    console.error('❌ Smart AI analysis error:', error);
     res.status(500).json({
       success: false,
-      error: 'AI analysis failed',
-      message: error.message,
-      results: { total: 0, analyzed: 0, errors: 1, successRate: 0 }
+      error: 'Smart AI analysis failed',
+      message: error.message
     });
   }
 });
+
+// Individual family analysis with change detection
+app.post('/api/ai/analyze-family/:inquiryId', async (req, res) => {
+  try {
+    const inquiryId = req.params.inquiryId;
+    const { force = false } = req.body;
+    
+    console.log(`Checking if ${inquiryId} needs analysis...`);
+    
+    // Check if already analyzed
+    if (db && !force) {
+      const existing = await db.query(`
+        SELECT 
+          ai.generated_at,
+          ai.lead_score,
+          em.updated_at as engagement_updated
+        FROM ai_family_insights ai
+        LEFT JOIN engagement_metrics em ON ai.inquiry_id = em.inquiry_id
+        WHERE ai.inquiry_id = $1
+      `, [inquiryId]);
+      
+      if (existing.rows.length > 0) {
+        const row = existing.rows[0];
+        const aiDate = new Date(row.generated_at);
+        const engagementDate = new Date(row.engagement_updated || 0);
+        
+        if (engagementDate <= aiDate) {
+          return res.json({
+            success: true,
+            message: 'Family already has up-to-date AI analysis',
+            upToDate: true,
+            existingScore: row.lead_score,
+            analyzedAt: row.generated_at
+          });
+        }
+      }
+    }
+    
+    // Proceed with analysis...
+    // [Rest of the individual analysis code]
+    
+  } catch (error) {
+    console.error(`Individual AI analysis error:`, error);
+    res.status(500).json({
+      success: false,
+      error: 'Analysis failed',
+      message: error.message
+    });
+  }
+});
+
+// Dashboard integration - Update the triggerAIAnalysis function
+function triggerAIAnalysis() {
+    if (!confirm('Run AI analysis for families that need it? This will skip families already analyzed.')) return;
+    
+    try {
+        // Call the SMART endpoint instead
+        const response = await fetch('/api/ai/analyze-smart', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                forceReanalyze: false,  // Don't re-analyze existing
+                onlyNew: false,         // Analyze all that need it
+                onlyActive: true,       // Focus on recently active
+                scoreThreshold: 30      // Min engagement score
+            })
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            alert(`✅ Smart AI Analysis Complete!\n\n` +
+                  `Analyzed: ${result.results.analyzed} families\n` +
+                  `Already up-to-date: ${result.results.skipped.alreadyAnalyzed}\n` +
+                  `Skipped (no engagement): ${result.results.skipped.noEngagement}\n` +
+                  `Skipped (low score): ${result.results.skipped.lowScore}\n` +
+                  `Total families: ${result.results.total}`);
+            loadDashboardData();
+        }
+    } catch (error) {
+        alert(`❌ AI Analysis failed: ${error.message}`);
+    }
+}
+
 
 app.post('/api/ai/analyze-family/:inquiryId', async (req, res) => {
   try {
