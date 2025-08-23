@@ -1078,16 +1078,20 @@ app.get('/api/dashboard-data', async (req, res) => {
   }
 });
 
-app.get('/api/analytics/inquiries', async (req, res) => {
+// Add this new endpoint to your server.js file
+// This replaces the existing /api/analytics/inquiries endpoint
+
+app.get('/api/analytics/enquiries', async (req, res) => {
   try {
-    console.log('📊 Analytics inquiries request...');
+    console.log('📊 Analytics enquiries request...');
     const base = getBaseUrl(req);
-    let inquiries = [];
+    let enquiries = [];
 
     if (db) {
       try {
-        console.log('📊 Reading inquiries from DATABASE...');
+        console.log('📊 Reading enquiries from DATABASE...');
         
+        // Fetch all enquiries with engagement metrics
         const result = await db.query(`
           SELECT i.*, 
                  em.time_on_page, em.scroll_depth, em.clicks_on_links, 
@@ -1097,11 +1101,13 @@ app.get('/api/analytics/inquiries', async (req, res) => {
           ORDER BY i.received_at DESC
         `);
         
-        inquiries = result.rows.map(row => ({
+        // Map database results to enquiry objects with British spelling
+        enquiries = result.rows.map(row => ({
           id: row.id,
+          enquiry_id: row.id, // British spelling
           first_name: row.first_name,
           family_surname: row.family_surname,
-          parent_email: row.parent_email,
+          parent_email: row.parent_email, // Use real email, not db@test.com
           entry_year: row.entry_year,
           age_group: row.age_group,
           received_at: row.received_at,
@@ -1113,6 +1119,8 @@ app.get('/api/analytics/inquiries', async (req, res) => {
           prospectus_pretty_path: row.slug ? `/${row.slug}` : null,
           prospectus_pretty_url: row.slug ? `${base}/${row.slug}` : null,
           prospectus_direct_url: row.prospectus_url ? `${base}${row.prospectus_url}` : null,
+          
+          // Engagement metrics
           engagement: {
             timeOnPage: row.time_on_page || 0,
             scrollDepth: row.scroll_depth || 0,
@@ -1126,6 +1134,8 @@ app.get('/api/analytics/inquiries', async (req, res) => {
               clickCount: row.clicks_on_links || 0
             })
           },
+          
+          // Academic interests
           sciences: row.sciences,
           mathematics: row.mathematics,
           english: row.english,
@@ -1138,88 +1148,180 @@ app.get('/api/analytics/inquiries', async (req, res) => {
           sport: row.sport,
           leadership: row.leadership,
           community_service: row.community_service,
-          outdoor_education: row.outdoor_education,
-          aiInsights: {
-            leadScore: null,
-            urgencyLevel: 'unknown',
-            temperature: 'unknown',
-            confidence: 0,
-            hasAnalysis: false
-          }
+          outdoor_education: row.outdoor_education
         }));
         
-        console.log(`✅ Loaded ${inquiries.length} inquiries from DATABASE with engagement data`);
+        console.log(`✅ Loaded ${enquiries.length} enquiries from DATABASE with engagement data`);
         
+        // Merge AI engagement summaries (PEN.ai narratives)
         try {
-          const aiResult = await db.query(`
-            SELECT inquiry_id, insights_json, confidence_score
-            FROM ai_family_insights 
-            WHERE analysis_type = 'family_profile'
+          const egResult = await db.query(`
+            SELECT inquiry_id, insights_json, confidence_score, generated_at
+            FROM ai_family_insights
+            WHERE analysis_type = 'engagement_summary'
           `);
           
-          const aiMap = {};
-          aiResult.rows.forEach(row => {
+          const egMap = {};
+          egResult.rows.forEach(row => {
             try {
               const insights = typeof row.insights_json === 'string' 
                 ? JSON.parse(row.insights_json) 
                 : row.insights_json;
-              aiMap[row.inquiry_id] = {
+              egMap[row.inquiry_id] = {
                 ...insights,
-                confidence_score: row.confidence_score
+                confidence: row.confidence_score || 1.0,
+                generatedAt: row.generated_at
               };
             } catch (e) {
-              console.warn(`Failed to parse AI insights for ${row.inquiry_id}`);
+              console.warn(`Failed to parse engagement summary for ${row.inquiry_id}`);
             }
           });
           
-          inquiries = inquiries.map(inquiry => ({
-            ...inquiry,
-            aiInsights: aiMap[inquiry.id] ? {
-              leadScore: aiMap[inquiry.id].leadScore || null,
-              urgencyLevel: aiMap[inquiry.id].urgencyLevel || 'unknown',
-              temperature: aiMap[inquiry.id].leadTemperature || 'unknown',
-              confidence: aiMap[inquiry.id].confidence_score || 0,
-              hasAnalysis: true,
-              fullInsights: aiMap[inquiry.id]
-            } : inquiry.aiInsights
+          // Add AI engagement narratives to enquiries
+          enquiries = enquiries.map(enquiry => ({
+            ...enquiry,
+            aiEngagement: egMap[enquiry.id] || null,
+            hasAINarrative: !!egMap[enquiry.id]
           }));
           
-          console.log(`✅ Merged AI insights for ${Object.keys(aiMap).length} families`);
-        // Disable legacy 'family_profile' in dashboard feed
-        inquiries = inquiries.map(inquiry => ({ ...inquiry, aiInsights: null }));
-        console.log('✅ Disabled legacy family_profile AI in dashboard feed');
-
-        // Merge engagement_summary narrative
-        try {
-          const eg = await db.query(`
-            SELECT inquiry_id, insights_json
-            FROM ai_family_insights
-            WHERE analysis_type = 'engagement_summary'
-          `);
-          const egMap = {};
-          eg.rows.forEach(row => {
-            try {
-              const insights = typeof row.insights_json === 'string' ? JSON.parse(row.insights_json) : row.insights_json;
-              egMap[row.inquiry_id] = insights;
-            } catch {}
-          });
-          inquiries = inquiries.map(inq => ({ ...inq, aiEngagement: egMap[inq.id] || null }));
           console.log(`✅ Merged engagement summaries for ${Object.keys(egMap).length} families`);
-        } catch (e) {
-          console.warn('⚠️ Engagement summary merge failed:', e.message);
-        }
-
+          
         } catch (aiError) {
-          console.warn('⚠️ AI insights merge failed:', aiError.message);
+          console.warn('⚠️ AI engagement summary merge failed:', aiError.message);
         }
+        
+        // Now build the proper response format for each enquiry
+        enquiries = enquiries.map(enquiry => {
+          const eg = enquiry.aiEngagement;
+          let summary = null;
+          let leadTemperature = 'cool';
+          let confidence = 0;
+          let topSections = [];
+          let intentTags = [];
+          let recommendedAction = 'Schedule initial contact';
+          let lastSeen = enquiry.engagement.lastVisit || enquiry.received_at;
+          
+          if (eg && eg.narrative) {
+            summary = eg.narrative;
+            confidence = eg.confidence || 1.0;
+            lastSeen = eg.lastActive || lastSeen;
+            
+            // Calculate lead temperature based on engagement
+            const score = eg.leadScore || enquiry.engagement.engagementScore;
+            if (score >= 80) {
+              leadTemperature = 'hot';
+              recommendedAction = 'Immediate phone call - high intent shown';
+            } else if (score >= 60) {
+              leadTemperature = 'warm';
+              recommendedAction = 'Send personalised follow-up within 24 hours';
+            } else {
+              leadTemperature = 'cool';
+              recommendedAction = 'Nurture with relevant content';
+            }
+            
+            // Extract top sections
+            if (eg.sections && Array.isArray(eg.sections)) {
+              topSections = eg.sections.slice(0, 5).map(s => ({
+                name: s.name || s.label || 'Unknown Section',
+                dwellTime: s.dwellSeconds || 0,
+                scrollDepth: s.maxScrollPct || 0,
+                visits: s.visits || 1
+              }));
+              
+              // Detect high-intent signals from sections
+              eg.sections.forEach(section => {
+                const sectionName = (section.name || section.label || '').toLowerCase();
+                if (sectionName.includes('fee') || sectionName.includes('cost')) {
+                  if (!intentTags.includes('Fees Enquiry')) intentTags.push('Fees Enquiry');
+                }
+                if (sectionName.includes('scholarship') || sectionName.includes('bursary')) {
+                  if (!intentTags.includes('Financial Aid')) intentTags.push('Financial Aid');
+                }
+                if (sectionName.includes('apply') || sectionName.includes('admission')) {
+                  if (!intentTags.includes('Application Ready')) intentTags.push('Application Ready');
+                }
+                if (sectionName.includes('visit') || sectionName.includes('tour')) {
+                  if (!intentTags.includes('Visit Interest')) intentTags.push('Visit Interest');
+                }
+                if (sectionName.includes('curriculum') || sectionName.includes('academic')) {
+                  if (!intentTags.includes('Academic Focus')) intentTags.push('Academic Focus');
+                }
+              });
+            }
+            
+            // Add intent tags based on behaviour
+            if (eg.totals) {
+              if (eg.totals.returnVisits > 0) {
+                intentTags.push('Return Visitor');
+              }
+              if (eg.totals.timeSeconds > 600) { // More than 10 minutes
+                intentTags.push('Deep Engagement');
+              }
+            }
+            
+            // Check for video engagement
+            if (eg.videos && eg.videos.length > 0) {
+              intentTags.push('Video Watcher');
+            }
+          }
+          
+          // Return the properly formatted enquiry object
+          return {
+            enquiry_id: enquiry.id,
+            parent_name: `${enquiry.first_name} ${enquiry.family_surname}`,
+            child_name: enquiry.first_name,
+            family_surname: enquiry.family_surname,
+            parent_email: enquiry.parent_email,
+            entry_year: enquiry.entry_year,
+            age_group: enquiry.age_group,
+            
+            // Prospectus URLs
+            prospectus_urls: [
+              enquiry.prospectus_pretty_url,
+              enquiry.prospectus_direct_url
+            ].filter(Boolean),
+            
+            // AI-generated narrative summary
+            summary: summary,
+            score: enquiry.engagement.engagementScore,
+            lead_temperature: leadTemperature,
+            confidence: confidence,
+            last_seen: lastSeen,
+            
+            // Analytics
+            top_sections: topSections,
+            intent_tags: intentTags,
+            recommended_action: recommendedAction,
+            
+            // Roll-up metrics
+            sessions: eg?.totals?.returnVisits ? (eg.totals.returnVisits + 1) : 1,
+            avg_dwell: eg?.totals?.timeSeconds || enquiry.engagement.timeOnPage || 0,
+            percent_scrolled: eg?.totals?.avgScroll || enquiry.engagement.scrollDepth || 0,
+            video_stats: eg?.videos ? {
+              count: eg.videos.length,
+              watched: eg.videos.filter(v => v.watchedPct > 50).length
+            } : null,
+            
+            // Raw engagement data for fallback
+            engagement: enquiry.engagement,
+            
+            // Interests
+            interests: extractInterests(enquiry),
+            
+            // Metadata
+            received_at: enquiry.received_at,
+            status: enquiry.status
+          };
+        });
         
       } catch (dbError) {
         console.warn('⚠️ Database read failed, falling back to JSON:', dbError.message);
       }
     }
 
-    if (inquiries.length === 0) {
-      console.log('📁 Falling back to JSON files...');
+    // Fallback to JSON files if no database or empty
+    if (enquiries.length === 0) {
+      console.log('📂 Falling back to JSON files...');
       const files = await fs.readdir(path.join(__dirname, 'data')).catch(() => []);
       
       for (const f of files.filter(x => x.startsWith('inquiry-') && x.endsWith('.json'))) {
@@ -1227,22 +1329,38 @@ app.get('/api/analytics/inquiries', async (req, res) => {
           const content = await fs.readFile(path.join(__dirname, 'data', f), 'utf8');
           const inquiry = JSON.parse(content);
           
-          const out = {
-            id: inquiry.id,
-            first_name: inquiry.firstName,
+          const base = getBaseUrl(req);
+          const prettyUrl = inquiry.slug ? `${base}/${inquiry.slug}` : null;
+          
+          enquiries.push({
+            enquiry_id: inquiry.id,
+            parent_name: `${inquiry.firstName} ${inquiry.familySurname}`,
+            child_name: inquiry.firstName,
             family_surname: inquiry.familySurname,
             parent_email: inquiry.parentEmail,
             entry_year: inquiry.entryYear,
             age_group: inquiry.ageGroup,
-            received_at: inquiry.receivedAt,
-            updated_at: inquiry.prospectusGeneratedAt || inquiry.receivedAt,
-            status: inquiry.status || (inquiry.prospectusGenerated ? 'prospectus_generated' : 'received'),
-            prospectus_filename: inquiry.prospectusFilename || null,
-            slug: inquiry.slug || null,
-            prospectus_generated_at: inquiry.prospectusGeneratedAt || null,
-            prospectus_pretty_path: inquiry.prospectusPrettyPath || (inquiry.slug ? `/${inquiry.slug}` : null),
-            prospectus_pretty_url: inquiry.prospectusPrettyPath ? `${base}${inquiry.prospectusPrettyPath}` : null,
-            prospectus_direct_url: inquiry.prospectusUrl ? `${base}${inquiry.prospectusUrl}` : null,
+            
+            prospectus_urls: [
+              prettyUrl,
+              inquiry.prospectusUrl ? `${base}${inquiry.prospectusUrl}` : null
+            ].filter(Boolean),
+            
+            summary: null,
+            score: 25,
+            lead_temperature: 'cool',
+            confidence: 0,
+            last_seen: inquiry.receivedAt,
+            
+            top_sections: [],
+            intent_tags: [],
+            recommended_action: 'Generate prospectus and track engagement',
+            
+            sessions: 1,
+            avg_dwell: 0,
+            percent_scrolled: 0,
+            video_stats: null,
+            
             engagement: {
               timeOnPage: 0,
               scrollDepth: 0,
@@ -1251,44 +1369,46 @@ app.get('/api/analytics/inquiries', async (req, res) => {
               lastVisit: inquiry.receivedAt,
               engagementScore: 25
             },
-            sciences: inquiry.sciences,
-            mathematics: inquiry.mathematics,
-            english: inquiry.english,
-            languages: inquiry.languages,
-            humanities: inquiry.humanities,
-            business: inquiry.business,
-            drama: inquiry.drama,
-            music: inquiry.music,
-            art: inquiry.art,
-            sport: inquiry.sport,
-            leadership: inquiry.leadership,
-            community_service: inquiry.community_service,
-            outdoor_education: inquiry.outdoor_education,
-            aiInsights: {
-              leadScore: null,
-              urgencyLevel: 'unknown',
-              temperature: 'unknown',
-              confidence: 0,
-              hasAnalysis: false
-            }
-          };
-          
-          inquiries.push(out);
+            
+            interests: extractInterests(inquiry),
+            received_at: inquiry.receivedAt,
+            status: inquiry.status || 'received'
+          });
         } catch (e) {
           console.warn(`Failed to read ${f}:`, e.message);
         }
       }
-      console.log(`📁 Loaded ${inquiries.length} inquiries from JSON files`);
+      console.log(`📂 Loaded ${enquiries.length} enquiries from JSON files`);
     }
     
-    console.log(`📊 Returning ${inquiries.length} inquiries to dashboard`);
-    res.json(inquiries);
+    console.log(`📊 Returning ${enquiries.length} enquiries with AI narratives to dashboard`);
+    res.json(enquiries);
     
   } catch (e) {
-    console.error('Analytics inquiries error:', e);
-    res.status(500).json({ error: 'Failed to get inquiries' });
+    console.error('Analytics enquiries error:', e);
+    res.status(500).json({ error: 'Failed to get enquiries', message: e.message });
   }
 });
+
+// Helper function to extract interests (add if not exists)
+function extractInterests(inquiry) {
+  const interests = [];
+  const interestFields = [
+    'sciences', 'mathematics', 'english', 'languages', 'humanities',
+    'business', 'drama', 'music', 'art', 'sport', 'leadership',
+    'community_service', 'outdoor_education'
+  ];
+  
+  interestFields.forEach(field => {
+    if (inquiry[field] === true || inquiry[field] === 'true' || inquiry[field] === 1) {
+      interests.push(field.charAt(0).toUpperCase() + field.slice(1).replace('_', ' '));
+    }
+  });
+  
+  return interests;
+}
+
+
 
 // 🔥 THIS IS THE CRITICAL FIX - ADD THE AI ANALYSIS ENDPOINT
 app.post('/api/ai/analyze-all-families', async (req, res) => {
