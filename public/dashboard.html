@@ -342,7 +342,62 @@
             font-size: 0.75rem;
         }
 
-        /* Action Buttons */
+        /* Activity Feed Styles */
+        .activity-item {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border-grey);
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            transition: background 0.2s;
+        }
+        
+        .activity-item:hover {
+            background: #f8fafc;
+        }
+        
+        .activity-item:last-child {
+            border-bottom: none;
+        }
+        
+        .activity-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--award-gold), #FFB84D);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            color: var(--blazer-navy);
+            flex-shrink: 0;
+        }
+        
+        .activity-content {
+            flex: 1;
+        }
+        
+        .activity-text {
+            font-size: 0.9rem;
+            color: var(--text-primary);
+            margin-bottom: 0.25rem;
+        }
+        
+        .activity-time {
+            font-size: 0.75rem;
+            color: #64748b;
+        }
+        
+        .activity-type {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        
+        .activity-type.high { background: var(--hot-lead); }
+        .activity-type.medium { background: var(--warm-lead); }
+        .activity-type.low { background: var(--cold-lead); }
         .ai-actions {
             display: flex;
             gap: 1rem;
@@ -509,6 +564,8 @@
                 <option value="urgent">Urgent Action Required</option>
                 <option value="aiAnalyzed">AI Analyzed Only</option>
             </select>
+            
+            <input type="text" id="searchBox" placeholder="Search families..." style="padding: 0.5rem 1rem; border: 1px solid var(--border-grey); border-radius: 8px; width: 250px; font-size: 0.9rem;">
         </div>
         
         <button class="action-btn primary" onclick="refreshDashboard()">
@@ -521,15 +578,12 @@
     </section>
 
     <!-- Main Dashboard -->
-    <main class="dashboard-grid">
+    <main class="dashboard-grid" style="display: grid; grid-template-columns: 2fr 1fr; gap: 2rem;">
+        <!-- Family Prospects Panel -->
         <div class="panel">
             <div class="panel-header">
                 <h2>Family Prospects with AI Intelligence</h2>
                 <button class="action-btn secondary" style="background: white; border: 1px solid rgba(255,255,255,0.3);" onclick="triggerAIAnalysis()">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="3" y="3" width="18" height="18" rx="2"></rect>
-                        <path d="M7 7h10M7 12h10M7 17h10" stroke-linecap="round"></path>
-                    </svg>
                     <span style="color: var(--award-gold); font-weight: 700;">SMART</span> <span style="color: var(--blazer-navy);">AI Analysis</span>
                 </button>
             </div>
@@ -539,12 +593,26 @@
                 </div>
             </div>
         </div>
+        
+        <!-- Live Activity Feed Panel -->
+        <div class="panel">
+            <div class="panel-header">
+                <h2>Live Activity Feed</h2>
+                <div style="font-size: 0.9rem; opacity: 0.9;">Real-time tracking events</div>
+            </div>
+            <div style="padding: 1.5rem; max-height: 600px; overflow-y: auto;">
+                <div id="activityFeed">
+                    <!-- Activity items will be dynamically inserted here -->
+                </div>
+            </div>
+        </div>
     </main>
 
     <script>
         // Dashboard State
         let dashboardData = {
             families: [],
+            activities: [],
             metrics: {}
         };
 
@@ -553,38 +621,89 @@
             console.log('🚀 SMART Dashboard initializing...');
             loadDashboardData();
             setupEventListeners();
+            // Auto-refresh every 30 seconds
+            setInterval(loadDashboardData, 30000);
         });
 
         function setupEventListeners() {
             document.getElementById('sortFilter').addEventListener('change', renderFamilyCards);
             document.getElementById('statusFilter').addEventListener('change', renderFamilyCards);
+            
+            // Search functionality
+            const searchBox = document.getElementById('searchBox');
+            if (searchBox) {
+                searchBox.addEventListener('input', function() {
+                    renderFamilyCards();
+                });
+            }
         }
 
         async function loadDashboardData() {
             try {
                 console.log('📡 Fetching AI-enhanced data...');
                 
+                // Fetch inquiries data
                 const response = await fetch('/api/analytics/inquiries');
                 if (!response.ok) throw new Error(`API failed: ${response.status}`);
                 
                 const inquiriesData = await response.json();
+                console.log('📊 Raw data received:', inquiriesData.length, 'inquiries');
+                
+                // Fetch dashboard data for activities
+                let dashboardApiData = { recentlyActive: [] };
+                try {
+                    const dashboardResponse = await fetch('/api/dashboard-data');
+                    if (dashboardResponse.ok) {
+                        dashboardApiData = await dashboardResponse.json();
+                        console.log('✅ Dashboard API data received:', dashboardApiData);
+                    }
+                } catch (e) {
+                    console.warn('⚠️ Dashboard API failed, proceeding with inquiries only');
+                }
+                
                 const families = Array.isArray(inquiriesData) ? inquiriesData : [inquiriesData];
                 
-                // Process families with AI data
+                // Process families with AI data - handle both formats
                 dashboardData.families = families.map(family => {
+                    // Handle both naming conventions from server
+                    const firstName = family.first_name || family.firstName;
+                    const familySurname = family.family_surname || family.familySurname;
+                    const parentEmail = family.parent_email || family.parentEmail;
+                    const entryYear = family.entry_year || family.entryYear;
+                    const ageGroup = family.age_group || family.ageGroup;
+                    const receivedAt = family.received_at || family.receivedAt;
+                    
                     const engagement = family.engagement || {};
                     const aiInsights = family.aiInsights || {};
                     
-                    return {
-                        ...family,
+                    const processedFamily = {
+                        id: family.id,
+                        first_name: firstName,
+                        family_surname: familySurname,
+                        parent_email: parentEmail,
+                        entry_year: entryYear,
+                        age_group: ageGroup,
+                        received_at: receivedAt,
+                        prospectus_generated_at: family.prospectus_generated_at,
+                        prospectus_pretty_url: family.prospectus_pretty_url,
+                        engagement: engagement,
                         engagementScore: engagement.engagementScore || 25,
                         aiScore: aiInsights.leadScore || null,
                         hasAI: aiInsights.hasAnalysis === true,
                         finalScore: aiInsights.leadScore || engagement.engagementScore || 25,
                         temperature: aiInsights.temperature || aiInsights.leadTemperature || 'unknown',
-                        urgency: aiInsights.urgencyLevel || 'unknown'
+                        urgency: aiInsights.urgencyLevel || 'unknown',
+                        aiInsights: aiInsights
                     };
+                    
+                    console.log(`Family processed: ${firstName} ${familySurname}`, processedFamily);
+                    return processedFamily;
                 });
+                
+                // Process activities
+                dashboardData.activities = processActivityData(dashboardApiData.recentlyActive || [], dashboardData.families);
+                
+                console.log('✅ Processed', dashboardData.families.length, 'families and', dashboardData.activities.length, 'activities');
                 
                 // Calculate metrics
                 dashboardData.metrics = {
@@ -594,12 +713,100 @@
                     totalFamilies: dashboardData.families.length
                 };
                 
+                console.log('📊 Metrics calculated:', dashboardData.metrics);
+                
                 updateMetrics();
                 renderFamilyCards();
+                renderActivityFeed();
                 
             } catch (error) {
                 console.error('❌ Failed to load data:', error);
+                document.getElementById('familyCards').innerHTML = `
+                    <div style="padding: 2rem; text-align: center; color: #ef4444;">
+                        <h3>Failed to Load Data</h3>
+                        <p>${error.message}</p>
+                        <p>Check console for details</p>
+                    </div>
+                `;
             }
+        }
+        
+        function processActivityData(recentActivityData, families) {
+            // If we have real activity data, use it
+            if (recentActivityData && recentActivityData.length > 0) {
+                return recentActivityData.slice(0, 20).map(activity => ({
+                    family: activity.name || 'Unknown Family',
+                    action: getActivityDescription(activity.activity || 'inquiry'),
+                    time: formatTimeAgo(new Date(activity.when || activity.timestamp)),
+                    type: getActivityPriority(activity.activity || 'inquiry'),
+                    timestamp: activity.when || activity.timestamp
+                }));
+            }
+            
+            // Otherwise, create activity from families
+            return families.slice(0, 10).map(family => ({
+                family: `${family.first_name} ${family.family_surname}`,
+                action: 'Submitted inquiry',
+                time: formatTimeAgo(new Date(family.received_at)),
+                type: 'medium',
+                timestamp: family.received_at
+            }));
+        }
+        
+        function getActivityDescription(activityType) {
+            const descriptions = {
+                'inquiry': 'Submitted inquiry',
+                'Recently inquired': 'Recently inquired',
+                'prospectus_generated': 'Prospectus generated',
+                'page_load': 'Opened prospectus',
+                'scroll_depth': 'Engaged with content',
+                'link_click': 'Clicked links',
+                'heartbeat': 'Active on page',
+                'page_visible': 'Viewing prospectus',
+                'youtube_video_start': 'Started watching video',
+                'youtube_video_progress': 'Watched video content'
+            };
+            
+            return descriptions[activityType] || `${activityType.replace(/_/g, ' ')} activity`;
+        }
+        
+        function getActivityPriority(activityType) {
+            const highPriority = ['youtube_video_progress', 'form_interaction', 'prospectus_generated'];
+            const mediumPriority = ['click', 'scroll_depth', 'inquiry', 'Recently inquired'];
+            
+            if (highPriority.includes(activityType)) return 'high';
+            if (mediumPriority.includes(activityType)) return 'medium';
+            return 'low';
+        }
+        
+        function renderActivityFeed() {
+            const container = document.getElementById('activityFeed');
+            const activities = dashboardData.activities;
+            
+            console.log('📢 Rendering', activities.length, 'activity items');
+            
+            if (activities.length === 0) {
+                container.innerHTML = `
+                    <div style="padding: 1rem; text-align: center; color: #64748b;">
+                        <p>No recent activity</p>
+                        <p style="font-size: 0.85rem; margin-top: 0.5rem;">Activity will appear here as families engage with their prospectuses</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = activities.map(activity => `
+                <div class="activity-item">
+                    <div class="activity-avatar">${activity.family.charAt(0)}</div>
+                    <div class="activity-content">
+                        <div class="activity-text">
+                            <strong>${activity.family}</strong> ${activity.action}
+                        </div>
+                        <div class="activity-time">${activity.time}</div>
+                    </div>
+                    <div class="activity-type ${activity.type}"></div>
+                </div>
+            `).join('');
         }
 
         function updateMetrics() {
@@ -613,7 +820,29 @@
             const container = document.getElementById('familyCards');
             let families = [...dashboardData.families];
             
-            // Apply filters
+            console.log('🎨 Starting to render', families.length, 'families');
+            
+            if (families.length === 0) {
+                container.innerHTML = `
+                    <div style="padding: 2rem; text-align: center; color: #64748b;">
+                        <h3>No Families Found</h3>
+                        <p>No inquiries have been submitted yet.</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            // Apply search filter
+            const searchTerm = document.getElementById('searchBox')?.value?.toLowerCase() || '';
+            if (searchTerm) {
+                families = families.filter(f => 
+                    `${f.first_name} ${f.family_surname}`.toLowerCase().includes(searchTerm) ||
+                    (f.parent_email || '').toLowerCase().includes(searchTerm) ||
+                    (f.entry_year || '').toString().includes(searchTerm)
+                );
+            }
+            
+            // Apply status filters
             const statusFilter = document.getElementById('statusFilter').value;
             if (statusFilter === 'hot') {
                 families = families.filter(f => f.finalScore >= 80);
@@ -636,8 +865,26 @@
                 families.sort((a, b) => new Date(b.received_at) - new Date(a.received_at));
             }
             
+            console.log('📋 After filtering/sorting:', families.length, 'families to display');
+            
             // Render cards
-            container.innerHTML = families.map(family => renderFamilyCard(family)).join('');
+            container.innerHTML = families.map(family => {
+                try {
+                    return renderFamilyCard(family);
+                } catch (err) {
+                    console.error('Error rendering family card:', family, err);
+                    return '';
+                }
+            }).join('');
+            
+            if (container.innerHTML === '') {
+                container.innerHTML = `
+                    <div style="padding: 2rem; text-align: center; color: #64748b;">
+                        <p>No families match your current filters.</p>
+                        <p style="font-size: 0.85rem; margin-top: 0.5rem;">Try adjusting your search or filters</p>
+                    </div>
+                `;
+            }
         }
 
         function renderFamilyCard(family) {
