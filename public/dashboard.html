@@ -1539,27 +1539,33 @@
             }
         }
 
-        async function generateAllSummaries() {
+        async function generateEngagementSummary(enquiryId, btn) {
     try {
-        console.log('🤖 Starting SMART AI analysis for all families...');
-        const resp = await fetch('/api/ai/analyze-all-families', { method: 'POST' });
-        const data = await resp.json().catch(() => ({}));
-
-        if (!resp.ok) {
-            throw new Error(data?.message || data?.error || `HTTP ${resp.status}`);
+        if (btn) { 
+            btn.disabled = true; 
+            btn.textContent = 'Generating…'; 
         }
-        if (!data.success) {
-            throw new Error(data?.message || data?.error || 'Analysis failed');
-        }
+        
+        // For single-family summary use the enquiryId
+        const response = await fetch('/api/ai/engagement-summary/' + enquiryId, { method: 'POST' });
 
-        console.log('✅ SMART AI analysis complete:', data.results);
+        if (!response.ok) {
+            throw new Error('Failed to generate summary');
+        }
+        
+        // Reload dashboard data to show new summary
         await loadDashboardData();
-
+        
     } catch (e) {
-        console.error('❌ SMART AI Analysis error:', e);
-        alert('SMART AI Analysis failed: ' + e.message);
+        alert('Could not generate engagement summary: ' + e.message);
+    } finally {
+        if (btn) { 
+            btn.disabled = false; 
+            btn.textContent = 'Generate SMART AI Summary'; 
+        }
     }
 }
+
 
 
         function refreshDashboard() {
