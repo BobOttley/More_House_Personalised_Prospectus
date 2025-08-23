@@ -1193,7 +1193,6 @@
                 
                 let aiInsightsHTML = '';
                 const eg = family.aiEngagement;
-
                 if (eg && eg.narrative) {
                     aiInsightsHTML = `
                         <div class="ai-insights-section">
@@ -1451,17 +1450,3 @@ const displayScore = family.aiScore || family.engagementScore;
     </script>
 </body>
 </html>
-<script>
-async function generateEngagementSummary(inquiryId, btn){
-  try {
-    if (btn) { btn.disabled = true; btn.textContent = 'Generating…'; }
-    const r = await fetch('/api/ai/engagement-summary/' + inquiryId, { method: 'POST' });
-    if (!r.ok) throw new Error('Failed to generate');
-    if (typeof refreshData === 'function') await refreshData();
-  } catch (e) {
-    alert('Could not generate engagement summary: ' + e.message);
-  } finally {
-    if (btn) { btn.disabled = false; btn.textContent = 'Generate/Refresh'; }
-  }
-}
-</script>
