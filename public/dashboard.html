@@ -931,7 +931,7 @@
                 dashboardData.activities = processRealActivityData(dashboardApiData?.recentlyActive || []);
                 dashboardData.metrics = calculateRealMetrics(dashboardData.families);
                 
-                console.log('📊 Processed data:', {
+                console.log('📄 Processed data:', {
                     families: dashboardData.families.length,
                     activities: dashboardData.activities.length,
                     aiAnalyzed: dashboardData.families.filter(f => f.hasAIAnalysis).length,
@@ -953,7 +953,7 @@
         }
 
         function processRealFamilyData(inquiriesData) {
-            console.log('📊 Processing real family data...');
+            console.log('📄 Processing real family data...');
             
             return inquiriesData.map(family => {
                 // Get engagement data
