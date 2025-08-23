@@ -2044,13 +2044,14 @@ app.post('/api/ai/engagement-summary/all', async (req, res) => {
           lastActive: m.lastActive,
           generatedAt: new Date().toISOString()
         };
-        await db.query(\`
+        await db.query(`
           INSERT INTO ai_family_insights (inquiry_id, analysis_type, insights_json, confidence_score)
           VALUES ($1,$2,$3,$4)
           ON CONFLICT (inquiry_id, analysis_type) DO UPDATE SET
             insights_json = EXCLUDED.insights_json,
             confidence_score = EXCLUDED.confidence_score
-        \`, [id, 'engagement_summary', JSON.stringify(payload), 1.0]);
+        `, [id, 'engagement_summary', JSON.stringify(payload), 1.0]);
+        
         results.push({ inquiryId: id, ok: true });
       } catch (e) {
         results.push({ inquiryId: id, ok: false, error: e.message });
