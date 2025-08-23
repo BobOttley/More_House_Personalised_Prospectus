@@ -1549,11 +1549,9 @@
             try {
                 console.log('🤖 Starting SMART AI analysis for all families...');
                 
-                const response = await fetch('/api/ai/engagement-summary/all', {
+                const response = await fetch('/api/ai/analyze-all-families', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
+                    headers: { 'Content-Type': 'application/json' }
                 });
                 
                 if (response.ok) {

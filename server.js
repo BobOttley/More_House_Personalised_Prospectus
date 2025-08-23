@@ -1334,12 +1334,19 @@ app.post('/api/ai/engagement-summary/:inquiryId', async (req, res) => {
    const inquiryId = req.params.inquiryId;
    console.log(`Generating engagement summary for inquiry: ${inquiryId}`);
    
-   if (!db) {
-     return res.status(500).json({ 
-       success: false, 
-       error: 'Database not available for engagement summaries' 
-     });
-   }
+   if (inquiryId === 'all') {
+    return res.status(400).json({
+      success: false,
+      error: "For all families use POST /api/ai/analyze-all-families"
+    });
+  }
+  
+  if (!db) {
+    return res.status(500).json({ 
+      success: false, 
+      error: 'Database not available for engagement summaries' 
+    });
+  }
    
    // Check if tracking events exist for this inquiry
    const eventCheck = await db.query(
