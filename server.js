@@ -1,10 +1,10 @@
 /**
- * server.js — Behaviour-first analytics (Option A)
- * Keeps your existing functionality (webhook, prospectus generation,
- * pretty URLs, dashboard feeds), replaces the marketing AI analysis with
- * descriptive section-level behaviour analysis based on tracking events.
+ * server.js — Behaviour-first analytics (Option A) with legacy compatibility
+ * - Keeps existing functionality: webhook intake, prospectus generation, pretty URLs, dashboard feeds
+ * - Tracks engagement + section rollups
+ * - Provides behaviour-only analysis AND responds on legacy AI-analysis routes (with empty legacy fields)
  *
- * British spelling used throughout.
+ * British spelling used.
  */
 require('dotenv').config();
 
@@ -27,7 +27,7 @@ let db = null;
 async function initializeDatabase() {
   const haveUrl = !!process.env.DATABASE_URL;
   const haveParts = !!(process.env.DB_HOST && process.env.DB_USER && process.env.DB_NAME);
-  
+
   if (!haveUrl && !haveParts) {
     console.log('No DB credentials - running in JSON-only mode.');
     return false;
@@ -134,7 +134,7 @@ async function initializeDatabase() {
         ON engagement_metrics (inquiry_id, last_visit DESC);
     `);
 
-    // New: section-level rollup for behaviour analysis
+    // Section-level rollup for behaviour analysis
     await db.query(`
       CREATE TABLE IF NOT EXISTS section_rollup (
         id BIGSERIAL PRIMARY KEY,
@@ -248,7 +248,7 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 app.use(express.json({ limit: '2mb' }));
-app.use(express.urlencoded({ extended: true }));
+/* Do not use urlencoded for large payloads; JSON is enough */
 app.use((req, _res, next) => { console.log(req.method, req.url); next(); });
 
 app.use(express.static(path.join(__dirname, 'public')));
@@ -444,7 +444,7 @@ app.options('*', (req, res) => {
   res.sendStatus(200);
 });
 
-// Webhook / Inquiry intake (unchanged behaviour)
+// Webhook / Inquiry intake
 app.post(['/webhook', '/api/inquiry'], async (req, res) => {
   try {
     const data = req.body || {};
@@ -519,12 +519,12 @@ app.post(['/webhook', '/api/inquiry'], async (req, res) => {
   }
 });
 
-// Manual prospectus (unchanged)
+// Manual prospectus
 app.post('/api/generate-prospectus/:inquiryId', async (req, res) => {
   try {
     const inquiryId = req.params.inquiryId;
     let inquiry = null;
-    
+
     if (db) {
       const result = await db.query('SELECT * FROM inquiries WHERE id = $1', [inquiryId]);
       if (result.rows.length > 0) {
@@ -559,7 +559,7 @@ app.post('/api/generate-prospectus/:inquiryId', async (req, res) => {
         };
       }
     }
-    
+
     if (!inquiry) {
       const files = await fs.readdir(path.join(__dirname, 'data')).catch(()=>[]);
       for (const f of files.filter(x => x.startsWith('inquiry-') && x.endsWith('.json'))) {
@@ -567,7 +567,7 @@ app.post('/api/generate-prospectus/:inquiryId', async (req, res) => {
         if (j.id === inquiryId) { inquiry = j; break; }
       }
     }
-    
+
     if (!inquiry) return res.status(404).json({ success:false, error:'Inquiry not found' });
 
     const p = await generateProspectus(inquiry);
@@ -591,7 +591,7 @@ app.post('/api/generate-prospectus/:inquiryId', async (req, res) => {
   }
 });
 
-// Tracking ingest — now also updates section_rollup
+// Tracking ingest — updates events, engagement, and section rollups
 app.post('/api/track-engagement', async (req, res) => {
   try {
     const { events = [], sessionInfo } = req.body || {};
@@ -623,9 +623,6 @@ app.post('/api/track-engagement', async (req, res) => {
             videoWatchSec: Number(data.videoWatchSec) || 0,
             views: 1
           });
-        } else if (String(eventType).startsWith('youtube_')) {
-          // Accumulation for video seconds is already handled on exit by the tracker;
-          // nothing to add here except future extensions if needed.
         }
       }
     }
@@ -650,7 +647,7 @@ app.post('/api/track-engagement', async (req, res) => {
   }
 });
 
-// Dashboard list data (kept as-is, no salesy AI)
+// Dashboard list data (kept; AI fields removed)
 app.get('/api/dashboard-data', async (req, res) => {
   try {
     const base = getBaseUrl(req);
@@ -806,8 +803,7 @@ app.get('/api/analytics/inquiries', async (req, res) => {
           clickCount: row.clicks_on_links || 0,
           totalVisits: row.total_visits || 1,
           lastVisit: row.last_visit || row.received_at
-        },
-        // No AI fields here anymore
+        }
       }));
     } else {
       const files = await fs.readdir(path.join(__dirname, 'data')).catch(() => []);
@@ -841,155 +837,7 @@ app.get('/api/analytics/inquiries', async (req, res) => {
   }
 });
 
-// NEW: Option A Behaviour analysis endpoint
-app.get('/api/analysis/behaviour/:inquiryId', async (req, res) => {
-  try {
-    const inquiryId = req.params.inquiryId;
-    if (!db) {
-      return res.status(503).json({ error: 'Database required for behaviour analysis' });
-    }
-
-    // Latest session for this inquiry
-    const em = await db.query(
-      `SELECT session_id, last_visit FROM engagement_metrics 
-       WHERE inquiry_id=$1 ORDER BY last_visit DESC LIMIT 1`, [inquiryId]
-    );
-    if (!em.rows.length) {
-      return res.json({
-        inquiryId,
-        generatedAt: new Date().toISOString(),
-        currentStatus: { online: false, currentSectionId: null, currentSectionLabel: null, elapsedInSectionSec: 0, currentScrollPct: 0, lastEventAt: null },
-        sessionSummary: { totalTimeSec: 0, totalVisits: 0, avgScrollPct: 0, totalClicks: 0, videoWatchSec: 0, completionPct: 0 },
-        sections: [],
-        insights: { topSections: [], lowAttentionSections: [], engagementStyle: "no_activity", dropOff: { occurred: false }, plainEnglishSummary: "No activity recorded yet." },
-        intentSignals: [],
-        admissionsAdvice: null,
-        confidence: 0.2,
-        dataHealth: { eventsCount: 0, gapsDetected: false }
-      });
-    }
-    const sessionId = em.rows[0].session_id;
-
-    // Pull events and rollups
-    const evs = await db.query(
-      `SELECT event_type, current_section, timestamp AS ts, event_data AS data
-         FROM tracking_events WHERE inquiry_id=$1 AND session_id=$2
-         ORDER BY ts ASC`,
-      [inquiryId, sessionId]
-    );
-    const rolls = await db.query(
-      `SELECT section_id, time_sec, max_scroll_pct, clicks, video_watch_sec, views, updated_at
-         FROM section_rollup
-        WHERE inquiry_id=$1 AND session_id=$2`,
-      [inquiryId, sessionId]
-    );
-
-    // Determine current section (last enter not followed by exit)
-    let currentSection = null;
-    const stack = [];
-    for (const ev of evs.rows) {
-      if (ev.event_type === 'section_enter' && ev.current_section) {
-        stack.push(ev.current_section);
-        currentSection = ev.current_section;
-      }
-      if (ev.event_type === 'section_exit' && ev.current_section) {
-        for (let i = stack.length - 1; i >= 0; i--) {
-          if (stack[i] === ev.current_section) { stack.splice(i, 1); break; }
-        }
-        currentSection = stack.length ? stack[stack.length - 1] : null;
-      }
-    }
-
-    // elapsed in current section estimate
-    let elapsedInSectionSec = 0;
-    let currentScrollPct = 0;
-    if (currentSection) {
-      const lastEnter = evs.rows.filter(e => e.event_type === 'section_enter' && e.current_section === currentSection).pop();
-      const lastScroll = evs.rows.filter(e => e.event_type === 'section_scroll' && e.current_section === currentSection).pop();
-      const lastExit = evs.rows.filter(e => e.event_type === 'section_exit' && e.current_section === currentSection).pop();
-      if (lastEnter && !lastExit) {
-        const lastTs = new Date(evs.rows[evs.rows.length - 1].ts).getTime();
-        const enterTs = new Date(lastEnter.ts).getTime();
-        elapsedInSectionSec = Math.max(0, Math.round((lastTs - enterTs) / 1000));
-      }
-      currentScrollPct = lastScroll?.data?.maxScrollPct ?? (rolls.rows.find(r => r.section_id === currentSection)?.max_scroll_pct || 0);
-    }
-
-    const lastEventAt = evs.rows.length ? new Date(evs.rows[evs.rows.length - 1].ts) : null;
-    const online = lastEventAt ? (Date.now() - lastEventAt.getTime()) <= 30000 : false;
-
-    let totalTimeSec = 0, totalClicks = 0, videoWatchSec = 0;
-    let sumScroll = 0, scrollCount = 0;
-    const sections = rolls.rows.map(r => {
-      totalTimeSec += r.time_sec;
-      totalClicks += r.clicks;
-      videoWatchSec += r.video_watch_sec;
-      sumScroll += r.max_scroll_pct; scrollCount += 1;
-      return {
-        id: r.section_id,
-        label: humanise(r.section_id),
-        views: r.views,
-        timeSec: r.time_sec,
-        avgScrollPct: r.max_scroll_pct,
-        maxScrollPct: r.max_scroll_pct,
-        clicks: r.clicks,
-        videoWatchSec: r.video_watch_sec,
-        enteredAt: null,
-        lastSeenAt: r.updated_at
-      };
-    });
-    const avgScrollPct = scrollCount ? Math.round(sumScroll / scrollCount) : 0;
-    const completed = rolls.rows.filter(r => r.max_scroll_pct >= 90).length;
-    const completionPct = sections.length ? Math.round((completed / sections.length) * 100) : 0;
-
-    const topSections = sections
-      .slice()
-      .sort((a,b) => (b.timeSec + b.clicks*5 + b.videoWatchSec) - (a.timeSec + a.clicks*5 + a.videoWatchSec))
-      .slice(0, 3).map(s => ({ id: s.id, label: s.label, reason: reasonForTop(s) }));
-
-    const lowAttentionSections = sections
-      .filter(s => s.timeSec < 20 && s.maxScrollPct < 40)
-      .slice(0, 3)
-      .map(s => ({ id: s.id, label: s.label, reason: 'Brief skim' }));
-
-    const engagementStyle = deriveStyle(totalTimeSec, sections);
-    const dropOff = detectDropOff(evs.rows);
-
-    const plainEnglishSummary = buildSummary({ totalTimeSec, topSections, lowAttentionSections, dropOff });
-
-    res.json({
-      inquiryId,
-      generatedAt: new Date().toISOString(),
-      currentStatus: {
-        online,
-        currentSectionId: currentSection,
-        currentSectionLabel: currentSection ? humanise(currentSection) : null,
-        elapsedInSectionSec,
-        currentScrollPct,
-        lastEventAt: lastEventAt ? lastEventAt.toISOString() : null
-      },
-      sessionSummary: {
-        totalTimeSec,
-        totalVisits: 1,
-        avgScrollPct,
-        totalClicks,
-        videoWatchSec,
-        completionPct
-      },
-      sections,
-      insights: { topSections, lowAttentionSections, engagementStyle, dropOff, plainEnglishSummary },
-      intentSignals: deriveSignals(sections),
-      admissionsAdvice: null,
-      confidence: Math.min(0.2 + Math.log10(1 + sections.length), 0.95),
-      dataHealth: { eventsCount: evs.rows.length, gapsDetected: false }
-    });
-  } catch (e) {
-    console.error('behaviour analysis failed:', e);
-    res.status(500).json({ error: 'analysis failed', message: e.message });
-  }
-});
-
-/* --------------------------- Behaviour helpers ---------------------------- */
+/* --------------------- Behaviour analysis (Option A) ---------------------- */
 
 function humanise(sectionId) {
   return (sectionId || 'Section').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
@@ -1025,17 +873,191 @@ function deriveSignals(sections) {
   if (academic.every(s => s.maxScrollPct < 40)) signals.push({ signal: 'academic_low_priority', strength: 'low' });
   return signals;
 }
-function buildSummary({ totalTimeSec, topSections, lowAttentionSections, dropOff }) {
-  function fmtSec(s){ const m = Math.floor(s/60), sec = s%60; return m ? `${m}m ${sec}s` : `${sec}s`; }
-  const mins = fmtSec(totalTimeSec);
-  const top = topSections.map(t => t.label).join(' and ');
-  const low = lowAttentionSections.map(t => t.label).join(', ');
-  let s = `Spent ${mins} overall`;
-  if (top) s += `, mostly in ${top}`;
-  if (low) s += `; skimmed ${low}`;
-  if (dropOff.occurred) s += `; dropped off in ${humanise(dropOff.sectionId)} at ~${dropOff.atScrollPct}% scroll`;
-  return s + '.';
+
+async function buildBehaviourPayload(inquiryId) {
+  if (!db) throw new Error('Database required for behaviour analysis');
+
+  const em = await db.query(
+    `SELECT session_id, last_visit FROM engagement_metrics 
+     WHERE inquiry_id=$1 ORDER BY last_visit DESC LIMIT 1`, [inquiryId]
+  );
+  if (!em.rows.length) {
+    return {
+      inquiryId,
+      generatedAt: new Date().toISOString(),
+      currentStatus: { online: false, currentSectionId: null, currentSectionLabel: null, elapsedInSectionSec: 0, currentScrollPct: 0, lastEventAt: null },
+      sessionSummary: { totalTimeSec: 0, totalVisits: 0, avgScrollPct: 0, totalClicks: 0, videoWatchSec: 0, completionPct: 0 },
+      sections: [],
+      insights: { topSections: [], lowAttentionSections: [], engagementStyle: "no_activity", dropOff: { occurred: false }, plainEnglishSummary: "No activity recorded yet." },
+      intentSignals: [],
+      admissionsAdvice: null,
+      confidence: 0.2,
+      dataHealth: { eventsCount: 0, gapsDetected: false }
+    };
+  }
+  const sessionId = em.rows[0].session_id;
+
+  const evs = await db.query(
+    `SELECT event_type, current_section, timestamp AS ts, event_data AS data
+       FROM tracking_events WHERE inquiry_id=$1 AND session_id=$2
+       ORDER BY ts ASC`,
+    [inquiryId, sessionId]
+  );
+  const rolls = await db.query(
+    `SELECT section_id, time_sec, max_scroll_pct, clicks, video_watch_sec, views, updated_at
+       FROM section_rollup
+      WHERE inquiry_id=$1 AND session_id=$2`,
+    [inquiryId, sessionId]
+  );
+
+  // Current section
+  let currentSection = null;
+  const stack = [];
+  for (const ev of evs.rows) {
+    if (ev.event_type === 'section_enter' && ev.current_section) {
+      stack.push(ev.current_section);
+      currentSection = ev.current_section;
+    }
+    if (ev.event_type === 'section_exit' && ev.current_section) {
+      for (let i = stack.length - 1; i >= 0; i--) {
+        if (stack[i] === ev.current_section) { stack.splice(i, 1); break; }
+      }
+      currentSection = stack.length ? stack[stack.length - 1] : null;
+    }
+  }
+
+  // Elapsed + scroll
+  let elapsedInSectionSec = 0;
+  let currentScrollPct = 0;
+  if (currentSection) {
+    const lastEnter = evs.rows.filter(e => e.event_type === 'section_enter' && e.current_section === currentSection).pop();
+    const lastScroll = evs.rows.filter(e => e.event_type === 'section_scroll' && e.current_section === currentSection).pop();
+    const lastExit = evs.rows.filter(e => e.event_type === 'section_exit' && e.current_section === currentSection).pop();
+    if (lastEnter && !lastExit) {
+      const lastTs = new Date(evs.rows[evs.rows.length - 1].ts).getTime();
+      const enterTs = new Date(lastEnter.ts).getTime();
+      elapsedInSectionSec = Math.max(0, Math.round((lastTs - enterTs) / 1000));
+    }
+    currentScrollPct = lastScroll?.data?.maxScrollPct ?? (rolls.rows.find(r => r.section_id === currentSection)?.max_scroll_pct || 0);
+  }
+
+  const lastEventAt = evs.rows.length ? new Date(evs.rows[evs.rows.length - 1].ts) : null;
+  const online = lastEventAt ? (Date.now() - lastEventAt.getTime()) <= 30000 : false;
+
+  let totalTimeSec = 0, totalClicks = 0, videoWatchSec = 0;
+  let sumScroll = 0, scrollCount = 0;
+  const sections = rolls.rows.map(r => {
+    totalTimeSec += r.time_sec;
+    totalClicks += r.clicks;
+    videoWatchSec += r.video_watch_sec;
+    sumScroll += r.max_scroll_pct; scrollCount += 1;
+    return {
+      id: r.section_id,
+      label: humanise(r.section_id),
+      views: r.views,
+      timeSec: r.time_sec,
+      avgScrollPct: r.max_scroll_pct,
+      maxScrollPct: r.max_scroll_pct,
+      clicks: r.clicks,
+      videoWatchSec: r.video_watch_sec,
+      enteredAt: null,
+      lastSeenAt: r.updated_at
+    };
+  });
+  const avgScrollPct = scrollCount ? Math.round(sumScroll / scrollCount) : 0;
+  const completed = rolls.rows.filter(r => r.max_scroll_pct >= 90).length;
+  const completionPct = sections.length ? Math.round((completed / sections.length) * 100) : 0;
+
+  const topSections = sections
+    .slice()
+    .sort((a,b) => (b.timeSec + b.clicks*5 + b.videoWatchSec) - (a.timeSec + a.clicks*5 + a.videoWatchSec))
+    .slice(0, 3).map(s => ({ id: s.id, label: s.label, reason: reasonForTop(s) }));
+
+  const lowAttentionSections = sections
+    .filter(s => s.timeSec < 20 && s.maxScrollPct < 40)
+    .slice(0, 3)
+    .map(s => ({ id: s.id, label: s.label, reason: 'Brief skim' }));
+
+  const engagementStyle = deriveStyle(totalTimeSec, sections);
+  const dropOff = detectDropOff(evs.rows);
+
+  const plainEnglishSummary = (function buildSummary() {
+    function fmtSec(s){ const m = Math.floor(s/60), sec = s%60; return m ? `${m}m ${sec}s` : `${sec}s`; }
+    const mins = fmtSec(totalTimeSec);
+    const top = topSections.map(t => t.label).join(' and ');
+    const low = lowAttentionSections.map(t => t.label).join(', ');
+    let s = `Spent ${mins} overall`;
+    if (top) s += `, mostly in ${top}`;
+    if (low) s += `; skimmed ${low}`;
+    if (dropOff.occurred) s += `; dropped off in ${humanise(dropOff.sectionId)} at ~${dropOff.atScrollPct}% scroll`;
+    return s + '.';
+  })();
+
+  return {
+    inquiryId,
+    generatedAt: new Date().toISOString(),
+    currentStatus: {
+      online,
+      currentSectionId: currentSection,
+      currentSectionLabel: currentSection ? humanise(currentSection) : null,
+      elapsedInSectionSec,
+      currentScrollPct,
+      lastEventAt: lastEventAt ? lastEventAt.toISOString() : null
+    },
+    sessionSummary: {
+      totalTimeSec,
+      totalVisits: 1,
+      avgScrollPct,
+      totalClicks,
+      videoWatchSec,
+      completionPct
+    },
+    sections,
+    insights: { topSections, lowAttentionSections, engagementStyle, dropOff, plainEnglishSummary },
+    intentSignals: deriveSignals(sections),
+    admissionsAdvice: null,
+    confidence: Math.min(0.2 + Math.log10(1 + sections.length), 0.95),
+    dataHealth: { eventsCount: evs.rows.length, gapsDetected: false }
+  };
 }
+
+// Main behaviour route
+app.get('/api/analysis/behaviour/:inquiryId', async (req, res) => {
+  try {
+    const payload = await buildBehaviourPayload(req.params.inquiryId);
+    res.json(payload);
+  } catch (e) {
+    console.error('behaviour analysis failed:', e);
+    res.status(500).json({ error: 'analysis failed', message: e.message });
+  }
+});
+
+// ---- Legacy compatibility: answer old AI-analysis paths with Option A data ----
+function withLegacyShim(payload) {
+  return Object.assign({}, payload, {
+    conversationStarters: [],
+    sellingPoints: [],
+    nextActions: [],
+    keyConcerns: []
+  });
+}
+
+app.get('/api/analysis/:inquiryId', async (req, res) => {
+  try { res.json(withLegacyShim(await buildBehaviourPayload(req.params.inquiryId))); }
+  catch (e) { console.error(e); res.status(500).json({ error: 'analysis failed', message: e.message }); }
+});
+app.get('/api/ai-analysis/:inquiryId', async (req, res) => {
+  try { res.json(withLegacyShim(await buildBehaviourPayload(req.params.inquiryId))); }
+  catch (e) { console.error(e); res.status(500).json({ error: 'analysis failed', message: e.message }); }
+});
+app.get('/api/analysis/ai/:inquiryId', async (req, res) => {
+  try { res.json(withLegacyShim(await buildBehaviourPayload(req.params.inquiryId))); }
+  catch (e) { console.error(e); res.status(500).json({ error: 'analysis failed', message: e.message }); }
+});
+app.get('/api/analyze-family/:inquiryId', async (req, res) => {
+  try { res.json(withLegacyShim(await buildBehaviourPayload(req.params.inquiryId))); }
+  catch (e) { console.error(e); res.status(500).json({ error: 'analysis failed', message: e.message }); }
+});
 
 /* ------------------------------ Misc routes ------------------------------- */
 
@@ -1195,7 +1217,7 @@ app.get('/admin/rebuild-slugs', async (_req, res) => {
 app.get('/admin/debug-database', async (_req, res) => {
   try {
     if (!db) return res.json({ error: 'Database not connected' });
-    const columns = await db.query(`SELECT column_name, data_type FROM information_schema.columns WHERE table_name IN ('inquiries','tracking_events','engagement_metrics','section_rollup') ORDER BY table_name, column_name`);
+    const columns = await db.query(`SELECT column_name, data_type, table_name FROM information_schema.columns WHERE table_name IN ('inquiries','tracking_events','engagement_metrics','section_rollup') ORDER BY table_name, column_name`);
     const [{ count }] = (await db.query(`SELECT COUNT(*) as count FROM inquiries`)).rows;
     const [{ count: te }] = (await db.query(`SELECT COUNT(*) as count FROM tracking_events`)).rows;
     const [{ count: em }] = (await db.query(`SELECT COUNT(*) as count FROM engagement_metrics`)).rows;
@@ -1217,7 +1239,7 @@ app.get('/health', (_req, res) => {
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
     environment: process.env.NODE_ENV || 'development',
-    version: '6.0.0-Behaviour-Only',
+    version: '6.1.0-Behaviour-Only+LegacyCompat',
     features: {
       analytics: 'enabled',
       tracking: 'enabled',
@@ -1225,7 +1247,8 @@ app.get('/health', (_req, res) => {
       database: db ? 'connected' : 'json-only',
       prettyUrls: true,
       analysis: 'behaviour-only',
-      behaviourEndpoint: '/api/analysis/behaviour/:inquiryId'
+      behaviourEndpoint: '/api/analysis/behaviour/:inquiryId',
+      legacyAnalyses: ['/api/analysis/:inquiryId','/api/ai-analysis/:inquiryId','/api/analysis/ai/:inquiryId','/api/analyze-family/:inquiryId']
     }
   });
 });
@@ -1237,12 +1260,13 @@ app.get('/', (req, res) => {
 <style>body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;padding:24px;max-width:780px;margin:auto;line-height:1.55}</style></head>
 <body>
   <h1>More House Prospectus Service</h1>
-  <p><strong>Version 6.0.0 — Behaviour-first analysis</strong></p>
+  <p><strong>Version 6.1.0 — Behaviour-first analysis (with legacy compatibility)</strong></p>
   <ul>
     <li>Health: <a href="${base}/health">${base}/health</a></li>
     <li>Webhook (POST JSON): <code>${base}/webhook</code></li>
     <li>Dashboard feed: <a href="${base}/api/analytics/inquiries">${base}/api/analytics/inquiries</a></li>
     <li>Behaviour analysis (JSON): <code>GET ${base}/api/analysis/behaviour/:inquiryId</code></li>
+    <li>Legacy analysis aliases: <code>/api/analysis/:inquiryId</code>, <code>/api/ai-analysis/:inquiryId</code></li>
     <li>Rebuild slugs: <a href="${base}/admin/rebuild-slugs">${base}/admin/rebuild-slugs</a></li>
   </ul>
   <p>Pretty links: <code>${base}/the-smith-family-abc123</code></p>
@@ -1265,12 +1289,13 @@ async function startServer() {
   await rebuildSlugIndexFromData();
 
   app.listen(PORT, '0.0.0.0', () => {
-    console.log('\n🚀 MORE HOUSE SCHOOL — Behaviour-only analytics ready');
+    console.log('\n🚀 MORE HOUSE SCHOOL — Behaviour-only analytics ready (with legacy compatibility)');
     console.log('===============================================');
     console.log(`Server: http://localhost:${PORT}`);
     console.log(`Webhook: http://localhost:${PORT}/webhook`);
     console.log(`Dashboard: http://localhost:${PORT}/dashboard.html`);
     console.log(`Behaviour API: http://localhost:${PORT}/api/analysis/behaviour/:inquiryId`);
+    console.log(`Legacy API: http://localhost:${PORT}/api/analysis/:inquiryId`);
     console.log(`Pretty URLs: http://localhost:${PORT}/the-<family>-family-<id>`);
     console.log(`DB: ${dbConnected ? 'Connected' : 'JSON-only'}`);
     console.log('===============================================');
