@@ -1540,41 +1540,27 @@
         }
 
         async function generateAllSummaries() {
-            const aiStatusElement = document.getElementById('aiStatus');
-            const buttonElement = document.querySelector('button[onclick="generateAllSummaries()"]');
-            
-            if (aiStatusElement) aiStatusElement.style.display = 'flex';
-            if (buttonElement) buttonElement.disabled = true;
-            
-            try {
-                console.log('🤖 Starting SMART AI analysis for all families...');
-                
-                const response = await fetch('/api/ai/analyze-all-families', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
-                });
-                
-                if (response.ok) {
-                    const result = await response.json();
-                    console.log('✅ SMART AI Analysis completed:', result);
-                    
-                    // Refresh dashboard data
-                    await loadDashboardData();
-                    
-                    if (result.success) {
-                        alert(`✅ SMART AI Analysis completed!\n\nAnalysed: ${result.processed} families`);
-                    }
-                } else {
-                    throw new Error('Analysis failed');
-                }
-            } catch (error) {
-                console.error('❌ SMART AI Analysis error:', error);
-                alert(`❌ SMART AI Analysis failed: ${error.message}`);
-            } finally {
-                if (aiStatusElement) aiStatusElement.style.display = 'none';
-                if (buttonElement) buttonElement.disabled = false;
-            }
+    try {
+        console.log('🤖 Starting SMART AI analysis for all families...');
+        const resp = await fetch('/api/ai/analyze-all-families', { method: 'POST' });
+        const data = await resp.json().catch(() => ({}));
+
+        if (!resp.ok) {
+            throw new Error(data?.message || data?.error || `HTTP ${resp.status}`);
         }
+        if (!data.success) {
+            throw new Error(data?.message || data?.error || 'Analysis failed');
+        }
+
+        console.log('✅ SMART AI analysis complete:', data.results);
+        await loadDashboardData();
+
+    } catch (e) {
+        console.error('❌ SMART AI Analysis error:', e);
+        alert('SMART AI Analysis failed: ' + e.message);
+    }
+}
+
 
         function refreshDashboard() {
             console.log('Manual refresh triggered');
