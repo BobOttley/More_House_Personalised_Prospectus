@@ -104,7 +104,7 @@
         /* Main Grid */
         .dashboard-grid {
             display: grid;
-            grid-template-columns: 1fr;
+            grid-template-columns: 2fr 1fr;
             gap: 2rem;
             margin: 0 2rem 2rem;
             max-width: 1400px;
@@ -130,7 +130,7 @@
             align-items: center;
         }
 
-        /* Family Cards with AI */
+        /* Family Cards */
         .family-card {
             border: 1px solid var(--border-grey);
             border-radius: 12px;
@@ -184,7 +184,17 @@
             color: white;
         }
 
-        /* ENHANCED AI INSIGHTS SECTION */
+        .score-badge.cold {
+            background: var(--cold-lead);
+            color: white;
+        }
+
+        .score-badge.unknown {
+            background: #E5E7EB;
+            color: #6B7280;
+        }
+
+        /* AI Analysis Section */
         .ai-full-analysis {
             display: none;
             background: #f0f9ff;
@@ -288,61 +298,7 @@
             font-weight: bold;
         }
 
-        /* Engagement Timeline */
-        .engagement-timeline {
-            background: white;
-            border-radius: 8px;
-            padding: 1.5rem;
-            margin-top: 1.5rem;
-            border: 1px solid #e0f2fe;
-        }
-
-        .timeline-header {
-            font-weight: 600;
-            color: var(--blazer-navy);
-            margin-bottom: 1rem;
-            font-size: 1rem;
-        }
-
-        .timeline-items {
-            display: flex;
-            flex-direction: column;
-            gap: 0.75rem;
-        }
-
-        .timeline-item {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            padding: 0.75rem;
-            background: #f8fafc;
-            border-radius: 6px;
-            font-size: 0.85rem;
-        }
-
-        .timeline-icon {
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: var(--sport-blue);
-            color: white;
-            font-size: 0.7rem;
-            flex-shrink: 0;
-        }
-
-        .timeline-content {
-            flex: 1;
-        }
-
-        .timeline-time {
-            color: #64748b;
-            font-size: 0.75rem;
-        }
-
-        /* Activity Feed Styles */
+        /* Activity Feed */
         .activity-item {
             padding: 1rem;
             border-bottom: 1px solid var(--border-grey);
@@ -398,12 +354,24 @@
         .activity-type.high { background: var(--hot-lead); }
         .activity-type.medium { background: var(--warm-lead); }
         .activity-type.low { background: var(--cold-lead); }
-        .ai-actions {
+
+        /* Controls */
+        .controls-bar {
+            padding: 1rem 2rem;
+            background: var(--white);
+            border-bottom: 1px solid var(--border-grey);
             display: flex;
-            gap: 1rem;
-            margin-top: 1.5rem;
-            padding-top: 1.5rem;
-            border-top: 1px solid #e0f2fe;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .filter-select {
+            padding: 0.5rem 1rem;
+            border: 1px solid var(--border-grey);
+            border-radius: 8px;
+            background: var(--white);
+            color: var(--text-primary);
+            font-size: 0.9rem;
         }
 
         .action-btn {
@@ -425,34 +393,10 @@
             color: white;
         }
 
-        .action-btn.primary:hover {
-            background: var(--blazer-navy);
-            transform: translateY(-2px);
-        }
-
         .action-btn.secondary {
             background: white;
             color: var(--sport-blue);
             border: 2px solid var(--sport-blue);
-        }
-
-        /* Controls */
-        .controls-bar {
-            padding: 1rem 2rem;
-            background: var(--white);
-            border-bottom: 1px solid var(--border-grey);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .filter-select {
-            padding: 0.5rem 1rem;
-            border: 1px solid var(--border-grey);
-            border-radius: 8px;
-            background: var(--white);
-            color: var(--text-primary);
-            font-size: 0.9rem;
         }
 
         .expand-btn {
@@ -486,11 +430,6 @@
             background: #FEF3C7;
             color: #D97706;
         }
-
-        .status-pill.engaged {
-            background: #D1FAE5;
-            color: #059669;
-        }
     </style>
 </head>
 <body>
@@ -505,44 +444,26 @@
     <!-- Metrics Bar -->
     <section class="metrics-bar">
         <div class="metric-card">
-            <div class="metric-value" id="hotLeads">-</div>
+            <div class="metric-value" id="hotLeads">0</div>
             <div style="display: flex; align-items: center; gap: 0.5rem; color: #64748b;">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <circle cx="12" cy="12" r="6" fill="currentColor" opacity="0.3"></circle>
-                    <circle cx="12" cy="12" r="3" fill="currentColor"></circle>
-                </svg>
                 Hot Leads (80+ Score)
             </div>
         </div>
         <div class="metric-card">
-            <div class="metric-value" id="warmLeads">-</div>
+            <div class="metric-value" id="warmLeads">0</div>
             <div style="display: flex; align-items: center; gap: 0.5rem; color: #64748b;">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <path d="M12 6v6l4 2" stroke-linecap="round"></path>
-                </svg>
                 Warm Leads (60-79)
             </div>
         </div>
         <div class="metric-card">
-            <div class="metric-value" id="aiAnalyzed">-</div>
+            <div class="metric-value" id="aiAnalyzed">0</div>
             <div style="display: flex; align-items: center; gap: 0.5rem; color: #64748b;">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect x="3" y="3" width="18" height="18" rx="2"></rect>
-                    <path d="M7 7h10M7 12h10M7 17h10" stroke-linecap="round"></path>
-                </svg>
                 AI Analyzed
             </div>
         </div>
         <div class="metric-card">
-            <div class="metric-value" id="totalFamilies">-</div>
+            <div class="metric-value" id="totalFamilies">0</div>
             <div style="display: flex; align-items: center; gap: 0.5rem; color: #64748b;">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="9" cy="9" r="3"></circle>
-                    <circle cx="15" cy="9" r="3"></circle>
-                    <path d="M3 19c0-3.5 2.5-6 6-6h6c3.5 0 6 2.5 6 6"></path>
-                </svg>
                 Total Families
             </div>
         </div>
@@ -569,16 +490,12 @@
         </div>
         
         <button class="action-btn primary" onclick="refreshDashboard()">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation: spin 2s linear infinite;">
-                <path d="M23 4v6h-6M1 20v-6h6"></path>
-                <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"></path>
-            </svg>
             Refresh Data
         </button>
     </section>
 
     <!-- Main Dashboard -->
-    <main class="dashboard-grid" style="display: grid; grid-template-columns: 2fr 1fr; gap: 2rem;">
+    <main class="dashboard-grid">
         <!-- Family Prospects Panel -->
         <div class="panel">
             <div class="panel-header">
@@ -589,7 +506,9 @@
             </div>
             <div style="padding: 1.5rem;">
                 <div id="familyCards">
-                    <!-- Family cards will be dynamically inserted here -->
+                    <div style="padding: 2rem; text-align: center; color: #64748b;">
+                        Loading families...
+                    </div>
                 </div>
             </div>
         </div>
@@ -602,7 +521,9 @@
             </div>
             <div style="padding: 1.5rem; max-height: 600px; overflow-y: auto;">
                 <div id="activityFeed">
-                    <!-- Activity items will be dynamically inserted here -->
+                    <div style="padding: 1rem; text-align: center; color: #64748b;">
+                        Loading activities...
+                    </div>
                 </div>
             </div>
         </div>
@@ -616,96 +537,68 @@
             metrics: {}
         };
 
-        // Initialize
-        document.addEventListener('DOMContentLoaded', function() {
+        // Initialize when page loads
+        window.addEventListener('DOMContentLoaded', function() {
             console.log('🚀 SMART Dashboard initializing...');
             loadDashboardData();
             setupEventListeners();
-            // Auto-refresh every 30 seconds
             setInterval(loadDashboardData, 30000);
         });
 
         function setupEventListeners() {
-            document.getElementById('sortFilter').addEventListener('change', renderFamilyCards);
-            document.getElementById('statusFilter').addEventListener('change', renderFamilyCards);
-            
-            // Search functionality
+            const sortFilter = document.getElementById('sortFilter');
+            const statusFilter = document.getElementById('statusFilter');
             const searchBox = document.getElementById('searchBox');
-            if (searchBox) {
-                searchBox.addEventListener('input', function() {
-                    renderFamilyCards();
-                });
-            }
+            
+            if (sortFilter) sortFilter.addEventListener('change', renderFamilyCards);
+            if (statusFilter) statusFilter.addEventListener('change', renderFamilyCards);
+            if (searchBox) searchBox.addEventListener('input', renderFamilyCards);
         }
 
         async function loadDashboardData() {
             try {
-                console.log('📡 Fetching AI-enhanced data...');
+                console.log('📡 Fetching data...');
                 
-                // Fetch inquiries data
                 const response = await fetch('/api/analytics/inquiries');
                 if (!response.ok) throw new Error(`API failed: ${response.status}`);
                 
                 const inquiriesData = await response.json();
-                console.log('📊 Raw data received:', inquiriesData.length, 'inquiries');
+                console.log('✅ Received', inquiriesData.length, 'inquiries');
                 
-                // Fetch dashboard data for activities
                 let dashboardApiData = { recentlyActive: [] };
                 try {
                     const dashboardResponse = await fetch('/api/dashboard-data');
                     if (dashboardResponse.ok) {
                         dashboardApiData = await dashboardResponse.json();
-                        console.log('✅ Dashboard API data received:', dashboardApiData);
                     }
                 } catch (e) {
-                    console.warn('⚠️ Dashboard API failed, proceeding with inquiries only');
+                    console.warn('Dashboard API failed:', e);
                 }
                 
-                const families = Array.isArray(inquiriesData) ? inquiriesData : [inquiriesData];
+                const families = Array.isArray(inquiriesData) ? inquiriesData : [];
                 
-                // Process families with AI data - handle both formats
-                dashboardData.families = families.map(family => {
-                    // Handle both naming conventions from server
-                    const firstName = family.first_name || family.firstName;
-                    const familySurname = family.family_surname || family.familySurname;
-                    const parentEmail = family.parent_email || family.parentEmail;
-                    const entryYear = family.entry_year || family.entryYear;
-                    const ageGroup = family.age_group || family.ageGroup;
-                    const receivedAt = family.received_at || family.receivedAt;
-                    
-                    const engagement = family.engagement || {};
-                    const aiInsights = family.aiInsights || {};
-                    
-                    const processedFamily = {
-                        id: family.id,
-                        first_name: firstName,
-                        family_surname: familySurname,
-                        parent_email: parentEmail,
-                        entry_year: entryYear,
-                        age_group: ageGroup,
-                        received_at: receivedAt,
-                        prospectus_generated_at: family.prospectus_generated_at,
-                        prospectus_pretty_url: family.prospectus_pretty_url,
-                        engagement: engagement,
-                        engagementScore: engagement.engagementScore || 25,
-                        aiScore: aiInsights.leadScore || null,
-                        hasAI: aiInsights.hasAnalysis === true,
-                        finalScore: aiInsights.leadScore || engagement.engagementScore || 25,
-                        temperature: aiInsights.temperature || aiInsights.leadTemperature || 'unknown',
-                        urgency: aiInsights.urgencyLevel || 'unknown',
-                        aiInsights: aiInsights
-                    };
-                    
-                    console.log(`Family processed: ${firstName} ${familySurname}`, processedFamily);
-                    return processedFamily;
-                });
+                dashboardData.families = families.map(family => ({
+                    id: family.id,
+                    first_name: family.first_name || family.firstName || 'Unknown',
+                    family_surname: family.family_surname || family.familySurname || 'Family',
+                    parent_email: family.parent_email || family.parentEmail || '',
+                    entry_year: family.entry_year || family.entryYear || '',
+                    age_group: family.age_group || family.ageGroup || '',
+                    received_at: family.received_at || family.receivedAt,
+                    prospectus_generated_at: family.prospectus_generated_at,
+                    prospectus_pretty_url: family.prospectus_pretty_url,
+                    engagement: family.engagement || {},
+                    engagementScore: family.engagement?.engagementScore || 25,
+                    aiScore: family.aiInsights?.leadScore || null,
+                    hasAI: family.aiInsights?.hasAnalysis === true,
+                    finalScore: family.aiInsights?.leadScore || family.engagement?.engagementScore || 25,
+                    temperature: family.aiInsights?.temperature || family.aiInsights?.leadTemperature || 'unknown',
+                    urgency: family.aiInsights?.urgencyLevel || 'unknown',
+                    aiInsights: family.aiInsights || {}
+                }));
                 
-                // Process activities
                 dashboardData.activities = processActivityData(dashboardApiData.recentlyActive || [], dashboardData.families);
                 
-                console.log('✅ Processed', dashboardData.families.length, 'families and', dashboardData.activities.length, 'activities');
-                
-                // Calculate metrics
                 dashboardData.metrics = {
                     hotLeads: dashboardData.families.filter(f => f.finalScore >= 80).length,
                     warmLeads: dashboardData.families.filter(f => f.finalScore >= 60 && f.finalScore < 80).length,
@@ -713,37 +606,32 @@
                     totalFamilies: dashboardData.families.length
                 };
                 
-                console.log('📊 Metrics calculated:', dashboardData.metrics);
-                
                 updateMetrics();
                 renderFamilyCards();
                 renderActivityFeed();
                 
             } catch (error) {
-                console.error('❌ Failed to load data:', error);
+                console.error('Failed to load data:', error);
                 document.getElementById('familyCards').innerHTML = `
                     <div style="padding: 2rem; text-align: center; color: #ef4444;">
                         <h3>Failed to Load Data</h3>
                         <p>${error.message}</p>
-                        <p>Check console for details</p>
                     </div>
                 `;
             }
         }
-        
+
         function processActivityData(recentActivityData, families) {
-            // If we have real activity data, use it
             if (recentActivityData && recentActivityData.length > 0) {
                 return recentActivityData.slice(0, 20).map(activity => ({
                     family: activity.name || 'Unknown Family',
-                    action: getActivityDescription(activity.activity || 'inquiry'),
+                    action: activity.activity || 'Submitted inquiry',
                     time: formatTimeAgo(new Date(activity.when || activity.timestamp)),
-                    type: getActivityPriority(activity.activity || 'inquiry'),
+                    type: 'medium',
                     timestamp: activity.when || activity.timestamp
                 }));
             }
             
-            // Otherwise, create activity from families
             return families.slice(0, 10).map(family => ({
                 family: `${family.first_name} ${family.family_surname}`,
                 action: 'Submitted inquiry',
@@ -751,62 +639,6 @@
                 type: 'medium',
                 timestamp: family.received_at
             }));
-        }
-        
-        function getActivityDescription(activityType) {
-            const descriptions = {
-                'inquiry': 'Submitted inquiry',
-                'Recently inquired': 'Recently inquired',
-                'prospectus_generated': 'Prospectus generated',
-                'page_load': 'Opened prospectus',
-                'scroll_depth': 'Engaged with content',
-                'link_click': 'Clicked links',
-                'heartbeat': 'Active on page',
-                'page_visible': 'Viewing prospectus',
-                'youtube_video_start': 'Started watching video',
-                'youtube_video_progress': 'Watched video content'
-            };
-            
-            return descriptions[activityType] || `${activityType.replace(/_/g, ' ')} activity`;
-        }
-        
-        function getActivityPriority(activityType) {
-            const highPriority = ['youtube_video_progress', 'form_interaction', 'prospectus_generated'];
-            const mediumPriority = ['click', 'scroll_depth', 'inquiry', 'Recently inquired'];
-            
-            if (highPriority.includes(activityType)) return 'high';
-            if (mediumPriority.includes(activityType)) return 'medium';
-            return 'low';
-        }
-        
-        function renderActivityFeed() {
-            const container = document.getElementById('activityFeed');
-            const activities = dashboardData.activities;
-            
-            console.log('📢 Rendering', activities.length, 'activity items');
-            
-            if (activities.length === 0) {
-                container.innerHTML = `
-                    <div style="padding: 1rem; text-align: center; color: #64748b;">
-                        <p>No recent activity</p>
-                        <p style="font-size: 0.85rem; margin-top: 0.5rem;">Activity will appear here as families engage with their prospectuses</p>
-                    </div>
-                `;
-                return;
-            }
-            
-            container.innerHTML = activities.map(activity => `
-                <div class="activity-item">
-                    <div class="activity-avatar">${activity.family.charAt(0)}</div>
-                    <div class="activity-content">
-                        <div class="activity-text">
-                            <strong>${activity.family}</strong> ${activity.action}
-                        </div>
-                        <div class="activity-time">${activity.time}</div>
-                    </div>
-                    <div class="activity-type ${activity.type}"></div>
-                </div>
-            `).join('');
         }
 
         function updateMetrics() {
@@ -820,380 +652,41 @@
             const container = document.getElementById('familyCards');
             let families = [...dashboardData.families];
             
-            console.log('🎨 Starting to render', families.length, 'families');
-            
-            if (families.length === 0) {
-                container.innerHTML = `
-                    <div style="padding: 2rem; text-align: center; color: #64748b;">
-                        <h3>No Families Found</h3>
-                        <p>No inquiries have been submitted yet.</p>
-                    </div>
-                `;
-                return;
-            }
-            
-            // Apply search filter
             const searchTerm = document.getElementById('searchBox')?.value?.toLowerCase() || '';
             if (searchTerm) {
                 families = families.filter(f => 
                     `${f.first_name} ${f.family_surname}`.toLowerCase().includes(searchTerm) ||
-                    (f.parent_email || '').toLowerCase().includes(searchTerm) ||
-                    (f.entry_year || '').toString().includes(searchTerm)
+                    (f.parent_email || '').toLowerCase().includes(searchTerm)
                 );
             }
             
-            // Apply status filters
             const statusFilter = document.getElementById('statusFilter').value;
-            if (statusFilter === 'hot') {
-                families = families.filter(f => f.finalScore >= 80);
-            } else if (statusFilter === 'urgent') {
-                families = families.filter(f => f.urgency === 'high');
-            } else if (statusFilter === 'aiAnalyzed') {
-                families = families.filter(f => f.hasAI);
-            }
+            if (statusFilter === 'hot') families = families.filter(f => f.finalScore >= 80);
+            else if (statusFilter === 'urgent') families = families.filter(f => f.urgency === 'high');
+            else if (statusFilter === 'aiAnalyzed') families = families.filter(f => f.hasAI);
             
-            // Apply sorting
             const sortBy = document.getElementById('sortFilter').value;
-            if (sortBy === 'aiScore') {
-                families.sort((a, b) => (b.aiScore || 0) - (a.aiScore || 0));
-            } else if (sortBy === 'urgency') {
+            if (sortBy === 'aiScore') families.sort((a, b) => (b.aiScore || 0) - (a.aiScore || 0));
+            else if (sortBy === 'urgency') {
                 const urgencyOrder = { high: 3, medium: 2, low: 1, unknown: 0 };
                 families.sort((a, b) => urgencyOrder[b.urgency] - urgencyOrder[a.urgency]);
-            } else if (sortBy === 'engagement') {
-                families.sort((a, b) => b.engagementScore - a.engagementScore);
-            } else if (sortBy === 'recent') {
-                families.sort((a, b) => new Date(b.received_at) - new Date(a.received_at));
+            }
+            else if (sortBy === 'engagement') families.sort((a, b) => b.engagementScore - a.engagementScore);
+            else if (sortBy === 'recent') families.sort((a, b) => new Date(b.received_at) - new Date(a.received_at));
+            
+            if (families.length === 0) {
+                container.innerHTML = '<div style="padding: 2rem; text-align: center; color: #64748b;">No families match your filters</div>';
+                return;
             }
             
-            console.log('📋 After filtering/sorting:', families.length, 'families to display');
-            
-            // Render cards
-            container.innerHTML = families.map(family => {
-                try {
-                    return renderFamilyCard(family);
-                } catch (err) {
-                    console.error('Error rendering family card:', family, err);
-                    return '';
-                }
-            }).join('');
-            
-            if (container.innerHTML === '') {
-                container.innerHTML = `
-                    <div style="padding: 2rem; text-align: center; color: #64748b;">
-                        <p>No families match your current filters.</p>
-                        <p style="font-size: 0.85rem; margin-top: 0.5rem;">Try adjusting your search or filters</p>
-                    </div>
-                `;
-            }
+            container.innerHTML = families.map(family => renderFamilyCard(family)).join('');
         }
 
         function renderFamilyCard(family) {
             const engagement = family.engagement || {};
-            const ai = family.aiInsights || {};
-            const hasFullAI = family.hasAI && ai.fullInsights;
-            
-            // Calculate display values
             const timeMinutes = Math.round((engagement.timeOnPage || 0) / 60);
             const visits = engagement.totalVisits || 1;
-            const scrollDepth = engagement.scrollDepth || 0;
-            const clicks = engagement.clickCount || 0;
-            
-            // Score badge color
-            const scoreClass = family.finalScore >= 80 ? 'hot' : family.finalScore >= 60 ? 'warm' : 'cold';
-            
-            // Build the comprehensive AI insights section
-            let aiInsightsHTML = '';
-            if (hasFullAI) {
-                const insights = ai.fullInsights;
-                
-                aiInsightsHTML = `
-                    <div class="ai-full-analysis">
-                        <div class="ai-header">
-                            <span class="ai-badge-large">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; vertical-align: middle; margin-right: 0.5rem;">
-                                    <rect x="3" y="3" width="18" height="18" rx="2"></rect>
-                                    <path d="M7 7h10M7 12h10M7 17h10" stroke-linecap="round"></path>
-                                </svg>
-                                AI INTELLIGENCE REPORT
-                            </span>
-                            <span style="margin-left: auto;">
-                                <span class="status-pill ${family.urgency === 'high' ? 'urgent' : ''}">${family.urgency?.toUpperCase()} URGENCY</span>
-                                <span class="status-pill ai-analyzed">AI CONFIDENCE: ${Math.round((ai.confidence || 0) * 100)}%</span>
-                            </span>
-                        </div>
-                        
-                        <!-- AI Scores Grid -->
-                        <div class="ai-scores">
-                            <div class="ai-score-item">
-                                <div class="ai-score-label">AI Lead Score</div>
-                                <div class="ai-score-value" style="color: ${family.aiScore >= 80 ? 'var(--hot-lead)' : family.aiScore >= 60 ? 'var(--warm-lead)' : 'var(--cold-lead)'}">
-                                    ${family.aiScore}/100
-                                </div>
-                            </div>
-                            <div class="ai-score-item">
-                                <div class="ai-score-label">Engagement Score</div>
-                                <div class="ai-score-value">${family.engagementScore}/100</div>
-                            </div>
-                            <div class="ai-score-item">
-                                <div class="ai-score-label">Temperature</div>
-                                <div class="ai-score-value" style="font-size: 1.2rem;">
-                                    ${family.temperature === 'hot' ? '<span style="color: var(--hot-lead);">HOT</span>' : family.temperature === 'warm' ? '<span style="color: var(--warm-lead);">WARM</span>' : '<span style="color: var(--cold-lead);">COLD</span>'}
-                                </div>
-                            </div>
-                            <div class="ai-score-item">
-                                <div class="ai-score-label">Contact Priority</div>
-                                <div class="ai-score-value" style="font-size: 1rem;">
-                                    ${family.urgency === 'high' ? '<span style="color: var(--error);">IMMEDIATE</span>' : family.urgency === 'medium' ? '<span style="color: var(--warning);">THIS WEEK</span>' : '<span style="color: var(--sport-blue);">NURTURE</span>'}
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- AI Insights Grid -->
-                        <div class="ai-insights-grid">
-                            ${insights.conversationStarters && insights.conversationStarters.length > 0 ? `
-                                <div class="ai-insight-panel">
-                                    <h3>
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"></path>
-                                        </svg>
-                                        Conversation Starters
-                                    </h3>
-                                    <ul>
-                                        ${insights.conversationStarters.map(starter => `<li>${starter}</li>`).join('')}
-                                    </ul>
-                                </div>
-                            ` : ''}
-                            
-                            ${insights.sellingPoints && insights.sellingPoints.length > 0 ? `
-                                <div class="ai-insight-panel">
-                                    <h3>
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
-                                        </svg>
-                                        Key Selling Points
-                                    </h3>
-                                    <ul>
-                                        ${insights.sellingPoints.map(point => `<li>${point}</li>`).join('')}
-                                    </ul>
-                                </div>
-                            ` : ''}
-                            
-                            ${insights.nextActions && insights.nextActions.length > 0 ? `
-                                <div class="ai-insight-panel">
-                                    <h3>
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <path d="M9 11l3 3L22 4"></path>
-                                            <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"></path>
-                                        </svg>
-                                        Recommended Actions
-                                    </h3>
-                                    <ul>
-                                        ${insights.nextActions.map(action => `<li>${action}</li>`).join('')}
-                                    </ul>
-                                </div>
-                            ` : ''}
-                            
-                            ${insights.keyObservations && insights.keyObservations.length > 0 ? `
-                                <div class="ai-insight-panel">
-                                    <h3>
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <circle cx="11" cy="11" r="8"></circle>
-                                            <path d="M21 21l-4.35-4.35"></path>
-                                        </svg>
-                                        Key Observations
-                                    </h3>
-                                    <ul>
-                                        ${insights.keyObservations.map(obs => `<li>${obs}</li>`).join('')}
-                                    </ul>
-                                </div>
-                            ` : ''}
-                        </div>
-                        
-                        <!-- Student & Family Insights -->
-                        ${insights.insights ? `
-                            <div class="ai-insights-grid">
-                                ${insights.insights.studentProfile ? `
-                                    <div class="ai-insight-panel">
-                                        <h3>
-                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"></path>
-                                                <circle cx="12" cy="7" r="4"></circle>
-                                            </svg>
-                                            Student Profile
-                                        </h3>
-                                        <p style="line-height: 1.6; color: var(--text-primary);">
-                                            ${insights.insights.studentProfile}
-                                        </p>
-                                    </div>
-                                ` : ''}
-                                
-                                ${insights.insights.familyPriorities ? `
-                                    <div class="ai-insight-panel">
-                                        <h3>
-                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <circle cx="9" cy="9" r="3"></circle>
-                                                <circle cx="15" cy="9" r="3"></circle>
-                                                <path d="M3 19c0-3.5 2.5-6 6-6h6c3.5 0 6 2.5 6 6"></path>
-                                            </svg>
-                                            Family Priorities
-                                        </h3>
-                                        <p style="line-height: 1.6; color: var(--text-primary);">
-                                            ${insights.insights.familyPriorities}
-                                        </p>
-                                    </div>
-                                ` : ''}
-                                
-                                ${insights.insights.engagementPattern ? `
-                                    <div class="ai-insight-panel">
-                                        <h3>
-                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
-                                            </svg>
-                                            Engagement Analysis
-                                        </h3>
-                                        <p style="line-height: 1.6; color: var(--text-primary);">
-                                            ${insights.insights.engagementPattern}
-                                        </p>
-                                    </div>
-                                ` : ''}
-                                
-                                ${insights.insights.recommendedApproach ? `
-                                    <div class="ai-insight-panel">
-                                        <h3>
-                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <circle cx="12" cy="12" r="10"></circle>
-                                                <circle cx="12" cy="12" r="6"></circle>
-                                                <circle cx="12" cy="12" r="2"></circle>
-                                            </svg>
-                                            Recommended Approach
-                                        </h3>
-                                        <p style="line-height: 1.6; color: var(--text-primary);">
-                                            ${insights.insights.recommendedApproach}
-                                        </p>
-                                    </div>
-                                ` : ''}
-                            </div>
-                        ` : ''}
-                        
-                        <!-- Engagement Timeline -->
-                        <div class="engagement-timeline">
-                            <div class="timeline-header">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; vertical-align: middle; margin-right: 0.5rem;">
-                                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
-                                </svg>
-                                Engagement Journey
-                            </div>
-                            <div class="timeline-items">
-                                <div class="timeline-item">
-                                    <div class="timeline-icon">
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
-                                            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"></path>
-                                            <polyline points="14 2 14 8 20 8"></polyline>
-                                        </svg>
-                                    </div>
-                                    <div class="timeline-content">
-                                        <strong>Inquiry Submitted</strong>
-                                        <div class="timeline-time">${formatDate(family.received_at)}</div>
-                                    </div>
-                                </div>
-                                ${family.prospectus_generated_at ? `
-                                    <div class="timeline-item">
-                                        <div class="timeline-icon">
-                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
-                                                <path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"></path>
-                                                <polyline points="13 2 13 9 20 9"></polyline>
-                                            </svg>
-                                        </div>
-                                        <div class="timeline-content">
-                                            <strong>Prospectus Generated</strong>
-                                            <div class="timeline-time">${formatDate(family.prospectus_generated_at)}</div>
-                                        </div>
-                                    </div>
-                                ` : ''}
-                                ${visits > 1 ? `
-                                    <div class="timeline-item">
-                                        <div class="timeline-icon">${visits}</div>
-                                        <div class="timeline-content">
-                                            <strong>${visits} Total Visits</strong>
-                                            <div class="timeline-time">Last: ${formatDate(engagement.lastVisit)}</div>
-                                        </div>
-                                    </div>
-                                ` : ''}
-                                ${timeMinutes > 0 ? `
-                                    <div class="timeline-item">
-                                        <div class="timeline-icon">
-                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
-                                                <circle cx="12" cy="12" r="10"></circle>
-                                                <polyline points="12 6 12 12 16 14"></polyline>
-                                            </svg>
-                                        </div>
-                                        <div class="timeline-content">
-                                            <strong>${timeMinutes} Minutes Total Time</strong>
-                                            <div class="timeline-time">Max scroll: ${scrollDepth}% • ${clicks} clicks</div>
-                                        </div>
-                                    </div>
-                                ` : ''}
-                            </div>
-                        </div>
-                        
-                        <!-- Action Buttons -->
-                        <div class="ai-actions">
-                            <a href="mailto:${family.parent_email}" class="action-btn primary">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
-                                    <polyline points="22,6 12,13 2,6"></polyline>
-                                </svg>
-                                Email Family
-                            </a>
-                            ${family.prospectus_pretty_url ? `
-                                <a href="${family.prospectus_pretty_url}" target="_blank" class="action-btn secondary">
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"></path>
-                                        <polyline points="13 2 13 9 20 9"></polyline>
-                                    </svg>
-                                    View Prospectus
-                                </a>
-                            ` : ''}
-                            <button class="action-btn secondary" onclick="exportFamilyReport('${family.id}')">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"></path>
-                                    <polyline points="7 10 12 15 17 10"></polyline>
-                                    <line x1="12" y1="15" x2="12" y2="3"></line>
-                                </svg>
-                                Export Report
-                            </button>
-                        </div>
-                    </div>
-                `;
-            } else if (family.hasAI) {
-                // Minimal AI data display
-                aiInsightsHTML = `
-                    <div class="ai-full-analysis">
-                        <div class="ai-header">
-                            <span class="ai-badge-large">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; vertical-align: middle; margin-right: 0.5rem;">
-                                    <rect x="3" y="3" width="18" height="18" rx="2"></rect>
-                                    <path d="M7 7h10M7 12h10M7 17h10" stroke-linecap="round"></path>
-                                </svg>
-                                AI QUICK ANALYSIS
-                            </span>
-                        </div>
-                        <div class="ai-scores">
-                            <div class="ai-score-item">
-                                <div class="ai-score-label">AI Score</div>
-                                <div class="ai-score-value">${family.aiScore || 'N/A'}</div>
-                            </div>
-                            <div class="ai-score-item">
-                                <div class="ai-score-label">Urgency</div>
-                                <div class="ai-score-value" style="font-size: 1rem;">${family.urgency?.toUpperCase() || 'UNKNOWN'}</div>
-                            </div>
-                        </div>
-                        <p style="text-align: center; color: #64748b; margin-top: 1rem;">
-                            Run full AI analysis to see detailed insights and recommendations
-                        </p>
-                    </div>
-                `;
-            }
+            const scoreClass = family.finalScore >= 80 ? 'hot' : family.finalScore >= 60 ? 'warm' : family.finalScore >= 40 ? 'cold' : 'unknown';
             
             return `
                 <div class="family-card" data-id="${family.id}">
@@ -1202,12 +695,11 @@
                             <div class="family-name">
                                 ${family.first_name} ${family.family_surname} Family
                                 ${family.hasAI ? '<span class="status-pill ai-analyzed" style="margin-left: 0.5rem;">AI</span>' : ''}
-                                ${family.urgency === 'high' ? '<span class="status-pill urgent" style="margin-left: 0.5rem;">URGENT</span>' : ''}
                             </div>
                             <div class="family-meta">
                                 <span>Entry ${family.entry_year}</span>
                                 <span>${timeMinutes} mins • ${visits} visits</span>
-                                <span>${formatTimeAgo(family.received_at)}</span>
+                                <span>${formatTimeAgo(new Date(family.received_at))}</span>
                             </div>
                         </div>
                         <div style="display: flex; align-items: center; gap: 1rem;">
@@ -1217,31 +709,34 @@
                             <div class="expand-btn">▼</div>
                         </div>
                     </div>
-                    ${aiInsightsHTML}
                 </div>
             `;
         }
 
-        function toggleCard(id) {
-            const card = document.querySelector(`[data-id="${id}"]`);
-            if (card) {
-                card.classList.toggle('expanded');
+        function renderActivityFeed() {
+            const container = document.getElementById('activityFeed');
+            const activities = dashboardData.activities;
+            
+            if (activities.length === 0) {
+                container.innerHTML = '<div style="padding: 1rem; text-align: center; color: #64748b;">No recent activity</div>';
+                return;
             }
+            
+            container.innerHTML = activities.map(activity => `
+                <div class="activity-item">
+                    <div class="activity-avatar">${activity.family.charAt(0)}</div>
+                    <div class="activity-content">
+                        <div class="activity-text">
+                            <strong>${activity.family}</strong> ${activity.action}
+                        </div>
+                        <div class="activity-time">${activity.time}</div>
+                    </div>
+                    <div class="activity-type medium"></div>
+                </div>
+            `).join('');
         }
 
-        function formatDate(dateStr) {
-            if (!dateStr) return 'Unknown';
-            return new Date(dateStr).toLocaleDateString('en-GB', {
-                day: 'numeric',
-                month: 'short',
-                year: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-            });
-        }
-
-        function formatTimeAgo(dateStr) {
-            const date = new Date(dateStr);
+        function formatTimeAgo(date) {
             const now = new Date();
             const diffMs = now - date;
             const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
@@ -1252,10 +747,14 @@
             return date.toLocaleDateString();
         }
 
-        function exportFamilyReport(familyId) {
-            // Implementation for exporting detailed PDF report
-            console.log('Exporting report for family:', familyId);
-            alert('Report export feature coming soon!');
+        function toggleCard(id) {
+            const card = document.querySelector(`[data-id="${id}"]`);
+            if (card) card.classList.toggle('expanded');
+        }
+
+        function refreshDashboard() {
+            console.log('Manual refresh triggered');
+            loadDashboardData();
         }
 
         async function triggerAIAnalysis() {
@@ -1279,13 +778,6 @@
                 alert(`❌ AI Analysis failed: ${error.message}`);
             }
         }
-
-        function refreshDashboard() {
-            loadDashboardData();
-        }
-
-        // Auto-refresh every 30 seconds
-        setInterval(loadDashboardData, 30000);
     </script>
 </body>
 </html>
