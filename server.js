@@ -266,6 +266,10 @@ async function updateInquiryStatus(inquiryId, pInfo) {
 async function trackEngagementEvent(ev) {
   if (!db) return null;
   try {
+    const eventData = Object.assign({}, ev.eventData || {}, {
+      currentSection: ev.currentSection || (ev.eventData && ev.eventData.currentSection) || null
+    });
+
     const q = `
       INSERT INTO tracking_events (
         inquiry_id, event_type, event_data, page_url,
@@ -273,7 +277,7 @@ async function trackEngagementEvent(ev) {
       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
       RETURNING *`;
     const vals = [
-      ev.inquiryId, ev.eventType, JSON.stringify(ev.eventData || {}),
+      ev.inquiryId, ev.eventType, JSON.stringify(eventData),
       ev.url || null, ev.deviceInfo?.userAgent || null, ev.ip || null,
       ev.sessionId || null, new Date(ev.timestamp || Date.now())
     ];
@@ -345,6 +349,144 @@ function calculateEngagementScore(engagement) {
   return Math.min(Math.round(score), 100);
 }
 
+// ——— Friendly names for tracked sections (used in summaries) ———
+const PROSPECTUS_SECTION_NAMES = {
+  cover_page: 'Cover Page',
+  heads_welcome: "Head’s Welcome",
+  academic_excellence: 'Academic Excellence',
+  about_more_house: 'About More House',
+  day_in_the_life: 'A Day at More House',
+  creative_arts_hero: 'Creative Arts',
+  your_journey: 'Your Journey',
+  london_extended_classroom: 'London Extended Classroom',
+  city_curriculum_days: 'City Curriculum Days',
+  values_hero: 'Values & Faith',
+  ethical_leaders: 'Ethical Leaders',
+  discover_video: 'Discover Video',
+  cta_begin_your_journey: 'Begin Your Journey'
+};
+
+function prettySectionName(id) {
+  return PROSPECTUS_SECTION_NAMES[id] || (id ? id.replace(/_/g, ' ') : 'Unknown Section');
+}
+
+function formatHM(totalSeconds) {
+  totalSeconds = Math.max(0, Math.floor(totalSeconds || 0));
+  const m = Math.floor(totalSeconds / 60);
+  const s = totalSeconds % 60;
+  return `${m}m ${s.toString().padStart(2, '0')}s`;
+}
+
+// ---------------------------------------------------------------------------
+// Build metrics from raw events (section_exit + YT milestones)
+// ---------------------------------------------------------------------------
+async function buildEngagementMetrics(inquiryId) {
+  if (!db) throw new Error('Database not available');
+
+  const secExit = await db.query(
+    `SELECT
+       (event_data->>'currentSection') AS section_id,
+       COALESCE((event_data->>'timeInSectionSec')::int, 0) AS dwell_sec,
+       COALESCE((event_data->>'maxScrollPct')::int, 0) AS max_scroll_pct,
+       COALESCE((event_data->>'clicks')::int, 0) AS clicks,
+       COALESCE((event_data->>'videoWatchSec')::int, 0) AS video_sec,
+       session_id,
+       timestamp
+     FROM tracking_events
+     WHERE inquiry_id = $1 AND event_type = 'section_exit'
+     ORDER BY timestamp ASC`,
+    [inquiryId]
+  );
+
+  const yt = await db.query(
+    `SELECT
+       (event_data->>'currentSection') AS section_id,
+       MAX(COALESCE((event_data->>'milestonePct')::int, 0)) AS watched_pct
+     FROM tracking_events
+     WHERE inquiry_id = $1 AND event_type IN ('youtube_video_progress','youtube_video_complete')
+     GROUP BY 1`,
+    [inquiryId]
+  );
+  const ytBySection = Object.fromEntries(yt.rows.map(r => [r.section_id, r.watched_pct || 0]));
+
+  const minMax = await db.query(
+    `SELECT MIN(timestamp) AS min_ts, MAX(timestamp) AS max_ts, COUNT(DISTINCT session_id) AS sessions
+     FROM tracking_events
+     WHERE inquiry_id = $1`,
+    [inquiryId]
+  );
+  const timeframe = {
+    start: minMax.rows[0]?.min_ts || null,
+    end:   minMax.rows[0]?.max_ts || null
+  };
+  const distinctSessions = parseInt(minMax.rows[0]?.sessions || '0', 10);
+
+  # Python won't like the line above; replace correctly:
+  const sectionMap = new Map();
+  secExit.rows.forEach(r => {
+    const id = r.section_id || 'unknown';
+    const prev = sectionMap.get(id) || {
+      id, name: prettySectionName(id),
+      dwellSeconds: 0,
+      maxScrollPct: 0,
+      clicks: 0,
+      videoSeconds: 0,
+      visits: 0
+    };
+    prev.dwellSeconds += r.dwell_sec || 0;
+    prev.maxScrollPct = Math.max(prev.maxScrollPct, r.max_scroll_pct || 0);
+    prev.clicks += r.clicks || 0;
+    prev.videoSeconds += r.video_sec || 0;
+    prev.visits += 1;
+    sectionMap.set(id, prev);
+  });
+
+  const sections = Array.from(sectionMap.values())
+    .sort((a, b) => b.dwellSeconds - a.dwellSeconds);
+
+  const totals = {
+    timeSeconds: sections.reduce((a, b) => a + (b.dwellSeconds || 0), 0),
+    sectionsViewed: sections.filter(s => s.dwellSeconds > 0).length,
+    returnVisits: Math.max(0, distinctSessions - 1)
+  };
+
+  const videos = Object.keys(ytBySection).map(sectionId => ({
+    sectionId,
+    sectionName: prettySectionName(sectionId),
+    watchedPct: ytBySection[sectionId] || 0
+  })).sort((a, b) => b.watchedPct - a.watchedPct);
+
+  const lastActive = timeframe.end || null;
+
+  return { timeframe, totals, sections, videos, lastActive };
+}
+
+function buildEngagementNarrative({ timeframe, totals, sections, videos }) {
+  const fmtTimeframe = (() => {
+    if (!timeframe.start || !timeframe.end) return null;
+    try {
+      const s = new Date(timeframe.start);
+      const e = new Date(timeframe.end);
+      const dtf = new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short' });
+      const tf = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+      const d = dtf.format(s);
+      return `${d}, ${tf.format(s)}–${tf.format(e)}`;
+    } catch { return null; }
+  })();
+
+  const top = sections.slice(0, 3).map(s => `${s.name} (${formatHM(s.dwellSeconds)})`);
+  const revisited = sections.filter(s => s.visits > 1).slice(0, 3).map(s => s.name);
+  const vids = videos.filter(v => v.watchedPct > 0).slice(0, 3).map(v => `${v.sectionName} ~${v.watchedPct}%`);
+
+  const bits = [];
+  if (fmtTimeframe) bits.push(fmtTimeframe + '.');
+  bits.push(`${formatHM(totals.timeSeconds)} total, ${totals.sectionsViewed} sections viewed, ${totals.returnVisits} return visit${totals.returnVisits === 1 ? '' : 's'}.`);
+  if (top.length) bits.push(`Highest dwell: ${top.join(', ')}.`);
+  if (revisited.length) bits.push(`Revisited ${revisited.join(', ')}.`);
+  if (vids.length) bits.push(`Videos: ${vids.join(', ')}.`);
+
+  return bits.join(' ');
+}
 function extractInterests(inquiry) {
   const academic = [];
   const creative = [];
@@ -1044,6 +1186,31 @@ app.get('/api/analytics/inquiries', async (req, res) => {
           }));
           
           console.log(`✅ Merged AI insights for ${Object.keys(aiMap).length} families`);
+        // Merge engagement_summary (narrative only)
+        try {
+          const eg = await db.query(`
+            SELECT inquiry_id, insights_json
+            FROM ai_family_insights
+            WHERE analysis_type = 'engagement_summary'
+          `);
+          const egMap = {};
+          eg.rows.forEach(row => {
+            try {
+              const insights = typeof row.insights_json === 'string'
+                ? JSON.parse(row.insights_json)
+                : row.insights_json;
+              egMap[row.inquiry_id] = insights;
+            } catch {}
+          });
+          inquiries = inquiries.map(inquiry => ({
+            ...inquiry,
+            aiEngagement: egMap[inquiry.id] || null
+          }));
+          console.log(`✅ Merged engagement summaries for ${Object.keys(egMap).length} families`);
+        } catch (e) {
+          console.warn('⚠️ Engagement summary merge failed:', e.message);
+        }
+
         } catch (aiError) {
           console.warn('⚠️ AI insights merge failed:', aiError.message);
         }
@@ -1825,7 +1992,97 @@ async function startServer() {
   await loadSlugIndex();
   await rebuildSlugIndexFromData();
 
-  app.listen(PORT, '0.0.0.0', () => {
+  
+// Upsert helper: ai_family_insights (inquiry_id, analysis_type) UNIQUE
+async function upsertAIInsight({ inquiryId, analysisType, insightsJson, confidence = 1.0 }) {
+  if (!db) throw new Error('Database not available');
+  const q = `
+    INSERT INTO ai_family_insights (inquiry_id, analysis_type, insights_json, confidence_score)
+    VALUES ($1, $2, $3, $4)
+    ON CONFLICT (inquiry_id, analysis_type) DO UPDATE SET
+      insights_json = EXCLUDED.insights_json,
+      confidence_score = EXCLUDED.confidence_score
+    RETURNING *`;
+  const vals = [inquiryId, analysisType, insightsJson, confidence];
+  const r = await db.query(q, vals);
+  return r.rows[0];
+}
+
+// Build & store a single enquiry's engagement summary (descriptive only)
+app.post('/api/ai/engagement-summary/:inquiryId', async (req, res) => {
+  try {
+    const inquiryId = req.params.inquiryId;
+    const m = await buildEngagementMetrics(inquiryId);
+    const narrative = buildEngagementNarrative(m);
+
+    const payload = {
+      analysis_type: 'engagement_summary',
+      inquiryId,
+      timeframe: m.timeframe,
+      totals: m.totals,
+      sections: m.sections,
+      videos: m.videos,
+      narrative,
+      lastActive: m.lastActive,
+      generatedAt: new Date().toISOString()
+    };
+
+    await upsertAIInsight({
+      inquiryId,
+      analysisType: 'engagement_summary',
+      insightsJson: payload,
+      confidence: 1.0
+    });
+
+    res.json({ success: true, engagement_summary: payload });
+  } catch (e) {
+    console.error('engagement-summary error:', e);
+    res.status(500).json({ success:false, error:e.message });
+  }
+});
+
+// Generate summaries for all enquiries (idempotent)
+app.post('/api/ai/engagement-summary/all', async (req, res) => {
+  try {
+    let inquiries = [];
+    if (db) {
+      const r = await db.query(`SELECT id FROM inquiries ORDER BY received_at DESC`);
+      inquiries = r.rows.map(x => x.id);
+    } else {
+      inquiries = [];
+    }
+
+    const results = [];
+    for (const id of inquiries) {
+      try {
+        const m = await buildEngagementMetrics(id);
+        const narrative = buildEngagementNarrative(m);
+        const payload = {
+          analysis_type: 'engagement_summary',
+          inquiryId: id,
+          timeframe: m.timeframe,
+          totals: m.totals,
+          sections: m.sections,
+          videos: m.videos,
+          narrative,
+          lastActive: m.lastActive,
+          generatedAt: new Date().toISOString()
+        };
+        await upsertAIInsight({ inquiryId: id, analysisType: 'engagement_summary', insightsJson: payload, confidence: 1.0 });
+        results.push({ inquiryId: id, ok: true });
+      } catch (e) {
+        results.push({ inquiryId: id, ok: false, error: e.message });
+      }
+    }
+
+    res.json({ success: true, total: inquiries.length, processed: results.length, results });
+  } catch (e) {
+    console.error('engagement-summary/all error:', e);
+    res.status(500).json({ success:false, error:e.message });
+  }
+});
+
+app.listen(PORT, '0.0.0.0', () => {
     console.log('\n🚀 MORE HOUSE SCHOOL SYSTEM STARTED');
     console.log('===============================================');
     console.log(`Server: http://localhost:${PORT}`);

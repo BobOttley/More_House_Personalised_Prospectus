@@ -1190,43 +1190,54 @@
                 const scrollDepth = engagement.scrollDepth || engagement.scroll_depth || 0;
                 const clicks = engagement.clickCount || engagement.clicks_on_links || engagement.click_count || 0;
                 
-                let aiInsightsHTML = '';
-                if (family.hasAIAnalysis && family.aiInsights) {
-                    const ai = family.aiInsights;
-                    const insights = ai.insights || {};
-                    
-                    let conversationStarters = '';
-                    if (ai.conversationStarters && ai.conversationStarters.length > 0) {
-                        conversationStarters = '<div class="ai-insight-item"><h5>💬 Conversation Starters</h5><ul>';
-                        ai.conversationStarters.forEach(starter => {
-                            conversationStarters += '<li>' + starter + '</li>';
-                        });
-                        conversationStarters += '</ul></div>';
-                    }
-                    
-                    let nextActions = '';
-                    if (ai.nextActions && ai.nextActions.length > 0) {
-                        nextActions = '<div class="ai-insight-item"><h5>⚡ Recommended Actions</h5><ul>';
-                        ai.nextActions.forEach(action => {
-                            nextActions += '<li>' + action + '</li>';
-                        });
-                        nextActions += '</ul></div>';
-                    }
-                    
-                    let summary = '';
-                    if (insights.summary) {
-                        summary = '<div style="margin-bottom: 1rem;"><h4 style="color: var(--blazer-navy); margin-bottom: 0.5rem; font-size: 1rem;">📊 AI Summary</h4><p style="background: #f8fafc; padding: 1rem; border-radius: 8px; margin: 0; font-size: 0.9rem; line-height: 1.4;">' + insights.summary + '</p></div>';
-                    }
-                    
-                    let engagementPatterns = '';
-                    if (insights.engagementPatterns) {
-                        engagementPatterns = '<div style="margin-bottom: 1rem;"><h4 style="color: var(--sport-blue); margin: 1rem 0 0.5rem 0; font-size: 1rem;">🔍 What They Actually Did</h4><div style="background: #f0f9ff; padding: 1rem; border-radius: 8px; font-size: 0.9rem;">' + insights.engagementPatterns + '</div></div>';
-                    }
-                    
-                    aiInsightsHTML = '<div class="ai-insights-section"><div class="ai-insights-header"><span class="ai-badge">🤖 SMART AI ANALYSIS</span><span class="ai-confidence">Confidence: ' + Math.round((ai.confidence || 0) * 100) + '%</span><span style="margin-left: auto; font-weight: 600; color: var(--blazer-navy);">🎯 AI Score: ' + ai.leadScore + '/100</span></div>' + summary + engagementPatterns + '<div class="ai-insights-content">' + conversationStarters + nextActions + '</div></div>';
-                }
                 
-                const displayScore = family.aiScore || family.engagementScore;
+                let aiInsightsHTML = '';
+                const eg = family.aiEngagement;
+
+                if (eg && eg.narrative) {
+                    aiInsightsHTML = `
+                        <div class="ai-insights-section">
+                          <div class="ai-insights-header">
+                            <span class="ai-badge">AI Engagement Summary</span>
+                            <span style="margin-left:auto; font-size:0.9rem; opacity:0.75;">${new Date(eg.generatedAt || eg.lastActive || Date.now()).toLocaleString('en-GB')}</span>
+                          </div>
+                          <div class="ai-insights-content">
+                            <p style="margin:0; line-height:1.5;">${eg.narrative}</p>
+                          </div>
+                          <details style="margin-top:0.5rem;">
+                            <summary>View details</summary>
+                            <div style="margin-top:0.5rem; font-size:0.9rem;">
+                              <div><strong>Total time:</strong> ${eg.totals ? (Math.floor((eg.totals.timeSeconds||0)/60) + 'm ' + ((eg.totals.timeSeconds||0)%60) + 's') : '—'}</div>
+                              <div><strong>Sections viewed:</strong> ${eg.totals?.sectionsViewed ?? '—'}</div>
+                              <div><strong>Return visits:</strong> ${eg.totals?.returnVisits ?? '—'}</div>
+                              ${Array.isArray(eg.sections) && eg.sections.length ? `
+                                <div style="margin-top:0.5rem;"><strong>Top sections:</strong>
+                                  <ul style="margin:0.25rem 0 0 1rem;">
+                                    ${eg.sections.slice(0,5).map(s => `<li>${(s.name||s.id)} — ${Math.floor((s.dwellSeconds||0)/60)}m ${(s.dwellSeconds||0)%60}s, scroll ${s.maxScrollPct||0}%${s.visits>1?`, revisited`:''}</li>`).join('')}
+                                  </ul>
+                                </div>` : ''}
+                              ${Array.isArray(eg.videos) && eg.videos.some(v => v.watchedPct>0) ? `
+                                <div style="margin-top:0.5rem;"><strong>Videos:</strong>
+                                  <ul style="margin:0.25rem 0 0 1rem;">
+                                    ${eg.videos.filter(v=>v.watchedPct>0).slice(0,5).map(v => `<li>${v.sectionName || v.sectionId} ~${v.watchedPct}%</li>`).join('')}
+                                  </ul>
+                                </div>` : ''}
+                            </div>
+                          </details>
+                        </div>`;
+                } else {
+                    aiInsightsHTML = `
+                        <div class="ai-insights-section">
+                          <div class="ai-insights-header">
+                            <span class="ai-badge">AI Engagement Summary</span>
+                          </div>
+                          <div class="ai-insights-content">
+                            <p style="margin:0; opacity:0.7;">No engagement summary yet.</p>
+                            <button class="btn btn-secondary" style="margin-top:0.5rem;" onclick="generateEngagementSummary('${family.id || family.inquiry_id}', this)">Generate/Refresh</button>
+                          </div>
+                        </div>`;
+                }
+const displayScore = family.aiScore || family.engagementScore;
                 const scoreLabel = family.hasAIAnalysis ? 'AI: ' + displayScore : displayScore;
                 
                 const prospectusLink = family.prospectusUrl ? '<a href="' + family.prospectusUrl + '" target="_blank" class="prospectus-link">📄 View Prospectus</a>' : '';
@@ -1440,3 +1451,17 @@
     </script>
 </body>
 </html>
+<script>
+async function generateEngagementSummary(inquiryId, btn){
+  try {
+    if (btn) { btn.disabled = true; btn.textContent = 'Generating…'; }
+    const r = await fetch('/api/ai/engagement-summary/' + inquiryId, { method: 'POST' });
+    if (!r.ok) throw new Error('Failed to generate');
+    if (typeof refreshData === 'function') await refreshData();
+  } catch (e) {
+    alert('Could not generate engagement summary: ' + e.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Generate/Refresh'; }
+  }
+}
+</script>
