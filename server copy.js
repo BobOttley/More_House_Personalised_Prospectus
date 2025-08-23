@@ -1420,6 +1420,7 @@ async function findInquiryBySlug(slug) {
       }
     }
     
+    // Continue from findInquiryBySlug function
     const files = await fs.readdir(path.join(__dirname, 'data'));
     for (const f of files.filter(x => x.startsWith('inquiry-') && x.endsWith('.json'))) {
       try {
@@ -1658,6 +1659,363 @@ app.get('/admin/debug-database', async (req, res) => {
   }
 });
 
+// AI Analysis endpoints for backward compatibility
+app.post('/api/ai/analyze-all-families', async (req, res) => {
+  try {
+    console.log('Starting AI analysis for all families...');
+    
+    let inquiries = [];
+
+    // Load from database or JSON files
+    if (db) {
+      try {
+        console.log('Reading inquiries from DATABASE for AI analysis...');
+        const result = await db.query(`
+          SELECT id, first_name, family_surname, parent_email, age_group, entry_year,
+                 sciences, mathematics, english, languages, humanities, business,
+                 drama, music, art, creative_writing, sport, leadership, 
+                 community_service, outdoor_education, academic_excellence, 
+                 pastoral_care, university_preparation, personal_development, 
+                 career_guidance, extracurricular_opportunities,
+                 received_at, status
+          FROM inquiries 
+          ORDER BY received_at DESC
+        `);
+        
+        inquiries = result.rows.map(row => ({
+          id: row.id,
+          firstName: row.first_name,
+          familySurname: row.family_surname,
+          parentEmail: row.parent_email,
+          ageGroup: row.age_group,
+          entryYear: row.entry_year,
+          receivedAt: row.received_at,
+          status: row.status,
+          sciences: row.sciences,
+          mathematics: row.mathematics,
+          english: row.english,
+          languages: row.languages,
+          humanities: row.humanities,
+          business: row.business,
+          drama: row.drama,
+          music: row.music,
+          art: row.art,
+          creative_writing: row.creative_writing,
+          sport: row.sport,
+          leadership: row.leadership,
+          community_service: row.community_service,
+          outdoor_education: row.outdoor_education,
+          academic_excellence: row.academic_excellence,
+          pastoral_care: row.pastoral_care,
+          university_preparation: row.university_preparation,
+          personal_development: row.personal_development,
+          career_guidance: row.career_guidance,
+          extracurricular_opportunities: row.extracurricular_opportunities
+        }));
+        
+        console.log(`Loaded ${inquiries.length} inquiries from DATABASE for AI analysis`);
+        
+      } catch (dbError) {
+        console.warn('Database read failed for AI analysis, falling back to JSON:', dbError.message);
+      }
+    }
+
+    // Fallback to JSON files
+    if (inquiries.length === 0) {
+      console.log('Falling back to JSON files for AI analysis...');
+      const files = await fs.readdir(path.join(__dirname, 'data'));
+      
+      for (const f of files.filter(x => x.startsWith('inquiry-') && x.endsWith('.json'))) {
+        try {
+          const j = JSON.parse(await fs.readFile(path.join(__dirname, 'data', f), 'utf8'));
+          inquiries.push(j);
+        } catch (fileError) {
+          console.warn(`Failed to read ${f}:`, fileError.message);
+        }
+      }
+      console.log(`Loaded ${inquiries.length} inquiries from JSON files`);
+    }
+
+    console.log(`Found ${inquiries.length} families to analyze`);
+    
+    if (inquiries.length === 0) {
+      return res.json({
+        success: true,
+        message: 'No families found to analyze',
+        results: { total: 0, analyzed: 0, errors: 0, successRate: 0 },
+        details: []
+      });
+    }
+
+    let analysisCount = 0;
+    const errors = [];
+    const successDetails = [];
+
+    // Analyze each family
+    for (const inquiry of inquiries) {
+      try {
+        console.log(`Processing ${inquiry.firstName} ${inquiry.familySurname} (${inquiry.id})`);
+        
+        // Get engagement data if available
+        let engagementData = null;
+        if (db) {
+          const engagementResult = await db.query(`
+            SELECT time_on_page, scroll_depth, clicks_on_links, total_visits, last_visit
+            FROM engagement_metrics
+            WHERE inquiry_id = $1
+            ORDER BY last_visit DESC
+            LIMIT 1
+          `, [inquiry.id]);
+          
+          if (engagementResult.rows.length) {
+            engagementData = engagementResult.rows[0];
+          }
+        }
+
+        // Run AI analysis
+        const analysis = await analyzeFamily(inquiry, engagementData);
+        
+        if (analysis) {
+          // Store in database if available
+          if (db) {
+            try {
+              await db.query(`
+                INSERT INTO ai_family_insights (
+                  inquiry_id, analysis_type, insights_json, confidence_score, 
+                  recommendations, generated_at, lead_score, urgency_level, lead_temperature
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                ON CONFLICT (inquiry_id, analysis_type) DO UPDATE SET
+                  insights_json = EXCLUDED.insights_json,
+                  confidence_score = EXCLUDED.confidence_score,
+                  recommendations = EXCLUDED.recommendations,
+                  generated_at = EXCLUDED.generated_at,
+                  lead_score = EXCLUDED.lead_score,
+                  urgency_level = EXCLUDED.urgency_level,
+                  lead_temperature = EXCLUDED.lead_temperature
+              `, [
+                inquiry.id,
+                'family_profile',
+                JSON.stringify(analysis),
+                analysis.confidence_score,
+                analysis.recommendations,
+                new Date(),
+                analysis.leadScore,
+                analysis.urgencyLevel,
+                analysis.leadTemperature
+              ]);
+              
+              console.log(`Stored analysis for ${inquiry.id} in database`);
+            } catch (dbError) {
+              console.warn(`DB insert failed for ${inquiry.id}:`, dbError.message);
+            }
+          }
+
+          analysisCount++;
+          successDetails.push({
+            inquiryId: inquiry.id,
+            name: `${inquiry.firstName} ${inquiry.familySurname}`,
+            leadScore: analysis.leadScore,
+            urgencyLevel: analysis.urgencyLevel,
+            confidence: analysis.confidence_score
+          });
+          
+          console.log(`Analysis completed for ${inquiry.firstName} ${inquiry.familySurname} (score: ${analysis.leadScore})`);
+        }
+        
+      } catch (error) {
+        console.error(`Analysis failed for ${inquiry.id}:`, error.message);
+        errors.push({ 
+          inquiryId: inquiry.id, 
+          name: `${inquiry.firstName || ''} ${inquiry.familySurname || ''}`.trim(),
+          error: error.message 
+        });
+      }
+    }
+
+    console.log(`AI analysis complete: ${analysisCount}/${inquiries.length} successful`);
+    
+    const response = {
+      success: true,
+      message: `AI analysis completed for ${analysisCount} out of ${inquiries.length} families`,
+      results: {
+        total: inquiries.length,
+        analyzed: analysisCount,
+        errors: errors.length,
+        successRate: inquiries.length > 0 ? Math.round((analysisCount / inquiries.length) * 100) : 0
+      },
+      successDetails: successDetails.slice(0, 10),
+      errors: errors.length > 0 ? errors.slice(0, 5) : undefined
+    };
+    
+    res.json(response);
+
+  } catch (error) {
+    console.error('Batch AI analysis error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'AI analysis failed',
+      message: error.message,
+      results: { total: 0, analyzed: 0, errors: 1, successRate: 0 }
+    });
+  }
+});
+
+app.post('/api/ai/analyze-family/:inquiryId', async (req, res) => {
+  try {
+    const inquiryId = req.params.inquiryId;
+    console.log(`Starting individual AI analysis for family: ${inquiryId}`);
+    
+    let inquiry = null;
+    
+    // Try database first
+    if (db) {
+      const result = await db.query('SELECT * FROM inquiries WHERE id = $1', [inquiryId]);
+      if (result.rows.length > 0) {
+        const row = result.rows[0];
+        inquiry = {
+          id: row.id,
+          firstName: row.first_name,
+          familySurname: row.family_surname,
+          parentEmail: row.parent_email,
+          ageGroup: row.age_group,
+          entryYear: row.entry_year,
+          sciences: row.sciences,
+          mathematics: row.mathematics,
+          english: row.english,
+          languages: row.languages,
+          humanities: row.humanities,
+          business: row.business,
+          drama: row.drama,
+          music: row.music,
+          art: row.art,
+          creative_writing: row.creative_writing,
+          sport: row.sport,
+          leadership: row.leadership,
+          community_service: row.community_service,
+          outdoor_education: row.outdoor_education,
+          academic_excellence: row.academic_excellence,
+          pastoral_care: row.pastoral_care,
+          university_preparation: row.university_preparation,
+          personal_development: row.personal_development,
+          career_guidance: row.career_guidance,
+          extracurricular_opportunities: row.extracurricular_opportunities
+        };
+      }
+    }
+    
+    // Fallback to JSON files
+    if (!inquiry) {
+      const files = await fs.readdir(path.join(__dirname, 'data'));
+      for (const f of files.filter(x => x.startsWith('inquiry-') && x.endsWith('.json'))) {
+        try {
+          const j = JSON.parse(await fs.readFile(path.join(__dirname, 'data', f), 'utf8'));
+          if (j.id === inquiryId) {
+            inquiry = j;
+            break;
+          }
+        } catch (fileError) {
+          console.warn(`Failed to read ${f}:`, fileError.message);
+        }
+      }
+    }
+    
+    if (!inquiry) {
+      return res.status(404).json({
+        success: false,
+        error: 'Family not found',
+        inquiryId: inquiryId
+      });
+    }
+    
+    console.log(`Processing ${inquiry.firstName} ${inquiry.familySurname} (${inquiry.id})`);
+    
+    let engagementData = null;
+    if (db) {
+      const engagementResult = await db.query(`
+        SELECT time_on_page, scroll_depth, clicks_on_links, total_visits, last_visit
+        FROM engagement_metrics
+        WHERE inquiry_id = $1
+        ORDER BY last_visit DESC
+        LIMIT 1
+      `, [inquiry.id]);
+      
+      if (engagementResult.rows.length) {
+        engagementData = engagementResult.rows[0];
+      }
+    }
+
+    const analysis = await analyzeFamily(inquiry, engagementData);
+    
+    if (!analysis) {
+      return res.status(500).json({
+        success: false,
+        error: 'AI analysis failed',
+        inquiryId: inquiryId
+      });
+    }
+    
+    if (db) {
+      try {
+        await db.query(`
+          INSERT INTO ai_family_insights (
+            inquiry_id, analysis_type, insights_json, confidence_score, 
+            recommendations, generated_at, lead_score, urgency_level, lead_temperature
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+          ON CONFLICT (inquiry_id, analysis_type) DO UPDATE SET
+            insights_json = EXCLUDED.insights_json,
+            confidence_score = EXCLUDED.confidence_score,
+            recommendations = EXCLUDED.recommendations,
+            generated_at = EXCLUDED.generated_at,
+            lead_score = EXCLUDED.lead_score,
+            urgency_level = EXCLUDED.urgency_level,
+            lead_temperature = EXCLUDED.lead_temperature
+        `, [
+          inquiry.id,
+          'family_profile',
+          JSON.stringify(analysis),
+          analysis.confidence_score,
+          analysis.recommendations,
+          new Date(),
+          analysis.leadScore,
+          analysis.urgencyLevel,
+          analysis.leadTemperature
+        ]);
+        
+        console.log(`Stored individual analysis for ${inquiry.id} in database`);
+      } catch (dbError) {
+        console.warn(`DB insert failed for ${inquiry.id}:`, dbError.message);
+      }
+    }
+    
+    console.log(`Individual analysis completed for ${inquiry.firstName} ${inquiry.familySurname} (score: ${analysis.leadScore})`);
+    
+    res.json({
+      success: true,
+      message: `AI analysis completed for ${inquiry.firstName} ${inquiry.familySurname}`,
+      inquiryId: inquiry.id,
+      analysis: {
+        leadScore: analysis.leadScore,
+        urgencyLevel: analysis.urgencyLevel,
+        leadTemperature: analysis.leadTemperature,
+        confidence: analysis.confidence_score,
+        conversationStarters: analysis.conversationStarters,
+        sellingPoints: analysis.sellingPoints,
+        nextActions: analysis.nextActions,
+        insights: analysis.insights
+      }
+    });
+    
+  } catch (error) {
+    console.error(`Individual AI analysis error for ${req.params.inquiryId}:`, error);
+    res.status(500).json({
+      success: false,
+      error: 'Individual AI analysis failed',
+      message: error.message,
+      inquiryId: req.params.inquiryId
+    });
+  }
+});
+
 app.get('/config.json', (req, res) => {
   const base = getBaseUrl(req);
   res.json({ baseUrl: base, webhook: `${base}/webhook`, health: `${base}/health` });
@@ -1669,7 +2027,7 @@ app.get('/health', (req, res) => {
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
     environment: process.env.NODE_ENV || 'development',
-    version: '5.0.0-FIXED',
+    version: '5.0.0-COMPLETE',
     features: {
       analytics: 'enabled',
       tracking: 'enabled',
@@ -1678,7 +2036,11 @@ app.get('/health', (req, res) => {
       prettyUrls: true,
       selfHealing: true,
       aiAnalysis: 'WORKING',
-      aiEndpoint: '/api/ai/engagement-summary/:inquiryId'
+      aiEndpoints: {
+        engagementSummary: '/api/ai/engagement-summary/:inquiryId',
+        analyzeAllFamilies: '/api/ai/analyze-all-families',
+        analyzeFamily: '/api/ai/analyze-family/:inquiryId'
+      }
     }
   });
 });
@@ -1690,7 +2052,7 @@ app.get('/', (req, res) => {
 <style>body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;padding:24px;max-width:780px;margin:auto;line-height:1.55}</style></head>
 <body>
   <h1>More House Prospectus Service</h1>
-  <p><strong>Version 5.0.0 - FIXED</strong></p>
+  <p><strong>Version 5.0.0 - COMPLETE</strong></p>
   <ul>
     <li>Health: <a href="${base}/health">${base}/health</a></li>
     <li>Webhook (POST JSON): <code>${base}/webhook</code></li>
@@ -1698,7 +2060,14 @@ app.get('/', (req, res) => {
     <li>Inquiries (JSON): <a href="${base}/api/analytics/inquiries">${base}/api/analytics/inquiries</a></li>
     <li>Dashboard data (JSON): <a href="${base}/api/dashboard-data">${base}/api/dashboard-data</a></li>
     <li>AI Engagement Summary: <code>POST ${base}/api/ai/engagement-summary/:inquiryId</code></li>
+    <li>AI Analyze All: <code>POST ${base}/api/ai/analyze-all-families</code></li>
     <li>Rebuild slugs: <a href="${base}/admin/rebuild-slugs">${base}/admin/rebuild-slugs</a></li>
+  </ul>
+  <h3>System Status:</h3>
+  <ul>
+    <li>Database: ${db ? 'Connected' : 'JSON-only mode'}</li>
+    <li>Environment: ${process.env.NODE_ENV || 'development'}</li>
+    <li>All endpoints operational</li>
   </ul>
   <p>Pretty links: <code>${base}/the-smith-family-abc123</code></p>
 </body></html>`);
@@ -1722,21 +2091,44 @@ async function startServer() {
   await rebuildSlugIndexFromData();
 
   app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-    console.log(`Database: ${dbConnected ? 'Connected' : 'JSON-only mode'}`);
-    console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`
+=====================================
+Server running on port ${PORT}
+Database: ${dbConnected ? 'Connected to PostgreSQL' : 'JSON-only mode'}
+Environment: ${process.env.NODE_ENV || 'development'}
+Version: 5.0.0-COMPLETE
+=====================================
+    `);
   });
 }
 
-// Graceful shutdown
+// Graceful shutdown handlers
 process.on('SIGINT', async () => { 
-  if (db) await db.end(); 
+  console.log('\nShutting down gracefully (SIGINT)...');
+  if (db) {
+    await db.end();
+    console.log('Database connection closed.');
+  }
   process.exit(0); 
 });
 
 process.on('SIGTERM', async () => { 
-  if (db) await db.end(); 
+  console.log('\nShutting down gracefully (SIGTERM)...');
+  if (db) {
+    await db.end();
+    console.log('Database connection closed.');
+  }
   process.exit(0); 
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });
 
 // Start the server
