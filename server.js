@@ -421,7 +421,6 @@ async function buildEngagementMetrics(inquiryId) {
   };
   const distinctSessions = parseInt(minMax.rows[0]?.sessions || '0', 10);
 
-  # Python won't like the line above; replace correctly:
   const sectionMap = new Map();
   secExit.rows.forEach(r => {
     const id = r.section_id || 'unknown';
