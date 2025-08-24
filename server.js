@@ -135,6 +135,27 @@ app.use((req, _res, next) => { console.log(req.method, req.url); next(); });
 
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Accept single event OR an array of events from tracking.js
+app.post('/api/track-engagement', async (req, res) => {
+  try {
+    const body = req.body;
+    if (!body) return res.status(400).json({ success: false, message: 'No body' });
+
+    const events = Array.isArray(body) ? body : [body];
+
+    for (const ev of events) {
+      ev.ip = req.ip;               // pass IP through if useful
+      await trackEngagementEvent(ev); // this is the function we replaced earlier
+    }
+
+    res.json({ success: true, received: events.length });
+  } catch (e) {
+    console.error('/api/track-engagement error:', e);
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+
 async function generateProspectus(inquiry) {
  console.log(`Generating prospectus for ${inquiry.firstName} ${inquiry.familySurname}`);
  const templatePath = path.join(__dirname, 'public', 'prospectus_template.html');
@@ -265,30 +286,97 @@ async function updateInquiryStatus(inquiryId, pInfo) {
  }
 }
 
+// ---------- REPLACEMENT: trackEngagementEvent ----------
 async function trackEngagementEvent(ev) {
- if (!db) return null;
- try {
-   const eventData = Object.assign({}, ev.eventData || {}, {
-     currentSection: ev.currentSection || (ev.eventData && ev.eventData.currentSection) || null
-   });
-   const q = `
-     INSERT INTO tracking_events (
-       inquiry_id, event_type, event_data, page_url,
-       user_agent, ip_address, session_id, timestamp
-     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
-     RETURNING *`;
-   const vals = [
-     ev.inquiryId, ev.eventType, JSON.stringify(eventData),
-     ev.url || null, ev.deviceInfo?.userAgent || null, ev.ip || null,
-     ev.sessionId || null, new Date(ev.timestamp || Date.now())
-   ];
-   const r = await db.query(q, vals);
-   return r.rows[0];
- } catch (e) {
-   console.warn('trackEngagementEvent failed:', e.message);
-   return null;
- }
+  if (!db) return null;
+
+  try {
+    // Normalise the incoming payload (tracking.js sends these fields):contentReference[oaicite:2]{index=2}
+    const eventType      = ev.eventType || ev.type || 'unknown';
+    const inquiryId      = ev.inquiryId || ev.inquiry_id || null;
+    const sessionId      = ev.sessionId || ev.session_id || null;
+    const currentSection = ev.currentSection || ev.section || ev?.eventData?.currentSection || null;
+    const tsISO          = ev.timestamp || new Date().toISOString();
+    const pageUrl        = ev.url || null;
+
+    // Device info can be on the root or inside eventData:contentReference[oaicite:3]{index=3}
+    const deviceInfo = ev.deviceInfo || ev?.eventData?.deviceInfo || {};
+
+    // Event-specific metrics (tracking.js adds these for section_exit/scroll/video):contentReference[oaicite:4]{index=4}
+    const ed = Object.assign({}, ev.eventData || ev.data || {});
+    const timeInSectionSec = pickNumber(ed.timeInSectionSec);
+    const maxScrollPct     = pickNumber(ed.maxScrollPct);
+    const clicks           = pickNumber(ed.clicks);
+    const videoWatchSec    = pickNumber(ed.videoWatchSec);
+    const videoId          = ed.videoId || ed.video_id || null;
+    const videoTitle       = ed.videoTitle || ed.video_title || null;
+    const currentTimeSec   = pickNumber(ed.currentTimeSec ?? ed.current_time_sec);
+
+    // 1) Always log the raw JSON to tracking_events (lossless event log):contentReference[oaicite:5]{index=5}
+    const rawEventData = {
+      ...ed,
+      currentSection: currentSection,
+      deviceInfo
+    };
+    const insertRaw = `
+      INSERT INTO tracking_events (
+        inquiry_id, event_type, event_data, page_url,
+        user_agent, ip_address, session_id, timestamp
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+    `;
+    const rawVals = [
+      inquiryId,
+      eventType,
+      JSON.stringify(rawEventData),
+      pageUrl,
+      deviceInfo.userAgent || ev.userAgent || null,
+      ev.ip || null,
+      sessionId,
+      new Date(tsISO)
+    ];
+    await db.query(insertRaw, rawVals).catch(e => {
+      console.warn('tracking_events insert failed:', e.message);
+    });
+
+    // 2) Roll-up: update engagement_metrics using best-known values (GREATEST inside upsert):contentReference[oaicite:6]{index=6}
+    const hasSectionMetrics = (eventType === 'section_exit') || (eventType === 'section_scroll');
+    const hasClicks         = clicks > 0;
+    const hasVideo          = eventType.startsWith('video_') || videoWatchSec > 0;
+
+    if (hasSectionMetrics || hasClicks || hasVideo) {
+      await updateEngagementMetrics({
+        inquiryId,
+        sessionId,
+        timeOnPage: timeInSectionSec,   // seconds for this section exit; upsert keeps max total
+        maxScrollDepth: maxScrollPct,   // %; upsert keeps max
+        clickCount: clicks,             // count; upsert keeps max
+        deviceInfo
+      });
+    }
+
+    // 3) Optional granular: write video_* rows if present (safe no-op if table missing)
+    if (hasVideo) {
+      await insertVideoTrackingRow(db, {
+        inquiryId,
+        sessionId,
+        currentSection,
+        eventType,
+        videoId,
+        videoTitle,
+        currentTimeSec,
+        watchedSec: videoWatchSec,
+        url: pageUrl,
+        timestamp: tsISO
+      });
+    }
+
+    return { ok: true };
+  } catch (e) {
+    console.warn('trackEngagementEvent failed:', e.message);
+    return null;
+  }
 }
+
 
 // ---------- AI Engagement Summary (per family) ----------
 async function buildEngagementSnapshot(db, inquiryId) {
@@ -468,6 +556,42 @@ async function updateEngagementMetrics(m) {
    return null;
  }
 }
+
+// ---------- Helpers for engagement parsing ----------
+function pickNumber(n, dflt = 0) {
+  const v = Number(n);
+  return Number.isFinite(v) ? v : dflt;
+}
+
+async function insertVideoTrackingRow(dbClient, payload) {
+  // Tries to write a granular video row; if the table/columns aren't present,
+  // we log a warning and carry on without failing the request.
+  try {
+    const q = `
+      INSERT INTO video_engagement_tracking (
+        inquiry_id, session_id, section_label, event_type,
+        video_id, video_title, current_time_sec, watched_sec,
+        page_url, timestamp
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+    `;
+    const vals = [
+      payload.inquiryId || null,
+      payload.sessionId || null,
+      payload.currentSection || null,
+      payload.eventType || null,
+      payload.videoId || null,
+      payload.videoTitle || null,
+      pickNumber(payload.currentTimeSec, null),
+      pickNumber(payload.watchedSec, null),
+      payload.url || null,
+      new Date(payload.timestamp || Date.now())
+    ];
+    await dbClient.query(q, vals);
+  } catch (e) {
+    console.warn('video_engagement_tracking insert skipped:', e.message);
+  }
+}
+
 
 function calculateEngagementScore(engagement) {
  if (!engagement) return 0;
