@@ -288,6 +288,151 @@ async function trackEngagementEvent(ev) {
  }
 }
 
+// ---------- AI Engagement Summary (per family) ----------
+async function buildEngagementSnapshot(db, inquiryId) {
+  // Pull whatever tracking you have; keep SQL simple and safe.
+  // If you already have helpers for this, use them instead.
+  const { rows: raw } = await db.query(`
+    SELECT section_label, SUM(dwell_ms)::bigint AS dwell_ms,
+           SUM(video_ms)::bigint   AS video_ms,
+           SUM(clicks)::int        AS clicks
+    FROM prospectus_events
+    WHERE inquiry_id = $1
+    GROUP BY section_label
+    ORDER BY SUM(dwell_ms) DESC
+    LIMIT 50
+  `, [inquiryId]).catch(() => ({ rows: [] }));
+
+  // Fallback if table/columns aren’t present yet
+  if (!raw || !Array.isArray(raw) || raw.length === 0) {
+    // Try a lighter fallback from any engagement summary you store
+    const { rows: e } = await db.query(`
+      SELECT time_on_page, scroll_depth, total_visits, clicks_on_links
+      FROM inquiries WHERE id = $1
+    `, [inquiryId]).catch(()=>({rows:[]}));
+    return {
+      sections: [],
+      totals: {
+        time_on_page_ms: Number(e?.[0]?.time_on_page || 0) * 1000,
+        scroll_depth: Number(e?.[0]?.scroll_depth || 0),
+        total_visits: Number(e?.[0]?.total_visits || 0),
+        clicks_on_links: Number(e?.[0]?.clicks_on_links || 0)
+      }
+    };
+  }
+
+  const sections = raw.map(r => ({
+    section: r.section_label || 'Unknown',
+    dwell_ms: Number(r.dwell_ms || 0),
+    video_ms: Number(r.video_ms || 0),
+    clicks: Number(r.clicks || 0)
+  }));
+
+  const totals = sections.reduce((acc, s) => {
+    acc.time_on_page_ms += s.dwell_ms;
+    acc.video_ms       += s.video_ms;
+    acc.clicks         += s.clicks;
+    return acc;
+  }, { time_on_page_ms: 0, video_ms: 0, clicks: 0 });
+
+  return { sections, totals };
+}
+
+function topInteractionsFrom(sections, n = 5) {
+  // Rank by dwell, then video time, then clicks
+  return [...sections]
+    .sort((a,b) => (b.dwell_ms - a.dwell_ms) || (b.video_ms - a.video_ms) || (b.clicks - a.clicks))
+    .slice(0, n)
+    .map(s => ({
+      label: s.section,
+      dwell_seconds: Math.round(s.dwell_ms/1000),
+      video_seconds: Math.round(s.video_ms/1000),
+      clicks: s.clicks
+    }));
+}
+
+async function generateAiEngagementStory(llm, snapshot, familyMeta) {
+  // familyMeta: { first_name, family_surname, entry_year } if you have them
+  const secs = snapshot.sections || [];
+  const tops = topInteractionsFrom(secs, 5);
+
+  // Model switch: prefer Anthropic if key present, else OpenAI
+  const useAnthropic = !!process.env.ANTHROPIC_API_KEY;
+
+  const prompt = `
+You are an admissions assistant. Write a concise, human-friendly summary (UK English) describing how a parent interacted with a personalised school prospectus.
+Keep it factual and warm, 120–180 words, and avoid marketing fluff.
+
+Context:
+- Total time on prospectus (seconds): ${Math.round((snapshot.totals?.time_on_page_ms||0)/1000)}
+- Total video watch time (seconds): ${Math.round((snapshot.totals?.video_ms||0)/1000)}
+- Total clicks: ${snapshot.totals?.clicks||0}
+- Top sections by engagement (up to 5):
+${tops.map(t => `  - ${t.label}: dwell ${t.dwell_seconds}s, video ${t.video_seconds}s, clicks ${t.clicks}`).join('\n') || '  - (no detailed sections available yet)'}
+
+Output strictly as JSON with keys:
+{
+  "narrative": "120-180 word paragraph in UK English",
+  "highlights": ["• one-sentence key insight", "... up to 5 bullets"]
+}
+  `.trim();
+
+  if (useAnthropic) {
+    const { Anthropic } = await import('@anthropic-ai/sdk');
+    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    const resp = await client.messages.create({
+      model: process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-20240620',
+      max_tokens: 600,
+      temperature: 0.2,
+      messages: [{ role: 'user', content: prompt }]
+    });
+    const text = resp?.content?.[0]?.text || '{}';
+    return JSON.parse(text);
+  } else {
+    // OpenAI fallback
+    const OpenAI = (await import('openai')).default;
+    const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    const chat = await client.chat.completions.create({
+      model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+      temperature: 0.2,
+      response_format: { type: 'json_object' },
+      messages: [{ role: 'user', content: prompt }]
+    });
+    return JSON.parse(chat.choices?.[0]?.message?.content || '{}');
+  }
+}
+
+async function upsertAiInsight(db, inquiryId, analysisType, insightsJson) {
+  await db.query(`
+    INSERT INTO ai_family_insights (inquiry_id, analysis_type, insights_json)
+    VALUES ($1, $2, $3::jsonb)
+    ON CONFLICT (inquiry_id, analysis_type)
+    DO UPDATE SET insights_json = EXCLUDED.insights_json
+  `, [inquiryId, analysisType, JSON.stringify(insightsJson)]);
+}
+
+async function summariseFamilyEngagement(db, llm, inquiry) {
+  const inquiryId = inquiry.id || inquiry.inquiry_id;
+  const snapshot = await buildEngagementSnapshot(db, inquiryId);
+  const payload = await generateAiEngagementStory(llm, snapshot, {
+    first_name: inquiry.first_name,
+    family_surname: inquiry.family_surname,
+    entry_year: inquiry.entry_year
+  });
+
+  // Normalise shape we return to the dashboard
+  const result = {
+    narrative: payload?.narrative || 'Prospectus generated. Awaiting first visit.',
+    highlights: Array.isArray(payload?.highlights) ? payload.highlights.slice(0,5) : [],
+    top_interactions: topInteractionsFrom(snapshot.sections || [], 5),
+    totals: snapshot.totals || { time_on_page_ms: 0, video_ms: 0, clicks: 0 }
+  };
+
+  await upsertAiInsight(db, inquiryId, 'engagement_story', result);
+  return result;
+}
+
+
 async function updateEngagementMetrics(m) {
  if (!db) return null;
  try {
@@ -781,6 +926,180 @@ async function rebuildSlugIndexFromData() {
    return 0;
  }
 }
+
+// ===================== AI ENGAGEMENT SUMMARY HELPERS =====================
+
+// Pull a per-family snapshot of engagement for summarising.
+// If you don't yet have a `prospectus_events` table, the fallback still works.
+async function buildEngagementSnapshot(db, inquiryId) {
+  // Preferred: rich event table
+  const res = await db.query(`
+    SELECT
+      COALESCE(section_label, 'Unknown')    AS section_label,
+      COALESCE(SUM(dwell_ms) , 0)::bigint   AS dwell_ms,
+      COALESCE(SUM(video_ms) , 0)::bigint   AS video_ms,
+      COALESCE(SUM(clicks)   , 0)::integer  AS clicks
+    FROM prospectus_events
+    WHERE inquiry_id = $1
+    GROUP BY section_label
+    ORDER BY SUM(dwell_ms) DESC
+    LIMIT 100
+  `, [inquiryId]).catch(() => ({ rows: [] }));
+
+  if (!res?.rows?.length) {
+    // Fallback: use coarse engagement stored on inquiries
+    const e = await db.query(`
+      SELECT
+        COALESCE(time_on_page, 0)::bigint         AS time_on_page,
+        COALESCE(scroll_depth, 0)::integer        AS scroll_depth,
+        COALESCE(total_visits, 0)::integer        AS total_visits,
+        COALESCE(clicks_on_links, 0)::integer     AS clicks_on_links
+      FROM inquiries
+      WHERE id = $1
+    `, [inquiryId]).catch(() => ({ rows: [] }));
+
+    const row = e?.rows?.[0] || {};
+    return {
+      sections: [],
+      totals: {
+        time_on_page_ms: Number(row.time_on_page || 0) * 1000,
+        video_ms: 0,
+        clicks: Number(row.clicks_on_links || 0),
+        total_visits: Number(row.total_visits || 0),
+        scroll_depth: Number(row.scroll_depth || 0)
+      }
+    };
+  }
+
+  const sections = res.rows.map(r => ({
+    section: r.section_label,
+    dwell_ms: Number(r.dwell_ms || 0),
+    video_ms: Number(r.video_ms || 0),
+    clicks: Number(r.clicks || 0)
+  }));
+
+  const totals = sections.reduce((acc, s) => {
+    acc.time_on_page_ms += s.dwell_ms;
+    acc.video_ms       += s.video_ms;
+    acc.clicks         += s.clicks;
+    return acc;
+  }, { time_on_page_ms: 0, video_ms: 0, clicks: 0 });
+
+  return { sections, totals };
+}
+
+function topInteractionsFrom(sections, n = 5) {
+  return [...sections]
+    .sort((a,b) =>
+      (b.dwell_ms - a.dwell_ms) ||
+      (b.video_ms - a.video_ms) ||
+      (b.clicks   - a.clicks))
+    .slice(0, n)
+    .map(s => ({
+      label: s.section,
+      dwell_seconds: Math.round((s.dwell_ms || 0)/1000),
+      video_seconds: Math.round((s.video_ms || 0)/1000),
+      clicks: Number(s.clicks || 0)
+    }));
+}
+
+// Use Claude if ANTHROPIC_API_KEY exists, else OpenAI (OPENAI_API_KEY).
+async function generateAiEngagementStory(snapshot, meta = {}) {
+  const tops = topInteractionsFrom(snapshot.sections || [], 5);
+  const totalSec   = Math.round((snapshot.totals?.time_on_page_ms || 0) / 1000);
+  const videoSec   = Math.round((snapshot.totals?.video_ms || 0) / 1000);
+  const clicks     = Number(snapshot.totals?.clicks || 0);
+  const visits     = Number(snapshot.totals?.total_visits || 0);
+  const childName  = [meta.first_name, meta.family_surname].filter(Boolean).join(' ');
+
+  const prompt = `
+You are an admissions assistant. In UK English, write a concise, human-friendly narrative (120–180 words) explaining how a family engaged with a personalised school prospectus. Be factual, warm, and readable—like a colleague explaining what's happening. Avoid marketing fluff.
+
+Include: what they kept coming back to, which sections/videos held attention, and what this suggests about interests or next steps. If data is light, say so plainly without guessing.
+
+Context (data):
+- Child/family: ${childName || '(not provided)'}
+- Entry year: ${meta.entry_year || '(not provided)'}
+- Total time on prospectus (sec): ${totalSec}
+- Total video watch time (sec): ${videoSec}
+- Total clicks: ${clicks}
+- Total visits: ${visits || '(unknown)'}
+- Top sections by engagement (up to 5):
+${tops.length ? tops.map(t => `  - ${t.label}: dwell ${t.dwell_seconds}s, video ${t.video_seconds}s, clicks ${t.clicks}`).join('\n') : '  - (no detailed sections available)'}
+
+Return STRICT JSON:
+{
+  "narrative": "A 120–180 word paragraph in UK English.",
+  "highlights": ["Up to five short, factual bullets."]
+}
+`.trim();
+
+  const hasAnthropic = !!process.env.ANTHROPIC_API_KEY;
+  try {
+    if (hasAnthropic) {
+      const { Anthropic } = await import('@anthropic-ai/sdk');
+      const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+      const resp = await client.messages.create({
+        model: process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-20240620',
+        temperature: 0.2,
+        max_tokens: 700,
+        messages: [{ role: 'user', content: prompt }]
+      });
+      const text = resp?.content?.[0]?.text || '{}';
+      return JSON.parse(text);
+    } else {
+      const OpenAI = (await import('openai')).default;
+      const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      const chat = await client.chat.completions.create({
+        model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+        temperature: 0.2,
+        response_format: { type: 'json_object' },
+        messages: [{ role: 'user', content: prompt }]
+      });
+      const text = chat?.choices?.[0]?.message?.content || '{}';
+      return JSON.parse(text);
+    }
+  } catch (e) {
+    // Hard fallback so UI never dies
+    return {
+      narrative: "Prospectus generated. Limited tracking available so far. Once more interaction is recorded — such as time spent on key sections or video watch time — a fuller summary will appear here.",
+      highlights: ["No detailed section data yet", "Invite the family to view key pages", "Follow up with a light-touch email"]
+    };
+  }
+}
+
+async function upsertAiInsight(db, inquiryId, analysisType, insightsJson) {
+  await db.query(`
+    INSERT INTO ai_family_insights (inquiry_id, analysis_type, insights_json)
+    VALUES ($1, $2, $3::jsonb)
+    ON CONFLICT (inquiry_id, analysis_type)
+    DO UPDATE SET insights_json = EXCLUDED.insights_json
+  `, [inquiryId, analysisType, JSON.stringify(insightsJson)]);
+}
+
+async function summariseFamilyEngagement(db, inquiry) {
+  const inquiryId = inquiry.id || inquiry.inquiry_id;
+  const snapshot = await buildEngagementSnapshot(db, inquiryId);
+
+  const payload = await generateAiEngagementStory(snapshot, {
+    first_name: inquiry.first_name,
+    family_surname: inquiry.family_surname,
+    entry_year: inquiry.entry_year
+  });
+
+  // Final normalised shape for dashboard
+  const result = {
+    narrative: payload?.narrative || 'Prospectus generated. Awaiting meaningful engagement.',
+    highlights: Array.isArray(payload?.highlights) ? payload.highlights.slice(0,5) : [],
+    top_interactions: topInteractionsFrom(snapshot.sections || [], 5),
+    totals: snapshot.totals || { time_on_page_ms: 0, video_ms: 0, clicks: 0, total_visits: 0 }
+  };
+
+  await upsertAiInsight(db, inquiryId, 'engagement_story', result);
+  return result;
+}
+// =================== END AI ENGAGEMENT SUMMARY HELPERS ===================
+
 
 // Express Routes
 
@@ -1336,347 +1655,53 @@ app.post('/api/ai/engagement-summary/all', (req, res) => {
 
 
 app.post('/api/ai/engagement-summary/:inquiryId', async (req, res) => {
- try {
-   const inquiryId = req.params.inquiryId;
-   console.log(`Generating engagement summary for inquiry: ${inquiryId}`);
-   
-   if (inquiryId === 'all') {
-    return res.status(400).json({
-      success: false,
-      error: "For all families use POST /api/ai/analyze-all-families"
-    });
+  const inquiryId = req.params.inquiryId;
+  if (inquiryId === 'all') {
+    return res.status(400).json({ success: false, error: "Use POST /api/ai/analyze-all-families for bulk analysis." });
   }
-  
-  if (!db) {
-    return res.status(500).json({ 
-      success: false, 
-      error: 'Database not available for engagement summaries' 
-    });
+  if (!db) return res.status(500).json({ success: false, error: 'Database not available' });
+
+  try {
+    // Load the base inquiry row (adjust field names if needed)
+    const q = await db.query(`SELECT * FROM inquiries WHERE id = $1`, [inquiryId]);
+    const inquiry = q?.rows?.[0];
+    if (!inquiry) return res.status(404).json({ success: false, error: 'Inquiry not found' });
+
+    const result = await summariseFamilyEngagement(db, inquiry);
+    return res.json({ success: true, result });
+  } catch (e) {
+    console.error('Engagement summary error:', e);
+    return res.status(500).json({ success: false, error: 'Failed to generate engagement summary' });
   }
-   
-   // Check if tracking events exist for this inquiry
-   const eventCheck = await db.query(
-     'SELECT COUNT(*) as count FROM tracking_events WHERE inquiry_id = $1',
-     [inquiryId]
-   );
-   
-   const eventCount = parseInt(eventCheck.rows[0].count || '0');
-   console.log(`Found ${eventCount} tracking events for ${inquiryId}`);
-   
-   let narrative = '';
-   let metrics = null;
-   
-   if (eventCount > 0) {
-     // We have tracking data - build full metrics
-     metrics = await buildEngagementMetrics(inquiryId);
-     narrative = buildEngagementNarrative(metrics);
-   } else {
-     // No tracking data yet - check engagement_metrics table as fallback
-     const engagementCheck = await db.query(
-       `SELECT time_on_page, scroll_depth, clicks_on_links, total_visits, last_visit
-        FROM engagement_metrics 
-        WHERE inquiry_id = $1`,
-       [inquiryId]
-     );
-     
-     if (engagementCheck.rows.length > 0) {
-       const eng = engagementCheck.rows[0];
-       // Build basic narrative from engagement_metrics
-       const timeMinutes = Math.round((eng.time_on_page || 0) / 60);
-       const visits = eng.total_visits || 1;
-       const scrollDepth = eng.scroll_depth || 0;
-       const clicks = eng.clicks_on_links || 0;
-       
-       narrative = `${visits} visit${visits !== 1 ? 's' : ''} recorded. `;
-       if (timeMinutes > 0) {
-         narrative += `${timeMinutes} minute${timeMinutes !== 1 ? 's' : ''} total engagement. `;
-       }
-       if (scrollDepth > 0) {
-         narrative += `${scrollDepth}% max scroll depth. `;
-       }
-       if (clicks > 0) {
-         narrative += `${clicks} link${clicks !== 1 ? 's' : ''} clicked. `;
-       }
-       
-       metrics = {
-         timeframe: { 
-           start: eng.last_visit || new Date(), 
-           end: eng.last_visit || new Date() 
-         },
-         totals: {
-           timeSeconds: eng.time_on_page || 0,
-           sectionsViewed: 0,
-           returnVisits: Math.max(0, (eng.total_visits || 1) - 1)
-         },
-         sections: [],
-         videos: [],
-         lastActive: eng.last_visit
-       };
-     } else {
-       // No data at all - provide minimal summary
-       narrative = 'Prospectus generated. Awaiting first visit.';
-       metrics = {
-         timeframe: { start: new Date(), end: new Date() },
-         totals: { timeSeconds: 0, sectionsViewed: 0, returnVisits: 0 },
-         sections: [],
-         videos: [],
-         lastActive: new Date()
-       };
-     }
-   }
-   
-   const payload = {
-     analysis_type: 'engagement_summary',
-     inquiryId,
-     timeframe: metrics.timeframe,
-     totals: metrics.totals,
-     sections: metrics.sections,
-     videos: metrics.videos,
-     narrative,
-     lastActive: metrics.lastActive,
-     generatedAt: new Date().toISOString()
-   };
-   
-   console.log(`Generated narrative: "${narrative}"`);
-   
-   // Store in database
-   await db.query(`
-     INSERT INTO ai_family_insights (
-       inquiry_id, 
-       analysis_type, 
-       insights_json, 
-       confidence_score,
-       generated_at
-     )
-     VALUES ($1, $2, $3, $4, $5)
-     ON CONFLICT (inquiry_id, analysis_type) 
-     DO UPDATE SET
-       insights_json = EXCLUDED.insights_json,
-       confidence_score = EXCLUDED.confidence_score,
-       generated_at = EXCLUDED.generated_at
-   `, [
-     inquiryId, 
-     'engagement_summary', 
-     JSON.stringify(payload), 
-     1.0,
-     new Date()
-   ]);
-   
-   console.log(`Engagement summary saved for ${inquiryId}`);
-   
-   res.json({ 
-     success: true, 
-     engagement_summary: payload 
-   });
-   
- } catch (error) {
-   console.error('Engagement summary error:', error);
-   console.error('Full error details:', error.stack);
-   res.status(500).json({ 
-     success: false, 
-     error: error.message 
-   });
- }
 });
 
+
 app.post('/api/ai/analyze-all-families', async (req, res) => {
- try {
-   console.log('Starting AI analysis for all families...');
-   
-   let inquiries = [];
+  if (!db) return res.status(500).json({ success: false, error: 'Database not available' });
 
-   // Load from database or JSON files
-   if (db) {
-     try {
-       console.log('Reading inquiries from DATABASE for AI analysis...');
-       const result = await db.query(`
-         SELECT id, first_name, family_surname, parent_email, age_group, entry_year,
-                sciences, mathematics, english, languages, humanities, business,
-                drama, music, art, creative_writing, sport, leadership, 
-                community_service, outdoor_education, academic_excellence, 
-                pastoral_care, university_preparation, personal_development, 
-                career_guidance, extracurricular_opportunities,
-                received_at, status
-         FROM inquiries 
-         ORDER BY received_at DESC
-       `);
-       
-       inquiries = result.rows.map(row => ({
-         id: row.id,
-         firstName: row.first_name,
-         familySurname: row.family_surname,
-         parentEmail: row.parent_email,
-         ageGroup: row.age_group,
-         entryYear: row.entry_year,
-         receivedAt: row.received_at,
-         status: row.status,
-         sciences: row.sciences,
-         mathematics: row.mathematics,
-         english: row.english,
-         languages: row.languages,
-         humanities: row.humanities,
-         business: row.business,
-         drama: row.drama,
-         music: row.music,
-         art: row.art,
-         creative_writing: row.creative_writing,
-         sport: row.sport,
-         leadership: row.leadership,
-         community_service: row.community_service,
-         outdoor_education: row.outdoor_education,
-         academic_excellence: row.academic_excellence,
-         pastoral_care: row.pastoral_care,
-         university_preparation: row.university_preparation,
-         personal_development: row.personal_development,
-         career_guidance: row.career_guidance,
-         extracurricular_opportunities: row.extracurricular_opportunities
-       }));
-       
-       console.log(`Loaded ${inquiries.length} inquiries from DATABASE for AI analysis`);
-       
-     } catch (dbError) {
-       console.warn('Database read failed for AI analysis, falling back to JSON:', dbError.message);
-     }
-   }
+  try {
+    const q = await db.query(`SELECT * FROM inquiries ORDER BY created_at DESC NULLS LAST`);
+    const rows = q?.rows || [];
+    const results = [];
 
-   // Fallback to JSON files
-   if (inquiries.length === 0) {
-     console.log('Falling back to JSON files for AI analysis...');
-     const files = await fs.readdir(path.join(__dirname, 'data'));
-     
-     for (const f of files.filter(x => x.startsWith('inquiry-') && x.endsWith('.json'))) {
-       try {
-         const j = JSON.parse(await fs.readFile(path.join(__dirname, 'data', f), 'utf8'));
-         inquiries.push(j);
-       } catch (fileError) {
-         console.warn(`Failed to read ${f}:`, fileError.message);
-       }
-     }
-     console.log(`Loaded ${inquiries.length} inquiries from JSON files`);
-   }
+    for (const inquiry of rows) {
+      try {
+        const result = await summariseFamilyEngagement(db, inquiry);
+        results.push({ inquiry_id: inquiry.id, success: true, result });
+      } catch (errOne) {
+        console.error('Bulk summarise error for', inquiry.id, errOne);
+        results.push({ inquiry_id: inquiry.id, success: false, error: 'summary_failed' });
+      }
+    }
+    return res.json({ success: true, count: results.length, results });
+  } catch (e) {
+    console.error('Bulk analyse error:', e);
+    return res.status(500).json({ success: false, error: 'Bulk analysis failed' });
+  }
+});
 
-   console.log(`Found ${inquiries.length} families to analyze`);
-   
-   if (inquiries.length === 0) {
-     return res.json({
-       success: true,
-       message: 'No families found to analyze',
-       results: { total: 0, analyzed: 0, errors: 0, successRate: 0 },
-       details: []
-     });
-   }
-
-   let analysisCount = 0;
-   const errors = [];
-   const successDetails = [];
-
-   // Analyze each family
-   for (const inquiry of inquiries) {
-     try {
-       console.log(`Processing ${inquiry.firstName} ${inquiry.familySurname} (${inquiry.id})`);
-       
-       // Get engagement data if available
-       let engagementData = null;
-       if (db) {
-         const engagementResult = await db.query(`
-           SELECT time_on_page, scroll_depth, clicks_on_links, total_visits, last_visit
-           FROM engagement_metrics
-           WHERE inquiry_id = $1
-           ORDER BY last_visit DESC
-           LIMIT 1
-         `, [inquiry.id]);
-         
-         if (engagementResult.rows.length) {
-           engagementData = engagementResult.rows[0];
-         }
-       }
-
-       // Run AI analysis
-       const analysis = await analyzeFamily(inquiry, engagementData);
-       
-       if (analysis) {
-         // Store in database if available
-         if (db) {
-           try {
-             await db.query(`
-               INSERT INTO ai_family_insights (
-                 inquiry_id, analysis_type, insights_json, confidence_score, 
-                 recommendations, generated_at, lead_score, urgency_level, lead_temperature
-               ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-               ON CONFLICT (inquiry_id, analysis_type) DO UPDATE SET
-                 insights_json = EXCLUDED.insights_json,
-                 confidence_score = EXCLUDED.confidence_score,
-                 recommendations = EXCLUDED.recommendations,
-                 generated_at = EXCLUDED.generated_at,
-                 lead_score = EXCLUDED.lead_score,
-                 urgency_level = EXCLUDED.urgency_level,
-                 lead_temperature = EXCLUDED.lead_temperature
-             `, [
-               inquiry.id,
-               'family_profile',
-               JSON.stringify(analysis),
-               analysis.confidence_score,
-               analysis.recommendations,
-               new Date(),
-               analysis.leadScore,
-               analysis.urgencyLevel,
-               analysis.leadTemperature
-             ]);
-             
-             console.log(`Stored analysis for ${inquiry.id} in database`);
-           } catch (dbError) {
-             console.warn(`DB insert failed for ${inquiry.id}:`, dbError.message);
-           }
-         }
-
-         analysisCount++;
-         successDetails.push({
-           inquiryId: inquiry.id,
-           name: `${inquiry.firstName} ${inquiry.familySurname}`,
-           leadScore: analysis.leadScore,
-           urgencyLevel: analysis.urgencyLevel,
-           confidence: analysis.confidence_score
-         });
-         
-         console.log(`Analysis completed for ${inquiry.firstName} ${inquiry.familySurname} (score: ${analysis.leadScore})`);
-       }
-       
-     } catch (error) {
-       console.error(`Analysis failed for ${inquiry.id}:`, error.message);
-       errors.push({ 
-         inquiryId: inquiry.id, 
-         name: `${inquiry.firstName || ''} ${inquiry.familySurname || ''}`.trim(),
-         error: error.message 
-       });
-     }
-   }
-
-   console.log(`AI analysis complete: ${analysisCount}/${inquiries.length} successful`);
-   
-   const response = {
-     success: true,
-     message: `AI analysis completed for ${analysisCount} out of ${inquiries.length} families`,
-     results: {
-       total: inquiries.length,
-       analyzed: analysisCount,
-       errors: errors.length,
-       successRate: inquiries.length > 0 ? Math.round((analysisCount / inquiries.length) * 100) : 0
-     },
-     successDetails: successDetails.slice(0, 10),
-     errors: errors.length > 0 ? errors.slice(0, 5) : undefined
-   };
-   
-   res.json(response);
-
- } catch (error) {
-   console.error('Batch AI analysis error:', error);
-   res.status(500).json({
-     success: false,
-     error: 'AI analysis failed',
-     message: error.message,
-     results: { total: 0, analyzed: 0, errors: 1, successRate: 0 }
-   });
- }
+app.post('/api/ai/engagement-summary/all', (req, res) => {
+  return res.redirect(307, '/api/ai/analyze-all-families');
 });
 
 
