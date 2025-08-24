@@ -58,14 +58,14 @@
         <div class="metric"><div class="muted">AI Analysed</div><div id="mAI" class="k">-</div></div>
         <div class="metric"><div class="muted">Total</div><div id="mTotal" class="k">-</div></div>
       </div>
-      <div id="families" class="list"><div class="muted">Loading…</div></div>
+      <div id="families" class="list"><div class="muted">Loading...</div></div>
     </div>
   </section>
 
   <aside class="card">
     <h2>Live Activity</h2>
     <div class="body">
-      <div id="activity" class="list"><div class="muted">Loading…</div></div>
+      <div id="activity" class="list"><div class="muted">Loading...</div></div>
       <h2 style="margin-top:12px">Last response</h2>
       <div class="body"><pre id="lastResp">(none)</pre></div>
     </div>
@@ -73,21 +73,21 @@
 </main>
 
 <script>
-const S = (id)=>document.getElementById(id);
+const S = (id) => document.getElementById(id);
 const statusTxt = S('status'), familiesEl = S('families'), activityEl = S('activity'), lastResp = S('lastResp');
 
 S('refreshBtn').onclick = init;
 S('analyzeAllBtn').onclick = analyzeAll;
 
 async function init(){
-  status('Loading…');
+  status('Loading...');
   try{
     // Your existing back-end sources:
     const fam = await fetchJson('/api/analytics/inquiries');   // rows per enquiry (includes fields for names, emails, urls)
     const dash = await fetchJson('/api/dashboard-data');       // activity + counts
-    renderFamilies(Array.isArray(fam)?fam:[]);
-    renderActivity(dash?.recentlyActive||[]);
-    renderMetrics(Array.isArray(fam)?fam:[], dash);
+    renderFamilies(Array.isArray(fam) ? fam : []);
+    renderActivity(dash?.recentlyActive || []);
+    renderMetrics(Array.isArray(fam) ? fam : [], dash);
     status('Loaded');
   }catch(e){
     status('Load failed', 'err', e);
@@ -97,7 +97,7 @@ async function init(){
 /* ---------- Actions ---------- */
 
 async function analyzeAll(){
-  status('Running SMART AI for all…');
+  status('Running SMART AI for all...');
   try{
     const r = await fetch('/api/ai/analyze-all-families', { method:'POST' });
     const data = await safeJson(r);
@@ -113,7 +113,8 @@ async function analyzeAll(){
 
 async function generateOne(inquiryId, btn){
   try{
-    btn.disabled = true; btn.textContent = 'Analysing…';
+    btn.disabled = true; 
+    btn.textContent = 'Analysing...';
     const r = await fetch('/api/ai/engagement-summary/' + encodeURIComponent(inquiryId), { method:'POST' });
     const data = await safeJson(r);
     lastResp.textContent = JSON.stringify(data ?? {http:r.status}, null, 2);
@@ -122,7 +123,8 @@ async function generateOne(inquiryId, btn){
   }catch(e){
     alert('Could not generate engagement summary: ' + e.message);
   }finally{
-    btn.disabled = false; btn.textContent = 'Regenerate AI summary';
+    btn.disabled = false; 
+    btn.textContent = 'Regenerate AI summary';
   }
 }
 
@@ -149,9 +151,12 @@ async function fetchEngagementSummary(inquiryId){
 /* ---------- Renderers ---------- */
 
 function renderFamilies(rows){
-  if(!rows.length){ familiesEl.innerHTML = '<div class="muted">No enquiries.</div>'; return; }
+  if(!rows.length){ 
+    familiesEl.innerHTML = '<div class="muted">No enquiries.</div>'; 
+    return; 
+  }
   familiesEl.innerHTML = '';
-  rows.forEach(enq=>{
+  rows.forEach(enq => {
     // Try common keys; fall back to id if needed
     const inquiryId = enq.inquiry_id || enq.id || enq.InquiryID || enq.InquiryId;
     const name = `${escapeHtml(enq.first_name||enq.child_name||'')} ${escapeHtml(enq.family_surname||enq.last_name||'')}`.trim();
@@ -171,7 +176,7 @@ function renderFamilies(rows){
 
         <div class="ai-block" data-ai>
           <div class="title">AI summary</div>
-          <div class="muted" data-ai-text>Loading…</div>
+          <div class="muted" data-ai-text>Loading...</div>
           <table class="mini" data-ai-table style="display:none">
             <thead><tr><th>Section</th><th>Dwell</th><th>Scroll</th></tr></thead>
             <tbody></tbody>
@@ -180,15 +185,15 @@ function renderFamilies(rows){
       </div>
 
       <div style="text-align:right;min-width:220px">
-        <div class="muted" style="font-weight:700">Score <span data-ai-score>–</span></div>
-        <div class="muted" style="margin:6px 0"><span data-ai-visits>–</span> visit(s)</div>
+        <div class="muted" style="font-weight:700">Score <span data-ai-score>—</span></div>
+        <div class="muted" style="margin:6px 0"><span data-ai-visits>—</span> visit(s)</div>
         <button data-id="${inquiryId}" class="gen">Regenerate AI summary</button>
       </div>
     `;
     familiesEl.appendChild(row);
 
     // Wire up regenerate button
-    row.querySelector('.gen').onclick = ()=> generateOne(inquiryId, row.querySelector('.gen'));
+    row.querySelector('.gen').onclick = () => generateOne(inquiryId, row.querySelector('.gen'));
 
     // Live load the engagement summary per enquiry
     if(inquiryId){
@@ -212,7 +217,10 @@ async function loadRowAI(inquiryId, row){
     if(visitsEl) visitsEl.textContent = String(visits);
 
     // Summary text
-    if(textEl) { textEl.classList.remove('muted'); textEl.textContent = summaryText || '—'; }
+    if(textEl) { 
+      textEl.classList.remove('muted'); 
+      textEl.textContent = summaryText || '—'; 
+    }
 
     // Sections table (top 5)
     if(tbody){
@@ -224,7 +232,7 @@ async function loadRowAI(inquiryId, row){
             <td>${Math.round((s.dwell_seconds||0)/60)} min</td>
             <td>${s.max_scroll_pct}%</td>
           </tr>
-        ).join('');
+        `).join('');
         table.style.display = '';
       }else{
         tbody.innerHTML = `<tr><td colspan="3" class="muted">No section data yet</td></tr>`;
@@ -232,16 +240,23 @@ async function loadRowAI(inquiryId, row){
       }
     }
   }catch(e){
-    if(textEl){ textEl.textContent = 'Could not load engagement summary.'; textEl.classList.add('muted'); }
+    if(textEl){ 
+      textEl.textContent = 'Could not load engagement summary.'; 
+      textEl.classList.add('muted'); 
+    }
     console.error('Engagement summary error for', inquiryId, e);
   }
 }
 
 function renderActivity(items){
-  if(!items.length){ activityEl.innerHTML = '<div class="muted">No recent activity.</div>'; return; }
+  if(!items.length){ 
+    activityEl.innerHTML = '<div class="muted">No recent activity.</div>'; 
+    return; 
+  }
   activityEl.innerHTML = '';
-  items.slice(0,20).forEach(a=>{
-    const div = document.createElement('div'); div.className='row';
+  items.slice(0,20).forEach(a => {
+    const div = document.createElement('div'); 
+    div.className='row';
     const when = a.when || a.timestamp;
     div.innerHTML = `<div><strong>${escapeHtml(a.name||'Unknown')}</strong> — ${escapeHtml(a.activity||'activity')}</div><div class="muted">${timeAgo(when)}</div>`;
     activityEl.appendChild(div);
@@ -250,9 +265,9 @@ function renderActivity(items){
 
 function renderMetrics(fam, dash){
   // Keep your legacy score calc for "hot/warm" tallies until all rows have live scores
-  const hot  = fam.filter(f=>calcScore(f.engagement||{},f)>=80).length;
-  const warm = fam.filter(f=>{const s=calcScore(f.engagement||{},f);return s>=60&&s<80}).length;
-  const ai   = fam.filter(f=>f.aiEngagement && f.aiEngagement.narrative).length;
+  const hot  = fam.filter(f => calcScore(f.engagement||{},f) >= 80).length;
+  const warm = fam.filter(f => {const s = calcScore(f.engagement||{},f); return s >= 60 && s < 80}).length;
+  const ai   = fam.filter(f => f.aiEngagement && f.aiEngagement.narrative).length;
   S('mHot').textContent   = hot;
   S('mWarm').textContent  = warm;
   S('mAI').textContent    = ai;
@@ -265,10 +280,11 @@ async function fetchJson(url){
   const r = await fetch(url);
   const d = await safeJson(r);
   if(!r.ok) throw new Error((d&&(d.message||d.error))||('HTTP '+r.status+' '+url));
-  // Keep your “last response” pane useful but compact
+  // Keep your "last response" pane useful but compact
   lastResp.textContent = JSON.stringify({url, ok:r.ok, sample:Array.isArray(d)?d.slice(0,1):d}, null, 2);
   return d;
 }
+
 async function safeJson(r){
   try{
     return await r.json();
@@ -280,17 +296,50 @@ async function safeJson(r){
     return null;
   }
 }
-function status(t,cls,e){ statusTxt.className='muted'; if(cls) statusTxt.className=cls; statusTxt.textContent=t; if(e) console.error(t,e); }
-function timeAgo(ts){ if(!ts) return '-'; const d=new Date(ts),n=new Date(),m=Math.floor((n-d)/60000),h=Math.floor(m/60),D=Math.floor(h/24); if(m<1)return'Just now'; if(m<60)return m+' min ago'; if(h<24)return h+'h ago'; if(D<7)return D+'d ago'; return d.toLocaleDateString('en-GB'); }
+
+function status(t,cls,e){ 
+  statusTxt.className='muted'; 
+  if(cls) statusTxt.className=cls; 
+  statusTxt.textContent=t; 
+  if(e) console.error(t,e); 
+}
+
+function timeAgo(ts){ 
+  if(!ts) return '-'; 
+  const d = new Date(ts);
+  const n = new Date();
+  const m = Math.floor((n-d)/60000);
+  const h = Math.floor(m/60);
+  const D = Math.floor(h/24); 
+  if(m < 1) return 'Just now'; 
+  if(m < 60) return m + ' min ago'; 
+  if(h < 24) return h + 'h ago'; 
+  if(D < 7) return D + 'd ago'; 
+  return d.toLocaleDateString('en-GB'); 
+}
+
 function calcScore(eng,e){
-  let s=0;
-  const mins=(eng.timeOnPage||eng.time_on_page||0)/60; s+= mins>=30?40: mins>=15?30: mins>=5?20: Math.min(mins*4,15);
-  const depth=eng.scrollDepth||eng.scroll_depth||0;     s+= Math.min(depth*0.3,30);
-  const v=eng.totalVisits||eng.total_visits||1;         s+= v>=5?20: v>=3?15: v>=2?10:5;
-  const c=eng.clickCount||eng.clicks_on_links||0;       s+= Math.min(c*2,10);
+  let s = 0;
+  const mins = (eng.timeOnPage||eng.time_on_page||0)/60; 
+  s += mins >= 30 ? 40 : mins >= 15 ? 30 : mins >= 5 ? 20 : Math.min(mins*4,15);
+  const depth = eng.scrollDepth||eng.scroll_depth||0;     
+  s += Math.min(depth*0.3,30);
+  const v = eng.totalVisits||eng.total_visits||1;         
+  s += v >= 5 ? 20 : v >= 3 ? 15 : v >= 2 ? 10 : 5;
+  const c = eng.clickCount||eng.clicks_on_links||0;       
+  s += Math.min(c*2,10);
   return Math.min(Math.round(s),100);
 }
-function escapeHtml(x){ return String(x).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m])); }
+
+function escapeHtml(x){ 
+  return String(x).replace(/[&<>"']/g, m => ({
+    '&':'&amp;',
+    '<':'&lt;',
+    '>':'&gt;',
+    '"':'&quot;',
+    "'": '&#039;'
+  }[m])); 
+}
 
 init();
 </script>
