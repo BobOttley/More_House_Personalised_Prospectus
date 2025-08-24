@@ -1,1606 +1,184 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SMART Analytics - More House School</title>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        /* More House SMART Analytics Brand Colours */
-        :root {
-            --blazer-navy: #091825;
-            --award-gold: #FF9F1C;
-            --sport-blue: #034674;
-            --text-primary: #2C3E50;
-            --white: #FFFFFF;
-            --light-grey: #F8FAFC;
-            --border-grey: #E5E7EB;
-            --success: #10B981;
-            --warning: #F59E0B;
-            --error: #EF4444;
-            --hot-lead: #FF4444;
-            --warm-lead: #FF9F1C;
-            --cool-lead: #034674;
-            
-            --font-heading: 'Playfair Display', serif;
-            --font-body: 'Inter', sans-serif;
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: var(--font-body);
-            background: linear-gradient(135deg, var(--light-grey) 0%, #f1f5f9 100%);
-            min-height: 100vh;
-            color: var(--text-primary);
-            font-size: 14px;
-        }
-
-        /* Header */
-        .dashboard-header {
-            background: linear-gradient(135deg, var(--blazer-navy) 0%, var(--sport-blue) 100%);
-            color: var(--white);
-            padding: 2rem;
-            box-shadow: 0 4px 20px rgba(9, 24, 37, 0.3);
-            text-align: center;
-            position: relative;
-        }
-
-        .header-brand {
-            display: inline-block;
-            position: relative;
-        }
-
-        .brand-glow {
-            position: absolute;
-            inset: 0;
-            border-radius: 50%;
-            background: linear-gradient(135deg, var(--award-gold), #FFB84D);
-            opacity: 0.3;
-            filter: blur(20px);
-        }
-
-        .header-brand h1 {
-            position: relative;
-            font-family: var(--font-heading);
-            font-size: 4rem;
-            font-weight: 700;
-            margin-bottom: 1rem;
-        }
-
-        .header-brand h1 .smart-text {
-            background: linear-gradient(135deg, var(--award-gold), #FFB84D);
-            background-clip: text;
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .header-brand h1 .analytics-text {
-            color: white;
-        }
-
-        .header-subtitle {
-            font-size: 1.2rem;
-            font-weight: 300;
-            color: rgba(255, 255, 255, 0.9);
-            margin-bottom: 0.5rem;
-        }
-
-        .header-meta {
-            font-size: 0.9rem;
-            color: rgba(255, 255, 255, 0.7);
-        }
-
-        .header-controls {
-            position: absolute;
-            top: 2rem;
-            right: 2rem;
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-
-        .refresh-btn {
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            color: white;
-            padding: 0.5rem 1rem;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.3s;
-            font-size: 0.9rem;
-        }
-
-        .refresh-btn:hover {
-            background: rgba(255, 255, 255, 0.2);
-        }
-
-        .auto-refresh-toggle {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            font-size: 0.9rem;
-        }
-
-        /* Metrics Bar */
-        .metrics-bar {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-            gap: 1.5rem;
-            padding: 2rem;
-            max-width: 1400px;
-            margin: 0 auto;
-        }
-
-        .metric-card {
-            background: var(--white);
-            border-radius: 16px;
-            padding: 1.5rem;
-            box-shadow: 0 4px 16px rgba(9, 24, 37, 0.08);
-            border: 1px solid var(--border-grey);
-            transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .metric-card:hover {
-            box-shadow: 0 8px 25px rgba(9, 24, 37, 0.12);
-            transform: translateY(-2px);
-        }
-
-        .metric-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 4px;
-            background: linear-gradient(90deg, var(--award-gold), var(--sport-blue));
-        }
-
-        .metric-card.hot::before { background: var(--hot-lead); }
-        .metric-card.warm::before { background: var(--warm-lead); }
-        .metric-card.engagement::before { background: var(--success); }
-        .metric-card.total::before { background: var(--sport-blue); }
-
-        .metric-header {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            margin-bottom: 1rem;
-        }
-
-        .metric-icon {
-            width: 48px;
-            height: 48px;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--white);
-            background: var(--award-gold);
-            position: relative;
-            font-size: 1.5rem;
-        }
-
-        .metric-icon.hot { 
-            background: linear-gradient(135deg, var(--hot-lead), #ff6666); 
-        }
-        .metric-icon.warm { 
-            background: linear-gradient(135deg, var(--warm-lead), #ffb347); 
-        }
-        .metric-icon.engagement { 
-            background: linear-gradient(135deg, var(--success), #34d399); 
-        }
-        .metric-icon.total { 
-            background: linear-gradient(135deg, var(--sport-blue), #0ea5e9); 
-        }
-
-        .metric-content {
-            flex: 1;
-        }
-
-        .metric-title {
-            font-size: 0.85rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: #64748b;
-            margin-bottom: 0.5rem;
-        }
-
-        .metric-value {
-            font-size: 2.25rem;
-            font-weight: 700;
-            color: var(--blazer-navy);
-            margin-bottom: 0.25rem;
-            font-family: var(--font-heading);
-        }
-
-        .metric-trend {
-            font-size: 0.8rem;
-            font-weight: 500;
-            color: var(--success);
-            display: flex;
-            align-items: center;
-            gap: 0.25rem;
-        }
-
-        /* Dashboard Grid */
-        .dashboard-grid {
-            display: grid;
-            grid-template-columns: 2fr 1fr;
-            gap: 2rem;
-            margin: 0 2rem 2rem;
-            max-width: 1400px;
-            margin-left: auto;
-            margin-right: auto;
-        }
-
-        .panel {
-            background: var(--white);
-            border-radius: 16px;
-            box-shadow: 0 4px 16px rgba(9, 24, 37, 0.08);
-            border: 1px solid var(--border-grey);
-            overflow: hidden;
-            transition: all 0.3s ease;
-        }
-
-        .panel:hover {
-            box-shadow: 0 8px 25px rgba(9, 24, 37, 0.12);
-        }
-
-        .panel-header {
-            background: linear-gradient(135deg, var(--blazer-navy) 0%, var(--sport-blue) 100%);
-            color: var(--white);
-            padding: 1.25rem 1.5rem;
-            font-weight: 600;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .panel-content {
-            padding: 1.5rem;
-        }
-
-        /* Family Cards */
-        .family-cards-container {
-            max-height: 600px;
-            overflow-y: auto;
-        }
-
-        .family-card {
-            border: 1px solid var(--border-grey);
-            border-radius: 12px;
-            margin-bottom: 1rem;
-            transition: all 0.3s ease;
-            background: var(--white);
-        }
-
-        .family-card:hover {
-            box-shadow: 0 4px 15px rgba(9, 24, 37, 0.1);
-            transform: translateY(-1px);
-        }
-
-        .family-card-header {
-            padding: 1rem 1.5rem;
-            cursor: pointer;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid var(--border-grey);
-        }
-
-        .family-info {
-            flex: 1;
-        }
-
-        .family-name {
-            font-weight: 600;
-            color: var(--blazer-navy);
-            font-size: 1rem;
-            margin-bottom: 0.25rem;
-            display: flex;
-            align-items: center;
-        }
-
-        .family-meta {
-            font-size: 0.85rem;
-            color: #64748b;
-            display: flex;
-            gap: 1rem;
-            flex-wrap: wrap;
-        }
-
-        .family-score {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .score-badge {
-            padding: 0.25rem 0.75rem;
-            border-radius: 20px;
-            font-weight: 600;
-            font-size: 0.85rem;
-        }
-
-        .score-badge.hot {
-            background: var(--hot-lead);
-            color: white;
-        }
-
-        .score-badge.warm {
-            background: var(--warm-lead);
-            color: white;
-        }
-
-        .score-badge.cool {
-            background: var(--cool-lead);
-            color: white;
-        }
-
-        .score-badge.low {
-            background: #E5E7EB;
-            color: #6B7280;
-        }
-
-        .status-indicator {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            margin-right: 0.5rem;
-        }
-
-        .status-indicator.online {
-            background: var(--success);
-            box-shadow: 0 0 4px var(--success);
-        }
-
-        .status-indicator.recent {
-            background: var(--warning);
-        }
-
-        .status-indicator.offline {
-            background: #D1D5DB;
-        }
-
-        .expand-btn {
-            color: var(--sport-blue);
-            transition: transform 0.3s;
-        }
-
-        .family-card.expanded .expand-btn {
-            transform: rotate(180deg);
-        }
-
-        .family-card-details {
-            max-height: 0;
-            overflow: hidden;
-            transition: max-height 0.3s ease;
-        }
-
-        .family-card.expanded .family-card-details {
-            max-height: 2000px;
-        }
-
-        .family-details-content {
-            padding: 1.5rem;
-            border-top: 1px solid var(--border-grey);
-        }
-
-        .details-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1.5rem;
-            margin-bottom: 1.5rem;
-        }
-
-        .detail-item h4 {
-            color: var(--blazer-navy);
-            font-size: 0.9rem;
-            margin-bottom: 0.5rem;
-            font-weight: 600;
-        }
-
-        .detail-item p {
-            color: #64748b;
-            font-size: 0.85rem;
-            margin-bottom: 0.25rem;
-        }
-
-        .interests-tags {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.5rem;
-            margin-top: 0.5rem;
-        }
-
-        .interest-tag {
-            background: var(--light-grey);
-            color: var(--blazer-navy);
-            padding: 0.25rem 0.5rem;
-            border-radius: 12px;
-            font-size: 0.75rem;
-            font-weight: 500;
-        }
-
-        /* SMART AI Engagement Summary Section */
-        .smart-ai-summary {
-            background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
-            border-radius: 12px;
-            padding: 1.5rem;
-            margin-bottom: 1.5rem;
-            border: 1px solid #bfdbfe;
-        }
-
-        .smart-ai-header {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            margin-bottom: 1rem;
-            padding-bottom: 1rem;
-            border-bottom: 1px solid #bfdbfe;
-        }
-
-        .smart-ai-badge {
-            background: linear-gradient(135deg, var(--award-gold), #FFB84D);
-            color: var(--blazer-navy);
-            padding: 0.5rem 1rem;
-            border-radius: 8px;
-            font-size: 0.8rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-
-        .smart-ai-confidence {
-            color: #64748b;
-            font-size: 0.85rem;
-            font-weight: 500;
-            margin-left: auto;
-        }
-
-        .smart-ai-narrative {
-            font-size: 0.95rem;
-            line-height: 1.6;
-            color: var(--text-primary);
-            margin-bottom: 1.5rem;
-            padding: 1rem;
-            background: white;
-            border-radius: 8px;
-            border: 1px solid var(--border-grey);
-        }
-
-        .smart-ai-insights {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1rem;
-            margin-bottom: 1rem;
-        }
-
-        .smart-ai-insight-item {
-            background: white;
-            padding: 1rem;
-            border-radius: 8px;
-            border: 1px solid var(--border-grey);
-        }
-
-        .smart-ai-insight-item h5 {
-            color: var(--sport-blue);
-            font-size: 0.85rem;
-            margin-bottom: 0.75rem;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .smart-ai-insight-item ul {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-
-        .smart-ai-insight-item li {
-            font-size: 0.8rem;
-            color: #475569;
-            margin-bottom: 0.5rem;
-            padding-left: 1rem;
-            position: relative;
-            line-height: 1.4;
-        }
-
-        .smart-ai-insight-item li:before {
-            content: '→';
-            position: absolute;
-            left: 0;
-            color: var(--award-gold);
-            font-weight: bold;
-        }
-            content: '→';
-            position: absolute;
-            left: 0;
-            color: var(--award-gold);
-            font-weight: bold;
-        }
-
-        .intent-tags {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.5rem;
-            margin-top: 0.5rem;
-        }
-
-        .intent-tag {
-            background: var(--award-gold);
-            color: var(--blazer-navy);
-            padding: 0.25rem 0.5rem;
-            border-radius: 12px;
-            font-size: 0.75rem;
-            font-weight: 600;
-        }
-
-        .recommended-action {
-            background: var(--sport-blue);
-            color: white;
-            padding: 1rem;
-            border-radius: 8px;
-            margin-top: 1rem;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .recommended-action:before {
-            content: '✓';
-            background: white;
-            color: var(--sport-blue);
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        /* Prospectus Link */
-        .prospectus-link {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            background: var(--sport-blue);
-            color: white;
-            padding: 0.5rem 1rem;
-            border-radius: 6px;
-            text-decoration: none;
-            font-size: 0.85rem;
-            font-weight: 500;
-            transition: all 0.3s;
-            margin-top: 0.5rem;
-        }
-
-        .prospectus-link:hover {
-            background: var(--blazer-navy);
-            transform: translateY(-1px);
-        }
-
-        /* Activity Feed */
-        .activity-feed {
-            max-height: 600px;
-            overflow-y: auto;
-        }
-
-        .activity-item {
-            padding: 1rem;
-            border-bottom: 1px solid var(--border-grey);
-            display: flex;
-            gap: 1rem;
-            align-items: center;
-        }
-
-        .activity-item:last-child {
-            border-bottom: none;
-        }
-
-        .activity-avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: var(--award-gold);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 600;
-            color: var(--blazer-navy);
-            flex-shrink: 0;
-        }
-
-        .activity-content {
-            flex: 1;
-        }
-
-        .activity-text {
-            font-size: 0.9rem;
-            color: var(--text-primary);
-            margin-bottom: 0.25rem;
-        }
-
-        .activity-time {
-            font-size: 0.75rem;
-            color: #64748b;
-        }
-
-        .activity-type {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            flex-shrink: 0;
-        }
-
-        .activity-type.high { background: var(--hot-lead); }
-        .activity-type.medium { background: var(--warm-lead); }
-        .activity-type.low { background: var(--cool-lead); }
-
-        /* Controls */
-        .controls-bar {
-            padding: 1rem 2rem;
-            background: var(--white);
-            border-bottom: 1px solid var(--border-grey);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .filter-group {
-            display: flex;
-            gap: 1rem;
-            align-items: center;
-        }
-
-        .filter-select {
-            padding: 0.5rem 1rem;
-            border: 1px solid var(--border-grey);
-            border-radius: 8px;
-            background: var(--white);
-            color: var(--text-primary);
-            font-size: 0.9rem;
-        }
-
-        .search-box {
-            padding: 0.5rem 1rem;
-            border: 1px solid var(--border-grey);
-            border-radius: 8px;
-            width: 250px;
-            font-size: 0.9rem;
-        }
-
-        /* Loading States */
-        .loading {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 2rem;
-            color: #64748b;
-        }
-
-        .spinner {
-            width: 20px;
-            height: 20px;
-            border: 2px solid var(--border-grey);
-            border-top: 2px solid var(--award-gold);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-right: 0.5rem;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        /* Error State */
-        .error {
-            background: #FEF2F2;
-            border: 1px solid #FECACA;
-            color: #DC2626;
-            padding: 1rem;
-            border-radius: 8px;
-            margin: 1rem 0;
-        }
-
-        .error-title {
-            font-weight: 600;
-            margin-bottom: 0.5rem;
-        }
-
-        /* AI Analysis Indicator */
-        .ai-analyzing {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            color: var(--award-gold);
-            font-size: 0.8rem;
-            font-weight: 500;
-        }
-
-        .pulse {
-            width: 8px;
-            height: 8px;
-            background: var(--award-gold);
-            border-radius: 50%;
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-            0% { opacity: 0.4; }
-            50% { opacity: 1; }
-            100% { opacity: 0.4; }
-        }
-
-        /* Responsive */
-        @media (max-width: 1024px) {
-            .dashboard-grid {
-                grid-template-columns: 1fr;
-                margin: 0 1rem 2rem;
-            }
-            
-            .metrics-bar {
-                padding: 1rem;
-                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            }
-        }
-
-        @media (max-width: 768px) {
-            .header-brand h1 {
-                font-size: 2.5rem;
-            }
-            
-            .metric-value {
-                font-size: 1.8rem;
-            }
-            
-            .family-meta {
-                flex-direction: column;
-                gap: 0.5rem;
-            }
-            
-            .details-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-    </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SMART Analytics (v2)</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root{--navy:#0a2540;--gold:#ff9f1c;--grey:#e5e7eb}
+  body{font-family:Inter,system-ui,-apple-system,Segoe UI,Arial,sans-serif;margin:0;background:#f8fafc;color:#0f172a}
+  header{background:linear-gradient(135deg,#0a2540,#034674);color:#fff;padding:16px 20px}
+  h1{margin:0;font-size:20px}
+  .bar{display:flex;gap:8px;align-items:center;margin-top:8px}
+  button{border:1px solid #cbd5e1;background:#fff;padding:8px 12px;border-radius:8px;cursor:pointer}
+  button.primary{background:var(--gold);border-color:#e07f00;color:#141b2a;font-weight:700}
+  main{padding:16px 20px;display:grid;grid-template-columns:2fr 1fr;gap:16px}
+  .card{background:#fff;border:1px solid var(--grey);border-radius:12px}
+  .card h2{font-size:16px;margin:0;padding:12px 14px;border-bottom:1px solid var(--grey);background:#fff}
+  .card .body{padding:12px 14px}
+  .metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:12px 0}
+  .metric{border:1px solid var(--grey);border-radius:10px;padding:10px;background:#fff}
+  .metric .k{font-size:22px;font-weight:700;color:var(--navy)}
+  .list{display:flex;flex-direction:column;gap:10px;max-height:60vh;overflow:auto}
+  .row{border:1px solid #e5e7eb;border-radius:8px;padding:10px;display:flex;justify-content:space-between;gap:10px}
+  .muted{opacity:.7}
+  .ok{color:#059669}.warn{color:#b45309}.err{color:#dc2626}
+  pre{white-space:pre-wrap;background:#0b1220;color:#e2e8f0;padding:10px;border-radius:8px;max-height:30vh;overflow:auto}
+</style>
 </head>
 <body>
-    <!-- Header -->
-    <header class="dashboard-header">
-        <div class="header-controls">
-            <div class="auto-refresh-toggle">
-                <input type="checkbox" id="autoRefresh" checked>
-                <label for="autoRefresh">Auto-refresh</label>
-            </div>
-            <button class="refresh-btn" onclick="refreshDashboard()">
-                <span id="refreshIcon">↻</span> Refresh
-            </button>
-        </div>
-        
-        <div class="header-brand">
-            <div class="brand-glow"></div>
-            <h1><span class="smart-text">SMART</span> <span class="analytics-text">Analytics</span></h1>
-        </div>
-        <div class="header-subtitle">More House School</div>
-        <div class="header-meta">Admissions Intelligence Dashboard</div>
-    </header>
+<header>
+  <h1>SMART Analytics (v2)</h1>
+  <div class="bar">
+    <button id="refreshBtn">↻ Refresh</button>
+    <button id="analyzeAllBtn" class="primary">Run SMART AI for all</button>
+    <span id="status" class="muted">Ready</span>
+  </div>
+</header>
 
-    <!-- Metrics Bar -->
-    <section class="metrics-bar">
-        <div class="metric-card hot">
-            <div class="metric-header">
-                <div class="metric-icon hot">🔥</div>
-                <div class="metric-content">
-                    <div class="metric-title">Hot Leads</div>
-                    <div class="metric-value" id="hotLeads">-</div>
-                    <div class="metric-trend">Score 80+ • Ready for Contact</div>
-                </div>
-            </div>
-        </div>
+<main>
+  <section class="card">
+    <h2>Families</h2>
+    <div class="body">
+      <div class="metrics">
+        <div class="metric"><div class="muted">Hot Leads</div><div id="mHot" class="k">-</div></div>
+        <div class="metric"><div class="muted">Warm Leads</div><div id="mWarm" class="k">-</div></div>
+        <div class="metric"><div class="muted">AI Analysed</div><div id="mAI" class="k">-</div></div>
+        <div class="metric"><div class="muted">Total</div><div id="mTotal" class="k">-</div></div>
+      </div>
+      <div id="families" class="list"><div class="muted">Loading…</div></div>
+    </div>
+  </section>
 
-        <div class="metric-card warm">
-            <div class="metric-header">
-                <div class="metric-icon warm">⚡</div>
-                <div class="metric-content">
-                    <div class="metric-title">Warm Leads</div>
-                    <div class="metric-value" id="warmLeads">-</div>
-                    <div class="metric-trend">Score 60-79 • Contact Soon</div>
-                </div>
-            </div>
-        </div>
+  <aside class="card">
+    <h2>Live Activity</h2>
+    <div class="body">
+      <div id="activity" class="list"><div class="muted">Loading…</div></div>
+      <h2 style="margin-top:12px">Last response</h2>
+      <div class="body"><pre id="lastResp">(none)</pre></div>
+    </div>
+  </aside>
+</main>
 
-        <div class="metric-card engagement">
-            <div class="metric-header">
-                <div class="metric-icon engagement">📊</div>
-                <div class="metric-content">
-                    <div class="metric-title">AI Analysed</div>
-                    <div class="metric-value" id="aiAnalyzed">-</div>
-                    <div class="metric-trend">Families with SMART AI insights</div>
-                </div>
-            </div>
-        </div>
+<script>
+const S = (id)=>document.getElementById(id);
+const statusTxt = S('status'), familiesEl = S('families'), activityEl = S('activity'), lastResp = S('lastResp');
 
-        <div class="metric-card total">
-            <div class="metric-header">
-                <div class="metric-icon total">👨‍👩‍👧‍👦</div>
-                <div class="metric-content">
-                    <div class="metric-title">Total Enquiries</div>
-                    <div class="metric-value" id="totalFamilies">-</div>
-                    <div class="metric-trend">Active prospects</div>
-                </div>
-            </div>
-        </div>
-    </section>
+S('refreshBtn').onclick = init;
+S('analyzeAllBtn').onclick = analyzeAll;
 
-    <!-- Controls -->
-    <section class="controls-bar">
-        <div class="filter-group">
-            <select class="filter-select" id="sortFilter">
-                <option value="aiScore">Sort by AI Score</option>
-                <option value="score">Sort by Engagement Score</option>
-                <option value="recent">Sort by Recent Activity</option>
-                <option value="inquiryDate">Sort by Enquiry Date</option>
-                <option value="timeSpent">Sort by Time Spent</option>
-            </select>
-            
-            <select class="filter-select" id="statusFilter">
-                <option value="all">All Enquiries</option>
-                <option value="hot">Hot Leads Only</option>
-                <option value="warm">Warm Leads Only</option>
-                <option value="online">Currently Online</option>
-                <option value="highIntent">High Intent Only</option>
-            </select>
-            
-            <select class="filter-select" id="entryYearFilter">
-                <option value="all">All Entry Years</option>
-                <option value="2025">Entry 2025</option>
-                <option value="2026">Entry 2026</option>
-                <option value="2027">Entry 2027+</option>
-            </select>
-        </div>
-        
-        <input type="text" class="search-box" placeholder="Search families..." id="searchBox">
-    </section>
-
-    <!-- Main Dashboard Grid -->
-    <main class="dashboard-grid">
-        <!-- Family Engagement Tracking Panel -->
-        <div class="panel">
-            <div class="panel-header">
-                <div>
-                    <h2>Family Engagement Tracking</h2>
-                    <div style="font-size: 0.9rem; opacity: 0.9; margin-top: 0.25rem;">
-                        Real-time prospectus engagement with SMART AI insights
-                    </div>
-                </div>
-                <div class="ai-analyzing" id="aiStatus" style="display: none;">
-                    <div class="pulse"></div>
-                    SMART AI Analysing...
-                </div>
-                <button class="refresh-btn" onclick="generateAllSummaries()" style="background: white; border: 1px solid rgba(255,255,255,0.3); margin-left: 1rem;">
-                    <span style="color: var(--award-gold); font-weight: 600;">SMART</span> <span style="color: var(--blazer-navy);">AI Analysis</span>
-                </button>
-            </div>
-            <div class="panel-content">
-                <div class="family-cards-container" id="familyCards">
-                    <div class="loading">
-                        <div class="spinner"></div>
-                        Loading enquiry data...
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Live Activity Feed -->
-        <div class="panel">
-            <div class="panel-header">
-                <h2>Live Activity Feed</h2>
-                <div style="font-size: 0.9rem; opacity: 0.9;">
-                    Real-time tracking events
-                </div>
-            </div>
-            <div class="panel-content">
-                <div class="activity-feed" id="activityFeed">
-                    <div class="loading">
-                        <div class="spinner"></div>
-                        Loading activity...
-                    </div>
-                </div>
-            </div>
-        </div>
-    </main>
-
-    <script>
-        // Dashboard State
-        let dashboardData = {
-            families: [],
-            activities: [],
-            metrics: {}
-        };
-
-        let autoRefreshInterval;
-        let isRefreshing = false;
-
-        // Initialize Dashboard
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('Dashboard initialising...');
-            loadDashboardData();
-            setupEventListeners();
-            startAutoRefresh();
-        });
-
-        function setupEventListeners() {
-            document.getElementById('searchBox').addEventListener('input', filterFamilies);
-            document.getElementById('sortFilter').addEventListener('change', filterFamilies);
-            document.getElementById('statusFilter').addEventListener('change', filterFamilies);
-            document.getElementById('entryYearFilter').addEventListener('change', filterFamilies);
-            
-            document.getElementById('autoRefresh').addEventListener('change', function() {
-                if (this.checked) {
-                    startAutoRefresh();
-                } else {
-                    stopAutoRefresh();
-                }
-            });
-        }
-
-        async function loadDashboardData() {
-            if (isRefreshing) return;
-            isRefreshing = true;
-            
-            try {
-                console.log('Fetching real data from server...');
-                
-                document.getElementById('refreshIcon').style.animation = 'spin 1s linear infinite';
-                
-                // Fetch enquiries data with AI narratives
-                const enquiriesResponse = await fetch('/api/analytics/inquiries');
-                if (!enquiriesResponse.ok) {
-                    throw new Error('Enquiries API failed: ' + enquiriesResponse.status + ' - ' + enquiriesResponse.statusText);
-                }
-                
-                const enquiriesData = await enquiriesResponse.json();
-                console.log('Raw enquiries data:', Array.isArray(enquiriesData) ? enquiriesData.length : 'object', 'families');
-                
-                // Ensure we have an array
-                const familiesArray = Array.isArray(enquiriesData) ? enquiriesData : [];
-                
-                dashboardData.families = processEnquiryData(familiesArray);
-                dashboardData.metrics = calculateMetrics(dashboardData.families);
-                
-                // Load activity feed
-                try {
-                    const dashboardDataResponse = await fetch('/api/dashboard-data');
-                    const dashboardApiData = await dashboardDataResponse.json();
-                    dashboardData.activities = processActivityData(dashboardApiData.recentlyActive || []);
-                } catch (e) {
-                    console.warn('Dashboard API failed, using enquiry data for activities');
-                    dashboardData.activities = generateActivitiesFromEnquiries(dashboardData.families);
-                }
-                
-                console.log('Processed data:', {
-                    families: dashboardData.families.length,
-                    activities: dashboardData.activities.length,
-                    withAI: dashboardData.families.filter(f => f.hasAINarrative).length,
-                    metrics: dashboardData.metrics
-                });
-                
-                updateMetrics();
-                renderFamilyCards();
-                renderActivityFeed();
-                
-            } catch (error) {
-                console.error('Failed to load dashboard data:', error);
-                showError('Failed to load data', error.message);
-            } finally {
-                isRefreshing = false;
-                document.getElementById('refreshIcon').style.animation = '';
-            }
-        }
-
-        function processEnquiryData(enquiriesData) {
-            console.log('Processing enquiry data...');
-            
-            return enquiriesData.map(enquiry => {
-                // Get the AI engagement narrative if available
-                const aiEngagement = enquiry.aiEngagement || null;
-                const hasNarrative = aiEngagement && aiEngagement.narrative;
-                
-                // Calculate engagement metrics
-                const engagement = enquiry.engagement || {
-                    timeOnPage: enquiry.time_on_page || 0,
-                    scrollDepth: enquiry.scroll_depth || 0,
-                    clickCount: enquiry.clicks_on_links || enquiry.click_count || 0,
-                    totalVisits: enquiry.total_visits || 1,
-                    lastVisit: enquiry.last_visit || enquiry.received_at
-                };
-                
-                const engagementScore = engagement.engagementScore || calculateEngagementScore(engagement);
-                
-                // Extract temperature and intent
-                let temperature = 'cool';
-                let intentTags = [];
-                let topSections = [];
-                let recommendedAction = 'Schedule initial contact';
-                
-                if (aiEngagement) {
-                    // Parse narrative for temperature
-                    if (engagementScore >= 80 || (aiEngagement.leadScore && aiEngagement.leadScore >= 80)) {
-                        temperature = 'hot';
-                        recommendedAction = 'Immediate phone call - family shows high intent';
-                    } else if (engagementScore >= 60 || (aiEngagement.leadScore && aiEngagement.leadScore >= 60)) {
-                        temperature = 'warm';
-                        recommendedAction = 'Send personalised follow-up within 24 hours';
-                    }
-                    
-                    // Extract intent signals from sections viewed
-                    if (aiEngagement.sections && Array.isArray(aiEngagement.sections)) {
-                        topSections = aiEngagement.sections.slice(0, 3).map(s => ({
-                            name: s.name || s.label || 'Unknown',
-                            time: s.dwellSeconds || 0
-                        }));
-                        
-                        // Detect high-intent sections
-                        aiEngagement.sections.forEach(section => {
-                            const sectionName = (section.name || section.label || '').toLowerCase();
-                            if (sectionName.includes('fee') || sectionName.includes('cost')) {
-                                intentTags.push('Fees Enquiry');
-                            }
-                            if (sectionName.includes('scholarship') || sectionName.includes('bursary')) {
-                                intentTags.push('Financial Aid Interest');
-                            }
-                            if (sectionName.includes('apply') || sectionName.includes('admission')) {
-                                intentTags.push('Application Ready');
-                            }
-                            if (sectionName.includes('visit') || sectionName.includes('tour')) {
-                                intentTags.push('Visit Interest');
-                            }
-                        });
-                    }
-                    
-                    // Check for return visits
-                    if (aiEngagement.totals && aiEngagement.totals.returnVisits > 0) {
-                        intentTags.push('Return Visitor');
-                    }
-                }
-                
-                // Get prospectus URL
-                const baseUrl = window.location.origin;
-                const prospectusUrl = enquiry.prospectus_pretty_url || 
-                                     (enquiry.prospectus_pretty_path ? baseUrl + enquiry.prospectus_pretty_path :
-                                     (enquiry.slug ? baseUrl + '/' + enquiry.slug : null));
-                
-                // Extract interests
-                const interests = extractInterests(enquiry);
-                
-                return {
-                    id: enquiry.id,
-                    enquiry_id: enquiry.id,
-                    firstName: enquiry.first_name,
-                    familySurname: enquiry.family_surname,
-                    parentEmail: enquiry.parent_email,
-                    entryYear: enquiry.entry_year,
-                    ageGroup: enquiry.age_group,
-                    receivedAt: enquiry.received_at,
-                    
-                    engagementScore: engagementScore,
-                    temperature: temperature,
-                    
-                    hasAINarrative: hasNarrative,
-                    aiNarrative: hasNarrative ? aiEngagement.narrative : null,
-                    aiEngagement: aiEngagement,
-                    
-                    topSections: topSections,
-                    intentTags: intentTags,
-                    recommendedAction: recommendedAction,
-                    
-                    isOnline: isCurrentlyOnline(engagement.lastVisit || engagement.lastActivity),
-                    lastSeen: engagement.lastVisit || enquiry.received_at,
-                    interests: interests,
-                    engagement: engagement,
-                    prospectusUrl: prospectusUrl
-                };
-            });
-        }
-
-        function calculateEngagementScore(engagement) {
-            let score = 0;
-            
-            const timeMinutes = (engagement.timeOnPage || engagement.time_on_page || 0) / 60;
-            if (timeMinutes >= 30) score += 40;
-            else if (timeMinutes >= 15) score += 30;
-            else if (timeMinutes >= 5) score += 20;
-            else score += Math.min(timeMinutes * 4, 15);
-            
-            const scrollDepth = engagement.scrollDepth || engagement.scroll_depth || 0;
-            score += Math.min(scrollDepth * 0.3, 30);
-            
-            const visits = engagement.totalVisits || engagement.total_visits || 1;
-            if (visits >= 5) score += 20;
-            else if (visits >= 3) score += 15;
-            else if (visits >= 2) score += 10;
-            else score += 5;
-            
-            const clicks = engagement.clickCount || engagement.clicks_on_links || 0;
-            score += Math.min(clicks * 2, 10);
-            
-            return Math.min(Math.round(score), 100);
-        }
-
-        function extractInterests(enquiry) {
-            const interests = [];
-            const interestFields = [
-                'sciences', 'mathematics', 'english', 'languages', 'humanities',
-                'business', 'drama', 'music', 'art', 'sport', 'leadership',
-                'community_service', 'outdoor_education'
-            ];
-            
-            interestFields.forEach(field => {
-                if (enquiry[field] === true || enquiry[field] === 'true' || enquiry[field] === 1) {
-                    interests.push(field.charAt(0).toUpperCase() + field.slice(1).replace('_', ' '));
-                }
-            });
-            
-            return interests;
-        }
-
-        function processActivityData(recentActivityData) {
-            if (!recentActivityData || recentActivityData.length === 0) {
-                return generateActivitiesFromEnquiries(dashboardData.families);
-            }
-            
-            return recentActivityData.slice(0, 20).map(activity => ({
-                family: activity.name || 'Unknown Family',
-                action: getActivityDescription(activity.activity || 'enquiry'),
-                time: formatTimeAgo(new Date(activity.when || activity.timestamp)),
-                type: getActivityPriority(activity.activity || 'enquiry'),
-                timestamp: activity.when || activity.timestamp
-            }));
-        }
-
-        function generateActivitiesFromEnquiries(families) {
-            return families.slice(0, 10).map(family => ({
-                family: family.firstName + ' ' + family.familySurname,
-                action: 'Submitted enquiry',
-                time: formatTimeAgo(new Date(family.receivedAt)),
-                type: 'medium',
-                timestamp: family.receivedAt
-            }));
-        }
-
-        function getActivityDescription(activityType) {
-            const descriptions = {
-                'enquiry': 'Submitted enquiry',
-                'Recently inquired': 'Recently enquired',
-                'prospectus_generated': 'Prospectus generated',
-                'page_load': 'Opened prospectus',
-                'scroll_depth': 'Engaged with content',
-                'link_click': 'Clicked links',
-                'heartbeat': 'Active on page',
-                'page_visible': 'Viewing prospectus',
-                'youtube_video_start': 'Started watching video',
-                'youtube_video_progress': 'Watched video content'
-            };
-            
-            return descriptions[activityType] || activityType.replace(/_/g, ' ') + ' activity';
-        }
-
-        function getActivityPriority(activityType) {
-            const highPriority = ['youtube_video_progress', 'form_interaction', 'prospectus_generated'];
-            const mediumPriority = ['click', 'scroll_depth', 'enquiry', 'Recently inquired'];
-            
-            if (highPriority.includes(activityType)) return 'high';
-            if (mediumPriority.includes(activityType)) return 'medium';
-            return 'low';
-        }
-
-        function calculateMetrics(families) {
-            const hotLeads = families.filter(f => f.temperature === 'hot').length;
-            const warmLeads = families.filter(f => f.temperature === 'warm').length;
-            const aiAnalysed = families.filter(f => f.hasAINarrative).length;
-            
-            return {
-                hotLeads,
-                warmLeads,
-                aiAnalysed,
-                totalFamilies: families.length
-            };
-        }
-
-        function isCurrentlyOnline(lastActivity) {
-            if (!lastActivity) return false;
-            const now = new Date();
-            const diffMinutes = (now - new Date(lastActivity)) / (1000 * 60);
-            return diffMinutes < 30;
-        }
-
-        function formatTimeAgo(date) {
-            const now = new Date();
-            const diffMs = now - date;
-            const diffMins = Math.floor(diffMs / (1000 * 60));
-            const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-            const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-            
-            if (diffMins < 1) return 'Just now';
-            if (diffMins < 60) return diffMins + ' min ago';
-            if (diffHours < 24) return diffHours + 'h ago';
-            if (diffDays < 7) return diffDays + 'd ago';
-            return date.toLocaleDateString('en-GB');
-        }
-
-        function updateMetrics() {
-            const metrics = dashboardData.metrics;
-            
-            document.getElementById('hotLeads').textContent = metrics.hotLeads || 0;
-            document.getElementById('warmLeads').textContent = metrics.warmLeads || 0;
-            document.getElementById('aiAnalyzed').textContent = metrics.aiAnalysed || 0;
-            document.getElementById('totalFamilies').textContent = metrics.totalFamilies || 0;
-            
-            console.log('Updated metrics:', metrics);
-        }
-
-        function renderFamilyCards() {
-            const container = document.getElementById('familyCards');
-            const families = getFilteredFamilies();
-            
-            console.log('Rendering', families.length, 'family cards');
-            
-            if (families.length === 0) {
-                container.innerHTML = '<div class="error"><div class="error-title">No Enquiry Data Found</div><p>No enquiries match your current filters.</p></div>';
-                return;
-            }
-            
-            let html = '';
-            
-            families.forEach(family => {
-                const statusClass = family.isOnline ? 'online' : (isRecent(family.lastSeen) ? 'recent' : 'offline');
-                const tempBadge = `<span class="score-badge ${family.temperature}">${family.temperature.toUpperCase()} (${family.engagementScore})</span>`;
-                
-                // Build interests HTML
-                const interestsHTML = family.interests.map(i => 
-                    `<span class="interest-tag">${i}</span>`
-                ).join('');
-                
-                // Build intent tags HTML
-                const intentTagsHTML = family.intentTags.map(tag => 
-                    `<span class="intent-tag">${tag}</span>`
-                ).join('');
-                
-                // Build top sections HTML
-                const topSectionsHTML = family.topSections.map(section => 
-                    `<li>${section.name} (${formatTime(section.time)})</li>`
-                ).join('');
-                
-                // Prospectus link
-                const prospectusLink = family.prospectusUrl ? 
-                    `<a href="${family.prospectusUrl}" target="_blank" class="prospectus-link">View Personalised Prospectus →</a>` : '';
-                
-                html += `
-                    <div class="family-card" data-id="${family.id}">
-                        <div class="family-card-header" onclick="toggleFamilyCard('${family.id}')">
-                            <div class="family-info">
-                                <div class="family-name">
-                                    <span class="status-indicator ${statusClass}"></span>
-                                    ${family.firstName} ${family.familySurname}
-                                </div>
-                                <div class="family-meta">
-                                    <span>Entry ${family.entryYear}</span>
-                                    <span>${family.ageGroup}</span>
-                                    <span>Last seen: ${formatTimeAgo(new Date(family.lastSeen))}</span>
-                                </div>
-                            </div>
-                            <div class="family-score">
-                                ${tempBadge}
-                                <span class="expand-btn">▼</span>
-                            </div>
-                        </div>
-                        <div class="family-card-details">
-                            <div class="family-details-content">`;
-                
-                // Add SMART AI Summary if available
-                if (family.hasAINarrative) {
-                    html += `
-                        <div class="smart-ai-summary">
-                            <div class="smart-ai-header">
-                                <span class="smart-ai-badge">SMART AI Summary</span>
-                                <span class="smart-ai-confidence">
-                                    Last analysed: ${formatTimeAgo(new Date(family.aiEngagement.lastActive || Date.now()))}
-                                </span>
-                            </div>
-                            <div class="smart-ai-narrative">
-                                ${family.aiNarrative}
-                            </div>
-                            <div class="smart-ai-insights">
-                                ${family.topSections.length > 0 ? `
-                                    <div class="smart-ai-insight-item">
-                                        <h5>📍 Top Sections Viewed</h5>
-                                        <ul>
-                                            ${topSectionsHTML}
-                                        </ul>
-                                    </div>
-                                ` : ''}
-                                ${family.intentTags.length > 0 ? `
-                                    <div class="smart-ai-insight-item">
-                                        <h5>🎯 Intent Signals</h5>
-                                        <div class="intent-tags">
-                                            ${intentTagsHTML}
-                                        </div>
-                                    </div>
-                                ` : ''}
-                            </div>
-                            <div class="recommended-action">
-                                ${family.recommendedAction}
-                            </div>
-                        </div>`;
-                } else {
-                    html += `
-                        <div class="smart-ai-summary">
-                            <div class="smart-ai-header">
-                                <span class="smart-ai-badge">SMART AI Summary</span>
-                            </div>
-                            <p style="opacity: 0.7; margin: 1rem 0;">No engagement summary available yet.</p>
-                            <button class="prospectus-link" onclick="generateEngagementSummary('${family.id}', this)">
-                                Generate SMART AI Summary
-                            </button>
-                        </div>`;
-                }
-                
-                // Add details grid
-                const engagement = family.engagement || {};
-                const totalTimeMinutes = Math.round((engagement.timeOnPage || 0) / 60);
-                const visits = engagement.totalVisits || 1;
-                const scrollDepth = engagement.scrollDepth || 0;
-                const clicks = engagement.clickCount || 0;
-                
-                html += `
-                    <div class="details-grid">
-                        <div class="detail-item">
-                            <h4>Engagement Metrics</h4>
-                            <p>${visits} visits • ${scrollDepth}% max scroll</p>
-                            <p>Total time: ${totalTimeMinutes} minutes</p>
-                            <p>Clicks: ${clicks} • Score: ${family.engagementScore}</p>
-                            ${prospectusLink}
-                        </div>
-                        <div class="detail-item">
-                            <h4>Contact Details</h4>
-                            <p>Email: ${family.parentEmail}</p>
-                            <p>Entry Year: ${family.entryYear}</p>
-                            <p>Age Group: ${family.ageGroup}</p>
-                            <p>Enquiry ID: ${family.id}</p>
-                        </div>
-                        <div class="detail-item">
-                            <h4>Academic Interests</h4>
-                            <div class="interests-tags">
-                                ${interestsHTML || '<span style="opacity: 0.5;">None specified</span>'}
-                            </div>
-                        </div>
-                        <div class="detail-item">
-                            <h4>Next Steps</h4>
-                            <p style="font-weight: 600; color: var(--sport-blue);">
-                                ${family.recommendedAction}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>`;
-            });
-            
-            container.innerHTML = html;
-        }
-
-        function renderActivityFeed() {
-            const container = document.getElementById('activityFeed');
-            const activities = dashboardData.activities;
-            
-            console.log('Rendering', activities.length, 'activity items');
-            
-            if (activities.length === 0) {
-                container.innerHTML = '<div class="error"><div class="error-title">No Activity Data</div><p>No recent activity found.</p></div>';
-                return;
-            }
-            
-            let html = '';
-            activities.forEach(activity => {
-                html += `
-                    <div class="activity-item">
-                        <div class="activity-avatar">${activity.family.charAt(0)}</div>
-                        <div class="activity-content">
-                            <div class="activity-text"><strong>${activity.family}</strong> ${activity.action}</div>
-                            <div class="activity-time">${activity.time}</div>
-                        </div>
-                        <div class="activity-type ${activity.type}"></div>
-                    </div>`;
-            });
-            
-            container.innerHTML = html;
-        }
-
-        function getFilteredFamilies() {
-            let families = dashboardData.families.slice();
-            
-            const statusFilter = document.getElementById('statusFilter').value;
-            const entryYearFilter = document.getElementById('entryYearFilter').value;
-            const searchTerm = document.getElementById('searchBox').value.toLowerCase();
-            const sortBy = document.getElementById('sortFilter').value;
-            
-            // Apply filters
-            if (statusFilter !== 'all') {
-                if (statusFilter === 'online') {
-                    families = families.filter(f => f.isOnline);
-                } else if (statusFilter === 'highIntent') {
-                    families = families.filter(f => f.intentTags.length > 0);
-                } else {
-                    families = families.filter(f => f.temperature === statusFilter);
-                }
-            }
-            
-            if (entryYearFilter !== 'all') {
-                if (entryYearFilter === '2027') {
-                    families = families.filter(f => f.entryYear >= 2027);
-                } else {
-                    families = families.filter(f => f.entryYear == entryYearFilter);
-                }
-            }
-            
-            if (searchTerm) {
-                families = families.filter(f => 
-                    (f.firstName + ' ' + f.familySurname).toLowerCase().includes(searchTerm) ||
-                    (f.parentEmail || '').toLowerCase().includes(searchTerm)
-                );
-            }
-            
-            // Apply sorting
-            switch (sortBy) {
-                case 'aiScore':
-                    families.sort((a, b) => b.engagementScore - a.engagementScore);
-                    break;
-                case 'score':
-                    families.sort((a, b) => b.engagementScore - a.engagementScore);
-                    break;
-                case 'recent':
-                    families.sort((a, b) => new Date(b.lastSeen) - new Date(a.lastSeen));
-                    break;
-                case 'inquiryDate':
-                    families.sort((a, b) => new Date(b.receivedAt) - new Date(a.receivedAt));
-                    break;
-                case 'timeSpent':
-                    families.sort((a, b) => (b.engagement?.timeOnPage || 0) - (a.engagement?.timeOnPage || 0));
-                    break;
-            }
-            
-            return families;
-        }
-
-        function filterFamilies() {
-            renderFamilyCards();
-        }
-
-        function toggleFamilyCard(familyId) {
-            const card = document.querySelector('[data-id="' + familyId + '"]');
-            if (card) {
-                card.classList.toggle('expanded');
-            }
-        }
-
-        function isRecent(lastSeen) {
-            if (!lastSeen) return false;
-            const diffHours = (new Date() - new Date(lastSeen)) / (1000 * 60 * 60);
-            return diffHours < 24;
-        }
-
-        function formatTime(seconds) {
-            const mins = Math.floor(seconds / 60);
-            const secs = seconds % 60;
-            if (mins > 0) {
-                return `${mins}m ${secs}s`;
-            }
-            return `${secs}s`;
-        }
-
-        async function generateEngagementSummary(enquiryId, btn) {
-            try {
-                if (btn) { 
-                    btn.disabled = true; 
-                    btn.textContent = 'Generating…'; 
-                }
-                
-                const response = await fetch('/api/ai/analyze-all-families', { method: 'POST' });
-
-                });
-                
-                if (!response.ok) {
-                    throw new Error('Failed to generate summary');
-                }
-                
-                // Reload dashboard data to show new summary
-                await loadDashboardData();
-                
-            } catch (e) {
-                alert('Could not generate engagement summary: ' + e.message);
-            } finally {
-                if (btn) { 
-                    btn.disabled = false; 
-                    btn.textContent = 'Generate SMART AI Summary'; 
-                }
-            }
-        }
-
-        async function generateEngagementSummary(enquiryId, btn) {
-    try {
-        if (btn) { 
-            btn.disabled = true; 
-            btn.textContent = 'Generating…'; 
-        }
-        
-        // For single-family summary use the enquiryId
-        const response = await fetch('/api/ai/engagement-summary/' + enquiryId, { method: 'POST' });
-
-        if (!response.ok) {
-            throw new Error('Failed to generate summary');
-        }
-        
-        // Reload dashboard data to show new summary
-        await loadDashboardData();
-        
-    } catch (e) {
-        alert('Could not generate engagement summary: ' + e.message);
-    } finally {
-        if (btn) { 
-            btn.disabled = false; 
-            btn.textContent = 'Generate SMART AI Summary'; 
-        }
-    }
+async function init(){
+  status('Loading…');
+  try{
+    const fam = await fetchJson('/api/analytics/inquiries');   // families + AI summaries
+    const dash = await fetchJson('/api/dashboard-data');       // recentlyActive, counts
+    renderFamilies(Array.isArray(fam)?fam:[]);
+    renderActivity(dash?.recentlyActive||[]);
+    renderMetrics(Array.isArray(fam)?fam:[], dash);
+    status('Loaded');
+  }catch(e){
+    status('Load failed', 'err', e);
+  }
 }
 
+async function analyzeAll(){
+  status('Running SMART AI for all…');
+  try{
+    const r = await fetch('/api/ai/analyze-all-families',{method:'POST'});
+    const data = await safeJson(r);
+    lastResp.textContent = JSON.stringify(data ?? {http:r.status}, null, 2);
+    if(!r.ok || !data?.success) throw new Error((data&&(data.message||data.error))||('HTTP '+r.status));
+    status('AI analysis complete','ok');
+    await init();
+  }catch(e){
+    status('AI analysis failed','err', e);
+    alert('SMART AI Analysis failed: ' + e.message);
+  }
+}
 
+function renderFamilies(rows){
+  if(!rows.length){ familiesEl.innerHTML = '<div class="muted">No enquiries.</div>'; return; }
+  familiesEl.innerHTML = '';
+  rows.forEach(enq=>{
+    const engagement = enq.engagement || {};
+    const score = calcScore(engagement, enq);
+    const temp = score>=80?'hot':score>=60?'warm':'cool';
+    const pretty = enq.prospectus_pretty_url || (enq.prospectus_pretty_path? (location.origin+enq.prospectus_pretty_path) : (enq.slug? (location.origin+'/'+enq.slug): null));
+    const row = document.createElement('div');
+    row.className='row';
+    row.innerHTML = `
+      <div>
+        <div><strong>${enq.first_name||''} ${enq.family_surname||''}</strong> <span class="muted">(${enq.entry_year||''})</span></div>
+        <div class="muted">${enq.parent_email||''}</div>
+        ${pretty? `<div><a href="${pretty}" target="_blank">Open prospectus</a></div>`:''}
+        ${enq.aiEngagement?.narrative? `<div style="margin-top:6px">${enq.aiEngagement.narrative}</div>`:''}
+      </div>
+      <div style="text-align:right;min-width:180px">
+        <div class="${temp==='hot'?'ok':temp==='warm'?'warn':'muted'}" style="font-weight:700">Score ${score}</div>
+        <button data-id="${enq.id}" class="gen">Generate SMART AI</button>
+      </div>`;
+    familiesEl.appendChild(row);
+  });
+  familiesEl.querySelectorAll('.gen').forEach(b=>{
+    b.onclick = ()=> generateOne(b.getAttribute('data-id'), b);
+  });
+}
 
-        function refreshDashboard() {
-            console.log('Manual refresh triggered');
-            loadDashboardData();
-        }
+function renderActivity(items){
+  if(!items.length){ activityEl.innerHTML = '<div class="muted">No recent activity.</div>'; return; }
+  activityEl.innerHTML = '';
+  items.slice(0,20).forEach(a=>{
+    const div = document.createElement('div'); div.className='row';
+    div.innerHTML = `<div><strong>${a.name||'Unknown'}</strong> — ${a.activity||'activity'}</div><div class="muted">${timeAgo(a.when||a.timestamp)}</div>`;
+    activityEl.appendChild(div);
+  });
+}
 
-        function startAutoRefresh() {
-            stopAutoRefresh();
-            autoRefreshInterval = setInterval(() => {
-                if (document.getElementById('autoRefresh').checked) {
-                    console.log('Auto refresh triggered');
-                    loadDashboardData();
-                }
-            }, 30000);
-        }
+function renderMetrics(fam, dash){
+  const hot = fam.filter(f=>calcScore(f.engagement||{},f)>=80).length;
+  const warm= fam.filter(f=>{const s=calcScore(f.engagement||{},f);return s>=60&&s<80}).length;
+  const ai  = fam.filter(f=>f.aiEngagement?.narrative).length;
+  S('mHot').textContent = hot;
+  S('mWarm').textContent = warm;
+  S('mAI').textContent = ai;
+  S('mTotal').textContent = fam.length || (dash?.totalFamilies ?? 0);
+}
 
-        function stopAutoRefresh() {
-            if (autoRefreshInterval) {
-                clearInterval(autoRefreshInterval);
-                autoRefreshInterval = null;
-            }
-        }
+async function generateOne(id, btn){
+  try{
+    btn.disabled=true; btn.textContent='Analysing…';
+    const r = await fetch('/api/ai/engagement-summary/'+id,{method:'POST'});
+    const data = await safeJson(r);
+    lastResp.textContent = JSON.stringify(data ?? {http:r.status}, null, 2);
+    if(!r.ok) throw new Error((data&& (data.message||data.error))||('HTTP '+r.status));
+    await init();
+  }catch(e){
+    alert('Could not generate engagement summary: '+e.message);
+  }finally{
+    btn.disabled=false; btn.textContent='Generate SMART AI';
+  }
+}
 
-        function showError(title, message) {
-            console.error('Dashboard Error:', title, message);
-            
-            const familyContainer = document.getElementById('familyCards');
-            const activityContainer = document.getElementById('activityFeed');
-            
-            const errorHtml = `<div class="error"><div class="error-title">${title}</div><p>${message}</p><p>Check the console for technical details.</p></div>`;
-            
-            familyContainer.innerHTML = errorHtml;
-            activityContainer.innerHTML = errorHtml;
-        }
-    </script>
+/* helpers */
+async function fetchJson(url){
+  const r = await fetch(url);
+  const d = await safeJson(r);
+  if(!r.ok) throw new Error((d&& (d.message||d.error))||('HTTP '+r.status));
+  lastResp.textContent = JSON.stringify({url, ok:r.ok, sample:Array.isArray(d)?d.slice(0,1):d}, null, 2);
+  return d;
+}
+async function safeJson(r){ try{return await r.json();}catch{return null;} }
+function status(t,cls,e){ statusTxt.className='muted'; if(cls) statusTxt.className=cls; statusTxt.textContent=t; if(e) console.error(t,e); }
+function timeAgo(ts){ const d=new Date(ts),n=new Date(),m=Math.floor((n-d)/60000),h=Math.floor(m/60),D=Math.floor(h/24); if(m<1)return'Just now'; if(m<60)return m+' min ago'; if(h<24)return h+'h ago'; if(D<7)return D+'d ago'; return d.toLocaleDateString('en-GB'); }
+function calcScore(eng,e){ let s=0; const mins=(eng.timeOnPage||eng.time_on_page||0)/60; s+= mins>=30?40: mins>=15?30: mins>=5?20: Math.min(mins*4,15);
+  const depth=eng.scrollDepth||eng.scroll_depth||0; s+=Math.min(depth*0.3,30);
+  const v=eng.totalVisits||eng.total_visits||1; s+= v>=5?20: v>=3?15: v>=2?10:5;
+  const c=eng.clickCount||eng.clicks_on_links||0; s+=Math.min(c*2,10);
+  return Math.min(Math.round(s),100);
+}
+
+init();
+</script>
 </body>
 </html>

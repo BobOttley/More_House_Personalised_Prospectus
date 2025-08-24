@@ -1679,6 +1679,7 @@ app.post('/api/ai/analyze-all-families', async (req, res) => {
  }
 });
 
+
 app.post('/api/ai/analyze-family/:inquiryId', async (req, res) => {
  try {
    const inquiryId = req.params.inquiryId;
