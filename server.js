@@ -615,33 +615,6 @@ async function buildEngagementMetrics(inquiryId) {
  }
 }
 
-function buildEngagementNarrative({ timeframe, totals, sections, videos }) {
- const fmtTimeframe = (() => {
-   if (!timeframe.start || !timeframe.end) return null;
-   try {
-     const s = new Date(timeframe.start);
-     const e = new Date(timeframe.end);
-     const dtf = new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short' });
-     const tf = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
-     const d = dtf.format(s);
-     return `${d}, ${tf.format(s)}–${tf.format(e)}`;
-   } catch { return null; }
- })();
-
- const top = sections.slice(0, 3).map(s => `${s.name} (${formatHM(s.dwellSeconds)})`);
- const revisited = sections.filter(s => s.visits > 1).slice(0, 3).map(s => s.name);
- const vids = videos.filter(v => v.watchedPct > 0).slice(0, 3).map(v => `${v.sectionName} ~${v.watchedPct}%`);
-
- const bits = [];
- if (fmtTimeframe) bits.push(fmtTimeframe + '.');
- bits.push(`${formatHM(totals.timeSeconds)} total, ${totals.sectionsViewed} sections viewed, ${totals.returnVisits} return visit${totals.returnVisits === 1 ? '' : 's'}.`);
- if (top.length) bits.push(`Highest dwell: ${top.join(', ')}.`);
- if (revisited.length) bits.push(`Revisited ${revisited.join(', ')}.`);
- if (vids.length) bits.push(`Videos: ${vids.join(', ')}.`);
-
- return bits.join(' ');
-}
-
 function extractInterests(inquiry) {
  const academic = [];
  const creative = [];
@@ -1648,47 +1621,45 @@ app.get('/api/analytics/inquiries', async (req, res) => {
  }
 });
 
-// Redirect old "all" calls to the bulk analyser
 app.post('/api/ai/engagement-summary/all', (req, res) => {
   return res.redirect(307, '/api/ai/analyze-all-families');
 });
 
-
 app.post('/api/ai/engagement-summary/:inquiryId', async (req, res) => {
   const inquiryId = req.params.inquiryId;
+
   if (inquiryId === 'all') {
-   return res.status(400).json({ success: false, error: "Use POST /api/ai/analyze-all-families for bulk analysis." });
+    return res.status(400).json({ success: false, error: "Use POST /api/ai/analyze-all-families for bulk analysis." });
   }
   if (!db) {
-   return res.status(500).json({ success: false, error: 'Database not available' });
+    return res.status(500).json({ success: false, error: 'Database not available' });
   }
-  
+
   try {
-   const q = await db.query(`SELECT * FROM inquiries WHERE id = $1`, [inquiryId]);
-   const inquiry = q?.rows?.[0];
-   if (!inquiry) {
-     return res.status(404).json({ success: false, error: 'Inquiry not found' });
-   }
-  
-   // 👉 Call the AI summariser instead of the old metrics->sentence
-   const result = await summariseFamilyEngagement(db, inquiry);
-  
-   // Save into ai_family_insights
-   await db.query(`
-     INSERT INTO ai_family_insights (inquiry_id, analysis_type, insights_json, confidence_score, generated_at)
-     VALUES ($1, $2, $3::jsonb, $4, $5)
-     ON CONFLICT (inquiry_id, analysis_type)
-     DO UPDATE SET insights_json = EXCLUDED.insights_json,
-                   confidence_score = EXCLUDED.confidence_score,
-                   generated_at = EXCLUDED.generated_at
-   `, [ inquiryId, 'engagement_story', JSON.stringify(result), 1.0, new Date() ]);
-  
-   return res.json({ success: true, result });
-  } catch (err) {
-   console.error('Engagement summary error:', err);
-   return res.status(500).json({ success: false, error: 'Failed to generate engagement summary' });
+    const q = await db.query(`SELECT * FROM inquiries WHERE id = $1`, [inquiryId]);
+    const inquiry = q?.rows?.[0];
+    if (!inquiry) return res.status(404).json({ success: false, error: 'Inquiry not found' });
+
+    // 👉 Generate proper AI narrative + highlights
+    const result = await summariseFamilyEngagement(db, inquiry);
+
+    // Overwrite the legacy slot so the dashboard picks it up
+    await db.query(`
+      INSERT INTO ai_family_insights (inquiry_id, analysis_type, insights_json, confidence_score, generated_at)
+      VALUES ($1, 'engagement_summary', $2::jsonb, 1.0, NOW())
+      ON CONFLICT (inquiry_id, analysis_type)
+      DO UPDATE SET insights_json = EXCLUDED.insights_json,
+                    confidence_score = EXCLUDED.confidence_score,
+                    generated_at = EXCLUDED.generated_at
+    `, [ inquiryId, JSON.stringify(result) ]);
+
+    return res.json({ success: true, result });
+  } catch (e) {
+    console.error('Engagement summary error:', e);
+    return res.status(500).json({ success: false, error: 'Failed to generate engagement summary' });
   }
 });
+
 
 
 // Bulk AI engagement summaries
@@ -1730,11 +1701,6 @@ app.post('/api/ai/analyze-all-families', async (req, res) => {
     console.error('Bulk analyse error:', e);
     return res.status(500).json({ success: false, error: 'Bulk analysis failed' });
   }
-});
-
-
-app.post('/api/ai/engagement-summary/all', (req, res) => {
-  return res.redirect(307, '/api/ai/analyze-all-families');
 });
 
 
