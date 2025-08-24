@@ -1881,7 +1881,7 @@
   </div>
   
   <!-- YouTube Iframe API + tracking -->
-  <script src="https://www.youtube.com/iframe_api"></script>
+  
   <script>
   (function(){
     function getCurrentSection(){
@@ -2129,5 +2129,37 @@
     </script>
     
   <script src="/video-init.js"></script>
+
+<script>
+// PEN.ai Video Tracking Init
+(function(){
+  var el=document.getElementById('videoPlayer'); if(!el) return;
+  function send(action){
+    try{
+      var vid=(window._penYT && window._penYT.getVideoData && window._penYT.getVideoData().video_id)||null;
+      fetch('/api/track-engagement', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({event_type:'video_'+action, video_id:vid})
+      }).catch(console.error);
+    }catch(e){console.error('track fail',e);}
+  }
+  var prev=window.onYouTubeIframeAPIReady;
+  window.onYouTubeIframeAPIReady=function(){
+    try{if(typeof prev==='function')prev();}catch(_){}
+    try{
+      window._penYT=new YT.Player('videoPlayer',{
+        events:{'onStateChange':function(e){
+          var S=YT.PlayerState;
+          if(e.data===S.PLAYING)send('play');
+          else if(e.data===S.PAUSED)send('pause');
+          else if(e.data===S.ENDED)send('end');
+        }}
+      });
+    }catch(e){console.error('YT init failed',e);}
+  };
+})();
+</script>
+
 </body>
 </html>
