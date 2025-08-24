@@ -82,20 +82,33 @@ async function init(){
   }
 }
 
-async function analyzeAll(){
-  status('Running SMART AI for all…');
-  try{
-    const r = await fetch('/api/ai/analyze-all-families',{method:'POST'});
-    const data = await safeJson(r);
-    lastResp.textContent = JSON.stringify(data ?? {http:r.status}, null, 2);
-    if(!r.ok || !data?.success) throw new Error((data&&(data.message||data.error))||('HTTP '+r.status));
-    status('AI analysis complete','ok');
-    await init();
-  }catch(e){
-    status('AI analysis failed','err', e);
-    alert('SMART AI Analysis failed: ' + e.message);
-  }
+async function generateEngagementSummary(enquiryId, btn) {
+    try {
+        if (btn) { 
+            btn.disabled = true; 
+            btn.textContent = 'Generating…'; 
+        }
+
+        // Single-family route
+        const response = await fetch('/api/ai/engagement-summary/' + enquiryId, { method: 'POST' });
+
+        if (!response.ok) {
+            throw new Error('Failed to generate summary');
+        }
+
+        // Reload dashboard to show new summary
+        await loadDashboardData();
+
+    } catch (e) {
+        alert('Could not generate engagement summary: ' + e.message);
+    } finally {
+        if (btn) { 
+            btn.disabled = false; 
+            btn.textContent = 'Generate SMART AI Summary'; 
+        }
+    }
 }
+
 
 function renderFamilies(rows){
   if(!rows.length){ familiesEl.innerHTML = '<div class="muted">No enquiries.</div>'; return; }
