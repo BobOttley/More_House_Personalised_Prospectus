@@ -1657,48 +1657,81 @@ app.post('/api/ai/engagement-summary/all', (req, res) => {
 app.post('/api/ai/engagement-summary/:inquiryId', async (req, res) => {
   const inquiryId = req.params.inquiryId;
   if (inquiryId === 'all') {
-    return res.status(400).json({ success: false, error: "Use POST /api/ai/analyze-all-families for bulk analysis." });
+   return res.status(400).json({ success: false, error: "Use POST /api/ai/analyze-all-families for bulk analysis." });
   }
-  if (!db) return res.status(500).json({ success: false, error: 'Database not available' });
-
+  if (!db) {
+   return res.status(500).json({ success: false, error: 'Database not available' });
+  }
+  
   try {
-    // Load the base inquiry row (adjust field names if needed)
-    const q = await db.query(`SELECT * FROM inquiries WHERE id = $1`, [inquiryId]);
-    const inquiry = q?.rows?.[0];
-    if (!inquiry) return res.status(404).json({ success: false, error: 'Inquiry not found' });
-
-    const result = await summariseFamilyEngagement(db, inquiry);
-    return res.json({ success: true, result });
-  } catch (e) {
-    console.error('Engagement summary error:', e);
-    return res.status(500).json({ success: false, error: 'Failed to generate engagement summary' });
+   const q = await db.query(`SELECT * FROM inquiries WHERE id = $1`, [inquiryId]);
+   const inquiry = q?.rows?.[0];
+   if (!inquiry) {
+     return res.status(404).json({ success: false, error: 'Inquiry not found' });
+   }
+  
+   // 👉 Call the AI summariser instead of the old metrics->sentence
+   const result = await summariseFamilyEngagement(db, inquiry);
+  
+   // Save into ai_family_insights
+   await db.query(`
+     INSERT INTO ai_family_insights (inquiry_id, analysis_type, insights_json, confidence_score, generated_at)
+     VALUES ($1, $2, $3::jsonb, $4, $5)
+     ON CONFLICT (inquiry_id, analysis_type)
+     DO UPDATE SET insights_json = EXCLUDED.insights_json,
+                   confidence_score = EXCLUDED.confidence_score,
+                   generated_at = EXCLUDED.generated_at
+   `, [ inquiryId, 'engagement_story', JSON.stringify(result), 1.0, new Date() ]);
+  
+   return res.json({ success: true, result });
+  } catch (err) {
+   console.error('Engagement summary error:', err);
+   return res.status(500).json({ success: false, error: 'Failed to generate engagement summary' });
   }
 });
 
 
+// Bulk AI engagement summaries
 app.post('/api/ai/analyze-all-families', async (req, res) => {
-  if (!db) return res.status(500).json({ success: false, error: 'Database not available' });
+  if (!db) {
+    return res.status(500).json({ success: false, error: 'Database not available' });
+  }
 
   try {
+    // Load all inquiries
     const q = await db.query(`SELECT * FROM inquiries ORDER BY created_at DESC NULLS LAST`);
     const rows = q?.rows || [];
     const results = [];
 
     for (const inquiry of rows) {
       try {
+        // 👉 Use the same AI summariser as the single route
         const result = await summariseFamilyEngagement(db, inquiry);
-        results.push({ inquiry_id: inquiry.id, success: true, result });
+
+        // Save into ai_family_insights
+        await db.query(`
+          INSERT INTO ai_family_insights (inquiry_id, analysis_type, insights_json, confidence_score, generated_at)
+          VALUES ($1, $2, $3::jsonb, $4, $5)
+          ON CONFLICT (inquiry_id, analysis_type)
+          DO UPDATE SET insights_json = EXCLUDED.insights_json,
+                        confidence_score = EXCLUDED.confidence_score,
+                        generated_at = EXCLUDED.generated_at
+        `, [ inquiry.id, 'engagement_story', JSON.stringify(result), 1.0, new Date() ]);
+
+        results.push({ inquiry_id: inquiry.id, success: true });
       } catch (errOne) {
         console.error('Bulk summarise error for', inquiry.id, errOne);
         results.push({ inquiry_id: inquiry.id, success: false, error: 'summary_failed' });
       }
     }
+
     return res.json({ success: true, count: results.length, results });
   } catch (e) {
     console.error('Bulk analyse error:', e);
     return res.status(500).json({ success: false, error: 'Bulk analysis failed' });
   }
 });
+
 
 app.post('/api/ai/engagement-summary/all', (req, res) => {
   return res.redirect(307, '/api/ai/analyze-all-families');
