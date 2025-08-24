@@ -128,6 +128,8 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 app.use(express.json({ limit: '2mb' }));
+app.post(["/api/track","/api/tracking"], (req,res)=> res.redirect(307, "/api/track-engagement"));
+app.post(['/api/track','/api/tracking'], (req,res)=> res.redirect(307, '/api/track-engagement'));
 app.use(express.urlencoded({ extended: true }));
 app.use((req, _res, next) => { console.log(req.method, req.url); next(); });
 

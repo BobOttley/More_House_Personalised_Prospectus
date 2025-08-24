@@ -1168,7 +1168,6 @@
             transform: translateY(0);
         }
     </style>
-<style>.video-modal{display:none !important}.video-modal.active{display:block !important}</style>
 </head>
 <body>
     <!-- Cover Page -->
@@ -1900,8 +1899,8 @@
         event_data: Object.assign({ currentSection: getCurrentSection() }, extra||{})
       }, (window.__TRACK_CONTEXT__ || {})));
   
-      if(!navigator.sendBeacon || !navigator.sendBeacon('/api/track-engagement', payload)){
-        fetch('/api/track-engagement', { method:'POST', headers:{'Content-Type':'application/json'}, body: payload });
+      if(!navigator.sendBeacon || !navigator.sendBeacon('/api/tracking', payload)){
+        fetch('/api/tracking', { method:'POST', headers:{'Content-Type':'application/json'}, body: payload });
       }
     }
   
@@ -2016,8 +2015,8 @@
           event_type: type,
           event_data: Object.assign({ currentSection: sectionFor(el) }, extra || {})
         });
-        if (!navigator.sendBeacon || !navigator.sendBeacon('/api/track-engagement', payload)) {
-          fetch('/api/track-engagement', { method:'POST', headers:{'Content-Type':'application/json'}, body: payload }).catch(()=>{});
+        if (!navigator.sendBeacon || !navigator.sendBeacon('/api/tracking', payload)) {
+          fetch('/api/tracking', { method:'POST', headers:{'Content-Type':'application/json'}, body: payload }).catch(()=>{});
         }
       }
     
