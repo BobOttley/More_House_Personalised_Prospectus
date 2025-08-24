@@ -302,15 +302,26 @@ async function trackEngagementEvent(ev) {
     // Device info can be on the root or inside eventData:contentReference[oaicite:3]{index=3}
     const deviceInfo = ev.deviceInfo || ev?.eventData?.deviceInfo || {};
 
-    // Event-specific metrics (tracking.js adds these for section_exit/scroll/video):contentReference[oaicite:4]{index=4}
-    const ed = Object.assign({}, ev.eventData || ev.data || {});
-    const timeInSectionSec = pickNumber(ed.timeInSectionSec);
-    const maxScrollPct     = pickNumber(ed.maxScrollPct);
-    const clicks           = pickNumber(ed.clicks);
-    const videoWatchSec    = pickNumber(ed.videoWatchSec);
-    const videoId          = ed.videoId || ed.video_id || null;
-    const videoTitle       = ed.videoTitle || ed.video_title || null;
-    const currentTimeSec   = pickNumber(ed.currentTimeSec ?? ed.current_time_sec);
+    // Event-specific metrics (tracking.js adds these for section_exit/scroll/video)
+const ed = Object.assign({}, ev.eventData || ev.data || {});
+
+// Section-level dwell
+const timeInSectionSec = pickNumber(ed.timeInSectionSec);
+
+// NEW: also check sessionInfo.timeOnPage (total seconds seen so far)
+let sessionTime = 0;
+if (ev.sessionInfo && Number.isFinite(ev.sessionInfo.timeOnPage)) {
+  sessionTime = Math.round(ev.sessionInfo.timeOnPage);
+}
+
+// Other metrics
+const maxScrollPct   = pickNumber(ed.maxScrollPct);
+const clicks         = pickNumber(ed.clicks);
+const videoWatchSec  = pickNumber(ed.videoWatchSec);
+const videoId        = ed.videoId || ed.video_id || null;
+const videoTitle     = ed.videoTitle || ed.video_title || null;
+const currentTimeSec = pickNumber(ed.currentTimeSec ?? ed.current_time_sec);
+
 
     // 1) Always log the raw JSON to tracking_events (lossless event log):contentReference[oaicite:5]{index=5}
     const rawEventData = {
@@ -347,11 +358,12 @@ async function trackEngagementEvent(ev) {
       await updateEngagementMetrics({
         inquiryId,
         sessionId,
-        timeOnPage: timeInSectionSec,   // seconds for this section exit; upsert keeps max total
-        maxScrollDepth: maxScrollPct,   // %; upsert keeps max
-        clickCount: clicks,             // count; upsert keeps max
+        // Prefer sessionInfo.timeOnPage if present, else fall back to section dwell
+        timeOnPage: sessionTime || timeInSectionSec,
+        maxScrollDepth: maxScrollPct,
+        clickCount: clicks,
         deviceInfo
-      });
+      });      
     }
 
     // 3) Optional granular: write video_* rows if present (safe no-op if table missing)
