@@ -5,9 +5,7 @@
       if (!u.searchParams.has('enablejsapi')) u.searchParams.set('enablejsapi','1');
       if (!u.searchParams.has('origin'))      u.searchParams.set('origin', location.origin);
       return u.toString();
-    }catch(e){
-      return url;
-    }
+    }catch(e){ return url; }
   }
 
   function extractId(maybeUrlOrId){
@@ -15,7 +13,12 @@
     try{
       var u = new URL(maybeUrlOrId, location.origin);
       if (/youtu\.be$/.test(u.hostname)) return u.pathname.replace('/','');
-      if (/youtube\.com$/.test(u.hostname)) return u.searchParams.get('v') || (u.pathname.split('/').includes('embed') ? u.pathname.split('/').pop() : null);
+      if (/youtube\.com$/.test(u.hostname)) {
+        var v = u.searchParams.get('v');
+        if (v) return v;
+        var parts = u.pathname.split('/');
+        if (parts.includes('embed')) return parts.pop();
+      }
     }catch(e){}
     return maybeUrlOrId;
   }
@@ -27,22 +30,40 @@
     if (!iframe) return;
     var src = 'https://www.youtube.com/embed/'+encodeURIComponent(id);
     iframe.src = withApi(src);
-    try{
-      new MutationObserver(function(muts){
-        muts.forEach(function(m){
-          if (m.attributeName === 'src' && iframe.src && !/enablejsapi=1/.test(iframe.src)) {
-            iframe.src = withApi(iframe.src);
-          }
-        });
-      }).observe(iframe, { attributes:true, attributeFilter:['src'] });
-    }catch(_){}
   }
 
+  // Defer loading the YT IFrame API until the iframe src truly points at YouTube
+  function loadYTWhenReady(){
+    var iframe = document.getElementById('videoPlayer');
+    if (!iframe) return;
+    var ensure = function(){
+      var isYT = /^(https:\/\/)?(www\.)?youtube\.com\/embed\//.test(iframe.src);
+      if (isYT && !(window.YT && window.YT.Player)) {
+        if (!document.querySelector('script[src*="youtube.com/iframe_api"]')) {
+          var s = document.createElement('script');
+          s.src = 'https://www.youtube.com/iframe_api';
+          document.head.appendChild(s);
+        }
+      }
+    };
+    // Run now and whenever the src changes
+    ensure();
+    try {
+      new MutationObserver(function(muts){
+        for (var i=0;i<muts.length;i++){
+          if (muts[i].attributeName === 'src') ensure();
+        }
+      }).observe(iframe, { attributes:true, attributeFilter:['src'] });
+    } catch(_) {}
+  }
+
+  // Public helper so existing buttons can open the video
   window.openProspectusVideo = function(videoId){
     setIframe(videoId);
     if (typeof window.showVideoModal === 'function') window.showVideoModal();
   };
 
+  // Auto-bind any element with data-video-id or data-video-url
   function bindClicks(){
     var els = document.querySelectorAll('[data-video-id], [data-video-url]');
     els.forEach(function(el){
@@ -56,24 +77,19 @@
     });
   }
 
+  // Optional: default video via meta tag if you have it
   function initFromMeta(){
     var m = document.querySelector('meta[name="default-video-id"]');
     if (m && m.content) setIframe(m.content);
   }
 
-  (function ensureYT(){
-    if (window.YT && window.YT.Player) return;
-    if (!document.querySelector('script[src*="youtube.com/iframe_api"]')) {
-      var s = document.createElement('script');
-      s.src = 'https://www.youtube.com/iframe_api';
-      document.head.appendChild(s);
-    }
-  })();
-
   document.addEventListener('DOMContentLoaded', function(){
     bindClicks();
     initFromMeta();
-    var obs = new MutationObserver(bindClicks);
-    obs.observe(document.body, { childList:true, subtree:true });
+    loadYTWhenReady();
+    // Re-bind on dynamic content changes
+    try {
+      new MutationObserver(bindClicks).observe(document.body, { childList:true, subtree:true });
+    } catch(_) {}
   });
 })();
