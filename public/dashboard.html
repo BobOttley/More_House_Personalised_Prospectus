@@ -269,7 +269,17 @@ async function fetchJson(url){
   lastResp.textContent = JSON.stringify({url, ok:r.ok, sample:Array.isArray(d)?d.slice(0,1):d}, null, 2);
   return d;
 }
-async function safeJson(r){ try{ return await r.json(); } catch{ return null; } }
+async function safeJson(r){
+  try{
+    return await r.json();
+  }catch(e){
+    try{
+      const text = await r.text();
+      console.error('Expected JSON but got:', text.slice(0,200));
+    }catch(_){}
+    return null;
+  }
+}
 function status(t,cls,e){ statusTxt.className='muted'; if(cls) statusTxt.className=cls; statusTxt.textContent=t; if(e) console.error(t,e); }
 function timeAgo(ts){ if(!ts) return '-'; const d=new Date(ts),n=new Date(),m=Math.floor((n-d)/60000),h=Math.floor(m/60),D=Math.floor(h/24); if(m<1)return'Just now'; if(m<60)return m+' min ago'; if(h<24)return h+'h ago'; if(D<7)return D+'d ago'; return d.toLocaleDateString('en-GB'); }
 function calcScore(eng,e){
