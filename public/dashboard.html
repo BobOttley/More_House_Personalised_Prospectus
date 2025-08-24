@@ -32,6 +32,8 @@
   .ai-block .title{font-weight:600;margin-bottom:4px}
   .ai-block ul{margin:6px 0 0 16px;padding:0}
   .ai-block li{margin:2px 0;list-style:disc}
+  .mini{width:100%;border-collapse:collapse;margin-top:6px}
+  .mini th,.mini td{border-top:1px solid #e5e7eb;padding:6px 4px;text-align:left;font-size:12px}
   pre{white-space:pre-wrap;background:#0b1220;color:#e2e8f0;padding:10px;border-radius:8px;max-height:30vh;overflow:auto}
   @media (max-width: 980px){ main{grid-template-columns:1fr} }
 </style>
@@ -80,7 +82,8 @@ S('analyzeAllBtn').onclick = analyzeAll;
 async function init(){
   status('Loading…');
   try{
-    const fam = await fetchJson('/api/analytics/inquiries');   // per-enquiry (includes aiEngagement if present)
+    // Your existing back-end sources:
+    const fam = await fetchJson('/api/analytics/inquiries');   // rows per enquiry (includes fields for names, emails, urls)
     const dash = await fetchJson('/api/dashboard-data');       // activity + counts
     renderFamilies(Array.isArray(fam)?fam:[]);
     renderActivity(dash?.recentlyActive||[]);
@@ -108,10 +111,10 @@ async function analyzeAll(){
   }
 }
 
-async function generateOne(id, btn){
+async function generateOne(inquiryId, btn){
   try{
     btn.disabled = true; btn.textContent = 'Analysing…';
-    const r = await fetch('/api/ai/engagement-summary/' + id, { method:'POST' });
+    const r = await fetch('/api/ai/engagement-summary/' + encodeURIComponent(inquiryId), { method:'POST' });
     const data = await safeJson(r);
     lastResp.textContent = JSON.stringify(data ?? {http:r.status}, null, 2);
     if(!r.ok || (data && data.success === false)) throw new Error((data && (data.message||data.error)) || ('HTTP '+r.status));
@@ -123,62 +126,115 @@ async function generateOne(id, btn){
   }
 }
 
+/* ---------- New: live GET for each enquiry ---------- */
+
+async function fetchEngagementSummary(inquiryId){
+  const url = '/api/ai/engagement-summary/' + encodeURIComponent(inquiryId);
+  const r = await fetch(url);
+  const data = await safeJson(r);
+  if(!r.ok) throw new Error((data&&(data.message||data.error))||('HTTP '+r.status+' '+url));
+  // Coerce numeric strings → numbers (PG can return text)
+  data.sections = (data.sections||[]).map(s => ({
+    ...s,
+    dwell_seconds: Number(s.dwell_seconds||0),
+    max_scroll_pct: Number(s.max_scroll_pct||0),
+    video_plays: Number(s.video_plays||0),
+    video_completes: Number(s.video_completes||0),
+  }));
+  data.visits = Number(data.visits||0);
+  data.score  = Number(data.score||0);
+  return data;
+}
+
 /* ---------- Renderers ---------- */
 
 function renderFamilies(rows){
   if(!rows.length){ familiesEl.innerHTML = '<div class="muted">No enquiries.</div>'; return; }
   familiesEl.innerHTML = '';
   rows.forEach(enq=>{
-    const engagement = enq.engagement || {};
-    const score = calcScore(engagement, enq);
-    const temp = score>=80?'hot':score>=60?'warm':'cool';
+    // Try common keys; fall back to id if needed
+    const inquiryId = enq.inquiry_id || enq.id || enq.InquiryID || enq.InquiryId;
+    const name = `${escapeHtml(enq.first_name||enq.child_name||'')} ${escapeHtml(enq.family_surname||enq.last_name||'')}`.trim();
+    const entryYear = escapeHtml(enq.entry_year||enq.entryYear||'');
+    const email = escapeHtml(enq.parent_email||enq.email||'');
     const pretty = enq.prospectus_pretty_url
       || (enq.prospectus_pretty_path ? (location.origin + enq.prospectus_pretty_path)
       : (enq.slug ? (location.origin + '/' + enq.slug) : null));
-
-    const ai = enq.aiEngagement || null; // expected shape: { narrative, highlights[], top_interactions[], totals{} }
 
     const row = document.createElement('div');
     row.className='row';
     row.innerHTML = `
       <div style="flex:1">
-        <div><strong>${escapeHtml(enq.first_name||'')} ${escapeHtml(enq.family_surname||'')}</strong> <span class="muted">(${escapeHtml(enq.entry_year||'')})</span></div>
-        <div class="muted">${escapeHtml(enq.parent_email||'')}</div>
-        ${pretty? `<div class="pill" style="margin-top:6px"><a href="${pretty}" target="_blank">Open prospectus</a></div>`:''}
+        <div><strong>${name}</strong> <span class="muted">(${entryYear})</span></div>
+        <div class="muted">${email}</div>
+        ${pretty? `<div class="pill" style="margin-top:6px"><a href="${pretty}" target="_blank" rel="noopener">Open prospectus</a></div>`:''}
 
-        ${ai && ai.narrative ? `
-          <div class="ai-block">
-            <div class="title">AI summary</div>
-            <div>${escapeHtml(ai.narrative)}</div>
-            ${Array.isArray(ai.highlights) && ai.highlights.length ? `
-              <ul>
-                ${ai.highlights.map(h => `<li>${escapeHtml(h)}</li>`).join('')}
-              </ul>` : ``}
-          </div>` : ``}
-
-        ${ai && Array.isArray(ai.top_interactions) && ai.top_interactions.length ? `
-          <div class="ai-block" style="margin-top:8px">
-            <div class="title">Top interactions</div>
-            <ul>
-              ${ai.top_interactions.map(ti => `
-                <li>${escapeHtml(ti.label)}: ${Number(ti.dwell_seconds||0)}s dwell, ${Number(ti.video_seconds||0)}s video${ti.clicks?`, ${Number(ti.clicks)} clicks`:''}</li>
-              `).join('')}
-            </ul>
-          </div>` : ``}
+        <div class="ai-block" data-ai>
+          <div class="title">AI summary</div>
+          <div class="muted" data-ai-text>Loading…</div>
+          <table class="mini" data-ai-table style="display:none">
+            <thead><tr><th>Section</th><th>Dwell</th><th>Scroll</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
       </div>
 
       <div style="text-align:right;min-width:220px">
-        <div class="${temp==='hot'?'ok':temp==='warm'?'warn':'muted'}" style="font-weight:700">Score ${score}</div>
-        <div class="muted" style="margin:6px 0">${engagement.totalVisits||engagement.total_visits||0} visit(s)</div>
-        <button data-id="${enq.id}" class="gen">Regenerate AI summary</button>
+        <div class="muted" style="font-weight:700">Score <span data-ai-score>–</span></div>
+        <div class="muted" style="margin:6px 0"><span data-ai-visits>–</span> visit(s)</div>
+        <button data-id="${inquiryId}" class="gen">Regenerate AI summary</button>
       </div>
     `;
     familiesEl.appendChild(row);
-  });
 
-  familiesEl.querySelectorAll('.gen').forEach(b=>{
-    b.onclick = ()=> generateOne(b.getAttribute('data-id'), b);
+    // Wire up regenerate button
+    row.querySelector('.gen').onclick = ()=> generateOne(inquiryId, row.querySelector('.gen'));
+
+    // Live load the engagement summary per enquiry
+    if(inquiryId){
+      loadRowAI(inquiryId, row);
+    }
   });
+}
+
+async function loadRowAI(inquiryId, row){
+  const textEl = row.querySelector('[data-ai-text]');
+  const table  = row.querySelector('[data-ai-table]');
+  const tbody  = table?.querySelector('tbody');
+  const scoreEl  = row.querySelector('[data-ai-score]');
+  const visitsEl = row.querySelector('[data-ai-visits]');
+
+  try{
+    const { visits, score, sections, summaryText } = await fetchEngagementSummary(inquiryId);
+
+    // Update right-hand badges
+    if(scoreEl)  scoreEl.textContent  = String(score);
+    if(visitsEl) visitsEl.textContent = String(visits);
+
+    // Summary text
+    if(textEl) { textEl.classList.remove('muted'); textEl.textContent = summaryText || '—'; }
+
+    // Sections table (top 5)
+    if(tbody){
+      const top = (sections||[]).slice(0,5);
+      if(top.length){
+        tbody.innerHTML = top.map(s => `
+          <tr>
+            <td>${escapeHtml(s.section)}</td>
+            <td>${Math.round((s.dwell_seconds||0)/60)} min</td>
+            <td>${s.max_scroll_pct}%</td>
+          </tr>
+        ).join('');
+        table.style.display = '';
+      }else{
+        tbody.innerHTML = `<tr><td colspan="3" class="muted">No section data yet</td></tr>`;
+        table.style.display = '';
+      }
+    }
+  }catch(e){
+    if(textEl){ textEl.textContent = 'Could not load engagement summary.'; textEl.classList.add('muted'); }
+    console.error('Engagement summary error for', inquiryId, e);
+  }
 }
 
 function renderActivity(items){
@@ -193,6 +249,7 @@ function renderActivity(items){
 }
 
 function renderMetrics(fam, dash){
+  // Keep your legacy score calc for "hot/warm" tallies until all rows have live scores
   const hot  = fam.filter(f=>calcScore(f.engagement||{},f)>=80).length;
   const warm = fam.filter(f=>{const s=calcScore(f.engagement||{},f);return s>=60&&s<80}).length;
   const ai   = fam.filter(f=>f.aiEngagement && f.aiEngagement.narrative).length;
@@ -208,6 +265,7 @@ async function fetchJson(url){
   const r = await fetch(url);
   const d = await safeJson(r);
   if(!r.ok) throw new Error((d&&(d.message||d.error))||('HTTP '+r.status+' '+url));
+  // Keep your “last response” pane useful but compact
   lastResp.textContent = JSON.stringify({url, ok:r.ok, sample:Array.isArray(d)?d.slice(0,1):d}, null, 2);
   return d;
 }
