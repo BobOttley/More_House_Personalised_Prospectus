@@ -373,68 +373,91 @@ const currentTimeSec = pickNumber(ed.currentTimeSec ?? ed.current_time_sec);
 
 
 // ---------- AI Engagement Summary (per family) ----------
+// SINGLE buildEngagementSnapshot function - DELETE ALL OTHER VERSIONS
 async function buildEngagementSnapshot(db, inquiryId) {
   try {
-    // First check if we have ANY tracking events for this inquiry
+    // Check for any tracking events
     const eventCheck = await db.query(
       'SELECT COUNT(*) as count FROM tracking_events WHERE inquiry_id = $1',
       [inquiryId]
     );
     
-    const hasEvents = parseInt(eventCheck.rows[0]?.count || '0') > 0;
+    const eventCount = parseInt(eventCheck.rows[0]?.count || '0');
     
-    if (!hasEvents) {
-      // Return a properly structured empty snapshot
+    // If no events, check if inquiry has dwell_ms stored directly
+    if (eventCount === 0) {
+      const inquiryData = await db.query(
+        'SELECT dwell_ms, return_visits FROM inquiries WHERE id = $1',
+        [inquiryId]
+      );
+      
+      const dwellMs = parseInt(inquiryData.rows[0]?.dwell_ms || '0');
+      const visits = parseInt(inquiryData.rows[0]?.return_visits || '1');
+      
+      // Return snapshot with whatever we have
       return {
         inquiryId,
         sections: [],
         totals: {
-          time_on_page_ms: 0,
+          time_on_page_ms: dwellMs,
           video_ms: 0,
           clicks: 0,
-          total_visits: 0,
+          total_visits: visits,
           scroll_depth: 0
         },
-        hasData: false
+        hasData: dwellMs > 0 // Mark as having data if there's ANY dwell time
       };
     }
 
-    // Get section-level engagement data
+    // Get section-level data from tracking_events
     const secExit = await db.query(`
       SELECT
         COALESCE(event_data->>'currentSection', 'unknown') AS section_id,
         SUM(COALESCE((event_data->>'timeInSectionSec')::int, 0)) AS dwell_sec,
         MAX(COALESCE((event_data->>'maxScrollPct')::int, 0)) AS max_scroll_pct,
         COUNT(DISTINCT CASE WHEN event_type = 'link_click' THEN event_data->>'linkId' END) AS clicks,
-        SUM(COALESCE((event_data->>'watchTimeSec')::int, 0)) AS video_sec
+        SUM(COALESCE((event_data->>'videoWatchSec')::int, 0)) AS video_sec
       FROM tracking_events
       WHERE inquiry_id = $1
         AND event_type IN ('section_exit', 'link_click', 'youtube_video_progress')
       GROUP BY 1
     `, [inquiryId]);
 
-    // Get visit count
+    // Get total visits
     const visitCount = await db.query(`
       SELECT COUNT(DISTINCT session_id) as total_visits
       FROM tracking_events
       WHERE inquiry_id = $1
     `, [inquiryId]);
 
-    // Build sections array
+    // Also check inquiries table for accumulated dwell_ms
+    const inquiryDwell = await db.query(
+      'SELECT dwell_ms FROM inquiries WHERE id = $1',
+      [inquiryId]
+    );
+    const storedDwellMs = parseInt(inquiryDwell.rows[0]?.dwell_ms || '0');
+
+    // Build sections
     const sections = secExit.rows.map(row => ({
       section_id: row.section_id,
+      section: row.section_id, // Add both formats
       dwell_seconds: parseInt(row.dwell_sec || 0),
+      dwell_ms: parseInt(row.dwell_sec || 0) * 1000, // Also provide in ms
       max_scroll_pct: parseInt(row.max_scroll_pct || 0),
       clicks: parseInt(row.clicks || 0),
-      video_seconds: parseInt(row.video_sec || 0)
+      video_seconds: parseInt(row.video_sec || 0),
+      video_ms: parseInt(row.video_sec || 0) * 1000
     }));
 
-    // Calculate totals
+    // Calculate totals - use the MAX of calculated vs stored dwell
+    const calculatedDwell = sections.reduce((sum, s) => sum + (s.dwell_seconds * 1000), 0);
+    const totalDwellMs = Math.max(calculatedDwell, storedDwellMs);
+
     const totals = {
-      time_on_page_ms: sections.reduce((sum, s) => sum + (s.dwell_seconds * 1000), 0),
-      video_ms: sections.reduce((sum, s) => sum + (s.video_seconds * 1000), 0),
+      time_on_page_ms: totalDwellMs,
+      video_ms: sections.reduce((sum, s) => sum + s.video_ms, 0),
       clicks: sections.reduce((sum, s) => sum + s.clicks, 0),
-      total_visits: parseInt(visitCount.rows[0]?.total_visits || 0),
+      total_visits: parseInt(visitCount.rows[0]?.total_visits || 1),
       scroll_depth: sections.length > 0 
         ? Math.round(sections.reduce((sum, s) => sum + s.max_scroll_pct, 0) / sections.length)
         : 0
@@ -444,12 +467,12 @@ async function buildEngagementSnapshot(db, inquiryId) {
       inquiryId,
       sections,
       totals,
-      hasData: sections.length > 0 || totals.total_visits > 0
+      hasData: totalDwellMs > 0 || sections.length > 0 || eventCount > 0
     };
 
   } catch (error) {
     console.error('Error building engagement snapshot:', error);
-    // Return a safe default on error
+    // Return safe default
     return {
       inquiryId,
       sections: [],
@@ -463,6 +486,131 @@ async function buildEngagementSnapshot(db, inquiryId) {
       hasData: false
     };
   }
+}
+
+// FIXED summariseFamilyEngagement - handles all cases properly
+async function summariseFamilyEngagement(db, inquiry) {
+  const inquiryId = inquiry.id || inquiry.inquiry_id;
+  
+  try {
+    const snapshot = await buildEngagementSnapshot(db, inquiryId);
+    
+    // Generate appropriate message based on data availability
+    let result;
+    
+    if (!snapshot.hasData || (snapshot.totals.time_on_page_ms === 0 && snapshot.sections.length === 0)) {
+      // No data case - friendly waiting message
+      result = {
+        narrative: `Personalised prospectus created for ${inquiry.first_name || 'this student'} ${inquiry.family_surname || ''} (${inquiry.entry_year || 'entry year TBC'}). The family hasn't viewed their prospectus yet, but we're ready to track their journey as soon as they begin exploring. Once they start engaging with sections and videos, we'll provide detailed insights about their interests and priorities.`,
+        highlights: [
+          '• Prospectus successfully generated and ready',
+          '• Unique link created for family access',
+          '• Awaiting first visit to begin engagement tracking',
+          '• Full analytics will activate upon first interaction'
+        ]
+      };
+    } else if (snapshot.totals.time_on_page_ms < 30000) {
+      // Very light engagement - needs more data
+      const timeStr = Math.round(snapshot.totals.time_on_page_ms / 1000) + ' seconds';
+      result = {
+        narrative: `${inquiry.first_name || 'This student'}'s family has just started exploring their personalised prospectus, spending ${timeStr} so far. This initial glimpse suggests they've discovered the materials but haven't yet had time for a thorough review. Early engagement is promising - families who return within 48 hours typically show strong interest. A gentle follow-up reminding them to explore key sections could encourage deeper engagement.`,
+        highlights: [
+          `• Initial visit recorded: ${timeStr} of browsing`,
+          '• Prospectus discovery phase - early engagement detected',
+          '• Follow-up recommended within 24-48 hours',
+          '• Watch for return visits as key interest indicator'
+        ]
+      };
+    } else {
+      // Has meaningful data - generate AI summary
+      try {
+        const aiPayload = await generateAiEngagementStory(snapshot, {
+          first_name: inquiry.first_name,
+          family_surname: inquiry.family_surname,
+          entry_year: inquiry.entry_year
+        });
+        
+        result = {
+          narrative: aiPayload?.narrative || generateFallbackNarrative(snapshot, inquiry),
+          highlights: Array.isArray(aiPayload?.highlights) 
+            ? aiPayload.highlights 
+            : generateFallbackHighlights(snapshot)
+        };
+      } catch (aiError) {
+        console.warn('AI generation failed, using fallback:', aiError.message);
+        result = {
+          narrative: generateFallbackNarrative(snapshot, inquiry),
+          highlights: generateFallbackHighlights(snapshot)
+        };
+      }
+    }
+    
+    // Store the result
+    await upsertAiInsight(db, inquiryId, 'engagement_summary', result);
+    return result;
+    
+  } catch (error) {
+    console.error('summariseFamilyEngagement error:', error);
+    
+    // Ultimate fallback
+    const fallbackResult = {
+      narrative: `Prospectus prepared for ${inquiry.first_name || 'this student'} ${inquiry.family_surname || ''}. Engagement tracking is active and will provide insights as the family explores their personalised materials.`,
+      highlights: [
+        '• Prospectus ready for viewing',
+        '• Tracking system active',
+        '• Awaiting engagement data'
+      ]
+    };
+    
+    await upsertAiInsight(db, inquiryId, 'engagement_summary', fallbackResult);
+    return fallbackResult;
+  }
+}
+
+// Helper function for fallback narrative
+function generateFallbackNarrative(snapshot, inquiry) {
+  const totalMinutes = Math.round(snapshot.totals.time_on_page_ms / 60000);
+  const name = `${inquiry.first_name || 'This student'} ${inquiry.family_surname || ''}`.trim();
+  
+  if (snapshot.sections.length > 0) {
+    const topSection = snapshot.sections[0];
+    const sectionName = topSection.section_id.replace(/_/g, ' ');
+    return `${name}'s family spent ${totalMinutes} minutes exploring their personalised prospectus, with particular interest in ${sectionName}. They visited ${snapshot.sections.length} different sections across ${snapshot.totals.total_visits} visit(s). This level of engagement suggests genuine interest in understanding what More House offers. Consider following up about the areas they spent most time exploring.`;
+  } else {
+    return `${name}'s family has spent ${totalMinutes} minutes reviewing their personalised prospectus across ${snapshot.totals.total_visits} visit(s). While we're still gathering detailed section-level insights, this engagement time indicates they're taking time to consider More House seriously. A personal follow-up call could help understand their specific interests and questions.`;
+  }
+}
+
+// Helper function for fallback highlights  
+function generateFallbackHighlights(snapshot) {
+  const highlights = [];
+  const totalMinutes = Math.round(snapshot.totals.time_on_page_ms / 60000);
+  
+  highlights.push(`• Total engagement: ${totalMinutes} minutes across ${snapshot.totals.total_visits} visit(s)`);
+  
+  if (snapshot.sections.length > 0) {
+    const top = snapshot.sections.slice(0, 2);
+    top.forEach(s => {
+      const mins = Math.round(s.dwell_seconds / 60);
+      if (mins > 0) {
+        highlights.push(`• Focused on ${s.section_id.replace(/_/g, ' ')}: ${mins} minutes`);
+      }
+    });
+  }
+  
+  if (snapshot.totals.clicks > 0) {
+    highlights.push(`• Interactive engagement: ${snapshot.totals.clicks} click(s) on key content`);
+  }
+  
+  if (snapshot.totals.total_visits > 1) {
+    highlights.push(`• Return visitor - showing sustained interest`);
+  }
+  
+  while (highlights.length < 3) {
+    highlights.push('• Ready for personalised follow-up');
+  }
+  
+  return highlights.slice(0, 5);
 }
 
 function topInteractionsFrom(sections, n = 5) {
@@ -1086,64 +1234,6 @@ async function rebuildSlugIndexFromData() {
 
 // ===================== AI ENGAGEMENT SUMMARY HELPERS =====================
 
-// Pull a per-family snapshot of engagement for summarising.
-// If you don't yet have a `prospectus_events` table, the fallback still works.
-async function buildEngagementSnapshot(db, inquiryId) {
-  // Preferred: rich event table
-  const res = await db.query(`
-    SELECT
-      COALESCE(section_label, 'Unknown')    AS section_label,
-      COALESCE(SUM(dwell_ms) , 0)::bigint   AS dwell_ms,
-      COALESCE(SUM(video_ms) , 0)::bigint   AS video_ms,
-      COALESCE(SUM(clicks)   , 0)::integer  AS clicks
-    FROM prospectus_events
-    WHERE inquiry_id = $1
-    GROUP BY section_label
-    ORDER BY SUM(dwell_ms) DESC
-    LIMIT 100
-  `, [inquiryId]).catch(() => ({ rows: [] }));
-
-  if (!res?.rows?.length) {
-    // Fallback: use coarse engagement stored on inquiries
-    const e = await db.query(`
-      SELECT
-        COALESCE(time_on_page, 0)::bigint         AS time_on_page,
-        COALESCE(scroll_depth, 0)::integer        AS scroll_depth,
-        COALESCE(total_visits, 0)::integer        AS total_visits,
-        COALESCE(clicks_on_links, 0)::integer     AS clicks_on_links
-      FROM inquiries
-      WHERE id = $1
-    `, [inquiryId]).catch(() => ({ rows: [] }));
-
-    const row = e?.rows?.[0] || {};
-    return {
-      sections: [],
-      totals: {
-        time_on_page_ms: Number(row.time_on_page || 0) * 1000,
-        video_ms: 0,
-        clicks: Number(row.clicks_on_links || 0),
-        total_visits: Number(row.total_visits || 0),
-        scroll_depth: Number(row.scroll_depth || 0)
-      }
-    };
-  }
-
-  const sections = res.rows.map(r => ({
-    section: r.section_label,
-    dwell_ms: Number(r.dwell_ms || 0),
-    video_ms: Number(r.video_ms || 0),
-    clicks: Number(r.clicks || 0)
-  }));
-
-  const totals = sections.reduce((acc, s) => {
-    acc.time_on_page_ms += s.dwell_ms;
-    acc.video_ms       += s.video_ms;
-    acc.clicks         += s.clicks;
-    return acc;
-  }, { time_on_page_ms: 0, video_ms: 0, clicks: 0 });
-
-  return { sections, totals };
-}
 
 function topInteractionsFrom(sections, n = 5) {
   return [...sections]
