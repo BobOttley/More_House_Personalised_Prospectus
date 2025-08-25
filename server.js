@@ -135,25 +135,7 @@ app.use((req, _res, next) => { console.log(req.method, req.url); next(); });
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Accept single event OR an array of events from tracking.js
-app.post('/api/track-engagement', async (req, res) => {
-  try {
-    const body = req.body;
-    if (!body) return res.status(400).json({ success: false, message: 'No body' });
 
-    const events = Array.isArray(body) ? body : [body];
-
-    for (const ev of events) {
-      ev.ip = req.ip;               // pass IP through if useful
-      await trackEngagementEvent(ev); // this is the function we replaced earlier
-    }
-
-    res.json({ success: true, received: events.length });
-  } catch (e) {
-    console.error('/api/track-engagement error:', e);
-    res.status(500).json({ success: false, message: e.message });
-  }
-});
 
 
 async function generateProspectus(inquiry) {

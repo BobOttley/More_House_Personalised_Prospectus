@@ -3,7 +3,7 @@
    - Per-section max scroll %, clicks, video watch (YouTube IFrame API)
    - Idle + visibility + focus handling to avoid inflating time
    - Batching to POST /api/track-engagement
-   - NEW: Dwell-time accumulator posting deltas to /api/track/dwell
+   - Dwell-time accumulator posting deltas to /api/track/dwell (fetch for heartbeats; beacon only on final flush)
 */
 (function () {
   'use strict';
@@ -15,7 +15,7 @@
   var SECTION_VIS_RATIO = 0.5;            // ≥50% visible counts as “in section”
   var SCROLL_DELTA_MIN = 5;               // 5% improvement before emitting section_scroll
 
-  // NEW: Dwell config
+  // Dwell config
   var DWELL_URL = '/api/track/dwell';
   var DWELL_MIN_BATCH_MS = 1000;          // don't send <1s
 
@@ -36,7 +36,7 @@
     return s;
   })();
 
-  // Make sure the queue exists before any observer might fire
+  // Queue for section/video events
   var eventQueue = [];
 
   // ---------- Attention state (true “active” time only) ----------
@@ -61,7 +61,7 @@
   window.addEventListener('focus', function(){ pageFocused = true; computeAttentionActive(); });
   window.addEventListener('blur',  function(){ pageFocused = false; computeAttentionActive(); });
 
-  // ---------- Dwell accumulator (NEW) ----------
+  // ---------- Dwell accumulator ----------
   var dwell = { lastAt: Date.now(), unsentMs: 0, lastSentAt: null };
 
   function dwellAccumulate() {
@@ -85,10 +85,12 @@
     };
   }
 
+  // Use fetch for normal sends (server reliably parses JSON).
+  // Only use sendBeacon on the very last-chance flush.
   async function sendDwellDelta(reason) {
     try {
       var delta = Math.max(0, Math.round(dwell.unsentMs));
-      if (delta < DWELL_MIN_BATCH_MS) return; // too small to bother sending
+      if (delta < DWELL_MIN_BATCH_MS) return;
       var payload = {
         inquiryId: INQUIRY_ID,
         sessionId: SESSION_ID,
@@ -100,13 +102,13 @@
       dwell.unsentMs = 0;
       dwell.lastSentAt = Date.now();
 
-      if (navigator.sendBeacon) {
-        var ok = navigator.sendBeacon(DWELL_URL, new Blob([JSON.stringify(payload)], {type: 'application/json'}));
-        if (ok) return;
-        // if beacon failed, fall through to fetch
-      }
-      await fetch(DWELL_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
-    } catch (e) {
+      await fetch(DWELL_URL, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(payload),
+        keepalive: true
+      });
+    } catch (_) {
       // swallow; next heartbeat will retry
     }
   }
@@ -343,14 +345,19 @@
     var meaningful = payload.events.length > 0 || (payload.sessionInfo.timeOnPage % 15 === 0);
     if (!meaningful) return;
     try {
-      fetch(POST_URL, { method:'POST', headers:{ 'Content-Type':'application/json', 'Accept':'application/json' }, body: JSON.stringify(payload) });
+      fetch(POST_URL, {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json', 'Accept':'application/json' },
+        body: JSON.stringify(payload),
+        keepalive: true
+      });
     } catch(e){ /* ignore */ }
   }
 
   // Run both heartbeats on the same cadence
   setInterval(function(){
-    heartbeat();               // existing analytics batch
-    sendDwellDelta('heartbeat'); // NEW: send accumulated dwell
+    heartbeat();                 // existing analytics batch
+    sendDwellDelta('heartbeat'); // dwell delta (fetch)
   }, HEARTBEAT_MS);
 
   // ---------- Finalise on unload / hide ----------
@@ -374,9 +381,9 @@
   window.addEventListener('beforeunload', function(){
     try {
       dwellAccumulate();
-      // last best-effort flush of dwell via beacon
+      // last best-effort flush of dwell via beacon; fallback to fetch keepalive
       var delta = Math.max(0, Math.round(dwell.unsentMs));
-      if (delta >= DWELL_MIN_BATCH_MS && navigator.sendBeacon) {
+      if (delta >= DWELL_MIN_BATCH_MS) {
         var payload = {
           inquiryId: INQUIRY_ID,
           sessionId: SESSION_ID,
@@ -385,7 +392,18 @@
           timestamp: new Date().toISOString(),
           deviceInfo: getDeviceInfo()
         };
-        navigator.sendBeacon(DWELL_URL, new Blob([JSON.stringify(payload)], {type:'application/json'}));
+        var ok = false;
+        if (navigator.sendBeacon) {
+          ok = navigator.sendBeacon(DWELL_URL, new Blob([JSON.stringify(payload)], {type:'application/json'}));
+        }
+        if (!ok) {
+          fetch(DWELL_URL, {
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify(payload),
+            keepalive: true
+          });
+        }
         dwell.unsentMs = 0;
       }
     } catch(_) {}
