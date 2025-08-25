@@ -231,8 +231,8 @@ async function loadRowAI(inquiryId, row){
     if(scoreEl)  scoreEl.textContent  = String(score);
     if(visitsEl) visitsEl.textContent = String(visits);
 
-    // If backend returns total_dwell_ms, update the "Total time" display
-    if (dwellEl && Number.isFinite(total_dwell_ms) && total_dwell_ms > 0) {
+    // Update "Total time" display with engagement API data
+    if (dwellEl && total_dwell_ms != null) {
       dwellEl.textContent = formatMs(total_dwell_ms);
     }
 
