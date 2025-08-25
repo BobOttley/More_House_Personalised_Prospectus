@@ -231,10 +231,13 @@ async function loadRowAI(inquiryId, row){
     if(scoreEl)  scoreEl.textContent  = String(score);
     if(visitsEl) visitsEl.textContent = String(visits);
 
-    // Replace the current loadRowAI section with this debug version:
-    if (dwellEl && total_dwell_ms != null) {
-      console.log(`DEBUG ${inquiryId}: total_dwell_ms =`, total_dwell_ms, typeof total_dwell_ms);
-      dwellEl.textContent = formatMs(total_dwell_ms);
+    // Calculate total if not provided by API
+    const calculatedTotal = sections ? sections.reduce((sum, s) => sum + Number(s.dwell_seconds || 0), 0) * 1000 : 0;
+    const actualTotal = total_dwell_ms || calculatedTotal;
+
+    // Update "Total time" display
+    if (dwellEl && actualTotal > 0) {
+      dwellEl.textContent = formatMs(actualTotal);
     }
 
     // Summary text
