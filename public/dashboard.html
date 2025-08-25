@@ -231,8 +231,9 @@ async function loadRowAI(inquiryId, row){
     if(scoreEl)  scoreEl.textContent  = String(score);
     if(visitsEl) visitsEl.textContent = String(visits);
 
-    // Update "Total time" display with engagement API data
+    // Replace the current loadRowAI section with this debug version:
     if (dwellEl && total_dwell_ms != null) {
+      console.log(`DEBUG ${inquiryId}: total_dwell_ms =`, total_dwell_ms, typeof total_dwell_ms);
       dwellEl.textContent = formatMs(total_dwell_ms);
     }
 
