@@ -1838,10 +1838,10 @@ app.get('/api/ai/engagement-summary/:inquiryId', async (req, res) => {
     const score      = Math.max(10, Math.min(100, scoreRaw));
 
     const hasSignals = sections.some(r =>
-      (r.dwell_seconds ?? 0) > 0 ||
-      (r.max_scroll_pct ?? 0) > 0 ||
-      (r.video_plays ?? 0) > 0 ||
-      (r.video_completes ?? 0) > 0
+      Number(r.dwell_seconds || 0) > 0 ||
+      Number(r.max_scroll_pct || 0) > 0 ||
+      Number(r.video_plays || 0) > 0 ||
+      Number(r.video_completes || 0) > 0
     );
 
     let summaryText;
