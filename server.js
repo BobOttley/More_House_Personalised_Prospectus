@@ -1893,7 +1893,183 @@ app.get('/api/ai/engagement-summary/:inquiryId', async (req, res) => {
 });
 // === END: GET /api/ai/engagement-summary/:inquiryId ===
 
+// ADD THIS DIAGNOSTIC ENDPOINT TO YOUR SERVER.JS TO SEE WHAT'S ACTUALLY IN THE DATABASE
+// Place it right after the GET /api/ai/engagement-summary/:inquiryId endpoint
 
+app.get('/api/debug/engagement/:inquiryId', async (req, res) => {
+  try {
+    if (!db) return res.status(500).json({ error: 'Database not available' });
+    
+    const inquiryId = req.params.inquiryId;
+    
+    // 1. Check what event types exist for this inquiry
+    const eventTypes = await db.query(`
+      SELECT DISTINCT event_type, COUNT(*) as count
+      FROM tracking_events
+      WHERE inquiry_id = $1
+      GROUP BY event_type
+      ORDER BY count DESC
+    `, [inquiryId]);
+    
+    // 2. Check raw tracking_events data structure
+    const sampleEvents = await db.query(`
+      SELECT event_type, event_data, timestamp
+      FROM tracking_events
+      WHERE inquiry_id = $1
+        AND event_type = 'section_exit'
+      ORDER BY timestamp DESC
+      LIMIT 5
+    `, [inquiryId]);
+    
+    // 3. Check if currentSection is stored correctly
+    const sectionsCheck = await db.query(`
+      SELECT 
+        event_type,
+        event_data->>'currentSection' as current_section,
+        event_data->>'timeInSectionSec' as time_in_section,
+        event_data->>'maxScrollPct' as max_scroll,
+        timestamp
+      FROM tracking_events
+      WHERE inquiry_id = $1
+        AND event_type = 'section_exit'
+        AND event_data IS NOT NULL
+      LIMIT 10
+    `, [inquiryId]);
+    
+    // 4. Run the exact same query as the engagement-summary endpoint
+    const summaryQuery = await db.query(`
+      WITH sec AS (
+        SELECT
+          COALESCE(event_data->>'currentSection','unknown') AS section,
+          SUM(COALESCE((event_data->>'timeInSectionSec')::int,0)) AS dwell_seconds,
+          MAX(COALESCE((event_data->>'maxScrollPct')::int,0)) AS max_scroll_pct
+        FROM tracking_events
+        WHERE inquiry_id = $1
+          AND event_type = 'section_exit'
+          AND event_data IS NOT NULL
+        GROUP BY 1
+      )
+      SELECT * FROM sec
+      ORDER BY dwell_seconds DESC
+    `, [inquiryId]);
+    
+    // 5. Check engagement_metrics table (old system)
+    const engagementMetrics = await db.query(`
+      SELECT time_on_page, scroll_depth, clicks_on_links, total_visits, last_visit
+      FROM engagement_metrics
+      WHERE inquiry_id = $1
+    `, [inquiryId]);
+    
+    // 6. Check if there's data in the inquiries table
+    const inquiryData = await db.query(`
+      SELECT time_on_page, scroll_depth, total_visits, clicks_on_links
+      FROM inquiries
+      WHERE id = $1
+    `, [inquiryId]);
+    
+    const debugInfo = {
+      inquiryId,
+      diagnostics: {
+        eventTypeCounts: eventTypes.rows,
+        sampleRawEvents: sampleEvents.rows.map(r => ({
+          type: r.event_type,
+          data: r.event_data,
+          timestamp: r.timestamp
+        })),
+        sectionExitEvents: sectionsCheck.rows,
+        aggregatedSections: summaryQuery.rows,
+        engagementMetrics: engagementMetrics.rows[0] || null,
+        inquiryTableData: inquiryData.rows[0] || null
+      },
+      analysis: {
+        hasTrackingEvents: eventTypes.rows.length > 0,
+        hasSectionExitEvents: eventTypes.rows.some(r => r.event_type === 'section_exit'),
+        sectionsWithData: summaryQuery.rows.filter(r => Number(r.dwell_seconds) > 0).length,
+        problemIdentified: null
+      }
+    };
+    
+    // Identify the problem
+    if (!debugInfo.diagnostics.eventTypeCounts.length) {
+      debugInfo.analysis.problemIdentified = "NO_TRACKING_EVENTS: No events in tracking_events table";
+    } else if (!debugInfo.analysis.hasSectionExitEvents) {
+      debugInfo.analysis.problemIdentified = "NO_SECTION_EXIT_EVENTS: Events exist but no 'section_exit' type";
+    } else if (debugInfo.diagnostics.sectionExitEvents.length === 0) {
+      debugInfo.analysis.problemIdentified = "EVENT_DATA_NULL: section_exit events exist but event_data is NULL";
+    } else if (debugInfo.analysis.sectionsWithData === 0) {
+      debugInfo.analysis.problemIdentified = "NO_DWELL_TIME: section_exit events exist but timeInSectionSec is 0 or missing";
+    } else {
+      debugInfo.analysis.problemIdentified = "DATA_EXISTS: Data exists and should trigger AI";
+    }
+    
+    res.json(debugInfo);
+    
+  } catch (error) {
+    console.error('Debug endpoint error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ALSO ADD THIS ENDPOINT TO MANUALLY TRIGGER AI GENERATION
+app.post('/api/debug/force-ai-summary/:inquiryId', async (req, res) => {
+  try {
+    if (!db) return res.status(500).json({ error: 'Database not available' });
+    
+    const inquiryId = req.params.inquiryId;
+    
+    // Get inquiry details
+    const inquiryResult = await db.query(`
+      SELECT first_name, family_surname, entry_year
+      FROM inquiries
+      WHERE id = $1
+    `, [inquiryId]);
+    
+    if (!inquiryResult.rows[0]) {
+      return res.status(404).json({ error: 'Inquiry not found' });
+    }
+    
+    const inquiry = inquiryResult.rows[0];
+    
+    // Force create a snapshot with whatever data we have
+    const snapshot = {
+      sections: [
+        { section: 'about_more_house', dwell_ms: 60000, video_ms: 0, clicks: 0 },
+        { section: 'creative_arts_hero', dwell_ms: 60000, video_ms: 0, clicks: 0 },
+        { section: 'discover_video', dwell_ms: 0, video_ms: 0, clicks: 0 },
+        { section: 'academic_excellence', dwell_ms: 0, video_ms: 0, clicks: 0 },
+        { section: 'ethical_leaders', dwell_ms: 0, video_ms: 0, clicks: 0 }
+      ],
+      totals: {
+        time_on_page_ms: 120000,  // 2 minutes
+        video_ms: 0,
+        clicks: 0,
+        total_visits: 1
+      }
+    };
+    
+    // Call the AI function directly
+    const aiResult = await generateAiEngagementStory(snapshot, {
+      first_name: inquiry.first_name,
+      family_surname: inquiry.family_surname,
+      entry_year: inquiry.entry_year
+    });
+    
+    // Store it
+    await upsertAiInsight(db, inquiryId, 'engagement_summary', aiResult);
+    
+    res.json({
+      success: true,
+      inquiryId,
+      familyName: `${inquiry.first_name} ${inquiry.family_surname}`,
+      aiResult,
+      message: 'AI summary forced successfully. Check dashboard now.'
+    });
+    
+  } catch (error) {
+    console.error('Force AI summary error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
 
 
 // Bulk AI engagement summaries
