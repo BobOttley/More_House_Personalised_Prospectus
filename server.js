@@ -179,12 +179,12 @@ document.addEventListener('DOMContentLoaded', function(){
 });
 </script>`;
 
-   const trackingInject = `<!-- More House Analytics Tracking -->
+  const trackingInject = `<!-- More House Analytics Tracking -->
 <script>
 window.MORE_HOUSE_INQUIRY_ID='${inquiry.id}';
 console.log('Inquiry ID set for tracking:', window.MORE_HOUSE_INQUIRY_ID);
 </script>
-<script src="/tracking.js"></script>`;
+<script src="/tracking.js?v=5.0.0"></script>`;
 
    const bodyCloseIndex = html.lastIndexOf('</body>');
    if (bodyCloseIndex === -1) {
@@ -1780,7 +1780,7 @@ app.post('/api/ai/engagement-summary/:inquiryId', async (req, res) => {
   }
 });
 
-// === BEGIN: GET /api/ai/engagement-summary/:inquiryId (reads tracking_events) ===
+// === GET /api/ai/engagement-summary/:inquiryId (clean version with advanced AI) ===
 app.get('/api/ai/engagement-summary/:inquiryId', async (req, res) => {
   try {
     if (!db) return res.status(500).json({ error: 'Database not available' });
@@ -1830,7 +1830,7 @@ app.get('/api/ai/engagement-summary/:inquiryId', async (req, res) => {
       LIMIT 50;
     `, [inquiryId]);
 
-    // Score
+    // Score calculation
     const dwellTotal = sections.reduce((a, r) => a + (r.dwell_seconds || 0), 0);
     const scrollAvg  = sections.length ? Math.round(sections.reduce((a, r) => a + (r.max_scroll_pct || 0), 0) / sections.length) : 0;
     const videoBoost = sections.reduce((a, r) => a + (r.video_completes || 0) * 8 + (r.video_plays || 0) * 3, 0);
@@ -1848,16 +1848,44 @@ app.get('/api/ai/engagement-summary/:inquiryId', async (req, res) => {
     if (!hasSignals) {
       summaryText = 'Prospectus generated. Limited tracking available so far. Once more interaction is recorded — such as time spent on key sections or video watch time — a fuller summary will appear here.';
     } else {
-      const tops = sections.slice(0, 3).map(s =>
-        `${s.section} (~${Math.round((s.dwell_seconds || 0)/60)} min, ${s.max_scroll_pct}% scrolled)`
-      );
-      const videoMsg = sections.some(s => (s.video_plays || 0) > 0)
-        ? 'Videos were played.'
-        : 'No video plays recorded.';
-      summaryText = `Strong engagement across ${sections.length} sections. Top focus: ${tops.join(' • ')}. ${videoMsg}`;
+      // Use advanced AI instead of basic template
+      try {
+        const snapshot = { 
+          sections: sections.map(s => ({
+            section: s.section,
+            dwell_ms: Number(s.dwell_seconds) * 1000,
+            video_ms: 0,
+            clicks: 0
+          })),
+          totals: { 
+            time_on_page_ms: sections.reduce((a,s) => a + Number(s.dwell_seconds) * 1000, 0),
+            video_ms: 0,
+            clicks: 0
+          }
+        };
+        
+        const payload = await generateAiEngagementStory(snapshot, {
+          first_name: 'Family',
+          family_surname: '',
+          entry_year: ''
+        });
+        
+        summaryText = payload?.narrative || 'AI analysis in progress...';
+      } catch (aiError) {
+        console.warn('Advanced AI failed, using fallback:', aiError.message);
+        // Fallback to basic template if AI fails
+        const tops = sections.slice(0, 3).map(s =>
+          `${s.section} (~${Math.round((s.dwell_seconds || 0)/60)} min, ${s.max_scroll_pct}% scrolled)`
+        );
+        const videoMsg = sections.some(s => (s.video_plays || 0) > 0) ? 'Videos were played.' : 'No video plays recorded.';
+        summaryText = `Strong engagement across ${sections.length} sections. Top focus: ${tops.join(' • ')}. ${videoMsg}`;
+      }
     }
 
-    res.json({ inquiryId, visits, score, sections, summaryText });
+    // Calculate total_dwell_ms for dashboard
+    const total_dwell_ms = sections.reduce((a,s) => a + Number(s.dwell_seconds) * 1000, 0);
+
+    res.json({ inquiryId, visits, score, sections, summaryText, total_dwell_ms });
   } catch (err) {
     console.error('GET engagement-summary error', err);
     res.status(500).json({ error: 'server_error' });
@@ -1866,175 +1894,6 @@ app.get('/api/ai/engagement-summary/:inquiryId', async (req, res) => {
 // === END: GET /api/ai/engagement-summary/:inquiryId ===
 
 
-// === BEGIN: GET /api/ai/engagement-summary/:inquiryId (reads tracking_events) ===
-app.get('/api/ai/engagement-summary/:inquiryId', async (req, res) => {
-  try {
-    if (!db) return res.status(500).json({ error: 'Database not available' });
-
-    const inquiryId = req.params.inquiryId;
-
-    // Distinct visits = distinct sessions
-    const { rows: [vs] = [{}] } = await db.query(`
-      SELECT COUNT(DISTINCT session_id)::int AS visits
-      FROM tracking_events
-      WHERE inquiry_id = $1
-    `, [inquiryId]);
-    const visits = vs?.visits ?? 0;
-
-    // Section dwell/scroll from section_exit + video signals from youtube_* events
-    const { rows: sections } = await db.query(`
-      WITH sec AS (
-        SELECT
-          COALESCE(event_data->>'currentSection','unknown') AS section,
-          SUM(COALESCE((event_data->>'timeInSectionSec')::int,0)) AS dwell_seconds,
-          MAX(COALESCE((event_data->>'maxScrollPct')::int,0))       AS max_scroll_pct
-        FROM tracking_events
-        WHERE inquiry_id = $1
-          AND event_type = 'section_exit'
-          AND event_data IS NOT NULL
-        GROUP BY 1
-      ),
-      vid AS (
-        SELECT
-          COALESCE(event_data->>'currentSection','unknown') AS section,
-          SUM(CASE WHEN event_type = 'youtube_video_complete'  THEN 1 ELSE 0 END) AS video_completes,
-          SUM(CASE WHEN event_type = 'youtube_video_progress' THEN 1 ELSE 0 END) AS video_plays
-        FROM tracking_events
-        WHERE inquiry_id = $1
-          AND event_type IN ('youtube_video_progress','youtube_video_complete')
-        GROUP BY 1
-      )
-      SELECT
-        s.section,
-        COALESCE(s.max_scroll_pct,0) AS max_scroll_pct,
-        COALESCE(s.dwell_seconds,0)  AS dwell_seconds,
-        COALESCE(v.video_plays,0)    AS video_plays,
-        COALESCE(v.video_completes,0) AS video_completes
-      FROM sec s
-      LEFT JOIN vid v USING (section)
-      ORDER BY dwell_seconds DESC NULLS LAST, max_scroll_pct DESC
-      LIMIT 50;
-    `, [inquiryId]);
-
-    // Simple score
-    const dwellTotal = sections.reduce((a, r) => a + (r.dwell_seconds || 0), 0);
-    const scrollAvg  = sections.length ? Math.round(sections.reduce((a, r) => a + (r.max_scroll_pct || 0), 0) / sections.length) : 0;
-    const videoBoost = sections.reduce((a, r) => a + (r.video_completes || 0) * 8 + (r.video_plays || 0) * 3, 0);
-    const scoreRaw   = Math.round(dwellTotal / 10) + Math.round(scrollAvg / 2) + videoBoost;
-    const score      = Math.max(10, Math.min(100, scoreRaw));
-
-    const hasSignals = sections.some(r =>
-      (r.dwell_seconds ?? 0) > 0 ||
-      (r.max_scroll_pct ?? 0) > 0 ||
-      (r.video_plays ?? 0) > 0 ||
-      (r.video_completes ?? 0) > 0
-    );
-
-    let summaryText;
-    if (!hasSignals) {
-      summaryText = 'Prospectus generated. Limited tracking available so far. Once more interaction is recorded — such as time spent on key sections or video watch time — a fuller summary will appear here.';
-    } else {
-      const tops = sections.slice(0, 3).map(s =>
-        `${s.section} (~${Math.round((s.dwell_seconds || 0)/60)} min, ${s.max_scroll_pct}% scrolled)`
-      );
-      const videoMsg = sections.some(s => (s.video_plays || 0) > 0)
-        ? 'Videos were played.'
-        : 'No video plays recorded.';
-      summaryText = `Strong engagement across ${sections.length} sections. Top focus: ${tops.join(' • ')}. ${videoMsg}`;
-    }
-
-    res.json({ inquiryId, visits, score, sections, summaryText });
-  } catch (err) {
-    console.error('GET engagement-summary error', err);
-    res.status(500).json({ error: 'server_error' });
-  }
-});
-// === END: GET /api/ai/engagement-summary/:inquiryId ===
-
-// === BEGIN: GET /api/ai/engagement-summary/:inquiryId (reads tracking_events) ===
-app.get('/api/ai/engagement-summary/:inquiryId', async (req, res) => {
-  try {
-    if (!db) return res.status(500).json({ error: 'Database not available' });
-
-    const inquiryId = req.params.inquiryId;
-
-    // Distinct visits = distinct sessions
-    const { rows: [vs] = [{}] } = await db.query(`
-      SELECT COUNT(DISTINCT session_id)::int AS visits
-      FROM tracking_events
-      WHERE inquiry_id = $1
-    `, [inquiryId]);
-    const visits = vs?.visits ?? 0;
-
-    // Section dwell/scroll from section_exit + video signals from youtube_* events
-    const { rows: sections } = await db.query(`
-      WITH sec AS (
-        SELECT
-          COALESCE(event_data->>'currentSection','unknown') AS section,
-          SUM(COALESCE((event_data->>'timeInSectionSec')::int,0)) AS dwell_seconds,
-          MAX(COALESCE((event_data->>'maxScrollPct')::int,0))       AS max_scroll_pct
-        FROM tracking_events
-        WHERE inquiry_id = $1
-          AND event_type = 'section_exit'
-          AND event_data IS NOT NULL
-        GROUP BY 1
-      ),
-      vid AS (
-        SELECT
-          COALESCE(event_data->>'currentSection','unknown') AS section,
-          SUM(CASE WHEN event_type = 'youtube_video_complete'  THEN 1 ELSE 0 END) AS video_completes,
-          SUM(CASE WHEN event_type = 'youtube_video_progress' THEN 1 ELSE 0 END) AS video_plays
-        FROM tracking_events
-        WHERE inquiry_id = $1
-          AND event_type IN ('youtube_video_progress','youtube_video_complete')
-        GROUP BY 1
-      )
-      SELECT
-        s.section,
-        COALESCE(s.max_scroll_pct,0) AS max_scroll_pct,
-        COALESCE(s.dwell_seconds,0)  AS dwell_seconds,
-        COALESCE(v.video_plays,0)    AS video_plays,
-        COALESCE(v.video_completes,0) AS video_completes
-      FROM sec s
-      LEFT JOIN vid v USING (section)
-      ORDER BY dwell_seconds DESC NULLS LAST, max_scroll_pct DESC
-      LIMIT 50;
-    `, [inquiryId]);
-
-    // Simple score
-    const dwellTotal = sections.reduce((a, r) => a + (r.dwell_seconds || 0), 0);
-    const scrollAvg  = sections.length ? Math.round(sections.reduce((a, r) => a + (r.max_scroll_pct || 0), 0) / sections.length) : 0;
-    const videoBoost = sections.reduce((a, r) => a + (r.video_completes || 0) * 8 + (r.video_plays || 0) * 3, 0);
-    const scoreRaw   = Math.round(dwellTotal / 10) + Math.round(scrollAvg / 2) + videoBoost;
-    const score      = Math.max(10, Math.min(100, scoreRaw));
-
-    const hasSignals = sections.some(r =>
-      (r.dwell_seconds ?? 0) > 0 ||
-      (r.max_scroll_pct ?? 0) > 0 ||
-      (r.video_plays ?? 0) > 0 ||
-      (r.video_completes ?? 0) > 0
-    );
-
-    let summaryText;
-    if (!hasSignals) {
-      summaryText = 'Prospectus generated. Limited tracking available so far. Once more interaction is recorded — such as time spent on key sections or video watch time — a fuller summary will appear here.';
-    } else {
-      const tops = sections.slice(0, 3).map(s =>
-        `${s.section} (~${Math.round((s.dwell_seconds || 0)/60)} min, ${s.max_scroll_pct}% scrolled)`
-      );
-      const videoMsg = sections.some(s => (s.video_plays || 0) > 0)
-        ? 'Videos were played.'
-        : 'No video plays recorded.';
-      summaryText = `Strong engagement across ${sections.length} sections. Top focus: ${tops.join(' • ')}. ${videoMsg}`;
-    }
-
-    res.json({ inquiryId, visits, score, sections, summaryText });
-  } catch (err) {
-    console.error('GET engagement-summary error', err);
-    res.status(500).json({ error: 'server_error' });
-  }
-});
-// === END: GET /api/ai/engagement-summary/:inquiryId ===
 
 
 // Bulk AI engagement summaries
