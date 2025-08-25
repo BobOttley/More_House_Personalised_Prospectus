@@ -2291,6 +2291,286 @@ app.post('/api/ai/analyze-all-families', async (req, res) => {
   }
 });
 
+// Add this endpoint to your server.js to directly query DB and generate AI summary
+
+app.post('/api/ai/force-summary/:inquiryId', async (req, res) => {
+  if (!db) {
+    return res.status(500).json({ error: 'Database not available' });
+  }
+
+  const inquiryId = req.params.inquiryId;
+
+  try {
+    // 1. Get ALL data directly from database
+    const inquiryData = await db.query(`
+      SELECT 
+        i.id,
+        i.first_name,
+        i.family_surname,
+        i.entry_year,
+        i.dwell_ms,
+        i.return_visits,
+        COALESCE(i.dwell_ms, 0) as total_dwell_ms,
+        COALESCE(i.return_visits, 1) as visits
+      FROM inquiries i
+      WHERE i.id = $1
+    `, [inquiryId]);
+
+    if (!inquiryData.rows[0]) {
+      return res.status(404).json({ error: 'Inquiry not found' });
+    }
+
+    const inquiry = inquiryData.rows[0];
+
+    // 2. Get section data from tracking_events
+    const sectionData = await db.query(`
+      SELECT
+        COALESCE(event_data->>'currentSection', 'unknown') AS section,
+        SUM(COALESCE((event_data->>'timeInSectionSec')::int, 0)) AS dwell_seconds,
+        MAX(COALESCE((event_data->>'maxScrollPct')::int, 0)) AS scroll_pct,
+        COUNT(*) as events
+      FROM tracking_events
+      WHERE inquiry_id = $1
+        AND event_type = 'section_exit'
+        AND event_data IS NOT NULL
+      GROUP BY 1
+      ORDER BY 2 DESC
+    `, [inquiryId]);
+
+    // 3. Build the data structure
+    const totalDwellMs = Number(inquiry.total_dwell_ms) || 0;
+    const totalMinutes = Math.round(totalDwellMs / 60000);
+    const visits = Number(inquiry.visits) || 1;
+    const sections = sectionData.rows;
+
+    // 4. Generate AI prompt with ACTUAL data
+    const prompt = `
+You are a UK school admissions assistant. Based on the following REAL engagement data from a family viewing their personalised prospectus, write a warm, factual summary.
+
+ACTUAL DATA FROM DATABASE:
+- Student: ${inquiry.first_name} ${inquiry.family_surname}
+- Entry Year: ${inquiry.entry_year}
+- Total Time Spent: ${totalDwellMs}ms (${totalMinutes} minutes)
+- Number of Visits: ${visits}
+- Sections Viewed: ${sections.length}
+
+SECTION BREAKDOWN:
+${sections.map(s => `- ${s.section}: ${s.dwell_seconds} seconds, ${s.scroll_pct}% scroll depth`).join('\n')}
+
+Write a 120-180 word narrative in UK English that:
+1. Mentions the actual time spent (${totalMinutes} minutes)
+2. Highlights which sections they focused on
+3. Suggests what their interests might be based on the sections they viewed
+4. Recommends appropriate next steps for the admissions team
+
+Return ONLY valid JSON:
+{
+  "narrative": "Your 120-180 word summary here",
+  "highlights": [
+    "• Specific insight about their ${totalMinutes} minute engagement",
+    "• Which sections they focused on most",
+    "• What this suggests about their interests",
+    "• Recommended follow-up action",
+    "• One more relevant point"
+  ]
+}`;
+
+    console.log('Generating AI summary with data:', {
+      inquiryId,
+      totalDwellMs,
+      totalMinutes,
+      visits,
+      sectionCount: sections.length
+    });
+
+    let aiResult;
+
+    // 5. Call AI with the data
+    if (process.env.ANTHROPIC_API_KEY) {
+      const { Anthropic } = await import('@anthropic-ai/sdk');
+      const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+      
+      const response = await client.messages.create({
+        model: process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-20240620',
+        max_tokens: 800,
+        temperature: 0.3,
+        messages: [{ role: 'user', content: prompt }]
+      });
+      
+      const text = response?.content?.[0]?.text || '{}';
+      aiResult = JSON.parse(text);
+      
+    } else if (process.env.OPENAI_API_KEY) {
+      const OpenAI = (await import('openai')).default;
+      const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      
+      const response = await client.chat.completions.create({
+        model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+        temperature: 0.3,
+        response_format: { type: 'json_object' },
+        messages: [{ role: 'user', content: prompt }]
+      });
+      
+      aiResult = JSON.parse(response.choices[0].message.content);
+      
+    } else {
+      // No AI configured - generate based on data
+      const topSections = sections.slice(0, 3).map(s => s.section.replace(/_/g, ' ')).join(', ');
+      
+      aiResult = {
+        narrative: `${inquiry.first_name} ${inquiry.family_surname}'s family spent ${totalMinutes} minutes exploring their personalised prospectus across ${visits} visit(s). They showed particular interest in ${topSections || 'various sections'}, with ${sections[0]?.section.replace(/_/g, ' ') || 'key areas'} receiving the most attention at ${Math.round((sections[0]?.dwell_seconds || 0) / 60)} minutes. This engagement pattern suggests ${sections[0]?.section.includes('academic') ? 'strong academic focus' : sections[0]?.section.includes('creative') ? 'interest in creative programmes' : 'broad interest in the school'}. The family appears to be seriously considering More House, taking time to understand what makes us unique. Given their focus areas, a follow-up call discussing ${topSections || 'their interests'} would be valuable.`,
+        highlights: [
+          `• Engaged for ${totalMinutes} minutes across ${visits} visit(s)`,
+          `• Primary focus: ${sections[0]?.section.replace(/_/g, ' ') || 'Reviewing materials'}`,
+          `• Explored ${sections.length} different sections thoroughly`,
+          `• Shows ${totalMinutes > 10 ? 'strong' : 'initial'} interest in More House`,
+          `• Ready for personalised follow-up call`
+        ]
+      };
+    }
+
+    // 6. Store the result in database
+    await db.query(`
+      INSERT INTO ai_family_insights (inquiry_id, analysis_type, insights_json, generated_at)
+      VALUES ($1, 'engagement_summary', $2::jsonb, NOW())
+      ON CONFLICT (inquiry_id, analysis_type)
+      DO UPDATE SET 
+        insights_json = EXCLUDED.insights_json,
+        generated_at = NOW()
+    `, [inquiryId, JSON.stringify(aiResult)]);
+
+    // 7. Return the result
+    res.json({
+      success: true,
+      inquiryId,
+      data: {
+        family: `${inquiry.first_name} ${inquiry.family_surname}`,
+        totalMinutes,
+        visits,
+        sectionCount: sections.length,
+        topSection: sections[0]?.section || 'none'
+      },
+      aiSummary: aiResult,
+      debug: {
+        totalDwellMs,
+        sectionsFound: sections.length,
+        prompt: prompt.substring(0, 500) + '...'
+      }
+    });
+
+  } catch (error) {
+    console.error('Force summary error:', error);
+    res.status(500).json({ 
+      error: 'Failed to generate summary',
+      message: error.message,
+      inquiryId 
+    });
+  }
+});
+
+// Also add this GET endpoint that the dashboard will use
+app.get('/api/ai/engagement-summary/:inquiryId', async (req, res) => {
+  if (!db) return res.status(500).json({ error: 'Database not available' });
+
+  const inquiryId = req.params.inquiryId;
+
+  try {
+    // First check if we have a stored AI summary
+    const stored = await db.query(`
+      SELECT insights_json
+      FROM ai_family_insights
+      WHERE inquiry_id = $1 AND analysis_type = 'engagement_summary'
+    `, [inquiryId]);
+
+    if (stored.rows[0]?.insights_json) {
+      // We have a stored summary, return it with the engagement data
+      const inquiryData = await db.query(`
+        SELECT dwell_ms, return_visits
+        FROM inquiries
+        WHERE id = $1
+      `, [inquiryId]);
+
+      const sectionData = await db.query(`
+        SELECT
+          COALESCE(event_data->>'currentSection', 'unknown') AS section,
+          SUM(COALESCE((event_data->>'timeInSectionSec')::int, 0)) AS dwell_seconds,
+          MAX(COALESCE((event_data->>'maxScrollPct')::int, 0)) AS max_scroll_pct
+        FROM tracking_events
+        WHERE inquiry_id = $1
+          AND event_type = 'section_exit'
+        GROUP BY 1
+        ORDER BY 2 DESC
+      `, [inquiryId]);
+
+      const insights = stored.rows[0].insights_json;
+      
+      return res.json({
+        inquiryId,
+        visits: Number(inquiryData.rows[0]?.return_visits || 1),
+        score: Math.min(100, Math.round((Number(inquiryData.rows[0]?.dwell_ms || 0) / 1000) / 10) + 50),
+        sections: sectionData.rows,
+        summaryText: insights.narrative || 'No summary available',
+        highlights: insights.highlights || [],
+        total_dwell_ms: Number(inquiryData.rows[0]?.dwell_ms || 0)
+      });
+    }
+
+    // No stored summary - generate one now
+    const genResponse = await fetch(`http://localhost:${process.env.PORT || 3000}/api/ai/force-summary/${inquiryId}`, {
+      method: 'POST'
+    });
+    
+    if (!genResponse.ok) {
+      throw new Error('Failed to generate summary');
+    }
+
+    const generated = await genResponse.json();
+    
+    // Now fetch and return the stored summary
+    const newStored = await db.query(`
+      SELECT insights_json
+      FROM ai_family_insights
+      WHERE inquiry_id = $1 AND analysis_type = 'engagement_summary'
+    `, [inquiryId]);
+
+    const inquiryData = await db.query(`
+      SELECT dwell_ms, return_visits
+      FROM inquiries
+      WHERE id = $1
+    `, [inquiryId]);
+
+    const sectionData = await db.query(`
+      SELECT
+        COALESCE(event_data->>'currentSection', 'unknown') AS section,
+        SUM(COALESCE((event_data->>'timeInSectionSec')::int, 0)) AS dwell_seconds,
+        MAX(COALESCE((event_data->>'maxScrollPct')::int, 0)) AS max_scroll_pct
+      FROM tracking_events
+      WHERE inquiry_id = $1
+        AND event_type = 'section_exit'
+      GROUP BY 1
+      ORDER BY 2 DESC
+    `, [inquiryId]);
+
+    const insights = newStored.rows[0]?.insights_json || generated.aiSummary;
+    
+    res.json({
+      inquiryId,
+      visits: Number(inquiryData.rows[0]?.return_visits || 1),
+      score: Math.min(100, Math.round((Number(inquiryData.rows[0]?.dwell_ms || 0) / 1000) / 10) + 50),
+      sections: sectionData.rows,
+      summaryText: insights.narrative || 'No summary available',
+      highlights: insights.highlights || [],
+      total_dwell_ms: Number(inquiryData.rows[0]?.dwell_ms || 0)
+    });
+
+  } catch (error) {
+    console.error('Get engagement summary error:', error);
+    res.status(500).json({ 
+      error: 'Failed to get summary',
+      message: error.message 
+    });
+  }
+});
 
 app.post('/api/ai/analyze-family/:inquiryId', async (req, res) => {
  try {
