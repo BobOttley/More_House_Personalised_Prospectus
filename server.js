@@ -2620,6 +2620,33 @@ app.get('/', (req, res) => {
 </body></html>`);
 });
 
+// Add this debug endpoint to server.js
+app.get('/api/debug/snapshot/:inquiryId', async (req, res) => {
+  if (!db) return res.status(500).json({ error: 'No database' });
+  
+  const inquiryId = req.params.inquiryId;
+  const snapshot = await buildEngagementSnapshot(db, inquiryId);
+  
+  res.json({
+    inquiryId,
+    snapshot,
+    hasData: snapshot.totals.time_on_page_ms > 0 || snapshot.sections.length > 0
+  });
+});
+
+app.get('/api/debug/snapshot/:inquiryId', async (req, res) => {
+  if (!db) return res.status(500).json({ error: 'No database' });
+  
+  const inquiryId = req.params.inquiryId;
+  const snapshot = await buildEngagementSnapshot(db, inquiryId);
+  
+  res.json({
+    inquiryId,
+    snapshot,
+    hasData: snapshot.totals.time_on_page_ms > 0 || snapshot.sections.length > 0
+  });
+});
+
 app.use((req, res) => {
  res.status(404).json({ 
    success: false, 
