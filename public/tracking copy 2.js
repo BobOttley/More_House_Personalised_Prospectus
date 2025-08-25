@@ -3,21 +3,16 @@
    - Per-section max scroll %, clicks, video watch (YouTube IFrame API)
    - Idle + visibility + focus handling to avoid inflating time
    - Batching to POST /api/track-engagement
-   - NEW: Dwell-time accumulator posting deltas to /api/track/dwell
 */
 (function () {
   'use strict';
 
   // ---------- Config ----------
-  var POST_URL = '/api/track-engagement'; // existing batch endpoint
-  var HEARTBEAT_MS = 15000;               // send a heartbeat every 15s
-  var IDLE_TIMEOUT_MS = 30000;            // consider idle after 30s w/o input
-  var SECTION_VIS_RATIO = 0.5;            // ≥50% visible counts as “in section”
-  var SCROLL_DELTA_MIN = 5;               // 5% improvement before emitting section_scroll
-
-  // NEW: Dwell config
-  var DWELL_URL = '/api/track/dwell';
-  var DWELL_MIN_BATCH_MS = 1000;          // don't send <1s
+  var POST_URL = '/api/track-engagement';
+  var HEARTBEAT_MS = 15000;         // send a heartbeat every 15s
+  var IDLE_TIMEOUT_MS = 30000;      // consider idle after 30s w/o input
+  var SECTION_VIS_RATIO = 0.5;      // ≥50% visible counts as “in section”
+  var SCROLL_DELTA_MIN = 5;         // 5% improvement before emitting section_scroll
 
   // ---------- Inquiry + Session ----------
   function readMeta(name) {
@@ -36,9 +31,6 @@
     return s;
   })();
 
-  // Make sure the queue exists before any observer might fire
-  var eventQueue = [];
-
   // ---------- Attention state (true “active” time only) ----------
   var lastActivityAt = Date.now();
   var attentionActive = true;
@@ -55,67 +47,11 @@
     window.addEventListener(ev, markActivity, { passive:true });
   });
   document.addEventListener('visibilitychange', function(){
-    pageVisible = !document.hidden;
-    computeAttentionActive();
+    pageVisible = !document.hidden; computeAttentionActive();
   });
   window.addEventListener('focus', function(){ pageFocused = true; computeAttentionActive(); });
   window.addEventListener('blur',  function(){ pageFocused = false; computeAttentionActive(); });
-
-  // ---------- Dwell accumulator (NEW) ----------
-  var dwell = { lastAt: Date.now(), unsentMs: 0, lastSentAt: null };
-
-  function dwellAccumulate() {
-    var now = Date.now();
-    if (attentionActive) {
-      dwell.unsentMs += (now - (dwell.lastAt || now));
-    }
-    dwell.lastAt = now;
-  }
-
-  function getDeviceInfo(){
-    var ua = navigator.userAgent || '';
-    var viewport = { w: document.documentElement.clientWidth, h: document.documentElement.clientHeight };
-    function pick(re){ var m = re.exec(ua); return m ? m[0] : 'unknown'; }
-    return {
-      userAgent: ua,
-      viewport: viewport,
-      deviceType: /Mobi|Android/i.test(ua) ? 'mobile' : 'desktop',
-      operatingSystem: pick(/Mac|Win|Linux|Android|iPhone|iPad|iOS/),
-      browser: pick(/Chrome|Edg|Firefox|Safari/)
-    };
-  }
-
-  async function sendDwellDelta(reason) {
-    try {
-      var delta = Math.max(0, Math.round(dwell.unsentMs));
-      if (delta < DWELL_MIN_BATCH_MS) return; // too small to bother sending
-      var payload = {
-        inquiryId: INQUIRY_ID,
-        sessionId: SESSION_ID,
-        deltaMs: delta,
-        reason: reason || 'heartbeat',
-        timestamp: new Date().toISOString(),
-        deviceInfo: getDeviceInfo()
-      };
-      dwell.unsentMs = 0;
-      dwell.lastSentAt = Date.now();
-
-      if (navigator.sendBeacon) {
-        var ok = navigator.sendBeacon(DWELL_URL, new Blob([JSON.stringify(payload)], {type: 'application/json'}));
-        if (ok) return;
-        // if beacon failed, fall through to fetch
-      }
-      await fetch(DWELL_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
-    } catch (e) {
-      // swallow; next heartbeat will retry
-    }
-  }
-
-  // Periodic attention recompute + dwell accumulation (every second for accuracy)
-  setInterval(function(){
-    computeAttentionActive();
-    dwellAccumulate();
-  }, 1000);
+  setInterval(computeAttentionActive, 1000);
 
   // ---------- Section registry ----------
   (function applyDynamicSectionMapping(){
@@ -134,6 +70,19 @@
     var id = el.getAttribute('data-track-section');
     sectionState.set(id, { enteredAt:null, lastTickAt:null, attentionSec:0, maxScrollPct:0, clicks:0, videoSec:0 });
   });
+
+  function getDeviceInfo(){
+    var ua = navigator.userAgent || '';
+    var viewport = { w: document.documentElement.clientWidth, h: document.documentElement.clientHeight };
+    function pick(re){ var m = re.exec(ua); return m ? m[0] : 'unknown'; }
+    return {
+      userAgent: ua,
+      viewport: viewport,
+      deviceType: /Mobi|Android/i.test(ua) ? 'mobile' : 'desktop',
+      operatingSystem: pick(/Mac|Win|Linux|Android|iPhone|iPad|iOS/),
+      browser: pick(/Chrome|Edg|Firefox|Safari/)
+    };
+  }
 
   function sectionScrollPct(el){
     var rect = el.getBoundingClientRect();
@@ -211,7 +160,7 @@
     currentSectionId = null; currentSectionEl = null;
   }
 
-  // Tick attention inside the current section (every 2s)
+  // Tick attention inside the current section
   setInterval(function(){
     if (!currentSectionId) return;
     var st = sectionState.get(currentSectionId);
@@ -312,6 +261,7 @@
   ensureYTAPI();
 
   // ---------- Batching + Heartbeat ----------
+  var eventQueue = [];
   function estimateAttentionTotal(){
     var total = 0;
     sectionState.forEach(function(st){ total += (st.attentionSec || 0); });
@@ -334,7 +284,7 @@
       sessionInfo: {
         inquiryId: INQUIRY_ID,
         sessionId: SESSION_ID,
-        timeOnPage: estimateAttentionTotal(), // seconds
+        timeOnPage: estimateAttentionTotal(),
         maxScrollDepth: Math.max(0, ...Array.from(sectionState.values()).map(function(s){ return s.maxScrollPct; })),
         clickCount: Array.from(sectionState.values()).reduce(function(a,b){ return a + (b.clicks||0); }, 0),
         deviceInfo: getDeviceInfo()
@@ -346,49 +296,10 @@
       fetch(POST_URL, { method:'POST', headers:{ 'Content-Type':'application/json', 'Accept':'application/json' }, body: JSON.stringify(payload) });
     } catch(e){ /* ignore */ }
   }
-
-  // Run both heartbeats on the same cadence
-  setInterval(function(){
-    heartbeat();               // existing analytics batch
-    sendDwellDelta('heartbeat'); // NEW: send accumulated dwell
-  }, HEARTBEAT_MS);
+  var hb = setInterval(heartbeat, HEARTBEAT_MS);
 
   // ---------- Finalise on unload / hide ----------
-  function flushAndExit(){
-    // capture last bit of section attention
-    exitCurrentSection();
-    heartbeat();
-  }
-
-  document.addEventListener('visibilitychange', function(){
-    if (document.hidden) {
-      try { dwellAccumulate(); sendDwellDelta('tab_hidden'); } catch(_) {}
-      flushAndExit();
-    }
-  });
-
-  window.addEventListener('pagehide', function(){
-    try { dwellAccumulate(); sendDwellDelta('pagehide'); } catch(_) {}
-  });
-
-  window.addEventListener('beforeunload', function(){
-    try {
-      dwellAccumulate();
-      // last best-effort flush of dwell via beacon
-      var delta = Math.max(0, Math.round(dwell.unsentMs));
-      if (delta >= DWELL_MIN_BATCH_MS && navigator.sendBeacon) {
-        var payload = {
-          inquiryId: INQUIRY_ID,
-          sessionId: SESSION_ID,
-          deltaMs: delta,
-          reason: 'beforeunload',
-          timestamp: new Date().toISOString(),
-          deviceInfo: getDeviceInfo()
-        };
-        navigator.sendBeacon(DWELL_URL, new Blob([JSON.stringify(payload)], {type:'application/json'}));
-        dwell.unsentMs = 0;
-      }
-    } catch(_) {}
-    flushAndExit();
-  }, { capture:true });
+  function flushAndExit(){ exitCurrentSection(); heartbeat(); }
+  window.addEventListener('beforeunload', flushAndExit, { capture:true });
+  document.addEventListener('visibilitychange', function(){ if (document.hidden) flushAndExit(); });
 })();

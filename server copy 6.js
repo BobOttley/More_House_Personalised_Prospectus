@@ -2253,52 +2253,6 @@ app.post('/api/ai/analyze-family/:inquiryId', async (req, res) => {
  }
 });
 
-// --- Dwell accumulator endpoint (ADD THIS) ---
-app.post('/api/track/dwell', async (req, res) => {
-  const { inquiryId, sessionId, deltaMs, reason, timestamp, deviceInfo } = req.body || {};
-  try {
-    if (!inquiryId || !Number.isFinite(Number(deltaMs))) {
-      return res.status(400).json({ ok:false, error:'Missing inquiryId or deltaMs' });
-    }
-
-    // If DB isn't configured, accept and return OK so frontend doesn't error.
-    if (!db) return res.json({ ok:true, mode:'json-only', acceptedDeltaMs: Number(deltaMs) });
-
-    const delta = Math.max(0, Math.round(Number(deltaMs)));
-    await db.query('BEGIN');
-
-    // 1) Log an audit row in tracking_events
-    await db.query(`
-      INSERT INTO tracking_events (inquiry_id, event_type, event_data, page_url, user_agent, ip_address, session_id, timestamp)
-      VALUES ($1, 'dwell', $2, $3, $4, $5, $6, $7)
-    `, [
-      inquiryId,
-      JSON.stringify({ delta_ms: delta, reason: reason || null, deviceInfo: deviceInfo || null }),
-      null,
-      (deviceInfo && deviceInfo.userAgent) || null,
-      (req.ip || req.headers['x-forwarded-for'] || null),
-      sessionId || null,
-      new Date(timestamp || Date.now())
-    ]);
-
-    // 2) Increment the inquiry’s total dwell time (ms)
-    await db.query(`
-      UPDATE inquiries
-      SET dwell_ms = COALESCE(dwell_ms, 0) + $2,
-          updated_at = CURRENT_TIMESTAMP
-      WHERE id = $1
-    `, [inquiryId, delta]);
-
-    await db.query('COMMIT');
-    return res.json({ ok:true, addedMs: delta });
-  } catch (e) {
-    try { await db.query('ROLLBACK'); } catch(_) {}
-    console.warn('dwell endpoint failed:', e.message);
-    return res.status(500).json({ ok:false, error:'server_error' });
-  }
-});
-
-
 app.get('/api/inquiries', async (_req, res) => {
  try {
    const files = await fs.readdir(path.join(__dirname, 'data'));
