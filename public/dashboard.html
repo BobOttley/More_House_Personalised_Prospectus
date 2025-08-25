@@ -200,7 +200,7 @@ function renderFamilies(rows){
 
       <div style="text-align:right;min-width:220px">
         <div class="muted" style="font-weight:700">Score <span data-ai-score>—</span></div>
-        <div class="muted" style="margin:6px 0"><span data-ai-visits>—</span> visit(s)</div>
+        <div class="muted" style="margin:6px 0"><span data-ai-visits">—</span> visit(s)</div>
         <button data-id="${inquiryId}" class="gen">Regenerate AI summary</button>
       </div>
     `;
@@ -231,11 +231,10 @@ async function loadRowAI(inquiryId, row){
     if(scoreEl)  scoreEl.textContent  = String(score);
     if(visitsEl) visitsEl.textContent = String(visits);
 
-    // Use engagement.timeOnPage (in seconds) instead of empty aiEngagement data
-if (dwellEl) {
-  const timeInSeconds = engagement?.timeOnPage || 0;
-  dwellEl.textContent = formatMs(timeInSeconds * 1000); // Convert to ms for formatMs
-}
+    // If backend returns total_dwell_ms, update the "Total time" display
+    if (dwellEl && Number.isFinite(total_dwell_ms) && total_dwell_ms > 0) {
+      dwellEl.textContent = formatMs(total_dwell_ms);
+    }
 
     // Summary text
     if(textEl) { 
