@@ -374,52 +374,83 @@ const currentTimeSec = pickNumber(ed.currentTimeSec ?? ed.current_time_sec);
 
 // ---------- AI Engagement Summary (per family) ----------
 async function buildEngagementSnapshot(db, inquiryId) {
-  // Pull whatever tracking you have; keep SQL simple and safe.
-  // If you already have helpers for this, use them instead.
-  const { rows: raw } = await db.query(`
-    SELECT section_label, SUM(dwell_ms)::bigint AS dwell_ms,
-           SUM(video_ms)::bigint   AS video_ms,
-           SUM(clicks)::int        AS clicks
-    FROM prospectus_events
+  // First try to get section_exit events
+  const res = await db.query(`
+    SELECT
+      COALESCE(event_data->>'currentSection', 'Unknown') AS section_label,
+      SUM(COALESCE((event_data->>'timeInSectionSec')::int, 0) * 1000) AS dwell_ms,
+      SUM(COALESCE((event_data->>'videoWatchSec')::int, 0) * 1000) AS video_ms,
+      SUM(COALESCE((event_data->>'clicks')::int, 0)) AS clicks
+    FROM tracking_events
     WHERE inquiry_id = $1
+      AND event_type = 'section_exit'
     GROUP BY section_label
-    ORDER BY SUM(dwell_ms) DESC
-    LIMIT 50
+    ORDER BY SUM(COALESCE((event_data->>'timeInSectionSec')::int, 0)) DESC
+    LIMIT 100
   `, [inquiryId]).catch(() => ({ rows: [] }));
 
-  // Fallback if table/columns aren’t present yet
-  if (!raw || !Array.isArray(raw) || raw.length === 0) {
-    // Try a lighter fallback from any engagement summary you store
-    const { rows: e } = await db.query(`
-      SELECT time_on_page, scroll_depth, total_visits, clicks_on_links
-      FROM inquiries WHERE id = $1
-    `, [inquiryId]).catch(()=>({rows:[]}));
-    return {
-      sections: [],
-      totals: {
-        time_on_page_ms: Number(e?.[0]?.time_on_page || 0) * 1000,
-        scroll_depth: Number(e?.[0]?.scroll_depth || 0),
-        total_visits: Number(e?.[0]?.total_visits || 0),
-        clicks_on_links: Number(e?.[0]?.clicks_on_links || 0)
-      }
-    };
+  // If no section_exit events, try heartbeats
+  if (!res?.rows?.length) {
+    const heartbeats = await db.query(`
+      SELECT 
+        MAX(COALESCE((event_data->>'t')::int, 0)) as max_seconds,
+        COUNT(DISTINCT DATE(timestamp)) as visits
+      FROM tracking_events
+      WHERE inquiry_id = $1
+        AND event_type = 'heartbeat'
+    `, [inquiryId]).catch(() => ({ rows: [] }));
+    
+    const maxSec = heartbeats?.rows?.[0]?.max_seconds || 0;
+    const visits = heartbeats?.rows?.[0]?.visits || 1;
+    
+    if (maxSec > 0) {
+      // Create synthetic section data from heartbeats
+      return {
+        sections: [{
+          section: 'Full Prospectus',
+          dwell_ms: maxSec * 1000,
+          video_ms: 0,
+          clicks: 0
+        }],
+        totals: {
+          time_on_page_ms: maxSec * 1000,
+          video_ms: 0,
+          clicks: 0,
+          total_visits: visits
+        }
+      };
+    }
   }
 
-  const sections = raw.map(r => ({
-    section: r.section_label || 'Unknown',
-    dwell_ms: Number(r.dwell_ms || 0),
-    video_ms: Number(r.video_ms || 0),
-    clicks: Number(r.clicks || 0)
-  }));
+  // Process section data if we have it
+  if (res?.rows?.length) {
+    const sections = res.rows.map(r => ({
+      section: r.section_label,
+      dwell_ms: Number(r.dwell_ms || 0),
+      video_ms: Number(r.video_ms || 0),
+      clicks: Number(r.clicks || 0)
+    }));
 
-  const totals = sections.reduce((acc, s) => {
-    acc.time_on_page_ms += s.dwell_ms;
-    acc.video_ms       += s.video_ms;
-    acc.clicks         += s.clicks;
-    return acc;
-  }, { time_on_page_ms: 0, video_ms: 0, clicks: 0 });
+    const totals = sections.reduce((acc, s) => {
+      acc.time_on_page_ms += s.dwell_ms;
+      acc.video_ms += s.video_ms;
+      acc.clicks += s.clicks;
+      return acc;
+    }, { time_on_page_ms: 0, video_ms: 0, clicks: 0, total_visits: 1 });
 
-  return { sections, totals };
+    return { sections, totals };
+  }
+
+  // Ultimate fallback
+  return {
+    sections: [],
+    totals: {
+      time_on_page_ms: 0,
+      video_ms: 0,
+      clicks: 0,
+      total_visits: 0
+    }
+  };
 }
 
 function topInteractionsFrom(sections, n = 5) {
