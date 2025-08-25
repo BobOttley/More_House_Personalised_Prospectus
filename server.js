@@ -374,83 +374,95 @@ const currentTimeSec = pickNumber(ed.currentTimeSec ?? ed.current_time_sec);
 
 // ---------- AI Engagement Summary (per family) ----------
 async function buildEngagementSnapshot(db, inquiryId) {
-  // First try to get section_exit events
-  const res = await db.query(`
-    SELECT
-      COALESCE(event_data->>'currentSection', 'Unknown') AS section_label,
-      SUM(COALESCE((event_data->>'timeInSectionSec')::int, 0) * 1000) AS dwell_ms,
-      SUM(COALESCE((event_data->>'videoWatchSec')::int, 0) * 1000) AS video_ms,
-      SUM(COALESCE((event_data->>'clicks')::int, 0)) AS clicks
-    FROM tracking_events
-    WHERE inquiry_id = $1
-      AND event_type = 'section_exit'
-    GROUP BY section_label
-    ORDER BY SUM(COALESCE((event_data->>'timeInSectionSec')::int, 0)) DESC
-    LIMIT 100
-  `, [inquiryId]).catch(() => ({ rows: [] }));
-
-  // If no section_exit events, try heartbeats
-  if (!res?.rows?.length) {
-    const heartbeats = await db.query(`
-      SELECT 
-        MAX(COALESCE((event_data->>'t')::int, 0)) as max_seconds,
-        COUNT(DISTINCT DATE(timestamp)) as visits
-      FROM tracking_events
-      WHERE inquiry_id = $1
-        AND event_type = 'heartbeat'
-    `, [inquiryId]).catch(() => ({ rows: [] }));
+  try {
+    // First check if we have ANY tracking events for this inquiry
+    const eventCheck = await db.query(
+      'SELECT COUNT(*) as count FROM tracking_events WHERE inquiry_id = $1',
+      [inquiryId]
+    );
     
-    const maxSec = heartbeats?.rows?.[0]?.max_seconds || 0;
-    const visits = heartbeats?.rows?.[0]?.visits || 1;
+    const hasEvents = parseInt(eventCheck.rows[0]?.count || '0') > 0;
     
-    if (maxSec > 0) {
-      // Create synthetic section data from heartbeats
+    if (!hasEvents) {
+      // Return a properly structured empty snapshot
       return {
-        sections: [{
-          section: 'Full Prospectus',
-          dwell_ms: maxSec * 1000,
-          video_ms: 0,
-          clicks: 0
-        }],
+        inquiryId,
+        sections: [],
         totals: {
-          time_on_page_ms: maxSec * 1000,
+          time_on_page_ms: 0,
           video_ms: 0,
           clicks: 0,
-          total_visits: visits
-        }
+          total_visits: 0,
+          scroll_depth: 0
+        },
+        hasData: false
       };
     }
-  }
 
-  // Process section data if we have it
-  if (res?.rows?.length) {
-    const sections = res.rows.map(r => ({
-      section: r.section_label,
-      dwell_ms: Number(r.dwell_ms || 0),
-      video_ms: Number(r.video_ms || 0),
-      clicks: Number(r.clicks || 0)
+    // Get section-level engagement data
+    const secExit = await db.query(`
+      SELECT
+        COALESCE(event_data->>'currentSection', 'unknown') AS section_id,
+        SUM(COALESCE((event_data->>'timeInSectionSec')::int, 0)) AS dwell_sec,
+        MAX(COALESCE((event_data->>'maxScrollPct')::int, 0)) AS max_scroll_pct,
+        COUNT(DISTINCT CASE WHEN event_type = 'link_click' THEN event_data->>'linkId' END) AS clicks,
+        SUM(COALESCE((event_data->>'watchTimeSec')::int, 0)) AS video_sec
+      FROM tracking_events
+      WHERE inquiry_id = $1
+        AND event_type IN ('section_exit', 'link_click', 'youtube_video_progress')
+      GROUP BY 1
+    `, [inquiryId]);
+
+    // Get visit count
+    const visitCount = await db.query(`
+      SELECT COUNT(DISTINCT session_id) as total_visits
+      FROM tracking_events
+      WHERE inquiry_id = $1
+    `, [inquiryId]);
+
+    // Build sections array
+    const sections = secExit.rows.map(row => ({
+      section_id: row.section_id,
+      dwell_seconds: parseInt(row.dwell_sec || 0),
+      max_scroll_pct: parseInt(row.max_scroll_pct || 0),
+      clicks: parseInt(row.clicks || 0),
+      video_seconds: parseInt(row.video_sec || 0)
     }));
 
-    const totals = sections.reduce((acc, s) => {
-      acc.time_on_page_ms += s.dwell_ms;
-      acc.video_ms += s.video_ms;
-      acc.clicks += s.clicks;
-      return acc;
-    }, { time_on_page_ms: 0, video_ms: 0, clicks: 0, total_visits: 1 });
+    // Calculate totals
+    const totals = {
+      time_on_page_ms: sections.reduce((sum, s) => sum + (s.dwell_seconds * 1000), 0),
+      video_ms: sections.reduce((sum, s) => sum + (s.video_seconds * 1000), 0),
+      clicks: sections.reduce((sum, s) => sum + s.clicks, 0),
+      total_visits: parseInt(visitCount.rows[0]?.total_visits || 0),
+      scroll_depth: sections.length > 0 
+        ? Math.round(sections.reduce((sum, s) => sum + s.max_scroll_pct, 0) / sections.length)
+        : 0
+    };
 
-    return { sections, totals };
+    return {
+      inquiryId,
+      sections,
+      totals,
+      hasData: sections.length > 0 || totals.total_visits > 0
+    };
+
+  } catch (error) {
+    console.error('Error building engagement snapshot:', error);
+    // Return a safe default on error
+    return {
+      inquiryId,
+      sections: [],
+      totals: {
+        time_on_page_ms: 0,
+        video_ms: 0,
+        clicks: 0,
+        total_visits: 0,
+        scroll_depth: 0
+      },
+      hasData: false
+    };
   }
-
-  // Ultimate fallback
-  return {
-    sections: [],
-    totals: {
-      time_on_page_ms: 0,
-      video_ms: 0,
-      clicks: 0,
-      total_visits: 0
-    }
-  };
 }
 
 function topInteractionsFrom(sections, n = 5) {
@@ -529,6 +541,25 @@ async function upsertAiInsight(db, inquiryId, analysisType, insightsJson) {
 async function summariseFamilyEngagement(db, llm, inquiry) {
   const inquiryId = inquiry.id || inquiry.inquiry_id;
   const snapshot = await buildEngagementSnapshot(db, inquiryId);
+  
+  // Handle empty snapshot case
+  if (!snapshot.hasData || snapshot.sections.length === 0) {
+    const defaultResult = {
+      narrative: `Personalised prospectus generated for ${inquiry.first_name || 'this family'}. We're ready to track their engagement as soon as they begin exploring the materials. Once they start viewing sections and videos, we'll provide detailed insights about their interests and engagement patterns.`,
+      highlights: [
+        '• Prospectus successfully created and ready for viewing',
+        '• Awaiting first family visit to begin tracking engagement',
+        '• Full analytics will appear once interaction data is available'
+      ]
+    };
+    
+    // Store the default result
+    await upsertAiInsight(db, inquiryId, 'engagement_summary', defaultResult);
+    
+    return defaultResult;
+  }
+  
+  // Generate AI story only if we have data
   const payload = await generateAiEngagementStory(llm, snapshot, {
     first_name: inquiry.first_name,
     family_surname: inquiry.family_surname,
@@ -537,13 +568,15 @@ async function summariseFamilyEngagement(db, llm, inquiry) {
 
   // Normalise shape we return to the dashboard
   const result = {
-    narrative: payload?.narrative || 'Prospectus generated. Awaiting first visit.',
-    highlights: Array.isArray(payload?.highlights) ? payload.highlights.slice(0,5) : [],
-    top_interactions: topInteractionsFrom(snapshot.sections || [], 5),
-    totals: snapshot.totals || { time_on_page_ms: 0, video_ms: 0, clicks: 0 }
+    narrative: payload?.narrative || 'Engagement data is being processed.',
+    highlights: Array.isArray(payload?.highlights) 
+      ? payload.highlights 
+      : ['• Engagement tracking active', '• Data collection in progress']
   };
 
+  // Store in database
   await upsertAiInsight(db, inquiryId, 'engagement_summary', result);
+  
   return result;
 }
 
