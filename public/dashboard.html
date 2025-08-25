@@ -231,10 +231,11 @@ async function loadRowAI(inquiryId, row){
     if(scoreEl)  scoreEl.textContent  = String(score);
     if(visitsEl) visitsEl.textContent = String(visits);
 
-    // If backend returns a canonical total dwell (ms), prefer it and display
-    if (dwellEl && Number.isFinite(total_dwell_ms)) {
-      dwellEl.textContent = formatMs(total_dwell_ms);
-    }
+    // Use engagement.timeOnPage (in seconds) instead of empty aiEngagement data
+if (dwellEl) {
+  const timeInSeconds = engagement?.timeOnPage || 0;
+  dwellEl.textContent = formatMs(timeInSeconds * 1000); // Convert to ms for formatMs
+}
 
     // Summary text
     if(textEl) { 
