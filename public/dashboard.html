@@ -82,15 +82,16 @@ S('analyzeAllBtn').onclick = analyzeAll;
 async function init(){
   status('Loading...');
   try{
-    // Your existing back-end sources:
-    const fam = await fetchJson('/api/analytics/inquiries');   // rows per enquiry (includes fields for names, emails, urls)
-    const dash = await fetchJson('/api/dashboard-data');       // activity + counts
+    const fam = await fetchJson('/api/analytics/inquiries');   
+    const dash = await fetchJson('/api/dashboard-data');       
     renderFamilies(Array.isArray(fam) ? fam : []);
     renderActivity(dash?.recentlyActive || []);
     renderMetrics(Array.isArray(fam) ? fam : [], dash);
     status('Loaded');
   }catch(e){
-    status('Load failed', 'err', e);
+    status('Load failed - Check API endpoints', 'err', e);
+    familiesEl.innerHTML = '<div class="muted">API endpoints not available. Please check your server.</div>';
+    activityEl.innerHTML = '<div class="muted">No activity data - server offline.</div>';
   }
 }
 
@@ -332,13 +333,16 @@ function calcScore(eng,e){
 }
 
 function escapeHtml(x){ 
-  return String(x).replace(/[&<>"']/g, m => ({
-    '&':'&amp;',
-    '<':'&lt;',
-    '>':'&gt;',
-    '"':'&quot;',
-    "'": '&#039;'
-  }[m])); 
+  return String(x).replace(/[&<>"']/g, function(m) {
+    var entities = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#039;'
+    };
+    return entities[m];
+  }); 
 }
 
 init();
