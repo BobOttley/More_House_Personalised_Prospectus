@@ -2507,6 +2507,79 @@ app.get('/api/debug/engagement/:inquiryId', async (req, res) => {
   }
 });
 
+// Add this new endpoint to your server.js after the existing engagement endpoints
+
+app.get('/api/section-data/:inquiryId', async (req, res) => {
+  try {
+    if (!db) return res.status(500).json({ error: 'Database not available' });
+
+    const inquiryId = req.params.inquiryId;
+    
+    // Get section breakdown from tracking_events - this is the SAME query the AI uses
+    const sections = await db.query(`
+      SELECT
+        COALESCE(event_data->>'currentSection', 'unknown') AS section_id,
+        SUM(COALESCE((event_data->>'timeInSectionSec')::int, 0)) AS dwell_seconds,
+        MAX(COALESCE((event_data->>'maxScrollPct')::int, 0)) AS max_scroll_pct,
+        COUNT(CASE WHEN event_type = 'link_click' THEN 1 END) AS clicks
+      FROM tracking_events
+      WHERE inquiry_id = $1
+        AND event_type IN ('section_exit_enhanced', 'section_exit', 'link_click')
+        AND event_data IS NOT NULL
+      GROUP BY 1
+      HAVING SUM(COALESCE((event_data->>'timeInSectionSec')::int, 0)) > 0
+      ORDER BY 2 DESC
+    `, [inquiryId]);
+
+    // Get basic stats
+    const visits = await db.query(`
+      SELECT COUNT(DISTINCT session_id) as visit_count
+      FROM tracking_events
+      WHERE inquiry_id = $1
+    `, [inquiryId]);
+
+    // Get total dwell from inquiries table
+    const inquiryData = await db.query(`
+      SELECT dwell_ms, return_visits 
+      FROM inquiries 
+      WHERE id = $1
+    `, [inquiryId]);
+
+    const totalDwellMs = parseInt(inquiryData.rows[0]?.dwell_ms || '0');
+    const visitCount = parseInt(visits.rows[0]?.visit_count || '1');
+    
+    // Calculate engagement score
+    const engagementScore = Math.min(100, Math.round(totalDwellMs / 1000 / 10) + 25);
+
+    // Format sections for dashboard display
+    const formattedSections = sections.rows.map(row => ({
+      section: row.section_id,
+      section_name: prettySectionName(row.section_id), // Use your existing function
+      dwell_seconds: parseInt(row.dwell_seconds || 0),
+      max_scroll_pct: parseInt(row.max_scroll_pct || 0),
+      clicks: parseInt(row.clicks || 0),
+      dwell_minutes: Math.round(parseInt(row.dwell_seconds || 0) / 60)
+    }));
+
+    res.json({
+      inquiryId,
+      sections: formattedSections,
+      totalDwellMs,
+      totalDwellMinutes: Math.round(totalDwellMs / 60000),
+      visitCount,
+      engagementScore,
+      hasData: formattedSections.length > 0 || totalDwellMs > 0
+    });
+
+  } catch (error) {
+    console.error('Section data endpoint error:', error);
+    res.status(500).json({ 
+      error: 'Failed to get section data',
+      message: error.message 
+    });
+  }
+});
+
 app.get('/api/debug/snapshot/:inquiryId', async (req, res) => {
   if (!db) return res.status(500).json({ error: 'No database' });
   
@@ -2814,6 +2887,207 @@ app.get('/', (req, res) => {
   </ul>
   <p>Pretty links: <code>${base}/the-smith-family-abc123</code></p>
 </body></html>`);
+});
+
+// ADD THIS NEW ENDPOINT - Section data independent of AI
+app.get('/api/section-data/:inquiryId', async (req, res) => {
+  try {
+    if (!db) return res.status(500).json({ error: 'Database not available' });
+
+    const inquiryId = req.params.inquiryId;
+    
+    // Get section breakdown from tracking_events
+    const sections = await db.query(`
+      SELECT
+        COALESCE(event_data->>'currentSection', 'unknown') AS section_id,
+        SUM(COALESCE((event_data->>'timeInSectionSec')::int, 0)) AS dwell_seconds,
+        MAX(COALESCE((event_data->>'maxScrollPct')::int, 0)) AS max_scroll_pct,
+        COUNT(CASE WHEN event_type = 'link_click' THEN 1 END) AS clicks
+      FROM tracking_events
+      WHERE inquiry_id = $1
+        AND event_type IN ('section_exit_enhanced', 'section_exit', 'link_click')
+        AND event_data IS NOT NULL
+      GROUP BY 1
+      HAVING SUM(COALESCE((event_data->>'timeInSectionSec')::int, 0)) > 0
+      ORDER BY 2 DESC
+    `, [inquiryId]);
+
+    // Get basic stats
+    const visits = await db.query(`
+      SELECT COUNT(DISTINCT session_id) as visit_count
+      FROM tracking_events
+      WHERE inquiry_id = $1
+    `, [inquiryId]);
+
+    // Get total dwell from inquiries table
+    const inquiryData = await db.query(`
+      SELECT dwell_ms, return_visits 
+      FROM inquiries 
+      WHERE id = $1
+    `, [inquiryId]);
+
+    const totalDwellMs = parseInt(inquiryData.rows[0]?.dwell_ms || '0');
+    const visitCount = parseInt(visits.rows[0]?.visit_count || '1');
+    
+    // Calculate engagement score
+    const engagementScore = Math.min(100, Math.round(totalDwellMs / 1000 / 10) + 25);
+
+    // Format sections for dashboard display
+    const formattedSections = sections.rows.map(row => ({
+      section: row.section_id,
+      section_name: prettySectionName(row.section_id),
+      dwell_seconds: parseInt(row.dwell_seconds || 0),
+      max_scroll_pct: parseInt(row.max_scroll_pct || 0),
+      clicks: parseInt(row.clicks || 0),
+      dwell_minutes: Math.round(parseInt(row.dwell_seconds || 0) / 60)
+    }));
+
+    res.json({
+      inquiryId,
+      sections: formattedSections,
+      totalDwellMs,
+      totalDwellMinutes: Math.round(totalDwellMs / 60000),
+      visitCount,
+      engagementScore,
+      hasData: formattedSections.length > 0 || totalDwellMs > 0
+    });
+
+  } catch (error) {
+    console.error('Section data endpoint error:', error);
+    res.status(500).json({ 
+      error: 'Failed to get section data',
+      message: error.message 
+    });
+  }
+});
+
+// Add this diagnostic endpoint to your server.js to debug Barbara's specific data
+
+app.get('/api/debug/barbara', async (req, res) => {
+  try {
+    if (!db) return res.status(500).json({ error: 'Database not available' });
+    
+    const inquiryId = 'INQ-1756192540364116'; // Barbara's ID
+    
+    // 1. Check what events exist for Barbara
+    const eventTypes = await db.query(`
+      SELECT event_type, COUNT(*) as count, MIN(timestamp) as first_event, MAX(timestamp) as last_event
+      FROM tracking_events
+      WHERE inquiry_id = $1
+      GROUP BY event_type
+      ORDER BY count DESC
+    `, [inquiryId]);
+    
+    // 2. Look at the actual event data structure for section_exit events
+    const sectionEvents = await db.query(`
+      SELECT 
+        event_type,
+        event_data,
+        timestamp,
+        session_id
+      FROM tracking_events
+      WHERE inquiry_id = $1
+        AND event_type LIKE '%section%'
+      ORDER BY timestamp DESC
+      LIMIT 10
+    `, [inquiryId]);
+    
+    // 3. Test the exact query used by the section-data endpoint
+    const sectionQuery = await db.query(`
+      SELECT
+        COALESCE(event_data->>'currentSection', 'unknown') AS section_id,
+        SUM(COALESCE((event_data->>'timeInSectionSec')::int, 0)) AS dwell_seconds,
+        MAX(COALESCE((event_data->>'maxScrollPct')::int, 0)) AS max_scroll_pct,
+        COUNT(CASE WHEN event_type = 'link_click' THEN 1 END) AS clicks,
+        event_data->>'timeInSectionSec' as raw_time,
+        event_data->>'maxScrollPct' as raw_scroll
+      FROM tracking_events
+      WHERE inquiry_id = $1
+        AND event_type IN ('section_exit_enhanced', 'section_exit', 'link_click')
+        AND event_data IS NOT NULL
+      GROUP BY 1, event_data->>'timeInSectionSec', event_data->>'maxScrollPct'
+      ORDER BY 2 DESC
+    `, [inquiryId]);
+    
+    // 4. Check what's in the inquiries table for Barbara
+    const inquiryData = await db.query(`
+      SELECT id, first_name, family_surname, dwell_ms, return_visits, status
+      FROM inquiries
+      WHERE id = $1
+    `, [inquiryId]);
+    
+    // 5. Check AI insights
+    const aiInsights = await db.query(`
+      SELECT analysis_type, insights_json, generated_at
+      FROM ai_family_insights
+      WHERE inquiry_id = $1
+    `, [inquiryId]);
+    
+    res.json({
+      inquiryId,
+      diagnosis: {
+        inquiry: inquiryData.rows[0] || null,
+        eventTypeCounts: eventTypes.rows,
+        sampleSectionEvents: sectionEvents.rows.map(row => ({
+          type: row.event_type,
+          data: row.event_data,
+          timestamp: row.timestamp,
+          session: row.session_id
+        })),
+        sectionQueryResults: sectionQuery.rows,
+        aiInsights: aiInsights.rows.map(row => ({
+          type: row.analysis_type,
+          generated: row.generated_at,
+          summary: row.insights_json?.narrative?.substring(0, 100) + '...' || 'No narrative'
+        }))
+      },
+      recommendations: {
+        hasTrackingEvents: eventTypes.rows.length > 0,
+        hasSectionExitEvents: eventTypes.rows.some(r => r.event_type.includes('section')),
+        sectionDataAvailable: sectionQuery.rows.length > 0,
+        totalDwellTime: inquiryData.rows[0]?.dwell_ms || 0,
+        issue: sectionQuery.rows.length === 0 ? 'NO_SECTION_DATA_FOUND' : 'SECTION_DATA_EXISTS'
+      }
+    });
+    
+  } catch (error) {
+    console.error('Barbara diagnostic error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Also add this simplified test endpoint to verify the section data flow
+app.get('/api/test/section-data/:inquiryId', async (req, res) => {
+  if (!db) return res.status(500).json({ error: 'No DB' });
+  
+  const inquiryId = req.params.inquiryId;
+  
+  try {
+    // Simple query to see what section data exists
+    const result = await db.query(`
+      SELECT 
+        event_data->>'currentSection' as section,
+        event_data->>'timeInSectionSec' as time_sec,
+        event_data->>'maxScrollPct' as scroll_pct,
+        event_type,
+        timestamp
+      FROM tracking_events
+      WHERE inquiry_id = $1
+        AND event_data IS NOT NULL
+        AND event_data->>'currentSection' IS NOT NULL
+      ORDER BY timestamp DESC
+    `, [inquiryId]);
+    
+    res.json({
+      inquiryId,
+      rawSectionData: result.rows,
+      count: result.rows.length,
+      status: result.rows.length > 0 ? 'SECTION_DATA_FOUND' : 'NO_SECTION_DATA'
+    });
+    
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // 404 handler
