@@ -1457,7 +1457,6 @@ app.post('/api/track-engagement', async (req, res) => {
         await db.query(`
           UPDATE inquiries 
           SET dwell_ms = GREATEST(COALESCE(dwell_ms, 0), $2),
-              return_visits = COALESCE(return_visits, 0) + 1,
               updated_at = CURRENT_TIMESTAMP
           WHERE id = $1
         `, [sessionInfo.inquiryId, totalMs]);
