@@ -1,534 +1,522 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>More House SMART Admissions Intelligence</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --navy: #0a2540;
-            --gold: #ff9f1c;
-            --green: #10b981;
-            --red: #ef4444;
-            --amber: #f59e0b;
-            --purple: #8b5cf6;
-            --blue: #3b82f6;
-            --slate: #64748b;
-            --grey-50: #f8fafc;
-            --grey-100: #f1f5f9;
-            --grey-200: #e2e8f0;
-            --grey-300: #cbd5e1;
-            --grey-400: #94a3b8;
-            --grey-500: #64748b;
-            --grey-600: #475569;
-            --grey-700: #334155;
-            --grey-800: #1e293b;
-            --grey-900: #0f172a;
-        }
-
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-
-        body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: var(--grey-50);
-            color: var(--grey-900);
-            line-height: 1.5;
-            font-size: 14px;
-        }
-
-        /* Header */
-        .header {
-            position: fixed;
-            top: 0; left: 0; right: 0;
-            height: 64px;
-            background: linear-gradient(135deg, var(--navy) 0%, #1e40af 100%);
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 24px;
-            z-index: 1000;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-
-        .header-title { font-size: 20px; font-weight: 600; }
-        .header-title .smart { color: var(--gold); }
-
-        .header-controls { display: flex; gap: 12px; align-items: center; }
-        .header-btn {
-            padding: 8px 16px;
-            border: 1px solid rgba(255,255,255,0.2);
-            border-radius: 6px;
-            font-size: 13px; font-weight: 500;
-            background: rgba(255,255,255,0.1);
-            color: white; cursor: pointer; transition: all 0.2s;
-        }
-        .header-btn:hover { background: rgba(255,255,255,0.2); }
-        .header-btn.primary { background: var(--gold); border-color: var(--gold); color: var(--navy); }
-
-        /* Layout */
-        .dashboard {
-            margin-top: 64px;
-            display: grid;
-            grid-template-columns: 320px 1fr;
-            min-height: calc(100vh - 64px);
-        }
-        .sidebar { background: white; border-right: 1px solid var(--grey-200); overflow-y: auto; }
-        .main-content { padding: 24px; overflow-y: auto; }
-
-        /* Sidebar */
-        .sidebar-section { padding: 20px; border-bottom: 1px solid var(--grey-100); }
-        .sidebar-title {
-            font-size: 13px; font-weight: 600; text-transform: uppercase;
-            letter-spacing: 0.5px; color: var(--grey-500); margin-bottom: 16px;
-        }
-        .intelligence-summary {
-            display: grid; grid-template-columns: repeat(2, 1fr);
-            gap: 12px; margin-bottom: 20px;
-        }
-        .intelligence-metric {
-            background: var(--grey-50); padding: 12px; border-radius: 8px; text-align: center;
-        }
-        .intelligence-value { font-size: 20px; font-weight: 700; color: var(--navy); display: block; }
-        .intelligence-label { font-size: 11px; color: var(--grey-500); margin-top: 4px; }
-
-        /* Family Cards */
-        .family-cards { display: grid; gap: 16px; }
-        .family-card {
-            background: white; border: 1px solid var(--grey-200);
-            border-radius: 12px; overflow: hidden; transition: all 0.2s;
-        }
-        .family-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
-
-        .family-header {
-            padding: 16px 20px; background: var(--grey-50);
-            display: flex; justify-content: space-between; align-items: flex-start;
-        }
-        .family-name-section h3 { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
-        .family-meta-line { font-size: 13px; color: var(--grey-500); }
-        .family-stats { display: flex; gap: 8px; align-items: center; }
-        .stat-badge {
-            background: white; border: 1px solid var(--grey-200);
-            padding: 4px 8px; border-radius: 6px; font-size: 11px; color: var(--grey-600);
-        }
-        .score-badge {
-            background: var(--navy); color: white; padding: 6px 10px;
-            border-radius: 6px; font-size: 12px; font-weight: 600;
-        }
-
-        /* Prospectus actions */
-        .family-actions {
-            display:flex; gap:8px; align-items:center; justify-content:flex-start;
-            padding:12px 16px; border-top:1px solid var(--grey-100);
-        }
-        .btn-link {
-            text-decoration:none; padding:6px 10px; border-radius:6px; font-size:12px; font-weight:600;
-        }
-        .btn-primary { background: var(--navy); color: #fff; }
-        .btn-ghost { color: var(--grey-600); text-decoration: underline; }
-
-        /* Section Heatmap */
-        .section-heatmap { padding: 16px; background: white; }
-        .section-heatmap-title { font-size: 14px; font-weight: 600; margin-bottom: 12px; color: var(--grey-700); }
-        .heatmap-grid { display: grid; gap: 8px; }
-        .heatmap-row {
-            display: grid; grid-template-columns: 2fr 1fr 80px;
-            align-items: center; padding: 8px 12px; background: var(--grey-50);
-            border-radius: 6px; font-size: 12px;
-        }
-        .heatmap-section { font-weight: 500; color: var(--grey-700); }
-        .heatmap-time { text-align: right; color: var(--grey-600); }
-        .heatmap-bar { background: var(--grey-200); height: 20px; border-radius: 4px; overflow: hidden; position: relative; }
-        .heatmap-fill { height: 100%; background: linear-gradient(90deg, var(--blue) 0%, var(--purple) 100%); transition: width 0.3s ease; }
-
-        /* Behavioural (British spelling for labels) */
-        .behavioral-panel { padding: 16px; background: var(--grey-50); border-radius: 8px; margin: 16px; }
-        .behavioral-title { font-size: 14px; font-weight: 600; margin-bottom: 12px; color: var(--grey-700); }
-        .behavior-tags { display: flex; flex-wrap: wrap; gap: 8px; }
-        .behavior-tag {
-            padding: 6px 12px; background: white; border: 1px solid var(--grey-200);
-            border-radius: 16px; font-size: 12px; color: var(--grey-600);
-        }
-        .behavior-tag.hot { background: rgba(239, 68, 68, 0.1); border-color: var(--red); color: var(--red); }
-        .behavior-tag.warm { background: rgba(245, 158, 11, 0.1); border-color: var(--amber); color: var(--amber); }
-
-        /* AI Narrative */
-        .ai-narrative {
-            background: linear-gradient(135deg, var(--navy) 0%, #1e40af 100%);
-            color: white; padding: 16px; margin: 16px; border-radius: 8px; font-size: 13px; line-height: 1.6;
-        }
-
-        /* Empty & Loading */
-        .empty-state { text-align: center; padding: 40px 20px; color: var(--grey-500); }
-        .loading { display: flex; align-items: center; justify-content: center; padding: 40px; }
-        .spinner {
-            width: 24px; height: 24px; border: 2px solid var(--grey-200);
-            border-top-color: var(--navy); border-radius: 50%; animation: spin 1s linear infinite;
-        }
-        @keyframes spin { to { transform: rotate(360deg); } }
-
-        /* Section details expand */
-        .expand-sections { margin: 16px; text-align: center; }
-        .expand-btn {
-            padding: 8px 16px; background: var(--grey-100); border: 1px solid var(--grey-200);
-            border-radius: 6px; font-size: 12px; color: var(--grey-600); cursor: pointer; transition: all 0.2s;
-        }
-        .expand-btn:hover { background: var(--grey-200); }
-    </style>
+  <meta charset="utf-8" />
+  <title>PEN.ai Admissions Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root{
+      --bg:#f7f8fb;--card:#ffffff;--ink:#1f2937;--ink-dim:#4b5563;--muted:#6b7280;
+      --brand:#0f5cc0;--brand-2:#0b4692;--ok:#0e9f6e;--warn:#f59e0b;--bad:#ef4444;
+      --chip:#eef2ff;--chip-text:#1e3a8a;--pill:#e5f2ff;--border:#e5e7eb;
+    }
+    html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+    h1,h2,h3{font-weight:600;letter-spacing:-.015em}
+    h1{font-size:20px;margin:0}
+    .wrap{max-width:1200px;margin:28px auto;padding:0 16px}
+    .toolbar{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
+    .toolbar .search{flex:1;min-width:240px}
+    input[type="text"],select{
+      width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--ink);
+      outline:none
+    }
+    .btn{appearance:none;border:1px solid var(--brand);background:var(--brand);color:#fff;
+      padding:10px 14px;border-radius:8px;font-weight:600;cursor:pointer}
+    .btn.secondary{background:#fff;color:var(--brand)}
+    .btn:disabled{opacity:.5;cursor:not-allowed}
+    .chips{display:flex;gap:8px;flex-wrap:wrap}
+    .chip{background:var(--pill);color:var(--brand);border:1px solid var(--border);padding:6px 10px;border-radius:999px;font-size:12px}
+    .grid{display:grid;grid-template-columns:1fr;gap:12px}
+    @media(min-width:900px){.grid{grid-template-columns:1fr 1fr}}
+    .card{
+      background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden
+    }
+    .card-h{
+      display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;padding:14px 16px;border-bottom:1px solid var(--border)
+    }
+    .card-h .title{font-weight:700}
+    .meta{display:flex;gap:8px;flex-wrap:wrap}
+    .meta .k{font-size:12px;color:var(--muted);border:1px dashed var(--border);padding:4px 8px;border-radius:999px;background:#fff}
+    .status{font-size:12px;font-weight:700;padding:4px 8px;border-radius:6px}
+    .status.gen{background:#eef2ff;color:#3730a3}
+    .status.view{background:#ecfeff;color:#155e75}
+    .status.idle{background:#fff7ed;color:#9a3412}
+    .body{padding:14px 16px;display:grid;gap:12px}
+    .section{border:1px solid var(--border);border-radius:10px;overflow:hidden}
+    .section h3{font-size:14px;margin:0;padding:10px 12px;background:#fafafa;border-bottom:1px solid var(--border)}
+    .section .pad{padding:10px 12px}
+    .cols{display:grid;grid-template-columns:1fr;gap:10px}
+    @media(min-width:800px){.cols{grid-template-columns:1fr 1fr}}
+    table{width:100%;border-collapse:collapse;font-size:13px}
+    th,td{border-bottom:1px solid var(--border);padding:8px 6px;text-align:left;vertical-align:top}
+    th{font-size:12px;color:var(--muted);font-weight:600}
+    .right{text-align:right}
+    .muted{color:var(--muted)}
+    .score{font-weight:800}
+    .score.good{color:var(--ok)} .score.mid{color:var(--warn)} .score.bad{color:var(--bad)}
+    details summary{cursor:pointer;list-style:none}
+    details summary::-webkit-details-marker{display:none}
+    details .caret{display:inline-block;transform:rotate(0deg);transition:transform .15s ease;margin-right:6px}
+    details[open] .caret{transform:rotate(90deg)}
+    .pill{display:inline-block;background:var(--chip);color:var(--chip-text);padding:4px 8px;border-radius:999px;font-size:12px}
+    .hl{background:#fff6e5;border:1px solid #ffe6b3}
+    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .nowrap{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .actions{display:flex;gap:8px;flex-wrap:wrap}
+    a.link{color:var(--brand);text-decoration:none;border-bottom:1px dashed var(--brand)}
+    .kbd{font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;background:#111827;color:#e5e7eb;padding:2px 6px;border-radius:6px}
+    .note{font-size:12px;color:var(--muted)}
+  </style>
 </head>
 <body>
-    <header class="header">
-        <h1 class="header-title">More House <span class="smart">SMART</span> Intelligence</h1>
-        <div class="header-controls">
-            <button class="header-btn" onclick="dashboard.refresh()">Refresh Data</button>
-            <button class="header-btn primary" onclick="dashboard.generateAllSummaries()">Generate AI Summaries</button>
-        </div>
-    </header>
-
-    <div class="dashboard">
-        <aside class="sidebar">
-            <div class="sidebar-section">
-                <h2 class="sidebar-title">Intelligence Summary</h2>
-                <div class="intelligence-summary">
-                    <div class="intelligence-metric">
-                        <span class="intelligence-value" id="totalFamilies">0</span>
-                        <div class="intelligence-label">Total Families</div>
-                    </div>
-                    <div class="intelligence-metric">
-                        <span class="intelligence-value" id="engagedFamilies">0</span>
-                        <div class="intelligence-label">Engaged</div>
-                    </div>
-                    <div class="intelligence-metric">
-                        <span class="intelligence-value" id="hotLeads">0</span>
-                        <div class="intelligence-label">Hot Leads</div>
-                    </div>
-                    <div class="intelligence-metric">
-                        <span class="intelligence-value" id="deepReaders">0</span>
-                        <div class="intelligence-label">Deep Readers</div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="sidebar-section">
-                <h2 class="sidebar-title">Top Engaged Families</h2>
-                <div id="topFamilies" class="priority-families">
-                    <div class="loading"><div class="spinner"></div></div>
-                </div>
-            </div>
-        </aside>
-
-        <main class="main-content">
-            <div class="family-cards" id="familyIntelligence">
-                <div class="loading">
-                    <div class="spinner"></div>
-                </div>
-            </div>
-        </main>
+  <div class="wrap">
+    <div class="row" style="justify-content:space-between;margin-bottom:10px">
+      <h1>PEN.ai Admissions Dashboard</h1>
+      <div class="chips" id="counts"></div>
     </div>
 
-    <script>
-        class SmartIntelligenceDashboard {
-            constructor() {
-                this.families = [];
-                this.sectionData = {};
-                this.init();
-            }
+    <div class="toolbar">
+      <div class="search">
+        <input id="q" type="text" placeholder="Search surname, child, or parent email…" />
+      </div>
+      <select id="sort">
+        <option value="recent">Sort: Most recent first</option>
+        <option value="oldest">Sort: Oldest first</option>
+        <option value="engagement">Sort: Highest engagement</option>
+        <option value="alpha">Sort: A→Z (surname)</option>
+      </select>
+      <label class="row" title="≥ 60 score or ≥ 2 mins dwell">
+        <input type="checkbox" id="fHigh" /> High engagement only
+      </label>
+      <button class="btn secondary" id="refresh">Refresh</button>
+    </div>
 
-            async init() {
-                console.log('🧠 SMART Intelligence Dashboard initializing...');
-                await this.loadAllData();
-                this.render();
-                // Auto-refresh every 30 seconds
-                setInterval(() => this.loadAllData(), 30000);
-            }
+    <div class="grid" id="cards"></div>
+    <p class="note" id="log"></p>
+  </div>
 
-            async loadAllData() {
-                try {
-                    const response = await fetch('/api/raw-family-data');
-                    if (!response.ok) throw new Error('Failed to load family data');
-                    this.families = await response.json();
-                    console.log(`Loaded ${this.families.length} families with raw data`);
+  <script>
+    // ---------- Small helpers ----------
+    const $ = sel => document.querySelector(sel);
+    const fmtTS = ts => ts ? new Date(ts).toLocaleString() : '—';
+    const fmtMs = ms => {
+      if(ms==null) return '—';
+      const s = Math.max(0, Math.round(ms/1000));
+      const m = Math.floor(s/60), r = s%60;
+      return (m?`${m}m `:'')+`${r}s`;
+    };
+    const scoreClass = n => n>=75?'good':n>=50?'mid':'bad';
+    const safe = x => x ?? '—';
+    const truncate = (s,n=48)=> s && s.length>n ? s.slice(0,n-1)+'…' : s;
 
-                    // Load detailed section data for each engaged family
-                    for (const family of this.families.filter(f => (f.dwell_ms || 0) > 0)) {
-                        await this.loadSectionData(family.id);
-                    }
-                    this.render();
-                } catch (error) {
-                    console.error('Failed to load data:', error);
-                }
-            }
+    // Try endpoints in order until one returns ok
+    async function tryFetch(method, paths, {body, headers}={}) {
+      const errs=[];
+      for(const p of paths){
+        try{
+          const res = await fetch(p, {method, headers, body});
+          if(res.ok) return {url:p, json: await res.json()};
+          errs.push(`${p} -> ${res.status}`);
+        }catch(e){ errs.push(`${p} -> ${e.message}`);}
+      }
+      throw new Error('All routes failed: '+errs.join(' | '));
+    }
 
-            async loadSectionData(inquiryId) {
-                try {
-                    const response = await fetch(`/api/section-data/${inquiryId}`);
-                    if (response.ok) {
-                        const data = await response.json();
-                        this.sectionData[inquiryId] = data;
-                        console.log(`Loaded section data for ${inquiryId}:`, data);
-                    }
-                } catch (error) {
-                    console.warn(`Failed to load section data for ${inquiryId}:`, error);
-                }
-            }
+    // ---------- Load list of families / enquiries ----------
+    async function loadList(){
+      const {json} = await tryFetch('GET', [
+        '/api/families',
+        '/api/inquiries',
+        '/api/prospectuses'
+      ]);
+      // Expect an array of objects; normalise a few common fields
+      return (Array.isArray(json)?json:(json.items||json.data||[])).map(x=>({
+        inquiry_id: x.inquiry_id || x.id || x.inquiryId,
+        child_name: x.child_name || x.child || x.first_name || x.childFirstName,
+        family_surname: x.family_surname || x.surname || x.family || x.familySurname,
+        entry_year: x.entry_year || x.entryYear,
+        age_group: x.age_group || x.ageGroup,
+        parent_email: x.parent_email || x.email || x.parentEmail,
+        referrer: x.referrer || x.source || null,
+        user_agent: x.user_agent || x.userAgent || null,
+        prospectus_url: x.prospectus_url || x.url || x.prospectusUrl,
+        prospectus_filename: x.prospectus_filename || x.file || null,
+        status: x.status || x.state || 'prospectus_generated',
+        received_at: x.received_at || x.created_at || x.createdAt,
+        prospectus_generated_at: x.prospectus_generated_at || x.generated_at || x.generatedAt,
+        visits: x.visits ?? x.visit_count ?? 0,
+        scrolls: x.scrolls ?? x.scroll_count ?? 0,
+        dwell_ms: x.dwell_ms ?? x.time_on_page ?? 0,
+        max_scroll: x.max_scroll ?? x.scroll_depth ?? 0,
+        video_events: x.video_events ?? x.video ?? 0,
+        ip_address: x.ip_address || x.ip || null,
+        country: x.country || null,
+        city: x.city || null,
+        geo_lat: x.geo_lat ?? x.lat ?? null,
+        geo_lon: x.geo_lon ?? x.lon ?? null,
+        engagement_score: x.engagement_score ?? x.score ?? null
+      }));
+    }
 
-            render() {
-                this.renderSidebar();
-                this.renderFamilyCards();
-            }
+    // ---------- Per-family loaders ----------
+    async function loadDetail(inquiryId){
+      const base = encodeURIComponent(inquiryId);
+      const detailP = tryFetch('GET', [
+        `/api/family/${base}`,
+        `/api/inquiry/${base}`
+      ]);
+      const engageP = tryFetch('GET', [
+        `/api/family/${base}/engagement`,
+        `/api/engagement/${base}`
+      ]).catch(()=>({json:null}));
 
-            renderSidebar() {
-                const engaged = this.families.filter(f => (f.dwell_ms || 0) > 0).length;
-                const hotLeads = this.families.filter(f => this.getEngagementScore(f) >= 70).length;
-                const deepReaders = this.families.filter(f => (f.dwell_ms || 0) > 300000).length; // >5 minutes
+      const aiP = tryFetch('GET', [
+        `/api/family/${base}/ai-summary`,
+        `/api/ai/engagement-summary/${base}`
+      ]).catch(()=>({json:null}));
 
-                document.getElementById('totalFamilies').textContent = this.families.length;
-                document.getElementById('engagedFamilies').textContent = engaged;
-                document.getElementById('hotLeads').textContent = hotLeads;
-                document.getElementById('deepReaders').textContent = deepReaders;
+      const [detail, engage, ai] = await Promise.allSettled([detailP, engageP, aiP]);
 
-                const topFamilies = this.families
-                    .filter(f => (f.dwell_ms || 0) > 0)
-                    .sort((a, b) => (b.dwell_ms || 0) - (a.dwell_ms || 0))
-                    .slice(0, 5);
+      const d = detail.status==='fulfilled' ? detail.value.json : {};
+      const e = engage.status==='fulfilled' ? engage.value.json : null;
+      const a = ai.status==='fulfilled' ? ai.value.json : null;
 
-                const topContainer = document.getElementById('topFamilies');
-                if (topFamilies.length === 0) {
-                    topContainer.innerHTML = '<div class="empty-state">No engaged families yet</div>';
-                    return;
-                }
+      // normalise section analytics if present
+      let sections = [];
+      if(e && (Array.isArray(e.sections) || Array.isArray(e.section_stats))){
+        sections = e.sections || e.section_stats;
+      } else if (e && e.by_section) {
+        sections = Object.entries(e.by_section).map(([label,val])=>({label, ...val}));
+      }
 
-                topContainer.innerHTML = topFamilies.map(family => `
-                    <div style="padding: 12px 0; border-bottom: 1px solid var(--grey-100);">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <div>
-                                <div style="font-weight: 500; font-size: 14px;">${family.first_name || ''} ${family.family_surname || 'Family'}</div>
-                                <div style="font-size: 12px; color: var(--grey-500);">
-                                    ${this.formatDwellTime(family.dwell_ms)} • ${family.return_visits || 0} visits
-                                </div>
-                            </div>
-                            <div style="padding: 4px 8px; background: ${this.getTemperatureColor(family)}; color: white; border-radius: 12px; font-size: 11px; font-weight: 500;">
-                                ${this.getTemperature(family)}
-                            </div>
-                        </div>
+      return {
+        detail: d,
+        sections,
+        totals: {
+          visits: e?.visits ?? d?.visits ?? 0,
+          scrolls: e?.scrolls ?? d?.scrolls ?? 0,
+          dwell_ms: e?.dwell_ms ?? d?.dwell_ms ?? 0,
+          max_scroll: e?.max_scroll ?? d?.max_scroll ?? 0,
+          video_events: e?.video_events ?? d?.video_events ?? 0,
+          engagement_score: e?.engagement_score ?? d?.engagement_score ?? null
+        },
+        ai: a
+      };
+    }
+
+    async function regenerateAI(inquiryId){
+      const base = encodeURIComponent(inquiryId);
+      // Try param route; fallback to body
+      const post1 = fetch(`/api/ai/engagement-summary/${base}`, {method:'POST'});
+      try {
+        const r = await post1;
+        if(r.ok) return await r.json();
+        // fallback with body
+        const r2 = await fetch('/api/ai/engagement-summary', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ inquiry_id: inquiryId })
+        });
+        if(!r2.ok) throw new Error('AI regenerate failed');
+        return await r2.json();
+      } catch(e){
+        throw e;
+      }
+    }
+
+    // ---------- Rendering ----------
+    let ALL=[];
+    function applyFiltersSort(){
+      const q = $('#q').value.trim().toLowerCase();
+      const high = $('#fHigh').checked;
+      const sort = $('#sort').value;
+
+      let L = [...ALL];
+
+      if(q){
+        L = L.filter(x=>{
+          const hay = [
+            x.child_name, x.family_surname, x.parent_email, x.inquiry_id
+          ].map(v=>(v||'').toString().toLowerCase()).join(' ');
+          return hay.includes(q);
+        });
+      }
+
+      if(high){
+        L = L.filter(x=>{
+          const score = x.engagement_score ?? 0;
+          return score>=60 || (x.dwell_ms??0) >= 120000; // ≥2m dwell if no score
+        });
+      }
+
+      L.sort((a,b)=>{
+        if(sort==='recent') return (new Date(b.prospectus_generated_at||b.received_at||0)) - (new Date(a.prospectus_generated_at||a.received_at||0));
+        if(sort==='oldest') return (new Date(a.prospectus_generated_at||a.received_at||0)) - (new Date(b.prospectus_generated_at||b.received_at||0));
+        if(sort==='engagement') return (b.engagement_score??0)-(a.engagement_score??0);
+        if(sort==='alpha'){
+          const as=(a.family_surname||'').toLowerCase(), bs=(b.family_surname||'').toLowerCase();
+          return as<bs?-1:as>bs?1:0;
+        }
+        return 0;
+      });
+
+      $('#counts').innerHTML = `
+        <span class="chip">Total: ${ALL.length}</span>
+        <span class="chip">Showing: ${L.length}</span>
+      `;
+
+      renderCards(L);
+    }
+
+    function statusChip(s){
+      const t = (s||'').toLowerCase();
+      if(t.includes('view')) return '<span class="status view">viewed</span>';
+      if(t.includes('generated')) return '<span class="status gen">prospectus generated</span>';
+      return '<span class="status idle">'+(s||'unknown')+'</span>';
+    }
+
+    function renderCards(list){
+      const host = $('#cards');
+      host.innerHTML = '';
+      for(const x of list){
+        const title = `${safe(x.child_name)} ${safe(x.family_surname)}`.trim();
+        const score = x.engagement_score;
+        const scoreBadge = score!=null ? `<span class="pill score ${scoreClass(score)}">${Math.round(score)}</span>` : `<span class="pill">n/a</span>`;
+        const head = `
+          <div class="card">
+            <div class="card-h">
+              <div class="title nowrap">
+                <span class="caret">▶</span>
+                ${title || safe(x.inquiry_id)}
+                &nbsp; ${statusChip(x.status)}
+              </div>
+              <div class="actions">
+                ${x.prospectus_url?`<a class="btn secondary" href="${x.prospectus_url}" target="_blank" rel="noopener">Open prospectus</a>`:''}
+                <button class="btn" data-act="expand" data-id="${x.inquiry_id}">Details</button>
+              </div>
+            </div>
+            <div class="body" id="body-${x.inquiry_id}" hidden>
+              <div class="cols">
+                <div class="section">
+                  <h3>Core enquiry</h3>
+                  <div class="pad">
+                    <table>
+                      <tr><th>Inquiry ID</th><td>${safe(x.inquiry_id)}</td></tr>
+                      <tr><th>Child</th><td>${safe(x.child_name)} ${safe(x.family_surname)}</td></tr>
+                      <tr><th>Entry year</th><td>${safe(x.entry_year)}</td></tr>
+                      <tr><th>Age group</th><td>${safe(x.age_group)}</td></tr>
+                      <tr><th>Parent email</th><td>${safe(x.parent_email)}</td></tr>
+                      <tr><th>Referrer</th><td>${safe(x.referrer)}</td></tr>
+                      <tr><th>User agent</th><td class="muted">${truncate(x.user_agent||'')}</td></tr>
+                      <tr><th>Prospectus</th><td>${x.prospectus_filename?`<span class="pill">${x.prospectus_filename}</span>`:'—'}</td></tr>
+                      <tr><th>Status</th><td>${statusChip(x.status)}</td></tr>
+                      <tr><th>Received</th><td>${fmtTS(x.received_at)}</td></tr>
+                      <tr><th>Generated</th><td>${fmtTS(x.prospectus_generated_at)}</td></tr>
+                    </table>
+                  </div>
+                </div>
+
+                <div class="section">
+                  <h3>Engagement (totals)</h3>
+                  <div class="pad">
+                    <table>
+                      <tr><th>Visits</th><td>${x.visits??0}</td></tr>
+                      <tr><th>Scrolls</th><td>${x.scrolls??0}</td></tr>
+                      <tr><th>Max scroll</th><td>${(x.max_scroll??0)}%</td></tr>
+                      <tr><th>Dwell</th><td>${fmtMs(x.dwell_ms)}</td></tr>
+                      <tr><th>Video events</th><td>${x.video_events??0}</td></tr>
+                      <tr><th>Engagement score</th><td>${scoreBadge}</td></tr>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              <div class="cols">
+                <div class="section">
+                  <h3>Per-section analytics</h3>
+                  <div class="pad">
+                    <div class="note" id="sec-note-${x.inquiry_id}">Loading sections…</div>
+                    <table id="sec-table-${x.inquiry_id}" hidden>
+                      <thead>
+                        <tr>
+                          <th>Section label</th>
+                          <th class="right">Visits</th>
+                          <th class="right">Max scroll</th>
+                          <th class="right">Dwell</th>
+                          <th class="right">Video</th>
+                        </tr>
+                      </thead>
+                      <tbody></tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div class="section">
+                  <h3>Geolocation</h3>
+                  <div class="pad">
+                    <table>
+                      <tr><th>IP address</th><td>${safe(x.ip_address)}</td></tr>
+                      <tr><th>Country</th><td>${safe(x.country)}</td></tr>
+                      <tr><th>City</th><td>${safe(x.city)}</td></tr>
+                      <tr><th>Coordinates</th><td>${x.geo_lat!=null&&x.geo_lon!=null ? `${x.geo_lat}, ${x.geo_lon}` : '—'}</td></tr>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              <details class="section">
+                <summary class="pad"><span class="caret">▶</span><strong>AI insight</strong> &nbsp;<span class="note">(live)</span></summary>
+                <div class="pad" id="ai-${x.inquiry_id}">
+                  <div class="row" style="justify-content:space-between;margin-bottom:8px">
+                    <div class="row">
+                      <span class="pill">Engagement summary</span>
                     </div>
-                `).join('');
-            }
-
-            renderFamilyCards() {
-                const container = document.getElementById('familyIntelligence');
-                if (!this.families || this.families.length === 0) {
-                    container.innerHTML = '<div class="empty-state">No families found</div>';
-                    return;
-                }
-
-                const sortedFamilies = this.families.slice().sort((a, b) => {
-                    const aScore = this.getEngagementScore(a);
-                    const bScore = this.getEngagementScore(b);
-                    return bScore - aScore;
-                });
-
-                container.innerHTML = sortedFamilies.map(family => this.renderFamilyCard(family)).join('');
-            }
-
-            renderFamilyCard(family) {
-                const score = this.getEngagementScore(family);
-                const sectionData = this.sectionData[family.id];
-                const hasSections = !!(sectionData && Array.isArray(sectionData.sections) && sectionData.sections.length > 0);
-                const hasEngagement = (family.dwell_ms || 0) > 0;
-
-                // Robust prospectus URL: prefer server-provided value; fallback to route by inquiry id
-                const prospectusUrl =
-                    (family.prospectus_url && (family.prospectus_url.startsWith('http') || family.prospectus_url.startsWith('/')))
-                        ? family.prospectus_url
-                        : `/prospectus/${family.id}`;
-
-                return `
-                    <div class="family-card">
-                        <div class="family-header">
-                            <div class="family-name-section">
-                                <h3>${family.first_name || 'Unknown'} ${family.family_surname || 'Family'}</h3>
-                                <div class="family-meta-line">${family.entry_year || 'TBC'} • ${family.parent_email || 'No email'}</div>
-                            </div>
-                            <div class="family-stats">
-                                ${hasEngagement ? `
-                                    <div class="stat-badge">${this.formatDwellTime(family.dwell_ms)}</div>
-                                    <div class="stat-badge">${family.return_visits || 0} visit${(family.return_visits || 0) === 1 ? '' : 's'}</div>
-                                ` : ''}
-                                <div class="score-badge">${score}</div>
-                            </div>
-                        </div>
-
-                        <div class="family-actions">
-                            <a class="btn-link btn-primary" href="${prospectusUrl}" target="_blank" rel="noopener">Open prospectus</a>
-                            <a class="btn-link btn-ghost" href="/api/family/${family.id}/ai-summary" target="_blank" rel="noopener">AI summary (JSON)</a>
-                        </div>
-
-                        ${!hasEngagement ? `
-                            <div class="empty-state" style="padding: 40px 20px;">
-                                <h3>Awaiting Engagement</h3>
-                                <p>Intelligence will appear once the family begins exploring their prospectus.</p>
-                            </div>
-                        ` : `
-                            ${hasSections ? this.renderSectionHeatmap(sectionData) : ''}
-                            ${this.renderBehavioralInsights(family)}
-                            ${this.renderAINarrative(family)}
-                        `}
+                    <div class="actions">
+                      <button class="btn secondary" data-act="regen" data-id="${x.inquiry_id}">Regenerate</button>
                     </div>
-                `;
-            }
+                  </div>
+                  <div class="note">Loading…</div>
+                </div>
+              </details>
 
-            renderSectionHeatmap(sectionData) {
-                if (!sectionData.sections || sectionData.sections.length === 0) return '';
+            </div>
+          </div>
+        `;
+        const el = document.createElement('div');
+        el.innerHTML = head;
+        $('#cards').appendChild(el.firstElementChild);
+      }
 
-                // Guard against divide-by-zero
-                const maxDwell = Math.max(1, ...sectionData.sections.map(s => s.dwell_seconds || 0));
+      // Wire up expand + AI + sections
+      document.querySelectorAll('[data-act="expand"]').forEach(btn=>{
+        btn.addEventListener('click', async ()=>{
+          const id = btn.dataset.id;
+          const body = document.getElementById('body-'+id);
+          body.hidden = !body.hidden;
+          if(!body.hidden){
+            await hydrateDetail(id);
+            btn.textContent = 'Hide details';
+          } else {
+            btn.textContent = 'Details';
+          }
+        });
+      });
 
-                return `
-                    <div class="section-heatmap">
-                        <div class="section-heatmap-title">Section Engagement Heatmap</div>
-                        <div class="heatmap-grid">
-                            ${sectionData.sections.slice(0, 5).map(section => `
-                                <div class="heatmap-row">
-                                    <div class="heatmap-section">${section.section_name}</div>
-                                    <div class="heatmap-time">${section.dwell_minutes}m ${section.dwell_seconds % 60}s</div>
-                                    <div class="heatmap-bar">
-                                        <div class="heatmap-fill" style="width: ${Math.round(((section.dwell_seconds || 0) / maxDwell) * 100)}%"></div>
-                                    </div>
-                                </div>
-                            `).join('')}
-                        </div>
-                        ${sectionData.sections.length > 5 ? `
-                            <div class="expand-sections">
-                                <button class="expand-btn" onclick="dashboard.showAllSections('${sectionData.inquiryId}')">
-                                    Show all ${sectionData.sections.length} sections
-                                </button>
-                            </div>
-                        ` : ''}
-                    </div>
-                `;
-            }
+      document.querySelectorAll('[data-act="regen"]').forEach(btn=>{
+        btn.addEventListener('click', async ()=>{
+          const id = btn.dataset.id;
+          btn.disabled = true; btn.textContent = 'Regenerating…';
+          try{
+            const res = await regenerateAI(id);
+            renderAI(id, res);
+          }catch(e){
+            renderAI(id, {error: e.message});
+          } finally {
+            btn.disabled=false; btn.textContent = 'Regenerate';
+          }
+        });
+      });
+    }
 
-            renderBehavioralInsights(family) {
-                const insights = this.extractBehavioralInsights(family);
-                if (insights.length === 0) return '';
+    async function hydrateDetail(inquiryId){
+      const aiHost = document.getElementById('ai-'+inquiryId);
+      const secTable = document.getElementById('sec-table-'+inquiryId);
+      const secNote = document.getElementById('sec-note-'+inquiryId);
 
-                return `
-                    <div class="behavioral-panel">
-                        <div class="behavioral-title">Behavioural Intelligence</div>
-                        <div class="behavior-tags">
-                            ${insights.map(insight => `<div class="behavior-tag ${insight.type}">${insight.label}</div>`).join('')}
-                        </div>
-                    </div>
-                `;
-            }
+      try{
+        const {sections, totals, ai} = await loadDetail(inquiryId);
 
-            renderAINarrative(family) {
-                if (!family.aiEngagement || !family.aiEngagement.narrative) {
-                    return `
-                        <div class="ai-narrative">
-                            <strong>AI Analysis:</strong> Engagement data captured. Select “Generate AI Summaries” to create personalised insights for this family.
-                        </div>
-                    `;
-                }
-                return `
-                    <div class="ai-narrative">
-                        <strong>AI Intelligence:</strong> ${family.aiEngagement.narrative}
-                    </div>
-                `;
-            }
+        // merge totals into the already-rendered header table if needed
+        // (we rendered initial values from list; keep it simple here)
 
-            // Helpers
-            getEngagementScore(family) {
-                const dwellMs = family.dwell_ms || 0;
-                if (dwellMs === 0) return 25;
-                const minutes = dwellMs / 60000;
-                const visits = family.return_visits || 1;
-                let score = 25;
-                score += Math.min(minutes * 10, 50); // up to 50 for time
-                score += Math.min(visits * 5, 25);   // up to 25 for visits
-                return Math.min(Math.round(score), 100);
-            }
-
-            getTemperature(family) {
-                const score = this.getEngagementScore(family);
-                if (score >= 70) return 'HOT';
-                if (score >= 40) return 'WARM';
-                return 'COOL';
-            }
-            getTemperatureColor(family) {
-                const temp = this.getTemperature(family);
-                if (temp === 'HOT') return 'var(--red)';
-                if (temp === 'WARM') return 'var(--amber)';
-                return 'var(--blue)';
-            }
-
-            formatDwellTime(ms) {
-                const val = ms || 0;
-                if (val === 0) return '0s';
-                const totalSeconds = Math.round(val / 1000);
-                const minutes = Math.floor(totalSeconds / 60);
-                const seconds = totalSeconds % 60;
-                return minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
-            }
-
-            extractBehavioralInsights(family) {
-                const insights = [];
-                const score = this.getEngagementScore(family);
-                const dwellMs = family.dwell_ms || 0;
-                const visits = family.return_visits || 1;
-
-                if (dwellMs > 300000) insights.push({ label: 'Deep Reader', type: 'hot' });
-                else if (dwellMs > 120000) insights.push({ label: 'Engaged Reader', type: 'warm' });
-                else if (dwellMs > 30000) insights.push({ label: 'Active Explorer', type: 'warm' });
-
-                if (visits > 5) insights.push({ label: 'High Interest', type: 'hot' });
-                else if (visits > 2) insights.push({ label: 'Return Visitor', type: 'warm' });
-
-                if (score >= 80) insights.push({ label: 'Priority Lead', type: 'hot' });
-                else if (score >= 60) insights.push({ label: 'Strong Interest', type: 'warm' });
-
-                // If we have section data, flag video interest (use section_name consistently)
-                const sd = this.sectionData[family.id];
-                if (sd && Array.isArray(sd.sections)) {
-                    const videoSections = sd.sections.filter(s =>
-                        (s.section_name || '').toLowerCase().includes('video') ||
-                        (s.section_name || '').toLowerCase().includes('discover')
-                    );
-                    if (videoSections.length > 0) {
-                        insights.push({ label: 'Video Engaged', type: 'warm' });
-                    }
-                }
-                return insights;
-            }
-
-            async generateAllSummaries() {
-                try {
-                    console.log('Generating AI summaries for all families...');
-                    const response = await fetch('/api/ai/analyze-all-families', { method: 'POST' });
-                    const result = await response.json();
-                    if (result.success) {
-                        console.log('AI summaries generated:', result);
-                        await this.loadAllData();
-                    }
-                } catch (error) {
-                    console.error('Failed to generate AI summaries:', error);
-                }
-            }
-
-            async refresh() { await this.loadAllData(); }
-
-            showAllSections(inquiryId) {
-                const sectionData = this.sectionData[inquiryId];
-                if (!sectionData || !sectionData.sections) return;
-                alert(`${sectionData.sections.length} sections tracked:\n\n` +
-                    sectionData.sections.map(s => `${s.section_name}: ${s.dwell_minutes}m ${s.dwell_seconds % 60}s`).join('\n'));
-            }
+        // Sections
+        if(sections && sections.length){
+          secNote.hidden = true;
+          secTable.hidden = false;
+          const tb = secTable.querySelector('tbody');
+          tb.innerHTML = '';
+          sections.forEach(s=>{
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td><span class="nowrap">${safe(s.label || s.section || s.current_section)}</span></td>
+              <td class="right">${s.visits ?? s.count ?? 1}</td>
+              <td class="right">${(s.max_scroll ?? s.scroll_depth ?? 0)}%</td>
+              <td class="right">${fmtMs(s.dwell_ms ?? s.dwell ?? 0)}</td>
+              <td class="right">${s.video_events ?? 0}</td>
+            `;
+            tb.appendChild(tr);
+          });
+        } else {
+          secNote.textContent = 'No section data yet';
+          secTable.hidden = true;
         }
 
-        // Initialise dashboard
-        const dashboard = new SmartIntelligenceDashboard();
-    </script>
+        // AI
+        renderAI(inquiryId, ai);
+      }catch(e){
+        secNote.textContent = 'Could not load details ('+e.message+')';
+        secTable.hidden = true;
+        renderAI(inquiryId, {error:'AI not available'});
+      }
+    }
+
+    function renderAI(inquiryId, ai){
+      const host = document.getElementById('ai-'+inquiryId);
+      if(!host) return;
+      const box = host.querySelector('.note');
+      if(!ai){
+        if(box) box.textContent = 'No AI summary yet';
+        return;
+      }
+      if(ai.error){
+        if(box) box.textContent = 'Error: '+ai.error;
+        return;
+      }
+      const narrative = ai.narrative || ai.summary || ai.analysis || ai.text || 'No narrative available yet.';
+      const score = ai.score ?? ai.engagement_score ?? null;
+      const scoreBadge = score!=null ? `<span class="pill score ${scoreClass(+score)}">${Math.round(+score)}</span>` : `<span class="pill">n/a</span>`;
+      host.innerHTML = `
+        <div class="row" style="justify-content:space-between;margin-bottom:8px">
+          <div class="row">
+            <span class="pill">Engagement summary</span>
+          </div>
+          <div class="actions">
+            <button class="btn secondary" data-act="regen" data-id="${inquiryId}">Regenerate</button>
+          </div>
+        </div>
+        <div class="hl" style="padding:10px 12px;border-radius:8px;margin-bottom:8px">${narrative}</div>
+        <div class="row">
+          <div>AI score:</div>
+          <div class="score ${scoreClass(+score||0)}" style="margin-left:8px">${scoreBadge}</div>
+        </div>
+      `;
+      host.querySelector('[data-act="regen"]').addEventListener('click', async (e)=>{
+        const btn = e.currentTarget; btn.disabled=true; btn.textContent='Regenerating…';
+        try{ const res = await regenerateAI(inquiryId); renderAI(inquiryId,res); }
+        catch(err){ renderAI(inquiryId,{error:err.message}); }
+        finally{ btn.disabled=false; btn.textContent='Regenerate'; }
+      });
+    }
+
+    // ---------- Boot ----------
+    async function boot(){
+      $('#log').textContent = '';
+      $('#cards').innerHTML = '';
+      try{
+        ALL = await loadList();
+        applyFiltersSort();
+      }catch(e){
+        $('#log').textContent = 'Failed to load: '+e.message;
+      }
+    }
+
+    // events
+    $('#q').addEventListener('input', applyFiltersSort);
+    $('#fHigh').addEventListener('change', applyFiltersSort);
+    $('#sort').addEventListener('change', applyFiltersSort);
+    $('#refresh').addEventListener('click', boot);
+
+    boot();
+  </script>
 </body>
 </html>
