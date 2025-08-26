@@ -17,6 +17,14 @@ let slugIndex = {};
 app.set("trust proxy", true);
 
 function getClientIp(req) {
+  // Check Render-specific headers first
+  const renderIp = req.headers['x-render-forwarded-for'] || req.headers['x-forwarded-for'];
+  if (renderIp) {
+    const ip = renderIp.split(',')[0].trim();
+    return ip;
+  }
+  
+  // Fallback to other headers
   const xfwd = (req.headers["x-forwarded-for"] || "").split(",")[0].trim();
   return (req.headers["cf-connecting-ip"] || xfwd || req.headers["x-real-ip"] || req.ip || "").trim();
 }

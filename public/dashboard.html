@@ -1066,6 +1066,49 @@
         }
 
         // Utility functions for formatting
+        function formatLocation(family) {
+            const city = family.city && family.city !== 'Unknown' ? family.city : null;
+            const country = family.country && family.country !== 'Unknown' ? family.country : null;
+            
+            if (city && country) {
+                return `${city}, ${country}`;
+            } else if (country) {
+                return country;
+            } else if (city) {
+                return city;
+            } else {
+                return 'Location pending (check IP detection)';
+            }
+        }
+
+        async function checkGeoLocation(inquiryId) {
+            try {
+                // Test current IP detection
+                const ipResponse = await fetch('/api/debug/ip');
+                const ipData = await ipResponse.json();
+                
+                console.log('Current IP detection:', ipData);
+                
+                alert(`IP Detection Debug:
+                
+Detected IP: ${ipData.ip || 'None detected'}
+Country: ${ipData.geo?.country || 'Unknown'}
+City: ${ipData.geo?.city || 'Unknown'}
+
+Headers:
+- X-Forwarded-For: ${ipData.headers['x-forwarded-for'] || 'Not set'}
+- CF-Connecting-IP: ${ipData.headers['cf-connecting-ip'] || 'Not set'}
+- X-Real-IP: ${ipData.headers['x-real-ip'] || 'Not set'}
+
+Note: Local IPs (127.0.0.1, 192.168.x.x) are filtered out.
+Deploy to production for real IP detection.`);
+                
+            } catch (error) {
+                console.error('Failed to check geo location:', error);
+                alert(`Geo location debug failed: ${error.message}`);
+            }
+        }
+
         function formatDwellTime(milliseconds) {
             if (!milliseconds || milliseconds === 0) return '0 sec';
             
@@ -1188,8 +1231,11 @@
                                         <h4>Contact Info</h4>
                                         <p>Email: ${family.parentEmail || 'Not provided'}</p>
                                         <p>Age Group: ${family.ageGroup || 'Unknown'}</p>
-                                        <p>Location: ${family.city}, ${family.country}</p>
+                                        <p>Location: ${formatLocation(family)}</p>
                                         <p>${family.contactReady ? '✅ Ready for contact' : '⏳ Continue nurturing'}</p>
+                                        <button onclick="checkGeoLocation('${family.id}')" style="margin-top: 0.5rem; padding: 0.25rem 0.5rem; background: var(--sport-blue); color: white; border: none; border-radius: 4px; font-size: 0.8rem; cursor: pointer;">
+                                            Debug Location
+                                        </button>
                                     </div>
                                     <div class="detail-item">
                                         <h4>Interests</h4>
