@@ -29,7 +29,7 @@ function getClientIp(req) {
   return (req.headers["cf-connecting-ip"] || xfwd || req.headers["x-real-ip"] || req.ip || "").trim();
 }
 
-async function enrichGeo(ip) {
+function enrichGeo(ip) {
   try {
     if (!ip) return {};
     if (ip.startsWith("10.") || ip.startsWith("192.168.") || ip.startsWith("127.") || ip.startsWith("172.")) return {};
@@ -39,24 +39,30 @@ async function enrichGeo(ip) {
     const lat = ll[0];
     const lon = ll[1];
     
-    let city = g.city;
+    // Simplify to UK vs International for marketing purposes
+    const country = g.country || null;
+    let location = 'Unknown';
     
-    // If no city but we have coordinates, use Nominatim (free)
-    if (!city && lat && lon) {
-      try {
-        const response = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&addressdetails=1`);
-        const data = await response.json();
-        if (data && data.address) {
-          city = data.address.city || data.address.town || data.address.village || data.address.county;
-        }
-      } catch (reverseGeoError) {
-        console.warn('Reverse geocoding failed:', reverseGeoError.message);
-      }
+    if (country === 'GB') {
+      location = 'United Kingdom';
+    } else if (country) {
+      // Use country name for international
+      const countryNames = {
+        'US': 'United States',
+        'CA': 'Canada', 
+        'AU': 'Australia',
+        'DE': 'Germany',
+        'FR': 'France',
+        'ES': 'Spain',
+        'IT': 'Italy',
+        'NL': 'Netherlands'
+      };
+      location = countryNames[country] || country;
     }
     
     return { 
-      country: g.country || null, 
-      city: city || null, 
+      country: country, 
+      city: location, // Store simplified location in city field
       geo_lat: (lat ?? null), 
       geo_lon: (lon ?? null) 
     };
@@ -66,9 +72,9 @@ async function enrichGeo(ip) {
 }
 
 // Attach client IP & geo to every request
-app.use(async (req, _res, next) => {
+app.use((req, _res, next) => {
   req.clientIp = getClientIp(req);
-  req.geo = await enrichGeo(req.clientIp);
+  req.geo = enrichGeo(req.clientIp);
   next();
 });
 
