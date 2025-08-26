@@ -5,7 +5,6 @@ const fs = require('fs').promises;
 const path = require('path');
 require('dotenv').config();
 const { Client } = require('pg');
-const geoip = require('geoip-lite');
 const OpenAI = require("openai");
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
