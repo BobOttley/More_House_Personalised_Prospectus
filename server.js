@@ -612,7 +612,7 @@ async function buildEngagementSnapshot(db, inquiryId) {
         SUM(COALESCE((event_data->>'videoWatchSec')::int, 0)) AS video_sec
       FROM tracking_events
       WHERE inquiry_id = $1
-        AND event_type IN ('section_exit', 'link_click', 'youtube_video_progress')
+        AND event_type IN ('section_exit_enhanced', 'section_exit', 'link_click', 'youtube_video_progress')
       GROUP BY 1
     `, [inquiryId]);
 
