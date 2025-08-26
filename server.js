@@ -1597,9 +1597,32 @@ app.get('/api/analytics/inquiries', async (req, res) => {
             try {
               const insights = typeof row.insights_json === 'string' ? JSON.parse(row.insights_json) : row.insights_json;
               egMap[row.inquiry_id] = insights;
-            } catch {}
+              
+              // Debug logging to verify correct data is fetched
+              if (row.inquiry_id === 'INQ-1756118876227186') {
+                console.log('Bella Stella AI summary from DB:', insights?.narrative?.substring(0, 100));
+              }
+            } catch (parseError) {
+              console.error(`Failed to parse insights for ${row.inquiry_id}:`, parseError);
+            }
           });
-          inquiries = inquiries.map(inq => ({ ...inq, aiEngagement: egMap[inq.id] || null }));
+          
+          // Map the engagement summaries to inquiries
+          inquiries = inquiries.map(inq => {
+            const aiData = egMap[inq.id];
+            
+            // Don't override with empty/fallback data if we have good data
+            if (aiData && aiData.narrative && !aiData.narrative.includes('Limited tracking available')) {
+              return { ...inq, aiEngagement: aiData };
+            } else if (aiData) {
+              // We have AI data but it's the fallback text - log this
+              console.warn(`Inquiry ${inq.id} has fallback AI text in database`);
+              return { ...inq, aiEngagement: aiData };
+            }
+            
+            return { ...inq, aiEngagement: null };
+          });
+          
           console.log(`Merged engagement summaries for ${Object.keys(egMap).length} families`);
         } catch (e) {
           console.warn('Engagement summary merge failed:', e.message);
@@ -2204,6 +2227,123 @@ app.post('/api/fix-all-summaries', async (req, res) => {
 
   } catch (error) {
     console.error('Fix summaries error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Debug and fix endpoints for AI summaries
+app.get('/api/debug/check-ai-summary/:inquiryId', async (req, res) => {
+  if (!db) return res.status(500).json({ error: 'Database not available' });
+  
+  const inquiryId = req.params.inquiryId;
+  
+  try {
+    // Check what's in the database
+    const aiData = await db.query(`
+      SELECT analysis_type, insights_json, generated_at
+      FROM ai_family_insights
+      WHERE inquiry_id = $1
+      ORDER BY analysis_type
+    `, [inquiryId]);
+    
+    // Check inquiry dwell time
+    const inquiryData = await db.query(`
+      SELECT first_name, family_surname, dwell_ms, return_visits
+      FROM inquiries
+      WHERE id = $1
+    `, [inquiryId]);
+    
+    // Check tracking events
+    const trackingStats = await db.query(`
+      SELECT 
+        COUNT(*) as total_events,
+        COUNT(DISTINCT session_id) as sessions,
+        COUNT(CASE WHEN event_type = 'section_exit' THEN 1 END) as section_exits
+      FROM tracking_events
+      WHERE inquiry_id = $1
+    `, [inquiryId]);
+    
+    const response = {
+      inquiryId,
+      inquiry: inquiryData.rows[0] || null,
+      trackingStats: trackingStats.rows[0] || null,
+      aiSummaries: {}
+    };
+    
+    aiData.rows.forEach(row => {
+      response.aiSummaries[row.analysis_type] = {
+        generated_at: row.generated_at,
+        narrative: row.insights_json?.narrative || 'No narrative',
+        highlights: row.insights_json?.highlights || [],
+        isFallback: row.insights_json?.narrative?.includes('Limited tracking available') || false
+      };
+    });
+    
+    res.json(response);
+    
+  } catch (error) {
+    console.error('Check AI summary error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/debug/regenerate-ai-summary/:inquiryId', async (req, res) => {
+  if (!db) return res.status(500).json({ error: 'Database not available' });
+  
+  const inquiryId = req.params.inquiryId;
+  const forceRegenerate = req.query.force === 'true';
+  
+  try {
+    // Get inquiry data
+    const inquiryResult = await db.query(`
+      SELECT * FROM inquiries WHERE id = $1
+    `, [inquiryId]);
+    
+    if (!inquiryResult.rows[0]) {
+      return res.status(404).json({ error: 'Inquiry not found' });
+    }
+    
+    const inquiry = inquiryResult.rows[0];
+    
+    // Check if current summary is fallback text
+    const currentSummary = await db.query(`
+      SELECT insights_json
+      FROM ai_family_insights
+      WHERE inquiry_id = $1 AND analysis_type = 'engagement_summary'
+    `, [inquiryId]);
+    
+    const hasFallback = currentSummary.rows[0]?.insights_json?.narrative?.includes('Limited tracking available');
+    
+    if (!hasFallback && !forceRegenerate) {
+      return res.json({
+        message: 'Summary already has good data. Use ?force=true to regenerate anyway.',
+        current: currentSummary.rows[0]?.insights_json
+      });
+    }
+    
+    // Regenerate the summary
+    const result = await summariseFamilyEngagement(db, inquiry);
+    
+    // Store it
+    await db.query(`
+      INSERT INTO ai_family_insights (inquiry_id, analysis_type, insights_json, generated_at)
+      VALUES ($1, 'engagement_summary', $2::jsonb, NOW())
+      ON CONFLICT (inquiry_id, analysis_type)
+      DO UPDATE SET 
+        insights_json = EXCLUDED.insights_json,
+        generated_at = NOW()
+    `, [inquiryId, JSON.stringify(result)]);
+    
+    res.json({
+      success: true,
+      inquiryId,
+      regenerated: true,
+      wasFallback: hasFallback,
+      newSummary: result
+    });
+    
+  } catch (error) {
+    console.error('Regenerate AI summary error:', error);
     res.status(500).json({ error: error.message });
   }
 });
