@@ -41,10 +41,10 @@ function enrichGeo(ip) {
     
     // Simplify to UK vs International for marketing purposes
     const country = g.country || null;
-    let location = 'Unknown';
+    let city = 'Unknown';
     
     if (country === 'GB') {
-      location = 'United Kingdom';
+      city = 'United Kingdom';
     } else if (country) {
       // Use country name for international
       const countryNames = {
@@ -57,12 +57,12 @@ function enrichGeo(ip) {
         'IT': 'Italy',
         'NL': 'Netherlands'
       };
-      location = countryNames[country] || country;
+      city = countryNames[country] || country;
     }
     
     return { 
       country: country, 
-      city: location, // Store simplified location in city field
+      city: city,
       geo_lat: (lat ?? null), 
       geo_lon: (lon ?? null) 
     };
@@ -1493,7 +1493,7 @@ app.post('/api/track/dwell', async (req, res) => {
     
     await db.query(`
       INSERT INTO tracking_events (inquiry_id, event_type, event_data, page_url, user_agent, ip_address, session_id, timestamp)
-      VALUES ($1, 'dwell', $2, $3, $4, $5, $6, $7)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
     `, [
       inquiryId,
       'dwell',
