@@ -45,6 +45,8 @@ async function initializeDatabase() {
     console.log('No DB credentials - running in JSON-only mode.');
     return false;
   }
+
+  try {  // ADD THIS LINE
     db = new Client({
       connectionString: process.env.DATABASE_URL || undefined,
       host: process.env.DB_HOST || undefined,
