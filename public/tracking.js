@@ -1434,7 +1434,7 @@
           startHeartbeat(HEARTBEAT_MS, 'normal');
         }
       }, freqMs);
-      handle._mode = mode || 'normal';
+      window.__SMART_TRACKING_NS__.__HEARTBEAT_MODE__ = mode || 'normal';
       window.__SMART_TRACKING_NS__.__HEARTBEAT_HANDLE__ = handle;
     }
 
