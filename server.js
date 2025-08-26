@@ -2683,6 +2683,46 @@ app.get('/api/inquiries', async (_req, res) => {
   }
 });
 
+app.get('/api/raw-family-data', async (req, res) => {
+  try {
+    if (!db) return res.status(500).json({ error: 'No database' });
+    
+    const result = await db.query(`
+      SELECT 
+        i.id, i.first_name, i.family_surname, i.parent_email, i.entry_year,
+        i.dwell_ms, i.return_visits, i.received_at, i.status, i.slug,
+        i.country, i.region, i.city,
+        afi.insights_json as ai_engagement
+      FROM inquiries i
+      LEFT JOIN ai_family_insights afi 
+        ON i.id = afi.inquiry_id 
+        AND afi.analysis_type = 'engagement_summary'
+      ORDER BY i.received_at DESC
+    `);
+    
+    const families = result.rows.map(row => ({
+      id: row.id,
+      first_name: row.first_name,
+      family_surname: row.family_surname,
+      parent_email: row.parent_email,
+      entry_year: row.entry_year,
+      dwell_ms: parseInt(row.dwell_ms) || 0,
+      return_visits: parseInt(row.return_visits) || 1,
+      status: row.status,
+      received_at: row.received_at,
+      country: row.country,
+      city: row.city,
+      aiEngagement: row.ai_engagement ? JSON.parse(row.ai_engagement) : null
+    }));
+    
+    res.json(families);
+    
+  } catch (error) {
+    console.error('Raw data error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.get('/admin/rebuild-slugs', async (req, res) => {
   try {
     console.log('Manual slug rebuild requested...');
