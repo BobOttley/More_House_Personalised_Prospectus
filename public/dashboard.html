@@ -386,7 +386,8 @@
         }
 
         .family-card.expanded .family-card-details {
-            max-height: 800px;
+            max-height: none;
+            overflow: visible;
         }
 
         .family-details-content {
@@ -1064,6 +1065,21 @@
             return diffMinutes < 30;
         }
 
+        // Utility functions for formatting
+        function formatDwellTime(milliseconds) {
+            if (!milliseconds || milliseconds === 0) return '0 sec';
+            
+            const totalSeconds = Math.floor(milliseconds / 1000);
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            
+            if (minutes > 0) {
+                return `${minutes}m ${seconds}s`;
+            } else {
+                return `${seconds}s`;
+            }
+        }
+
         function formatTimeAgo(date) {
             const now = new Date();
             const diffMs = now - date;
@@ -1141,7 +1157,7 @@
                                 </div>
                                 <div class="family-meta">
                                     <span>Entry ${family.entryYear || 'TBC'}</span>
-                                    <span>${totalTimeMinutes > 0 ? totalTimeMinutes + ' mins' : totalTimeSeconds + ' secs'}</span>
+                                    <span>${formatDwellTime(family.dwellMs)}</span>
                                     <span>${visits} visits</span>
                                     ${family.hasAIAnalysis ? '<span style="color: var(--award-gold); font-weight: 600;">✨ AI</span>' : ''}
                                     <span>${formatTimeAgo(new Date(family.receivedAt))}</span>
@@ -1159,12 +1175,14 @@
                                 ${aiInsightsHTML}
                                 <div class="details-grid">
                                     <div class="detail-item">
-                                        <h4>Real Server Data</h4>
-                                        <p>Database ID: ${family.id}</p>
-                                        <p>Dwell time: ${family.dwellMs}ms</p>
+                                        <h4>Real Engagement Data</h4>
+                                        <p>Total dwell time: ${formatDwellTime(family.dwellMs)}</p>
                                         <p>Return visits: ${visits}</p>
-                                        <p>Status: ${family.status}</p>
                                         <p>Engagement Score: ${family.engagementScore}/100</p>
+                                        <p>Status: ${family.status}</p>
+                                        <button onclick="loadSectionDetails('${family.id}')" style="margin-top: 0.5rem; padding: 0.25rem 0.5rem; background: var(--award-gold); color: var(--blazer-navy); border: none; border-radius: 4px; font-size: 0.8rem; cursor: pointer; font-weight: 600;">
+                                            View Section Details
+                                        </button>
                                     </div>
                                     <div class="detail-item">
                                         <h4>Contact Info</h4>
@@ -1378,6 +1396,100 @@
             } finally {
                 if (aiStatusElement) aiStatusElement.style.display = 'none';
                 if (buttonElement) buttonElement.disabled = false;
+            }
+        }
+
+        // Section details loading - matches server.js /api/section-data/:inquiryId endpoint
+        async function loadSectionDetails(inquiryId) {
+            try {
+                console.log(`Loading section details for inquiry: ${inquiryId}`);
+                
+                const response = await fetch(`/api/section-data/${inquiryId}`);
+                if (!response.ok) {
+                    throw new Error(`Section data API failed: ${response.status}`);
+                }
+                
+                const sectionData = await response.json();
+                console.log('Section data received:', sectionData);
+                
+                // Display section details in a modal or expanded view
+                showSectionDetailsModal(sectionData);
+                
+            } catch (error) {
+                console.error('Failed to load section details:', error);
+                alert(`Failed to load section details: ${error.message}`);
+            }
+        }
+
+        function showSectionDetailsModal(sectionData) {
+            const modalHtml = `
+                <div id="sectionModal" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 1000; display: flex; align-items: center; justify-content: center;">
+                    <div style="background: white; border-radius: 12px; padding: 2rem; max-width: 800px; max-height: 80vh; overflow-y: auto; margin: 1rem;">
+                        <div style="display: flex; justify-content: between; align-items: center; margin-bottom: 1.5rem;">
+                            <h3 style="margin: 0; color: var(--blazer-navy);">Detailed Section Breakdown</h3>
+                            <button onclick="closeSectionModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; margin-left: auto;">&times;</button>
+                        </div>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+                            <div style="background: var(--light-grey); padding: 1rem; border-radius: 8px;">
+                                <h4 style="margin: 0 0 0.5rem 0; color: var(--sport-blue);">Total Engagement</h4>
+                                <p style="margin: 0; font-size: 1.2rem; font-weight: 600;">${formatDwellTime(sectionData.totalDwellMs)}</p>
+                                <p style="margin: 0; font-size: 0.9rem; color: #64748b;">${sectionData.visitCount} visits • Score: ${sectionData.engagementScore}/100</p>
+                            </div>
+                            <div style="background: var(--light-grey); padding: 1rem; border-radius: 8px;">
+                                <h4 style="margin: 0 0 0.5rem 0; color: var(--sport-blue);">Section Coverage</h4>
+                                <p style="margin: 0; font-size: 1.2rem; font-weight: 600;">${sectionData.sections.length} sections explored</p>
+                                <p style="margin: 0; font-size: 0.9rem; color: #64748b;">${sectionData.hasData ? 'Detailed tracking active' : 'Basic tracking only'}</p>
+                            </div>
+                        </div>
+
+                        <h4 style="margin: 1rem 0 0.5rem 0; color: var(--blazer-navy);">Section-by-Section Breakdown</h4>
+                        ${sectionData.sections.length > 0 ? `
+                            <div style="display: grid; gap: 0.5rem;">
+                                ${sectionData.sections.map(section => `
+                                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; background: #f8fafc; border-radius: 6px; border-left: 4px solid var(--award-gold);">
+                                        <div>
+                                            <strong style="color: var(--blazer-navy);">${section.section_name}</strong>
+                                            <div style="font-size: 0.85rem; color: #64748b;">
+                                                ${formatDwellTime(section.dwell_seconds * 1000)} • ${section.max_scroll_pct}% scrolled • ${section.clicks} clicks
+                                            </div>
+                                        </div>
+                                        <div style="text-align: right;">
+                                            <div style="background: var(--award-gold); color: var(--blazer-navy); padding: 0.25rem 0.5rem; border-radius: 12px; font-size: 0.8rem; font-weight: 600;">
+                                                ${section.dwell_minutes}min
+                                            </div>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : `
+                            <div style="text-align: center; padding: 2rem; color: #64748b;">
+                                <p>No detailed section data available yet.</p>
+                                <p style="font-size: 0.9rem;">Section tracking will appear once the family engages with their prospectus.</p>
+                            </div>
+                        `}
+
+                        <div style="margin-top: 1.5rem; padding: 1rem; background: linear-gradient(135deg, #f0f9ff, #e0f2fe); border-radius: 8px; border: 1px solid #bfdbfe;">
+                            <h4 style="margin: 0 0 0.5rem 0; color: var(--sport-blue);">Key Insights</h4>
+                            <ul style="margin: 0; padding-left: 1.2rem; color: #475569;">
+                                <li>Total engagement: ${formatDwellTime(sectionData.totalDwellMs)}</li>
+                                <li>${sectionData.sections.length} sections explored with meaningful time spent</li>
+                                <li>${sectionData.visitCount > 1 ? sectionData.visitCount + ' visits showing sustained interest' : 'Single comprehensive visit'}</li>
+                                <li>Ready for targeted follow-up conversation</li>
+                                <li>Strong engagement indicates serious interest</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+        }
+
+        function closeSectionModal() {
+            const modal = document.getElementById('sectionModal');
+            if (modal) {
+                modal.remove();
             }
         }
 
