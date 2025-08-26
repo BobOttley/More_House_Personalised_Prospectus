@@ -4,6 +4,7 @@ const fs = require('fs').promises;
 const path = require('path');
 require('dotenv').config();
 const { Client } = require('pg');
+const geoip = require('geoip-lite');
 
 const app = express();
 app.set('trust proxy', true);
@@ -930,6 +931,46 @@ function generateFallbackHighlights(snapshot) {
   return highlights.slice(0, 5);
 }
 
+// Geolocation helper function
+function getGeolocation(ipAddress) {
+  if (!ipAddress || ipAddress === '127.0.0.1' || ipAddress === '::1') {
+    return {
+      country: 'Unknown',
+      region: 'Unknown', 
+      city: 'Unknown',
+      latitude: null,
+      longitude: null,
+      timezone: 'Europe/London', // Default for More House
+      isp: 'Local'
+    };
+  }
+
+  const geo = geoip.lookup(ipAddress);
+  
+  if (!geo) {
+    return {
+      country: 'Unknown',
+      region: 'Unknown',
+      city: 'Unknown', 
+      latitude: null,
+      longitude: null,
+      timezone: 'Europe/London',
+      isp: 'Unknown'
+    };
+  }
+
+  return {
+    country: geo.country || 'Unknown',
+    region: geo.region || 'Unknown',
+    city: geo.city || 'Unknown',
+    latitude: geo.ll ? geo.ll[0] : null,
+    longitude: geo.ll ? geo.ll[1] : null,
+    timezone: geo.timezone || 'Europe/London',
+    isp: 'Unknown' // geoip-lite doesn't provide ISP
+  };
+}
+
+
 async function analyzeFamily(inquiry, engagementData) {
   try {
     console.log(`Analyzing family: ${inquiry.firstName} ${inquiry.familySurname}`);
@@ -1132,9 +1173,13 @@ app.post(['/webhook', '/api/inquiry'], async (req, res) => {
     const required = ['firstName','familySurname','parentEmail','ageGroup','entryYear'];
     const missing = required.filter(k => !data[k]);
     if (missing.length) return res.status(400).json({ success:false, error:'Missing required fields', missingFields: missing });
-
+ 
     const now = new Date().toISOString();
     const base = getBaseUrl(req);
+    const clientIP = req.ip || req.connection?.remoteAddress || req.headers['x-forwarded-for'] || req.headers['x-real-ip'];
+    
+    const location = getGeolocation(clientIP);
+    
     const record = {
       id: generateInquiryId(),
       receivedAt: now,
@@ -1142,12 +1187,19 @@ app.post(['/webhook', '/api/inquiry'], async (req, res) => {
       prospectusGenerated: false,
       userAgent: req.headers['user-agent'],
       referrer: req.headers.referer,
-      ip: req.ip || req.connection?.remoteAddress,
+      ip: clientIP,
+      country: location.country,
+      region: location.region,
+      city: location.city,
+      latitude: location.latitude,
+      longitude: location.longitude,
+      timezone: location.timezone,
+      isp: location.isp,
       ...data
     };
-
+ 
     await saveInquiryJson(record);
-
+ 
     if (db) {
       try {
         await db.query(`
@@ -1158,14 +1210,16 @@ app.post(['/webhook', '/api/inquiry'], async (req, res) => {
             sport, leadership, community_service, outdoor_education,
             academic_excellence, pastoral_care, university_preparation,
             personal_development, career_guidance, extracurricular_opportunities,
-            received_at, status, user_agent, referrer, ip_address
+            received_at, status, user_agent, referrer, ip_address,
+            country, region, city, latitude, longitude, timezone, isp
           ) VALUES (
             $1,$2,$3,$4,$5,$6,
             $7,$8,$9,$10,$11,$12,
             $13,$14,$15,$16,
             $17,$18,$19,$20,
             $21,$22,$23,$24,$25,$26,
-            $27,$28,$29,$30,$31
+            $27,$28,$29,$30,$31,
+            $32,$33,$34,$35,$36,$37,$38
           )
           ON CONFLICT (id) DO NOTHING
         `, [
@@ -1175,21 +1229,26 @@ app.post(['/webhook', '/api/inquiry'], async (req, res) => {
           !!record.sport, !!record.leadership, !!record.community_service, !!record.outdoor_education,
           !!record.academic_excellence, !!record.pastoral_care, !!record.university_preparation,
           !!record.personal_development, !!record.career_guidance, !!record.extracurricular_opportunities,
-          new Date(record.receivedAt), record.status, record.userAgent, record.referrer, record.ip
+          new Date(record.receivedAt), record.status, record.userAgent, record.referrer, record.ip,
+          location.country, location.region, location.city, location.latitude, location.longitude, location.timezone, location.isp
         ]);
-        console.log(`Database record created: ${record.id}`);
+        console.log(`Database record created: ${record.id} - ${location.city}, ${location.country}`);
       } catch (e) { 
         console.warn('DB insert failed (non-fatal):', e.message); 
       }
     }
-
+ 
     const p = await generateProspectus(record);
     await updateInquiryStatus(record.id, p);
-
+ 
     return res.json({
       success: true,
       inquiryId: record.id,
       receivedAt: record.receivedAt,
+      location: {
+        city: location.city,
+        country: location.country
+      },
       prospectus: {
         filename: p.filename,
         url: `${base}${p.prettyPath}`,
@@ -2425,6 +2484,55 @@ app.get('/api/debug/engagement/:inquiryId', async (req, res) => {
   } catch (error) {
     console.error('Debug endpoint error:', error);
     res.status(500).json({ error: error.message });
+  }
+});
+
+// New endpoint for geographical analytics
+app.get('/api/analytics/geographical', async (req, res) => {
+  try {
+    if (!db) {
+      return res.status(500).json({ error: 'Database not available' });
+    }
+
+    const geoData = await db.query(`
+      SELECT 
+        country, region, city,
+        COUNT(*) as family_count,
+        AVG(dwell_ms) as avg_engagement_ms,
+        AVG(return_visits) as avg_visits,
+        MAX(received_at) as latest_inquiry
+      FROM inquiries 
+      WHERE country IS NOT NULL AND country != 'Unknown'
+      GROUP BY country, region, city
+      ORDER BY family_count DESC, avg_engagement_ms DESC
+    `);
+
+    const countryData = await db.query(`
+      SELECT 
+        country,
+        COUNT(*) as families,
+        AVG(dwell_ms) as avg_engagement,
+        SUM(CASE WHEN dwell_ms > 60000 THEN 1 ELSE 0 END) as engaged_families
+      FROM inquiries 
+      WHERE country IS NOT NULL AND country != 'Unknown'
+      GROUP BY country
+      ORDER BY families DESC
+    `);
+
+    res.json({
+      locations: geoData.rows,
+      countries: countryData.rows,
+      summary: {
+        totalCountries: countryData.rows.length,
+        totalLocations: geoData.rows.length,
+        topCountry: countryData.rows[0]?.country || 'Unknown',
+        internationalFamilies: countryData.rows.filter(c => c.country !== 'GB').length
+      }
+    });
+
+  } catch (error) {
+    console.error('Geographical analytics error:', error);
+    res.status(500).json({ error: 'Failed to get geographical data' });
   }
 });
 
