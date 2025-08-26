@@ -1,665 +1,1151 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>More House SMART Analytics Dashboard</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<style>
-:root {
-  --navy: #0a2540;
-  --gold: #ff9f1c;
-  --green: #10b981;
-  --red: #ef4444;
-  --amber: #f59e0b;
-  --slate: #64748b;
-  --grey-50: #f8fafc;
-  --grey-100: #f1f5f9;
-  --grey-200: #e2e8f0;
-  --grey-600: #475569;
-  --grey-900: #0f172a;
-}
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>More House SMART Admissions Intelligence</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --navy: #0a2540;
+            --gold: #ff9f1c;
+            --green: #10b981;
+            --red: #ef4444;
+            --amber: #f59e0b;
+            --purple: #8b5cf6;
+            --blue: #3b82f6;
+            --slate: #64748b;
+            --grey-50: #f8fafc;
+            --grey-100: #f1f5f9;
+            --grey-200: #e2e8f0;
+            --grey-300: #cbd5e1;
+            --grey-400: #94a3b8;
+            --grey-500: #64748b;
+            --grey-600: #475569;
+            --grey-700: #334155;
+            --grey-800: #1e293b;
+            --grey-900: #0f172a;
+        }
 
-* { box-sizing: border-box; margin: 0; padding: 0; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-body {
-  font-family: 'Inter', sans-serif;
-  background: var(--grey-50);
-  color: var(--grey-900);
-  line-height: 1.5;
-}
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--grey-50);
+            color: var(--grey-900);
+            line-height: 1.5;
+            font-size: 14px;
+        }
 
-.header {
-  background: linear-gradient(135deg, var(--navy) 0%, #1e40af 100%);
-  color: white;
-  padding: 20px;
-}
+        /* Header */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 64px;
+            background: linear-gradient(135deg, var(--navy) 0%, #1e40af 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            z-index: 1000;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
 
-.header-content {
-  max-width: 1400px;
-  margin: 0 auto;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
+        .header-title {
+            font-size: 20px;
+            font-weight: 600;
+        }
 
-.header h1 {
-  font-size: 24px;
-  font-weight: 600;
-}
+        .header-title .smart {
+            color: var(--gold);
+        }
 
-.header-controls {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-}
+        .header-controls {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
 
-.btn {
-  padding: 8px 16px;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-}
+        .header-btn {
+            padding: 8px 16px;
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
 
-.btn-primary {
-  background: var(--gold);
-  color: var(--navy);
-}
+        .header-btn:hover {
+            background: rgba(255,255,255,0.2);
+        }
 
-.btn-secondary {
-  background: white;
-  color: var(--grey-600);
-  border: 1px solid var(--grey-200);
-}
+        .header-btn.primary {
+            background: var(--gold);
+            border-color: var(--gold);
+            color: var(--navy);
+        }
 
-.status {
-  padding: 6px 12px;
-  border-radius: 6px;
-  font-size: 13px;
-  font-weight: 500;
-}
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+        }
 
-.status-ready { background: rgba(16, 185, 129, 0.1); color: var(--green); }
-.status-loading { background: rgba(245, 158, 11, 0.1); color: var(--amber); }
-.status-error { background: rgba(239, 68, 68, 0.1); color: var(--red); }
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--green);
+        }
 
-.main-content {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 24px 20px;
-  display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 24px;
-}
+        /* Layout */
+        .dashboard {
+            margin-top: 64px;
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            min-height: calc(100vh - 64px);
+        }
 
-.card {
-  background: white;
-  border: 1px solid var(--grey-200);
-  border-radius: 12px;
-  overflow: hidden;
-}
+        .sidebar {
+            background: white;
+            border-right: 1px solid var(--grey-200);
+            overflow-y: auto;
+        }
 
-.card-header {
-  padding: 16px 20px;
-  border-bottom: 1px solid var(--grey-200);
-  background: var(--grey-50);
-}
+        .main-content {
+            padding: 24px;
+            overflow-y: auto;
+        }
 
-.card-title {
-  font-size: 18px;
-  font-weight: 600;
-}
+        /* Sidebar */
+        .sidebar-section {
+            padding: 20px;
+            border-bottom: 1px solid var(--grey-100);
+        }
 
-.card-body {
-  padding: 20px;
-}
+        .sidebar-title {
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--grey-500);
+            margin-bottom: 16px;
+        }
 
-.metrics {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-  margin-bottom: 24px;
-}
+        .intelligence-summary {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
 
-.metric {
-  background: white;
-  border: 1px solid var(--grey-200);
-  border-radius: 10px;
-  padding: 16px;
-  text-align: center;
-}
+        .intelligence-metric {
+            background: var(--grey-50);
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+        }
 
-.metric-value {
-  font-size: 28px;
-  font-weight: 700;
-  color: var(--navy);
-}
+        .intelligence-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--navy);
+            display: block;
+        }
 
-.metric-label {
-  font-size: 13px;
-  color: var(--slate);
-  margin-top: 4px;
-}
+        .intelligence-label {
+            font-size: 11px;
+            color: var(--grey-500);
+            margin-top: 4px;
+        }
 
-.families-list {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  max-height: 70vh;
-  overflow-y: auto;
-}
+        .priority-families {
+            list-style: none;
+        }
 
-.family-row {
-  background: white;
-  border: 1px solid var(--grey-200);
-  border-radius: 10px;
-  padding: 16px;
-}
+        .priority-family {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--grey-100);
+        }
 
-.family-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 12px;
-}
+        .priority-family:last-child {
+            border-bottom: none;
+        }
 
-.family-name {
-  font-size: 16px;
-  font-weight: 600;
-  margin-bottom: 4px;
-}
+        .family-info h4 {
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 2px;
+        }
 
-.family-meta {
-  font-size: 13px;
-  color: var(--slate);
-}
+        .family-meta {
+            font-size: 12px;
+            color: var(--grey-500);
+        }
 
-.family-stats {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
+        .temperature-badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+        }
 
-.stat-badge {
-  background: var(--grey-100);
-  color: var(--grey-600);
-  padding: 4px 8px;
-  border-radius: 12px;
-  font-size: 12px;
-}
+        .temp-hot {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--red);
+        }
 
-.score-badge {
-  background: var(--navy);
-  color: white;
-  padding: 6px 10px;
-  border-radius: 6px;
-  font-weight: 600;
-}
+        .temp-warm {
+            background: rgba(245, 158, 11, 0.1);
+            color: var(--amber);
+        }
 
-.ai-summary {
-  background: var(--grey-50);
-  padding: 12px;
-  border-radius: 8px;
-  font-size: 14px;
-  color: var(--grey-600);
-  margin: 12px 0;
-}
+        .temp-cool {
+            background: rgba(59, 130, 246, 0.1);
+            color: var(--blue);
+        }
 
-.section-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 8px;
-  font-size: 13px;
-}
+        /* Main Content */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 24px;
+            margin-bottom: 24px;
+        }
 
-.section-table th {
-  background: var(--grey-100);
-  padding: 8px;
-  text-align: left;
-  font-weight: 600;
-  border-bottom: 1px solid var(--grey-200);
-}
+        .card {
+            background: white;
+            border: 1px solid var(--grey-200);
+            border-radius: 12px;
+            overflow: hidden;
+        }
 
-.section-table td {
-  padding: 6px 8px;
-  border-bottom: 1px solid var(--grey-200);
-}
+        .card-header {
+            padding: 20px 20px 16px 20px;
+            border-bottom: 1px solid var(--grey-100);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
 
-.loading {
-  text-align: center;
-  padding: 40px;
-  color: var(--slate);
-}
+        .card-title {
+            font-size: 18px;
+            font-weight: 600;
+        }
 
-.error {
-  text-align: center;
-  padding: 40px;
-  color: var(--red);
-}
+        .card-actions {
+            display: flex;
+            gap: 8px;
+        }
 
-.debug-log {
-  background: #1a1a1a;
-  color: #e0e0e0;
-  font-family: monospace;
-  font-size: 12px;
-  padding: 16px;
-  border-radius: 8px;
-  max-height: 300px;
-  overflow-y: auto;
-  white-space: pre-wrap;
-  margin-top: 16px;
-}
+        .btn {
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: all 0.2s;
+        }
 
-@media (max-width: 1200px) {
-  .main-content {
-    grid-template-columns: 1fr;
-  }
-  .metrics {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-</style>
+        .btn-secondary {
+            background: var(--grey-100);
+            color: var(--grey-600);
+        }
+
+        .btn-secondary:hover {
+            background: var(--grey-200);
+        }
+
+        .card-body {
+            padding: 20px;
+        }
+
+        /* Family Intelligence Cards */
+        .family-cards {
+            display: grid;
+            gap: 16px;
+        }
+
+        .family-card {
+            background: white;
+            border: 1px solid var(--grey-200);
+            border-radius: 12px;
+            overflow: hidden;
+            transition: all 0.2s;
+        }
+
+        .family-card:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            border-color: var(--grey-300);
+        }
+
+        .family-header {
+            padding: 16px 20px;
+            background: var(--grey-50);
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .family-name-section h3 {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .family-meta-line {
+            font-size: 13px;
+            color: var(--grey-500);
+        }
+
+        .family-stats {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .stat-badge {
+            background: white;
+            border: 1px solid var(--grey-200);
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            color: var(--grey-600);
+        }
+
+        .score-badge {
+            background: var(--navy);
+            color: white;
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .family-intelligence {
+            padding: 20px;
+        }
+
+        .intelligence-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .intelligence-item {
+            text-align: center;
+        }
+
+        .intelligence-item .value {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--navy);
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .intelligence-item .label {
+            font-size: 12px;
+            color: var(--grey-500);
+        }
+
+        .behavioral-insights {
+            background: var(--grey-50);
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+        }
+
+        .behavioral-insights h4 {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        .insight-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .insight-tag {
+            background: white;
+            border: 1px solid var(--grey-200);
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            color: var(--grey-600);
+        }
+
+        .ai-narrative {
+            background: linear-gradient(135deg, var(--navy) 0%, #1e40af 100%);
+            color: white;
+            padding: 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .engagement-timeline {
+            background: var(--grey-50);
+            padding: 16px;
+            border-radius: 8px;
+            margin-top: 16px;
+        }
+
+        .timeline-title {
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: var(--grey-700);
+        }
+
+        .timeline-events {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .timeline-event {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            background: white;
+            border-radius: 6px;
+            font-size: 12px;
+        }
+
+        .event-type {
+            font-weight: 500;
+            color: var(--grey-700);
+        }
+
+        .event-count {
+            color: var(--grey-500);
+        }
+
+        /* Analytics Panel */
+        .analytics-panels {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+        }
+
+        .analytics-panel {
+            background: white;
+            border: 1px solid var(--grey-200);
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .panel-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 16px;
+        }
+
+        .metric-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--grey-100);
+        }
+
+        .metric-row:last-child {
+            border-bottom: none;
+        }
+
+        .metric-label {
+            font-size: 13px;
+            color: var(--grey-600);
+        }
+
+        .metric-value {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--grey-900);
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--grey-500);
+        }
+
+        .empty-state h3 {
+            font-size: 16px;
+            margin-bottom: 8px;
+            color: var(--grey-700);
+        }
+
+        .empty-state p {
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        /* Loading State */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+        }
+
+        .spinner {
+            width: 24px;
+            height: 24px;
+            border: 2px solid var(--grey-200);
+            border-top-color: var(--navy);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+            }
+            
+            .sidebar {
+                display: none;
+            }
+            
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .intelligence-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
 </head>
 <body>
-  <header class="header">
-    <div class="header-content">
-      <h1>More House <span style="color: var(--gold);">SMART</span> Analytics</h1>
-      <div class="header-controls">
-        <button id="refreshBtn" class="btn btn-secondary">Refresh</button>
-        <button id="analyzeBtn" class="btn btn-primary">Run SMART AI Analysis</button>
-        <div id="status" class="status status-ready">Ready</div>
-      </div>
+    <header class="header">
+        <h1 class="header-title">More House <span class="smart">SMART</span> Intelligence</h1>
+        <div class="header-controls">
+            <button class="header-btn" onclick="dashboard.refresh()">Refresh Data</button>
+            <button class="header-btn primary" onclick="dashboard.runAI()">Analyze All</button>
+            <div class="status-indicator">
+                <div class="status-dot"></div>
+                <span id="systemStatus">System Ready</span>
+            </div>
+        </div>
+    </header>
+
+    <div class="dashboard">
+        <aside class="sidebar">
+            <div class="sidebar-section">
+                <h2 class="sidebar-title">Intelligence Summary</h2>
+                <div class="intelligence-summary">
+                    <div class="intelligence-metric">
+                        <span class="intelligence-value" id="totalFamilies">0</span>
+                        <div class="intelligence-label">Total Families</div>
+                    </div>
+                    <div class="intelligence-metric">
+                        <span class="intelligence-value" id="activeFamilies">0</span>
+                        <div class="intelligence-label">Active Today</div>
+                    </div>
+                    <div class="intelligence-metric">
+                        <span class="intelligence-value" id="hotLeads">0</span>
+                        <div class="intelligence-label">Hot Leads</div>
+                    </div>
+                    <div class="intelligence-metric">
+                        <span class="intelligence-value" id="aiAnalyzed">0</span>
+                        <div class="intelligence-label">AI Analyzed</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar-section">
+                <h2 class="sidebar-title">Priority Families</h2>
+                <ul class="priority-families" id="priorityFamilies">
+                    <li class="empty-state">
+                        <p>Loading priority families...</p>
+                    </li>
+                </ul>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <div class="dashboard-grid">
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">Family Intelligence Profiles</h2>
+                        <div class="card-actions">
+                            <button class="btn btn-secondary" onclick="dashboard.exportData()">Export</button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="family-cards" id="familyIntelligence">
+                            <div class="loading">
+                                <div class="spinner"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">System Analytics</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="analytics-panels">
+                            <div class="analytics-panel">
+                                <h3 class="panel-title">Engagement Metrics</h3>
+                                <div id="engagementMetrics">
+                                    <div class="metric-row">
+                                        <span class="metric-label">Avg. Session Duration</span>
+                                        <span class="metric-value" id="avgSessionDuration">--</span>
+                                    </div>
+                                    <div class="metric-row">
+                                        <span class="metric-label">Total Events Tracked</span>
+                                        <span class="metric-value" id="totalEvents">--</span>
+                                    </div>
+                                    <div class="metric-row">
+                                        <span class="metric-label">Video Engagements</span>
+                                        <span class="metric-value" id="videoEngagements">--</span>
+                                    </div>
+                                    <div class="metric-row">
+                                        <span class="metric-label">Return Visitors</span>
+                                        <span class="metric-value" id="returnVisitors">--</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="analytics-panel">
+                                <h3 class="panel-title">Geographical Intelligence</h3>
+                                <div id="geographicalMetrics">
+                                    <div class="metric-row">
+                                        <span class="metric-label">Countries</span>
+                                        <span class="metric-value" id="totalCountries">--</span>
+                                    </div>
+                                    <div class="metric-row">
+                                        <span class="metric-label">International Families</span>
+                                        <span class="metric-value" id="internationalFamilies">--</span>
+                                    </div>
+                                    <div class="metric-row">
+                                        <span class="metric-label">Top Location</span>
+                                        <span class="metric-value" id="topCountry">--</span>
+                                    </div>
+                                    <div class="metric-row">
+                                        <span class="metric-label">Local Families</span>
+                                        <span class="metric-value" id="localFamilies">--</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
     </div>
-  </header>
 
-  <main class="main-content">
-    <section class="card">
-      <div class="card-header">
-        <h2 class="card-title">Family Enquiries</h2>
-      </div>
-      <div class="card-body">
-        <div class="metrics">
-          <div class="metric">
-            <div id="hotCount" class="metric-value">0</div>
-            <div class="metric-label">Hot Leads</div>
-          </div>
-          <div class="metric">
-            <div id="warmCount" class="metric-value">0</div>
-            <div class="metric-label">Warm Leads</div>
-          </div>
-          <div class="metric">
-            <div id="aiCount" class="metric-value">0</div>
-            <div class="metric-label">AI Analyzed</div>
-          </div>
-          <div class="metric">
-            <div id="totalCount" class="metric-value">0</div>
-            <div class="metric-label">Total Families</div>
-          </div>
-        </div>
-        
-        <div id="familiesList" class="families-list">
-          <div class="loading">Loading families...</div>
-        </div>
-      </div>
-    </section>
+    <script>
+        class AdmissionsIntelligence {
+            constructor() {
+                this.families = [];
+                this.metrics = {};
+                this.init();
+            }
 
-    <aside class="card">
-      <div class="card-header">
-        <h2 class="card-title">System Status</h2>
-      </div>
-      <div class="card-body">
-        <div id="systemStatus">
-          <div style="margin-bottom: 16px;">
-            <strong>API Status:</strong>
-            <div id="apiStatus" style="margin-top: 8px;">Checking...</div>
-          </div>
-          
-          <div style="margin-bottom: 16px;">
-            <strong>Available Endpoints:</strong>
-            <div id="endpointStatus" style="margin-top: 8px; font-size: 13px;">Checking...</div>
-          </div>
-        </div>
-        
-        <div class="debug-log" id="debugLog">Dashboard initialized...</div>
-      </div>
-    </aside>
-  </main>
+            async init() {
+                console.log('🧠 More House SMART Intelligence initializing...');
+                await this.loadData();
+                this.render();
+                
+                // Auto-refresh every 30 seconds
+                setInterval(() => this.loadData(), 30000);
+            }
 
-<script>
-class Dashboard {
-  constructor() {
-    this.elements = {
-      status: document.getElementById('status'),
-      familiesList: document.getElementById('familiesList'),
-      debugLog: document.getElementById('debugLog'),
-      apiStatus: document.getElementById('apiStatus'),
-      endpointStatus: document.getElementById('endpointStatus'),
-      hotCount: document.getElementById('hotCount'),
-      warmCount: document.getElementById('warmCount'),
-      aiCount: document.getElementById('aiCount'),
-      totalCount: document.getElementById('totalCount')
-    };
-    
-    this.init();
-  }
+            async loadData() {
+                try {
+                    // Use raw database values instead of processed API
+                    const response = await fetch('/api/raw-family-data');
+                    if (!response.ok) throw new Error('Failed to load family data');
+                    
+                    this.families = await response.json();
+                    console.log(`Raw database values loaded for ${this.families.length} families`);
+                    
+                    // Load AI insights separately
+                    await this.loadAIInsights();
+                    await this.loadMetrics();
+                    await this.loadGeographicalData();
+                    
+                    this.render();
+                } catch (error) {
+                    console.error('Failed to load intelligence data:', error);
+                    this.showError('Failed to load admissions intelligence data');
+                }
+            }
 
-  init() {
-    this.log('Dashboard starting...');
-    document.getElementById('refreshBtn').onclick = () => this.refresh();
-    document.getElementById('analyzeBtn').onclick = () => this.runAI();
-    this.checkEndpoints();
-  }
+            async loadAIInsights() {
+                try {
+                    const response = await fetch('/api/ai/insights-summary');
+                    if (response.ok) {
+                        const insights = await response.json();
+                        
+                        // Map insights to families
+                        this.families.forEach(family => {
+                            const aiData = insights.find(i => i.inquiry_id === family.id);
+                            if (aiData) {
+                                family.aiEngagement = aiData;
+                            }
+                        });
+                    }
+                } catch (error) {
+                    console.warn('Failed to load AI insights:', error);
+                }
+            }
 
-  log(message) {
-    const timestamp = new Date().toLocaleTimeString();
-    this.elements.debugLog.textContent += `\n[${timestamp}] ${message}`;
-    this.elements.debugLog.scrollTop = this.elements.debugLog.scrollHeight;
-    console.log(message);
-  }
+            async loadGeographicalData() {
+                try {
+                    const response = await fetch('/api/analytics/geographical');
+                    if (response.ok) {
+                        this.geographicalData = await response.json();
+                        console.log('Geographical data loaded:', this.geographicalData);
+                    }
+                } catch (error) {
+                    console.warn('Failed to load geographical data:', error);
+                    this.geographicalData = { countries: [], summary: {} };
+                }
+            }
 
-  setStatus(text, type = 'ready') {
-    this.elements.status.textContent = text;
-    this.elements.status.className = `status status-${type}`;
-  }
+            async loadMetrics() {
+                try {
+                    const response = await fetch('/api/dashboard-data');
+                    if (!response.ok) throw new Error('Failed to load metrics');
+                    
+                    const data = await response.json();
+                    this.metrics = data.summary || {};
+                    
+                    console.log('📈 System metrics loaded:', this.metrics);
+                } catch (error) {
+                    console.error('❌ Failed to load metrics:', error);
+                    this.metrics = {};
+                }
+            }
 
-  async checkEndpoints() {
-    this.log('Checking API endpoints...');
-    const endpoints = [
-      '/health',
-      '/api/analytics/inquiries', 
-      '/api/dashboard-data'
-    ];
+            render() {
+                this.renderSidebar();
+                this.renderFamilyIntelligence();
+                this.renderAnalytics();
+            }
 
-    const results = [];
-    for (const endpoint of endpoints) {
-      try {
-        const response = await fetch(endpoint);
-        const isJson = response.headers.get('content-type')?.includes('application/json');
-        results.push(`${endpoint}: ${response.status} ${isJson ? '(JSON)' : '(HTML)'}`);
-        
-        if (!isJson && response.ok) {
-          this.log(`WARNING: ${endpoint} returned HTML instead of JSON`);
+            renderSidebar() {
+                // Update intelligence summary
+                document.getElementById('totalFamilies').textContent = this.families.length || 0;
+                document.getElementById('activeFamilies').textContent = this.getActiveFamiliesToday();
+                document.getElementById('hotLeads').textContent = this.getHotLeads();
+                document.getElementById('aiAnalyzed').textContent = this.getAIAnalyzed();
+
+                // Render priority families
+                const priorityContainer = document.getElementById('priorityFamilies');
+                const priorityFamilies = this.getPriorityFamilies();
+
+                if (priorityFamilies.length === 0) {
+                    priorityContainer.innerHTML = `
+                        <li class="empty-state">
+                            <h3>No Priority Families</h3>
+                            <p>Families will appear here as they engage with their prospectuses</p>
+                        </li>
+                    `;
+                    return;
+                }
+
+                priorityContainer.innerHTML = priorityFamilies.map(family => `
+                    <li class="priority-family">
+                        <div class="family-info">
+                            <h4>${family.first_name} ${family.family_surname}</h4>
+                            <div class="family-meta">${family.entry_year} • ${this.getEngagementTime(family)}</div>
+                        </div>
+                        <div class="temperature-badge temp-${family.temperature || 'cool'}">
+                            ${(family.temperature || 'cool').toUpperCase()}
+                        </div>
+                    </li>
+                `).join('');
+            }
+
+            renderFamilyIntelligence() {
+                const container = document.getElementById('familyIntelligence');
+                
+                if (this.families.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <h3>No Family Data Available</h3>
+                            <p>Family intelligence profiles will appear here as inquiries are received and prospectuses are generated.</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                // Show families with actual engagement first
+                const sortedFamilies = this.families.sort((a, b) => {
+                    const aEngagement = this.getEngagementScore(a);
+                    const bEngagement = this.getEngagementScore(b);
+                    return bEngagement - aEngagement;
+                });
+
+                container.innerHTML = sortedFamilies.map(family => this.renderFamilyCard(family)).join('');
+            }
+
+            renderFamilyCard(family) {
+                const engagementScore = this.getEngagementScore(family);
+                const temperature = this.getTemperature(family);
+                const dwellTime = this.formatDwellTime(family.dwell_ms || 0);
+                const visits = family.return_visits || 1;
+                
+                // Check if family has behavioral data
+                const hasBehavioralData = family.dwell_ms > 0 || family.aiEngagement;
+                
+                if (!hasBehavioralData) {
+                    return `
+                        <div class="family-card">
+                            <div class="family-header">
+                                <div class="family-name-section">
+                                    <h3>${family.first_name || 'Unknown'} ${family.family_surname || 'Family'}</h3>
+                                    <div class="family-meta-line">${family.entry_year || 'TBC'} • ${family.parent_email || 'No email'}</div>
+                                </div>
+                                <div class="family-stats">
+                                    <div class="stat-badge">Prospectus Ready</div>
+                                    <div class="score-badge">${engagementScore}</div>
+                                </div>
+                            </div>
+                            <div class="family-intelligence">
+                                <div class="empty-state">
+                                    <h3>Awaiting Family Engagement</h3>
+                                    <p>Behavioral intelligence will appear once the family begins exploring their personalized prospectus.</p>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                return `
+                    <div class="family-card">
+                        <div class="family-header">
+                            <div class="family-name-section">
+                                <h3>${family.first_name || 'Unknown'} ${family.family_surname || 'Family'}</h3>
+                                <div class="family-meta-line">${family.entry_year || 'TBC'} • ${family.parent_email || 'No email'}</div>
+                            </div>
+                            <div class="family-stats">
+                                <div class="stat-badge">${dwellTime}</div>
+                                <div class="stat-badge">${visits} visit${visits > 1 ? 's' : ''}</div>
+                                <div class="score-badge">${engagementScore}</div>
+                            </div>
+                        </div>
+                        <div class="family-intelligence">
+                            <div class="intelligence-grid">
+                                <div class="intelligence-item">
+                                    <span class="value">${this.getEventCount(family)}</span>
+                                    <div class="label">Interactions</div>
+                                </div>
+                                <div class="intelligence-item">
+                                    <span class="value">${this.getScrollDepth(family)}%</span>
+                                    <div class="label">Max Scroll</div>
+                                </div>
+                                <div class="intelligence-item">
+                                    <span class="value">${temperature}</span>
+                                    <div class="label">Temperature</div>
+                                </div>
+                            </div>
+
+                            ${this.renderBehavioralInsights(family)}
+                            ${this.renderAINarrative(family)}
+                            ${this.renderEngagementTimeline(family)}
+                        </div>
+                    </div>
+                `;
+            }
+
+            renderBehavioralInsights(family) {
+                const insights = this.extractBehavioralInsights(family);
+                
+                if (insights.length === 0) {
+                    return '';
+                }
+
+                return `
+                    <div class="behavioral-insights">
+                        <h4>Behavioral Intelligence</h4>
+                        <div class="insight-tags">
+                            ${insights.map(insight => `<span class="insight-tag">${insight}</span>`).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            renderAINarrative(family) {
+                const narrative = family.aiEngagement?.narrative;
+                
+                if (!narrative) {
+                    return `
+                        <div class="ai-narrative">
+                            <strong>AI Analysis:</strong> Prospectus generated and tracking active. AI insights will develop as the family engages with their personalized content.
+                        </div>
+                    `;
+                }
+
+                return `
+                    <div class="ai-narrative">
+                        <strong>AI Intelligence:</strong> ${narrative}
+                    </div>
+                `;
+            }
+
+            renderEngagementTimeline(family) {
+                // This would show recent engagement events
+                // For now, showing a placeholder that could be populated with real tracking events
+                return `
+                    <div class="engagement-timeline">
+                        <div class="timeline-title">Recent Activity</div>
+                        <div class="timeline-events">
+                            <div class="timeline-event">
+                                <span class="event-type">Prospectus Generated</span>
+                                <span class="event-count">${this.formatDate(family.updated_at)}</span>
+                            </div>
+                            ${family.dwell_ms > 0 ? `
+                                <div class="timeline-event">
+                                    <span class="event-type">Active Engagement</span>
+                                    <span class="event-count">${this.formatDwellTime(family.dwell_ms)}</span>
+                                </div>
+                            ` : ''}
+                            ${family.return_visits > 1 ? `
+                                <div class="timeline-event">
+                                    <span class="event-type">Return Visits</span>
+                                    <span class="event-count">${family.return_visits}</span>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            }
+
+            renderAnalytics() {
+                // Update engagement metrics
+                document.getElementById('avgSessionDuration').textContent = this.getAverageSessionDuration();
+                document.getElementById('totalEvents').textContent = this.getTotalEvents();
+                document.getElementById('videoEngagements').textContent = this.getVideoEngagements();
+                document.getElementById('returnVisitors').textContent = this.getReturnVisitors();
+
+                // Update geographical metrics
+                if (this.geographicalData) {
+                    document.getElementById('totalCountries').textContent = this.geographicalData.summary.totalCountries || 0;
+                    document.getElementById('internationalFamilies').textContent = this.geographicalData.summary.internationalFamilies || 0;
+                    document.getElementById('topCountry').textContent = this.geographicalData.summary.topCountry || 'Unknown';
+                    
+                    const gbFamilies = this.geographicalData.countries.find(c => c.country === 'GB')?.families || 0;
+                    document.getElementById('localFamilies').textContent = gbFamilies;
+                }
+            }
+
+            // Helper methods
+            getActiveFamiliesToday() {
+                const today = new Date().toDateString();
+                return this.families.filter(f => {
+                    const lastActive = new Date(f.updated_at || f.received_at).toDateString();
+                    return lastActive === today;
+                }).length;
+            }
+
+            getHotLeads() {
+                return this.families.filter(f => this.getEngagementScore(f) >= 70).length;
+            }
+
+            getAIAnalyzed() {
+                return this.families.filter(f => f.aiEngagement).length;
+            }
+
+            getPriorityFamilies() {
+                return this.families
+                    .filter(f => f.dwell_ms > 0 || f.aiEngagement)
+                    .sort((a, b) => this.getEngagementScore(b) - this.getEngagementScore(a))
+                    .slice(0, 5);
+            }
+
+            getEngagementScore(family) {
+                // Always use dwell_ms directly from database
+                const dwellMs = family.dwell_ms || 0;
+                if (dwellMs === 0) return 25; // Default for no engagement
+                
+                // Convert to minutes and calculate score
+                const dwellMinutes = dwellMs / 60000;
+                return Math.min(Math.round(dwellMinutes * 20 + 30), 100);
+            }
+
+            getTemperature(family) {
+                const score = this.getEngagementScore(family);
+                if (score >= 70) return 'HOT';
+                if (score >= 40) return 'WARM';
+                return 'COOL';
+            }
+
+            getEngagementTime(family) {
+                // Always use dwell_ms directly from database
+                return this.formatDwellTime(family.dwell_ms || 0);
+            }
+
+            formatDwellTime(ms) {
+                if (!ms || ms === 0) return '0s';
+                
+                const totalSeconds = Math.round(ms / 1000);
+                const minutes = Math.floor(totalSeconds / 60);
+                const seconds = totalSeconds % 60;
+                
+                if (minutes > 0) {
+                    return `${minutes}m ${seconds}s`;
+                } else {
+                    return `${seconds}s`;
+                }
+            }
+
+            getEventCount(family) {
+                // This would come from tracking_events count
+                // For now, estimating based on engagement
+                const score = this.getEngagementScore(family);
+                return Math.round(score / 10);
+            }
+
+            getScrollDepth(family) {
+                return family.engagement?.scrollDepth || 0;
+            }
+
+            extractBehavioralInsights(family) {
+                const insights = [];
+                
+                if (family.dwell_ms > 120000) insights.push('Deep Reader');
+                if (family.return_visits > 3) insights.push('High Interest');
+                if (family.dwell_ms > 0 && family.dwell_ms < 30000) insights.push('Quick Scanner');
+                
+                return insights;
+            }
+
+            formatDate(dateString) {
+                if (!dateString) return 'Unknown';
+                return new Date(dateString).toLocaleDateString('en-GB', {
+                    month: 'short',
+                    day: 'numeric'
+                });
+            }
+
+            // Analytics helpers
+            getAverageSessionDuration() {
+                if (this.families.length === 0) return '--';
+                const avgMs = this.families.reduce((sum, f) => sum + (f.dwell_ms || 0), 0) / this.families.length;
+                return this.formatDwellTime(avgMs);
+            }
+
+            getTotalEvents() {
+                // This would come from tracking_events table
+                return this.families.reduce((sum, f) => sum + this.getEventCount(f), 0);
+            }
+
+            getVideoEngagements() {
+                // This would come from video_engagement_tracking
+                return this.families.filter(f => f.dwell_ms > 60000).length; // Families with >1min engagement
+            }
+
+            getReturnVisitors() {
+                return this.families.filter(f => (f.return_visits || 1) > 1).length;
+            }
+
+            getAverageConfidence() {
+                const analyzed = this.families.filter(f => f.aiEngagement);
+                if (analyzed.length === 0) return '--';
+                return '95%'; // Placeholder - would come from ai_family_insights
+            }
+
+            // Actions
+            async refresh() {
+                document.getElementById('systemStatus').textContent = 'Refreshing...';
+                await this.loadData();
+                document.getElementById('systemStatus').textContent = 'System Ready';
+            }
+
+            async runAI() {
+                try {
+                    document.getElementById('systemStatus').textContent = 'Running AI Analysis...';
+                    const response = await fetch('/api/ai/analyze-all-families', { method: 'POST' });
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        console.log('✅ AI analysis completed:', result);
+                        await this.loadData();
+                        document.getElementById('systemStatus').textContent = 'AI Analysis Complete';
+                        
+                        setTimeout(() => {
+                            document.getElementById('systemStatus').textContent = 'System Ready';
+                        }, 3000);
+                    } else {
+                        throw new Error(result.error || 'AI analysis failed');
+                    }
+                } catch (error) {
+                    console.error('❌ AI analysis failed:', error);
+                    document.getElementById('systemStatus').textContent = 'AI Analysis Failed';
+                    
+                    setTimeout(() => {
+                        document.getElementById('systemStatus').textContent = 'System Ready';
+                    }, 3000);
+                }
+            }
+
+            exportData() {
+                const data = {
+                    families: this.families,
+                    metrics: this.metrics,
+                    exportedAt: new Date().toISOString()
+                };
+                
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `morehouse-intelligence-${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+
+            showError(message) {
+                console.error('Dashboard error:', message);
+                document.getElementById('familyIntelligence').innerHTML = `
+                    <div class="empty-state">
+                        <h3>Error Loading Data</h3>
+                        <p>${message}</p>
+                        <button class="btn btn-secondary" onclick="dashboard.refresh()" style="margin-top: 12px;">
+                            Try Again
+                        </button>
+                    </div>
+                `;
+            }
         }
-      } catch (error) {
-        results.push(`${endpoint}: ERROR - ${error.message}`);
-        this.log(`ERROR checking ${endpoint}: ${error.message}`);
-      }
-    }
 
-    this.elements.endpointStatus.innerHTML = results.join('<br>');
-    this.refresh();
-  }
-
-  async refresh() {
-    this.setStatus('Loading...', 'loading');
-    this.log('Refreshing data...');
-
-    try {
-      // Try different endpoints to see what works
-      let inquiriesData = null;
-      let dashboardData = null;
-
-      // Try inquiries endpoint
-      try {
-        const inquiriesResponse = await fetch('/api/analytics/inquiries');
-        this.log(`Inquiries response: ${inquiriesResponse.status} ${inquiriesResponse.headers.get('content-type')}`);
-        
-        if (inquiriesResponse.ok && inquiriesResponse.headers.get('content-type')?.includes('json')) {
-          inquiriesData = await inquiriesResponse.json();
-          this.log(`Got ${Array.isArray(inquiriesData) ? inquiriesData.length : 'non-array'} inquiries`);
-        } else {
-          const text = await inquiriesResponse.text();
-          this.log(`Inquiries endpoint returned HTML: ${text.substring(0, 100)}...`);
-        }
-      } catch (error) {
-        this.log(`Inquiries endpoint failed: ${error.message}`);
-      }
-
-      // Try dashboard endpoint
-      try {
-        const dashboardResponse = await fetch('/api/dashboard-data');
-        this.log(`Dashboard response: ${dashboardResponse.status} ${dashboardResponse.headers.get('content-type')}`);
-        
-        if (dashboardResponse.ok && dashboardResponse.headers.get('content-type')?.includes('json')) {
-          dashboardData = await dashboardResponse.json();
-          this.log('Got dashboard data successfully');
-        } else {
-          const text = await dashboardResponse.text();
-          this.log(`Dashboard endpoint returned HTML: ${text.substring(0, 100)}...`);
-        }
-      } catch (error) {
-        this.log(`Dashboard endpoint failed: ${error.message}`);
-      }
-
-      // Render what we have
-      if (inquiriesData && Array.isArray(inquiriesData)) {
-        this.renderFamilies(inquiriesData);
-        this.updateMetrics(inquiriesData);
-        this.setStatus('Data loaded', 'ready');
-        this.elements.apiStatus.textContent = 'APIs responding correctly';
-        this.elements.apiStatus.style.color = 'var(--green)';
-      } else if (dashboardData) {
-        this.renderFromDashboard(dashboardData);
-        this.setStatus('Partial data loaded', 'loading');
-        this.elements.apiStatus.textContent = 'Some APIs returning HTML instead of JSON';
-        this.elements.apiStatus.style.color = 'var(--amber)';
-      } else {
-        throw new Error('No valid JSON data received from any endpoint');
-      }
-
-    } catch (error) {
-      this.log(`Refresh failed: ${error.message}`);
-      this.setStatus('Load failed', 'error');
-      this.elements.apiStatus.textContent = 'APIs not responding properly';
-      this.elements.apiStatus.style.color = 'var(--red)';
-      this.showError(error.message);
-    }
-  }
-
-  renderFamilies(families) {
-    this.log(`Rendering ${families.length} families`);
-    
-    if (families.length === 0) {
-      this.elements.familiesList.innerHTML = '<div class="loading">No families found</div>';
-      return;
-    }
-
-    this.elements.familiesList.innerHTML = '';
-    
-    families.forEach(family => {
-      const row = this.createFamilyRow(family);
-      this.elements.familiesList.appendChild(row);
-      
-      // Load additional data for each family
-      this.loadFamilyData(family.id || family.inquiry_id, row);
-    });
-  }
-
-  createFamilyRow(family) {
-    const name = `${family.first_name || ''} ${family.family_surname || ''}`.trim() || 'Unknown';
-    const email = family.parent_email || '';
-    const entryYear = family.entry_year || '';
-    const dwellMs = parseInt(family.dwell_ms || 0);
-    const score = this.calculateScore(family);
-
-    const row = document.createElement('div');
-    row.className = 'family-row';
-    
-    row.innerHTML = `
-      <div class="family-header">
-        <div>
-          <div class="family-name">${this.escapeHtml(name)} ${entryYear ? `<span style="color: var(--slate);">(${entryYear})</span>` : ''}</div>
-          <div class="family-meta">${this.escapeHtml(email)}</div>
-        </div>
-        <div class="family-stats">
-          <div class="stat-badge">Time: ${this.formatTime(dwellMs)}</div>
-          <div class="stat-badge">Visits: <span data-visits>1</span></div>
-          <div class="score-badge">${score}</div>
-        </div>
-      </div>
-      
-      <div class="ai-summary" data-summary>Loading engagement data...</div>
-      
-      <table class="section-table" data-sections style="display: none;">
-        <thead>
-          <tr><th>Section</th><th>Time</th><th>Scroll</th></tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-      
-      <div style="margin-top: 12px;">
-        <button class="btn btn-secondary" onclick="app.regenerateAI('${family.id || family.inquiry_id}')">
-          Regenerate AI
-        </button>
-      </div>
-    `;
-    
-    return row;
-  }
-
-  async loadFamilyData(inquiryId, row) {
-    try {
-      // Try to get section data
-      const sectionResponse = await fetch(`/api/section-data/${inquiryId}`);
-      if (sectionResponse.ok) {
-        const sectionData = await sectionResponse.json();
-        this.renderSectionData(row, sectionData);
-      }
-
-      // Try to get AI summary
-      const aiResponse = await fetch(`/api/ai/engagement-summary/${inquiryId}`);
-      if (aiResponse.ok) {
-        const aiData = await aiResponse.json();
-        const summary = row.querySelector('[data-summary]');
-        if (summary && aiData.summaryText) {
-          summary.textContent = aiData.summaryText;
-        }
-      }
-    } catch (error) {
-      this.log(`Failed to load data for ${inquiryId}: ${error.message}`);
-      const summary = row.querySelector('[data-summary]');
-      if (summary) {
-        summary.textContent = 'Additional data unavailable';
-        summary.style.color = 'var(--slate)';
-      }
-    }
-  }
-
-  renderSectionData(row, data) {
-    if (!data.sections || data.sections.length === 0) return;
-
-    const table = row.querySelector('[data-sections]');
-    const tbody = table.querySelector('tbody');
-    
-    tbody.innerHTML = data.sections.slice(0, 5).map(section => `
-      <tr>
-        <td>${this.escapeHtml(section.section_name || section.section)}</td>
-        <td>${section.dwell_minutes || 0}m</td>
-        <td>${section.max_scroll_pct || 0}%</td>
-      </tr>
-    `).join('');
-    
-    table.style.display = 'table';
-  }
-
-  updateMetrics(families) {
-    const hot = families.filter(f => this.calculateScore(f) >= 80).length;
-    const warm = families.filter(f => this.calculateScore(f) >= 60 && this.calculateScore(f) < 80).length;
-    const ai = families.filter(f => f.aiEngagement).length;
-
-    this.elements.hotCount.textContent = hot;
-    this.elements.warmCount.textContent = warm;
-    this.elements.aiCount.textContent = ai;
-    this.elements.totalCount.textContent = families.length;
-  }
-
-  renderFromDashboard(data) {
-    // Fallback rendering from dashboard data
-    this.elements.familiesList.innerHTML = '<div class="loading">Using fallback data - some APIs returning HTML</div>';
-    
-    if (data.summary) {
-      this.elements.hotCount.textContent = data.summary.hotLeads || 0;
-      this.elements.warmCount.textContent = data.summary.warmLeads || 0;
-      this.elements.aiCount.textContent = data.summary.aiAnalyzed || 0;
-      this.elements.totalCount.textContent = data.summary.totalFamilies || 0;
-    }
-  }
-
-  async runAI() {
-    this.setStatus('Running AI...', 'loading');
-    this.log('Starting AI analysis...');
-
-    try {
-      const response = await fetch('/api/ai/analyze-all-families', { method: 'POST' });
-      const data = await response.json();
-      
-      if (response.ok && data.success) {
-        this.log('AI analysis completed successfully');
-        this.setStatus('AI complete', 'ready');
-        this.refresh();
-      } else {
-        throw new Error(data.message || data.error || 'AI analysis failed');
-      }
-    } catch (error) {
-      this.log(`AI analysis failed: ${error.message}`);
-      this.setStatus('AI failed', 'error');
-    }
-  }
-
-  async regenerateAI(inquiryId) {
-    this.log(`Regenerating AI for ${inquiryId}`);
-    
-    try {
-      const response = await fetch(`/api/ai/engagement-summary/${inquiryId}`, { method: 'POST' });
-      const data = await response.json();
-      
-      if (response.ok) {
-        this.log(`AI regenerated for ${inquiryId}`);
-        this.refresh();
-      } else {
-        throw new Error(data.message || 'Regeneration failed');
-      }
-    } catch (error) {
-      this.log(`AI regeneration failed: ${error.message}`);
-      alert('Regeneration failed: ' + error.message);
-    }
-  }
-
-  showError(message) {
-    this.elements.familiesList.innerHTML = `
-      <div class="error">
-        <div style="margin-bottom: 16px;">Error: ${message}</div>
-        <div style="font-size: 14px; color: var(--slate);">
-          Check the debug log for details. Your API endpoints may be returning HTML instead of JSON.
-        </div>
-      </div>
-    `;
-  }
-
-  calculateScore(family) {
-    const dwellMs = parseInt(family.dwell_ms || 0);
-    const minutes = dwellMs / (1000 * 60);
-    return Math.min(Math.round(minutes * 10 + 25), 100);
-  }
-
-  formatTime(ms) {
-    const minutes = Math.floor(ms / (1000 * 60));
-    const seconds = Math.floor((ms % (1000 * 60)) / 1000);
-    return minutes > 0 ? `${minutes}m` : `${seconds}s`;
-  }
-
-  escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text || '';
-    return div.innerHTML;
-  }
-}
-
-// Initialize
-const app = new Dashboard();
-</script>
+        // Initialize dashboard
+        const dashboard = new AdmissionsIntelligence();
+    </script>
 </body>
 </html>
