@@ -5,6 +5,9 @@ const path = require('path');
 require('dotenv').config();
 const { Client } = require('pg');
 const geoip = require('geoip-lite');
+const OpenAI = require("openai");
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
 
 const app = express();
 app.set('trust proxy', true);
@@ -2032,6 +2035,74 @@ app.post('/api/ai/analyze-family/:inquiryId', async (req, res) => {
   }
 });
 
+// ===================== AI NARRATIVE ROUTE =====================
+
+app.get('/api/family/:inquiryId/ai-summary', async (req, res) => {
+  const { inquiryId } = req.params;
+
+  try {
+    // Step 1: fetch the snapshot (reuse our own endpoint)
+    const snapshotRes = await fetch(`http://localhost:3000/api/family/${inquiryId}`);
+    const snapshot = await snapshotRes.json();
+
+    // Step 2: admissions-style AI prompt
+    const prompt = `
+You are a member of the Admissions Team at a leading independent school in the United Kingdom.
+
+Your role is to analyse parent engagement with a personalised school prospectus and report back to your colleagues. 
+Always use British spelling, professional admissions language, and write as if you are giving trusted advice to the team.
+
+Write a clear, detailed narrative that covers:
+- Overall behaviour (time spent, visits, device context)
+- Section-by-section commentary (what was read carefully, skimmed, or ignored)
+- Video engagement (started, completed, abandoned)
+- Conversion signals (e.g. clicked "Book a Visit", enquired further)
+- Declared interests (academic and co-curricular)
+- Geographical context (from IP/region if available)
+- Your professional recommendation for follow-up (next best action)
+
+Avoid bullet points; write in natural flowing sentences and paragraphs. Be concise but insightful, giving the admissions team a real sense of the family's engagement.
+
+Snapshot data:
+${JSON.stringify(snapshot, null, 2)}
+`;
+
+    // Step 3: call GPT
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.2
+    });
+
+    const aiNarrative = completion.choices[0].message.content.trim();
+
+    // Step 4: save to ai_family_insights (both snapshot + narrative)
+    const upsertQ = `
+      INSERT INTO ai_family_insights (inquiry_id, analysis_type, insights_json)
+      VALUES ($1, $2, $3)
+      ON CONFLICT (inquiry_id, analysis_type)
+      DO UPDATE SET insights_json = EXCLUDED.insights_json
+    `;
+    await db.query(upsertQ, [
+      inquiryId,
+      'engagement_summary',
+      JSON.stringify({
+        snapshot,
+        narrative: aiNarrative
+      })
+    ]);
+
+    // Step 5: return both
+    res.json({ inquiry_id: inquiryId, snapshot, narrative: aiNarrative });
+
+  } catch (err) {
+    console.error("Error generating AI narrative:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+
 app.post('/api/ai/force-summary/:inquiryId', async (req, res) => {
   if (!db) return res.status(500).json({ error: 'Database not available' });
 
@@ -3158,6 +3229,156 @@ app.get('/api/test/section-data/:inquiryId', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+// ===================== FAMILY SNAPSHOT ENDPOINT =====================
+
+app.get('/api/family/:inquiryId', async (req, res) => {
+  const { inquiryId } = req.params;
+
+  try {
+    // 1. Get base family info
+    const inquiryQ = `
+      SELECT id, first_name, family_surname, parent_email,
+             age_group, entry_year, prospectus_url, prospectus_filename,
+             prospectus_generated_at, received_at, dwell_ms, return_visits,
+             country, region, city, latitude, longitude, timezone, isp,
+             sciences, mathematics, english, languages, humanities, business,
+             drama, music, art, creative_writing, sport, leadership,
+             community_service, outdoor_education, academic_excellence,
+             pastoral_care, university_preparation, personal_development,
+             career_guidance, extracurricular_opportunities, debating,
+             small_classes, london_location, values_based, university_prep
+      FROM inquiries
+      WHERE id = $1
+    `;
+    const inquiryRes = await db.query(inquiryQ, [inquiryId]);
+    if (inquiryRes.rows.length === 0) {
+      return res.status(404).json({ error: "Family not found" });
+    }
+    const inquiry = inquiryRes.rows[0];
+
+    // Build prospectus URL (fallback to filename if needed)
+    const prospectusUrl = inquiry.prospectus_url ||
+      (inquiry.prospectus_filename ? `/prospectuses/${inquiry.prospectus_filename}` : null);
+
+    // 2. Engagement metrics (aggregated)
+    const metricsQ = `
+      SELECT 
+        SUM(time_on_page) AS total_time,
+        AVG(pages_viewed) AS avg_pages,
+        MAX(scroll_depth) AS max_scroll,
+        SUM(clicks_on_links) AS total_clicks,
+        MAX(total_visits) AS total_visits,
+        MAX(last_visit) AS last_visit
+      FROM engagement_metrics
+      WHERE inquiry_id = $1
+    `;
+    const metricsRes = await db.query(metricsQ, [inquiryId]);
+    const metrics = metricsRes.rows[0] || {};
+
+    // 3. Section-level breakdown from tracking_events
+    const sectionQ = `
+      SELECT current_section,
+             COUNT(*) AS events,
+             SUM(time_on_page) AS total_time,
+             MAX(scroll_depth) AS max_scroll,
+             SUM(conversion_signals) AS conversions
+      FROM tracking_events
+      WHERE inquiry_id = $1
+      GROUP BY current_section
+      ORDER BY total_time DESC NULLS LAST
+    `;
+    const sectionRes = await db.query(sectionQ, [inquiryId]);
+    const sections = sectionRes.rows.map(r => ({
+      section: r.current_section || "Unknown",
+      time_spent: Number(r.total_time || 0),
+      scroll_depth: Number(r.max_scroll || 0),
+      conversions: Number(r.conversions || 0),
+      events: Number(r.events || 0)
+    }));
+
+    // 4. Video engagement
+    const videoQ = `
+      SELECT video_id, SUM(watch_seconds) AS watch_time
+      FROM video_engagement_tracking
+      WHERE inquiry_id = $1
+      GROUP BY video_id
+    `;
+    let videos = [];
+    try {
+      const videoRes = await db.query(videoQ, [inquiryId]);
+      videos = videoRes.rows.map(r => ({
+        video_id: r.video_id,
+        watched_seconds: Number(r.watch_time || 0)
+      }));
+    } catch (e) {
+      // table might be empty, ignore
+    }
+
+    // 5. Conversion signals from tracking_events
+    const conversionQ = `
+      SELECT event_type, COUNT(*) AS cnt
+      FROM tracking_events
+      WHERE inquiry_id = $1
+        AND conversion_signals > 0
+      GROUP BY event_type
+    `;
+    const conversionRes = await db.query(conversionQ, [inquiryId]);
+    const conversions = conversionRes.rows.map(r => ({
+      type: r.event_type,
+      count: Number(r.cnt)
+    }));
+
+    // 6. Interests (boolean flags)
+    const interestFields = [
+      "sciences","mathematics","english","languages","humanities","business",
+      "drama","music","art","creative_writing","sport","leadership",
+      "community_service","outdoor_education","academic_excellence",
+      "pastoral_care","university_preparation","personal_development",
+      "career_guidance","extracurricular_opportunities","debating",
+      "small_classes","london_location","values_based","university_prep"
+    ];
+    const interests = interestFields.filter(f => inquiry[f] === true);
+
+    // 7. Geo info
+    const geo = {
+      country: inquiry.country,
+      region: inquiry.region,
+      city: inquiry.city,
+      latitude: inquiry.latitude,
+      longitude: inquiry.longitude,
+      timezone: inquiry.timezone,
+      isp: inquiry.isp
+    };
+
+    // Final response
+    res.json({
+      family: `${inquiry.first_name} ${inquiry.family_surname}`,
+      entry_year: inquiry.entry_year,
+      age_group: inquiry.age_group,
+      prospectus_url: prospectusUrl,
+      prospectus_generated_at: inquiry.prospectus_generated_at,
+      engagement: {
+        total_dwell_seconds: Number(metrics.total_time || inquiry.dwell_ms || 0),
+        avg_pages_per_visit: Number(metrics.avg_pages || 0),
+        max_scroll_depth: Number(metrics.max_scroll || 0),
+        link_clicks: Number(metrics.total_clicks || 0),
+        total_visits: Number(metrics.total_visits || inquiry.return_visits || 0),
+        last_active: metrics.last_visit || inquiry.updated_at
+      },
+      sections,
+      videos,
+      conversions,
+      interests,
+      geo
+    });
+
+  } catch (err) {
+    console.error("Error building family snapshot:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 
 // 404 handler
 app.use((req, res) => {
