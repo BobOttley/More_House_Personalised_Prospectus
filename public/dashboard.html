@@ -84,12 +84,11 @@ body {
 .kv .k { color: var(--slate); }
 .kv .v { color: var(--navy); }
 
-pre.raw { background: #0b1020; color: #e5e7eb; border-radius: 8px; padding: 10px; font-size: 12px; max-height: 260px; overflow: auto; }
-
 .debug { white-space: pre-wrap; font-size: 12px; color: var(--slate); background: #fff; border: 1px dashed var(--grey-200); border-radius: 8px; padding: 10px; max-height: 160px; overflow: auto; }
 
 .loading { color: var(--slate); font-size: 14px; }
 .link { color: var(--gold); text-decoration: none; border-bottom: 1px dashed var(--gold); }
+.note { font-size: 12px; color: var(--slate); }
 </style>
 </head>
 <body>
@@ -203,7 +202,6 @@ class Dashboard {
     await this.checkEndpoints();
 
     try {
-      // Preferred list endpoint
       const listRes = await fetch('/api/analytics/inquiries');
       const isJson = listRes.headers.get('content-type')?.includes('application/json');
       if (!isJson) throw new Error('/api/analytics/inquiries responded with HTML');
@@ -254,10 +252,9 @@ class Dashboard {
       this.loadFamilyData(fam.id || fam.inquiry_id, row);
     });
 
-    // Top counters (simple client-side estimation if dashboard-data lacks)
     const hot = families.filter(f => this.calculateScore(f) >= 75).length;
     const warm = families.filter(f => this.calculateScore(f) >= 50 && this.calculateScore(f) < 75).length;
-    const ai = families.length; // treated as “analysable” list
+    const ai = families.length;
     this.elements.hotCount.textContent = hot;
     this.elements.warmCount.textContent = warm;
     this.elements.aiCount.textContent = ai;
@@ -318,9 +315,19 @@ class Dashboard {
         </div>
 
         <div class="section-card" style="grid-column: 1 / -1;">
-          <h3>Raw data</h3>
+          <h3>Family Profile</h3>
           <div class="pad">
-            <pre class="raw" data-raw>{"loading": true}</pre>
+            <div class="kv" data-profile>
+              <div class="k">Inquiry ID</div><div class="v" data-prof-id>—</div>
+              <div class="k">Child</div><div class="v" data-prof-child>—</div>
+              <div class="k">Entry year</div><div class="v" data-prof-entry>—</div>
+              <div class="k">Age group</div><div class="v" data-prof-age>—</div>
+              <div class="k">Parent email</div><div class="v" data-prof-email>—</div>
+              <div class="k">Referrer</div><div class="v" data-prof-ref>—</div>
+              <div class="k">Prospectus</div><div class="v" data-prof-url>—</div>
+              <div class="k">User agent</div><div class="v" data-prof-ua class="muted">—</div>
+            </div>
+            <div class="note" style="margin-top:8px;color:#64748b" data-prof-note>Live data from /api/family/:id</div>
           </div>
         </div>
       </div>
@@ -330,7 +337,6 @@ class Dashboard {
 
   async loadFamilyData(inquiryId, row) {
     try {
-      // Engagement / sections
       const engRes = await fetch(`/api/family/${inquiryId}/engagement`);
       if (engRes.ok) {
         const eng = await engRes.json();
@@ -345,7 +351,6 @@ class Dashboard {
         }
       }
 
-      // AI summary
       const aiRes = await fetch(`/api/ai/engagement-summary/${inquiryId}`);
       if (aiRes.ok) {
         const ai = await aiRes.json();
@@ -353,7 +358,6 @@ class Dashboard {
         if (summary) summary.textContent = ai.summaryText || ai.summary || ai.narrative || 'No AI summary yet';
       }
 
-      // NEW: detail (for Geo + Raw) — non-breaking if route missing
       await this.loadDetailGeoAndRaw(inquiryId, row);
 
     } catch (e) {
@@ -369,30 +373,51 @@ class Dashboard {
       if (!res.ok) throw new Error(`/api/family/${inquiryId} -> ${res.status}`);
       const detail = await res.json();
 
-      // Render Raw (pretty)
-      const rawEl = row.querySelector('[data-raw]');
-      if (rawEl) rawEl.textContent = JSON.stringify(detail, null, 2);
+      const nameEl = row.querySelector('.family-name');
+      const metaEl = row.querySelector('.family-meta');
+      const entryFromHeader = /\((\d{4})\)$/.exec(nameEl?.textContent || '')?.[1];
+      const entryYear = detail.entry_year || detail.entryYear || entryFromHeader || '';
+      const childFirst = detail.child_name || detail.first_name || detail.childFirstName || '';
+      const familySurname = detail.family_surname || detail.familySurname || '';
+      const parentEmail = detail.parent_email || detail.parentEmail || metaEl?.textContent || '';
 
-      // Render Geo
-      const geoEl = row.querySelector('[data-geo]');
-      if (geoEl) {
-        const v = (k) => (detail[k] ?? detail?.geo?.[k] ?? detail?.location?.[k] ?? null);
-        const ip = v('ip_address') || v('ip') || '—';
-        const country = v('country') || '—';
-        const city = v('city') || '—';
-        const lat = v('geo_lat') ?? v('lat') ?? null;
-        const lon = v('geo_lon') ?? v('lon') ?? null;
-        const coords = (lat != null && lon != null) ? `${lat}, ${lon}` : '—';
-
-        const slots = geoEl.querySelectorAll('.v');
-        if (slots[0]) slots[0].textContent = ip;
-        if (slots[1]) slots[1].textContent = country;
-        if (slots[2]) slots[2].textContent = city;
-        if (slots[3]) slots[3].textContent = coords;
+      if (nameEl) {
+        const display = `${this.escapeHtml(childFirst)} ${this.escapeHtml(familySurname)}`.trim() || nameEl.textContent;
+        nameEl.innerHTML = `${display} ${entryYear ? `<span style="color: var(--slate);">(${entryYear})</span>` : ''}`;
       }
+      if (metaEl && parentEmail) metaEl.textContent = parentEmail;
+
+      const set = (sel, val) => { const el = row.querySelector(sel); if (el) el.textContent = val || '—'; };
+      set('[data-prof-id]', detail.inquiry_id || detail.id || inquiryId);
+      set('[data-prof-child]', `${childFirst} ${familySurname}`.trim());
+      set('[data-prof-entry]', entryYear || '');
+      set('[data-prof-age]', detail.age_group || detail.ageGroup || '');
+      set('[data-prof-email]', parentEmail || '');
+      set('[data-prof-ref]', detail.referrer || detail.source || '');
+      
+      const purl = detail.prospectus_pretty_url || detail.prospectus_url || detail.pretty_path || detail.slug || '';
+      const linkHtml = purl ? `<a class="link" href="${purl}" target="_blank" rel="noopener">Open prospectus</a>` : '—';
+      const urlEl = row.querySelector('[data-prof-url]'); if (urlEl) urlEl.innerHTML = linkHtml;
+      
+      const ua = (detail.user_agent || detail.userAgent || '').slice(0, 120);
+      set('[data-prof-ua]', ua);
+
+      const v = (k) => (detail[k] ?? detail?.geo?.[k] ?? detail?.location?.[k] ?? null);
+      const ip = v('ip_address') || v('ip') || '';
+      const country = v('country') || '';
+      const city = v('city') || '';
+      const lat = v('geo_lat') ?? v('lat') ?? null;
+      const lon = v('geo_lon') ?? v('lon') ?? null;
+      const coords = (lat != null && lon != null) ? `${lat}, ${lon}` : '';
+
+      const slots = row.querySelectorAll('[data-geo] .v');
+      if (slots[0]) slots[0].textContent = ip || '—';
+      if (slots[1]) slots[1].textContent = country || '—';
+      if (slots[2]) slots[2].textContent = city || '—';
+      if (slots[3]) slots[3].textContent = coords || '—';
+
     } catch (e) {
-      this.log(`Geo/Raw load failed for ${inquiryId}: ${e.message}`);
-      // Leave placeholders; panel stays visible so you can see it's missing
+      this.log(`Geo/Profile load failed for ${inquiryId}: ${e.message}`);
     }
   }
 
@@ -432,18 +457,41 @@ class Dashboard {
   async regenerateAI(inquiryId) {
     try {
       this.setStatus('Regenerating…', 'loading');
+      const row = Array.from(document.querySelectorAll('.family-row'))
+        .find(r => (r.innerHTML || '').includes(inquiryId));
+      const summaryEl = row?.querySelector('[data-summary]');
+      const previousText = summaryEl?.textContent || '';
+
+      if (summaryEl) summaryEl.insertAdjacentHTML(
+        'afterend',
+        '<div class="loading" data-ai-spinner style="margin-top:6px">Updating AI summary…</div>'
+      );
+
       const res = await fetch(`/api/ai/engagement-summary/${inquiryId}`, { method: 'POST' });
       const data = await res.json();
+
+      row?.querySelector('[data-ai-spinner]')?.remove();
+
       if (res.ok) {
-        const summary = document.querySelector(`[onclick="app.regenerateAI('${inquiryId}')"]`)?.closest('.family-row')?.querySelector('[data-summary]');
-        if (summary) summary.textContent = data.summaryText || data.summary || data.narrative || 'No AI summary yet';
+        const newText = data.summaryText || data.summary || data.narrative || previousText || 'No AI summary yet';
+        if (summaryEl) summaryEl.textContent = newText;
         this.setStatus('Ready', 'ready');
       } else {
-        throw new Error(data?.message || 'Failed to regenerate');
+        if (summaryEl) summaryEl.insertAdjacentHTML(
+          'afterend',
+          `<div class="loading" style="color:#b91c1c;margin-top:6px">AI error: ${this.escapeHtml(data?.message || 'Failed to regenerate')} (kept previous)</div>`
+        );
+        this.setStatus('AI error', 'loading');
       }
     } catch (e) {
-      this.setStatus('Error', 'loading');
-      this.log('Regenerate failed: ' + e.message);
+      const row = Array.from(document.querySelectorAll('.family-row'))
+        .find(r => (r.innerHTML || '').includes(inquiryId));
+      row?.querySelector('[data-ai-spinner]')?.remove();
+      if (row) row.insertAdjacentHTML(
+        'beforeend',
+        `<div class="loading" style="color:#b91c1c;margin-top:6px">AI error: ${this.escapeHtml(e.message)} (kept previous)</div>`
+      );
+      this.setStatus('AI error', 'loading');
     }
   }
 

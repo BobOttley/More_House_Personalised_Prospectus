@@ -1,4 +1,5 @@
 const express = require('express');
+const geoip = require("geoip-lite"); // << injected
 const cors = require('cors');
 const fs = require('fs').promises;
 const path = require('path');
@@ -10,6 +11,34 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 
 const app = express();
+
+// ===== GEO/IP helpers (injected) =====================================
+app.set("trust proxy", true);
+
+function getClientIp(req) {
+  const xfwd = (req.headers["x-forwarded-for"] || "").split(",")[0].trim();
+  return (req.headers["cf-connecting-ip"] || xfwd || req.headers["x-real-ip"] || req.ip || "").trim();
+}
+
+function enrichGeo(ip) {
+  try {
+    if (!ip) return {};
+    if (ip.startsWith("10.") || ip.startsWith("192.168.") || ip.startsWith("127.") || ip.startsWith("172.")) return {};
+    const g = geoip.lookup(ip);
+    if (!g) return {};
+    const ll = Array.isArray(g.ll) ? g.ll : []; const lat = ll[0]; const lon = ll[1];
+    return { country: g.country || null, city: g.city || null, geo_lat: (lat ?? null), geo_lon: (lon ?? null) };
+  } catch { return {}; }
+}
+
+// Attach client IP & geo to every request (available as req.clientIp / req.geo)
+app.use((req, _res, next) => {
+  req.clientIp = getClientIp(req);
+  req.geo = enrichGeo(req.clientIp);
+  next();
+});
+// =======================================================================
+
 app.set('trust proxy', true);
 const PORT = process.env.PORT || 3000;
 
@@ -3441,3 +3470,25 @@ process.on('unhandledRejection', (reason, promise) => {
 
 // Start the server
 startServer();
+
+// === Debug: verify real IP + city/lat/lon ===
+app.get('/api/debug/ip', (req, res) => {
+  res.json({
+    ip: req.clientIp || null,
+    geo: req.geo || {},
+    headers: {
+      'x-forwarded-for': req.headers['x-forwarded-for'] || null,
+      'cf-connecting-ip': req.headers['cf-connecting-ip'] || null,
+      'x-real-ip': req.headers['x-real-ip'] || null
+    }
+  });
+});
+// ============================================
+
+// === TODO (IMPORTANT): persist geo when you save an enquiry ===================
+// In your enquiry create/update handler, include something like:
+//   const ip = req.clientIp;
+//   const { country, city, geo_lat, geo_lon } = req.geo || {};
+//   // save to DB columns: ip_address, country, city, geo_lat, geo_lon
+// This keeps the dashboard simple—once stored, it shows nicely.
+// =============================================================================
