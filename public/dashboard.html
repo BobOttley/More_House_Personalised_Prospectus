@@ -219,11 +219,10 @@ class Dashboard{
       const row=this.createFamilyRow(f);
       this.elements.familiesList.appendChild(row);
       const id=f.id||f.inquiry_id;
-      this.loadFamilyDetail(id,row);
+      this.loadFamilyDetail(id,row,f);
     });
   }
 
-  // Normalise fields from varied backends
   fields(f){
     return {
       id: f.id||f.inquiry_id||'',
@@ -233,7 +232,10 @@ class Dashboard{
       entryYear: f.entry_year||f.entryYear||'',
       dwellMs: Number(f.dwell_ms||f.total_dwell_ms||0)||0,
       visits: Number(f.session_count||f.visits||0)||0,
-      aiEngagement: !!f.aiEngagement
+      aiEngagement: !!f.aiEngagement,
+      // prospectus URL hints
+      prospectusUrl: f.prospectus_url||f.prospectusUrl||f.prospectus_path||f.prospectusPath||'',
+      slug: f.prospectus_slug||f.slug||f.family_slug||''
     };
   }
 
@@ -271,13 +273,13 @@ class Dashboard{
         <button class="btn btn-secondary" data-open>Open prospectus</button>
       </div>
     `;
-    row.querySelector('[data-regenerate]').onclick=()=>this.regenerateAI(x.id);
-    row.querySelector('[data-open]').onclick=()=>window.open(`/prospectus/${encodeURIComponent(x.id)}`,'_blank');
+    // button actions bound later (needs original record)
     return row;
   }
 
-  async loadFamilyDetail(inquiryId,row){
+  async loadFamilyDetail(inquiryId,row,record){
     const qs=this.timeframeQS();
+
     // Sections
     try{
       const r=await fetch(`/api/section-data/${inquiryId}${qs}`);
@@ -298,7 +300,7 @@ class Dashboard{
       }
     }catch(e){this.log(`AI summary fail for ${inquiryId}: ${e.message}`)}
 
-    // Geo/device (tries a dedicated endpoint; falls back to embedded fields)
+    // Geo/device (tries a dedicated endpoint; falls back to inline)
     try{
       let geo=null;
       try{
@@ -306,18 +308,88 @@ class Dashboard{
         if(r.ok&&(r.headers.get('content-type')||'').includes('json')) geo=await r.json();
       }catch(_){}
       if(!geo){
-        // Fallback: try /api/analytics/inquiries/:id for inline geo
-        const r=await fetch(`/api/analytics/inquiries/${inquiryId}${qs}`);
-        if(r.ok&&(r.headers.get('content-type')||'').includes('json')) geo=await r.json();
+        const inline=this.fields(record);
+        geo={city:record.city,region:record.region,country:record.country,device:record.device_info||record.user_agent};
+        if(!(geo.city||geo.region||geo.country||geo.device)) geo=null;
       }
       if(geo) this.renderGeo(row,geo);
     }catch(e){this.log(`Geo fail for ${inquiryId}: ${e.message}`)}
+
+    // Wire the buttons (needs record for URL resolution)
+    const openBtn=row.querySelector('[data-open]');
+    const regenBtn=row.querySelector('[data-regenerate]');
+    regenBtn.onclick=()=>this.regenerateAI(inquiryId);
+    openBtn.onclick=()=>this.openProspectus(inquiryId, record);
+  }
+
+  // === Robust prospectus opener ===
+  async openProspectus(inquiryId, record){
+    const f=this.fields(record);
+    // 1) If backend already gave us a full URL/path, use it.
+    if(f.prospectusUrl){
+      const url=this.ensureAbsolute(f.prospectusUrl);
+      this.log(`Opening prospectus via prospectus_url: ${url}`);
+      return window.open(url,'_blank');
+    }
+    // 2) If we have a slug, try common routes
+    if(f.slug){
+      const candidates=[
+        `/prospectuses/${encodeURIComponent(f.slug)}`,
+      // common alternates you’ve used historically:
+        `/prospectus/${encodeURIComponent(f.slug)}`,
+        `/${encodeURIComponent(f.slug)}`
+      ];
+      for(const url of candidates){
+        const ok=await this.headOk(url);
+        if(ok){ this.log(`Opening prospectus via slug: ${url}`); return window.open(url,'_blank'); }
+      }
+    }
+    // 3) Try a helper endpoint that returns the URL for an inquiry id (if your server exposes it)
+    try{
+      const r=await fetch(`/api/prospectus-url/${encodeURIComponent(inquiryId)}`);
+      if(r.ok){
+        const j=await r.json();
+        if(j && (j.url||j.prospectus_url)){ 
+          const url=this.ensureAbsolute(j.url||j.prospectus_url);
+          this.log(`Opening prospectus via resolver: ${url}`);
+          return window.open(url,'_blank');
+        }
+      }
+    }catch(_){}
+
+    // 4) As a last resort, try a canonical path that existed in your data previously
+    const guess=`/prospectus/${encodeURIComponent(inquiryId)}`;
+    const ok=await this.headOk(guess);
+    if(ok){ this.log(`Opening prospectus via id fallback: ${guess}`); return window.open(guess,'_blank'); }
+
+    // If nothing worked, explain exactly what we tried
+    alert(
+`Can't open prospectus for ${inquiryId}.
+Tried:
+• prospectus_url from API (${f.prospectusUrl||'none'})
+• slug routes (${f.slug||'none'})
+• /api/prospectus-url/:id
+• fallback /prospectus/:id
+
+Server needs to return either 'prospectus_url' or 'slug' with each inquiry.`
+    );
+  }
+
+  ensureAbsolute(pathOrUrl){
+    try{ const u=new URL(pathOrUrl, window.location.origin); return u.toString(); }catch{ return pathOrUrl; }
+  }
+
+  async headOk(url){
+    try{
+      const r=await fetch(url,{method:'HEAD'});
+      return r.ok;
+    }catch{return false}
   }
 
   renderSections(row,data){
     const sections=(data.sections||[]).map(s=>({
       name: s.section_name||s.section||'—',
-      dwellMs: Number(s.dwell_ms||0),
+      dwellMs: Number(s.dwell_ms||s.dwellMs||0),
       scroll: Number(s.max_scroll_pct||s.scroll_pct||0)
     }));
     if(sections.length===0) return;
