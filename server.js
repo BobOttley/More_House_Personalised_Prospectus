@@ -24,6 +24,8 @@ function enrichGeo(ip) {
     const ll = Array.isArray(g.ll) ? g.ll : []; const lat = ll[0]; const lon = ll[1];
     return { country: g.country || null, city: g.city || null, geo_lat: (lat ?? null), geo_lon: (lon ?? null) };
   } catch { return {}; }
+}
+
 // Attach client IP & geo to every request (available as req.clientIp / req.geo)
 app.use((req, _res, next) => {
   req.clientIp = getClientIp(req);
