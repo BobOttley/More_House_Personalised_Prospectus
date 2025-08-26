@@ -29,7 +29,7 @@ function getClientIp(req) {
   return (req.headers["cf-connecting-ip"] || xfwd || req.headers["x-real-ip"] || req.ip || "").trim();
 }
 
-function enrichGeo(ip) {
+async function enrichGeo(ip) {
   try {
     if (!ip) return {};
     if (ip.startsWith("10.") || ip.startsWith("192.168.") || ip.startsWith("127.") || ip.startsWith("172.")) return {};
@@ -38,9 +38,25 @@ function enrichGeo(ip) {
     const ll = Array.isArray(g.ll) ? g.ll : [];
     const lat = ll[0];
     const lon = ll[1];
+    
+    let city = g.city;
+    
+    // If no city but we have coordinates, use Nominatim (free)
+    if (!city && lat && lon) {
+      try {
+        const response = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&addressdetails=1`);
+        const data = await response.json();
+        if (data && data.address) {
+          city = data.address.city || data.address.town || data.address.village || data.address.county;
+        }
+      } catch (reverseGeoError) {
+        console.warn('Reverse geocoding failed:', reverseGeoError.message);
+      }
+    }
+    
     return { 
       country: g.country || null, 
-      city: g.city || null, 
+      city: city || null, 
       geo_lat: (lat ?? null), 
       geo_lon: (lon ?? null) 
     };
@@ -50,9 +66,9 @@ function enrichGeo(ip) {
 }
 
 // Attach client IP & geo to every request
-app.use((req, _res, next) => {
+app.use(async (req, _res, next) => {
   req.clientIp = getClientIp(req);
-  req.geo = enrichGeo(req.clientIp);
+  req.geo = await enrichGeo(req.clientIp);
   next();
 });
 
