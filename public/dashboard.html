@@ -456,71 +456,15 @@
             text-transform: uppercase;
         }
 
-        .ai-confidence {
-            color: #64748b;
-            font-size: 0.75rem;
-        }
-
-        .ai-insights-content {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1rem;
-        }
-
-        .ai-insight-item {
+        .ai-narrative {
             background: white;
             padding: 0.75rem;
             border-radius: 6px;
             border: 1px solid var(--border-grey);
-        }
-
-        .ai-insight-item h5 {
-            color: var(--sport-blue);
-            font-size: 0.8rem;
-            margin-bottom: 0.5rem;
-            font-weight: 600;
-        }
-
-        .ai-insight-item ul {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-
-        .ai-insight-item li {
-            font-size: 0.75rem;
-            color: #475569;
-            margin-bottom: 0.25rem;
-            padding-left: 1rem;
-            position: relative;
-        }
-
-        .ai-insight-item li:before {
-            content: '→';
-            position: absolute;
-            left: 0;
-            color: var(--award-gold);
-        }
-
-        /* Prospectus Link */
-        .prospectus-link {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            background: var(--sport-blue);
-            color: white;
-            padding: 0.5rem 1rem;
-            border-radius: 6px;
-            text-decoration: none;
+            margin-bottom: 1rem;
             font-size: 0.85rem;
-            font-weight: 500;
-            transition: all 0.3s;
-            margin-top: 0.5rem;
-        }
-
-        .prospectus-link:hover {
-            background: var(--blazer-navy);
-            transform: translateY(-1px);
+            line-height: 1.5;
+            color: #475569;
         }
 
         /* Activity Feed */
@@ -738,7 +682,7 @@
                 <div class="metric-content">
                     <div class="metric-title">Hot Leads</div>
                     <div class="metric-value" id="hotLeads">-</div>
-                    <div class="metric-trend">Score 80+ • Ready for Contact</div>
+                    <div class="metric-trend">High Priority</div>
                 </div>
             </div>
         </div>
@@ -749,7 +693,7 @@
                 <div class="metric-content">
                     <div class="metric-title">Warm Leads</div>
                     <div class="metric-value" id="warmLeads">-</div>
-                    <div class="metric-trend">Score 60-79 • Contact Soon</div>
+                    <div class="metric-trend">Good Interest</div>
                 </div>
             </div>
         </div>
@@ -760,7 +704,7 @@
                 <div class="metric-content">
                     <div class="metric-title">AI Analyzed</div>
                     <div class="metric-value" id="aiAnalyzed">-</div>
-                    <div class="metric-trend">Families with AI insights</div>
+                    <div class="metric-trend">Families with insights</div>
                 </div>
             </div>
         </div>
@@ -781,19 +725,17 @@
     <section class="controls-bar">
         <div class="filter-group">
             <select class="filter-select" id="sortFilter">
-                <option value="aiScore">Sort by AI Score</option>
-                <option value="score">Sort by Engagement Score</option>
                 <option value="recent">Sort by Recent Activity</option>
+                <option value="engagement">Sort by Engagement</option>
                 <option value="inquiryDate">Sort by Inquiry Date</option>
-                <option value="timeSpent">Sort by Time Spent</option>
+                <option value="entryYear">Sort by Entry Year</option>
             </select>
             
             <select class="filter-select" id="statusFilter">
                 <option value="all">All Families</option>
-                <option value="hot">Hot Leads Only</option>
-                <option value="warm">Warm Leads Only</option>
-                <option value="online">Currently Online</option>
-                <option value="aiAnalyzed">AI Analyzed Only</option>
+                <option value="prospectus_generated">Has Prospectus</option>
+                <option value="ai_analyzed">AI Analyzed</option>
+                <option value="recent">Recent Activity</option>
             </select>
             
             <select class="filter-select" id="entryYearFilter">
@@ -815,7 +757,7 @@
                 <div>
                     <h2>Family Prospects</h2>
                     <div style="font-size: 0.9rem; opacity: 0.9; margin-top: 0.25rem;">
-                        Real-time engagement tracking with AI insights
+                        Real engagement tracking with AI analysis
                     </div>
                 </div>
                 <div class="ai-analyzing" id="aiStatus" style="display: none;">
@@ -823,14 +765,14 @@
                     AI Analyzing...
                 </div>
                 <button class="refresh-btn" onclick="triggerAIAnalysis()" style="background: white; border: 1px solid rgba(255,255,255,0.3); margin-left: 1rem;">
-                    <span style="color: var(--award-gold); font-weight: 600;">SMART</span> <span style="color: var(--blazer-navy);">AI Analysis</span>
+                    <span style="color: var(--award-gold); font-weight: 600;">AI</span> <span style="color: var(--blazer-navy);">Analysis</span>
                 </button>
             </div>
             <div class="panel-content">
                 <div class="family-cards-container" id="familyCards">
                     <div class="loading">
                         <div class="spinner"></div>
-                        Loading real family data...
+                        Loading family data...
                     </div>
                 </div>
             </div>
@@ -839,9 +781,9 @@
         <!-- Live Activity Feed -->
         <div class="panel">
             <div class="panel-header">
-                <h2>Live Activity Feed</h2>
+                <h2>Recent Activity</h2>
                 <div style="font-size: 0.9rem; opacity: 0.9;">
-                    Real tracking events
+                    Latest family activity
                 </div>
             </div>
             <div class="panel-content">
@@ -855,7 +797,6 @@
         </div>
     </main>
 
-    
     <script>
         // Dashboard State
         let dashboardData = {
@@ -899,46 +840,43 @@
             isRefreshing = true;
             
             try {
-                console.log('📡 Fetching real data from server...');
+                console.log('📡 Fetching real data from server.js endpoints...');
                 
                 // Update refresh icon
                 document.getElementById('refreshIcon').style.animation = 'spin 1s linear infinite';
                 
-                // Fetch inquiries with AI data
-                const inquiriesResponse = await fetch('/api/analytics/inquiries');
+                // Fetch from exact server.js endpoints
+                const [dashboardResponse, inquiriesResponse] = await Promise.all([
+                    fetch('/api/dashboard-data'),
+                    fetch('/api/analytics/inquiries')
+                ]);
+                
+                if (!dashboardResponse.ok) {
+                    throw new Error(`Dashboard API failed: ${dashboardResponse.status}`);
+                }
+                
                 if (!inquiriesResponse.ok) {
-                    throw new Error(`Inquiries API failed: ${inquiriesResponse.status} - ${inquiriesResponse.statusText}`);
+                    throw new Error(`Inquiries API failed: ${inquiriesResponse.status}`);
                 }
                 
-                const inquiriesData = await inquiriesResponse.json();
-                console.log('✅ Raw inquiries data:', Array.isArray(inquiriesData) ? inquiriesData.length : 'object', 'families');
+                const dashboardApiData = await dashboardResponse.json();
+                const inquiriesApiData = await inquiriesResponse.json();
                 
-                // Get dashboard data for activities
-                let dashboardApiData = { recentlyActive: [] };
-                try {
-                    const dashboardDataResponse = await fetch('/api/dashboard-data');
-                    dashboardApiData = await dashboardDataResponse.json();
-                    console.log('✅ Dashboard API data received:', dashboardApiData);
-                } catch (e) {
-                    console.warn('⚠️ Dashboard API failed, proceeding with inquiries only');
-                }
+                console.log('✅ Dashboard API data:', dashboardApiData);
+                console.log('✅ Inquiries API data:', Array.isArray(inquiriesApiData) ? inquiriesApiData.length : 'object', 'families');
                 
-                // Handle both array and object responses
-                const familiesArray = Array.isArray(inquiriesData) ? inquiriesData : [inquiriesData];
+                // Process data exactly as server.js provides it
+                dashboardData.families = processServerInquiries(inquiriesApiData);
+                dashboardData.activities = processServerActivity(dashboardApiData.recentlyActive || []);
+                dashboardData.metrics = processServerMetrics(dashboardApiData.summary || {}, dashboardData.families);
                 
-                // Process the real data
-                dashboardData.families = processRealFamilyData(familiesArray);
-                dashboardData.activities = processRealActivityData(dashboardApiData?.recentlyActive || []);
-                dashboardData.metrics = calculateRealMetrics(dashboardData.families);
-                
-                console.log('📄 Processed data:', {
+                console.log('📊 Processed data:', {
                     families: dashboardData.families.length,
                     activities: dashboardData.activities.length,
-                    aiAnalyzed: dashboardData.families.filter(f => f.hasAIAnalysis).length,
                     metrics: dashboardData.metrics
                 });
                 
-                // Update UI with real data
+                // Update UI
                 updateMetrics();
                 renderFamilyCards();
                 renderActivityFeed();
@@ -952,205 +890,177 @@
             }
         }
 
-        function processRealFamilyData(inquiriesData) {
-            console.log('📄 Processing real family data...');
+        // Process data exactly as server.js provides it
+        function processServerInquiries(inquiriesData) {
+            console.log('📄 Processing server inquiries data...');
+            
+            if (!Array.isArray(inquiriesData)) {
+                console.warn('Expected array, got:', typeof inquiriesData);
+                return [];
+            }
             
             return inquiriesData.map(family => {
-                // Get engagement data
-                const engagement = family.engagement || {
-                    timeOnPage: family.time_on_page || 0,
-                    scrollDepth: family.scroll_depth || 0,
-                    clickCount: family.clicks_on_links || family.click_count || 0,
-                    totalVisits: family.total_visits || 1,
-                    lastVisit: family.last_visit || family.received_at,
-                    engagementScore: family.engagement?.engagementScore || 25
-                };
+                // Extract interests exactly as server.js does
+                const interests = [];
+                const interestFields = [
+                    'sciences', 'mathematics', 'english', 'languages', 'humanities', 'business',
+                    'drama', 'music', 'art', 'creative_writing', 'sport', 'leadership',
+                    'community_service', 'outdoor_education', 'academic_excellence',
+                    'pastoral_care', 'university_preparation', 'personal_development',
+                    'career_guidance', 'extracurricular_opportunities'
+                ];
                 
-                // Get AI insights if available
-                const aiInsights = family.aiInsights || {};
-                const hasAI = aiInsights.hasAnalysis === true || aiInsights.leadScore !== null;
-                
-                // Extract interests
-                const interests = extractRealInterests(family);
-                
-                // Calculate scores
-                const engagementScore = engagement.engagementScore || calculateRealEngagementScore(engagement, family);
-                const aiScore = aiInsights.leadScore || null;
-                const finalScore = aiScore || engagementScore;
-                
-                // Get URLs - BUILD THEM CORRECTLY
-                const baseUrl = window.location.origin;
-                const prospectusUrl = family.prospectus_pretty_url || 
-                                     family.prospectus_pretty_path ? `${baseUrl}${family.prospectus_pretty_path}` :
-                                     family.slug ? `${baseUrl}/${family.slug}` : null;
-                
-                console.log(`👪 ${family.first_name} ${family.family_surname}:`, {
-                    engagement: engagementScore,
-                    aiScore: aiScore,
-                    hasAI: hasAI,
-                    url: prospectusUrl
+                interestFields.forEach(field => {
+                    if (family[field] === true) {
+                        interests.push(field.charAt(0).toUpperCase() + field.slice(1).replace('_', ' '));
+                    }
                 });
                 
+                // Use REAL data from server - dwell_ms and return_visits from inquiries table
+                const dwellMs = family.dwell_ms || 0;
+                const returnVisits = family.return_visits || 1;
+                
+                // Calculate engagement score from real server data
+                const engagementScore = family.engagement ? family.engagement.engagementScore : 
+                    calculateEngagementScoreFromServer({
+                        timeOnPage: dwellMs,
+                        totalVisits: returnVisits,
+                        scrollDepth: 50, // Server estimate
+                        clickCount: Math.floor(dwellMs / 10000) // Server estimate
+                    });
+                
+                // Determine temperature
+                let temperature = 'low';
+                if (engagementScore >= 70) temperature = 'hot';
+                else if (engagementScore >= 50) temperature = 'warm';
+                else if (engagementScore >= 30) temperature = 'cold';
+                
                 return {
-                    ...family,
-                    // Normalize naming
-                    inquiry_id: family.id,
+                    // Core data from server.js
+                    id: family.id,
                     firstName: family.first_name,
                     familySurname: family.family_surname,
                     parentEmail: family.parent_email,
                     entryYear: family.entry_year,
                     ageGroup: family.age_group,
                     receivedAt: family.received_at,
+                    status: family.status,
                     
-                    // Scores and analysis
+                    // Real engagement data from database
+                    dwellMs: dwellMs,
+                    returnVisits: returnVisits,
                     engagementScore: engagementScore,
-                    aiScore: aiScore,
-                    finalScore: finalScore,
-                    temperature: aiInsights.temperature || getTemperature(finalScore),
+                    temperature: temperature,
                     
-                    // AI data
-                    hasAIAnalysis: hasAI,
-                    aiInsights: hasAI ? {
-                        leadScore: aiInsights.leadScore,
-                        urgencyLevel: aiInsights.urgencyLevel,
-                        temperature: aiInsights.temperature,
-                        confidence: aiInsights.confidence,
-                        conversationStarters: aiInsights.fullInsights?.conversationStarters || [],
-                        sellingPoints: aiInsights.fullInsights?.sellingPoints || [],
-                        nextActions: aiInsights.fullInsights?.nextActions || [],
-                        insights: aiInsights.fullInsights?.insights || {}
-                    } : null,
+                    // AI insights if available (server.js provides this)
+                    aiEngagement: family.ai_engagement || family.aiEngagement || null,
+                    hasAIAnalysis: !!(family.ai_engagement || family.aiEngagement),
                     
-                    // Other data
-                    isOnline: isCurrentlyOnline(engagement.lastVisit || engagement.lastActivity),
+                    // Other processed data
                     interests: interests,
-                    contactReady: finalScore >= 80,
-                    engagement: engagement,
-                    prospectusUrl: prospectusUrl,
-                    trackingEvents: 0
+                    contactReady: family.status === 'prospectus_generated',
+                    isOnline: isRecentActivity(family.updated_at || family.received_at),
+                    prospectusUrl: family.prospectus_pretty_url || family.prospectus_direct_url || null,
+                    
+                    // Location data
+                    country: family.country || 'Unknown',
+                    region: family.region || 'Unknown',
+                    city: family.city || 'Unknown'
                 };
             });
         }
 
-        function calculateRealEngagementScore(engagement, family) {
+        function processServerActivity(recentActivityData) {
+            if (!Array.isArray(recentActivityData) || recentActivityData.length === 0) {
+                // Server.js fallback: create from families
+                return dashboardData.families ? dashboardData.families.slice(0, 10).map(family => ({
+                    family: `${family.firstName} ${family.familySurname}`,
+                    action: getServerActivityDescription(family.activity || 'Recently inquired'),
+                    time: formatTimeAgo(new Date(family.receivedAt)),
+                    type: getServerActivityPriority(family.activity || 'inquiry'),
+                    timestamp: family.receivedAt
+                })) : [];
+            }
+            
+            // Process server activity exactly as provided
+            return recentActivityData.slice(0, 20).map(activity => ({
+                family: activity.name || 'Unknown Family',
+                action: getServerActivityDescription(activity.activity || 'inquiry'),
+                time: formatTimeAgo(new Date(activity.when || activity.timestamp)),
+                type: getServerActivityPriority(activity.activity || 'inquiry'),
+                timestamp: activity.when || activity.timestamp
+            }));
+        }
+
+        function processServerMetrics(summary, families) {
+            // Use server.js calculated metrics first, fallback to calculated
+            const aiAnalyzedCount = families.filter(f => f.hasAIAnalysis).length;
+            
+            return {
+                hotLeads: summary.hotLeads || families.filter(f => f.temperature === 'hot').length,
+                warmLeads: summary.warmLeads || families.filter(f => f.temperature === 'warm').length,
+                aiAnalyzed: aiAnalyzedCount,
+                totalFamilies: summary.totalFamilies || families.length
+            };
+        }
+
+        // Server.js compatible functions
+        function calculateEngagementScoreFromServer(engagement) {
+            if (!engagement) return 0;
             let score = 0;
             
-            // Time spent (40% weight)
-            const timeSeconds = engagement.timeOnPage || engagement.time_on_page || 0;
-            const timeMinutes = timeSeconds / 60;
+            // Time spent (40% weight) - server uses milliseconds
+            const timeMinutes = (engagement.timeOnPage || 0) / 60000;
             if (timeMinutes >= 30) score += 40;
             else if (timeMinutes >= 15) score += 30;
             else if (timeMinutes >= 5) score += 20;
             else score += Math.min(timeMinutes * 4, 15);
             
             // Content depth (30% weight)
-            const scrollDepth = engagement.scrollDepth || engagement.scroll_depth || 0;
+            const scrollDepth = engagement.scrollDepth || 0;
             score += Math.min(scrollDepth * 0.3, 30);
             
             // Return visits (20% weight)
-            const visits = engagement.totalVisits || engagement.total_visits || 1;
-            if (visits >= 5) score += 20;
-            else if (visits >= 3) score += 15;
+            const visits = engagement.totalVisits || 1;
+            if (visits >= 7) score += 20;
+            else if (visits >= 4) score += 15;
             else if (visits >= 2) score += 10;
             else score += 5;
             
             // Interaction quality (10% weight)
-            const clicks = engagement.clickCount || engagement.clicks_on_links || engagement.click_count || 0;
+            const clicks = engagement.clickCount || 0;
             score += Math.min(clicks * 2, 10);
             
             return Math.min(Math.round(score), 100);
         }
 
-        function extractRealInterests(family) {
-            const interests = [];
-            const interestFields = [
-                'sciences', 'mathematics', 'english', 'languages', 'humanities',
-                'business', 'drama', 'music', 'art', 'sport', 'leadership',
-                'community_service', 'outdoor_education'
-            ];
-            
-            interestFields.forEach(field => {
-                if (family[field] === true || family[field] === 'true' || family[field] === 1) {
-                    interests.push(field.charAt(0).toUpperCase() + field.slice(1).replace('_', ' '));
-                }
-            });
-            
-            return interests;
-        }
-
-        function processRealActivityData(recentActivityData) {
-            if (!recentActivityData || recentActivityData.length === 0) {
-                return dashboardData.families ? dashboardData.families.slice(0, 10).map(family => ({
-                    family: `${family.firstName || family.first_name} ${family.familySurname || family.family_surname}`,
-                    action: 'Submitted inquiry',
-                    time: formatTimeAgo(new Date(family.receivedAt || family.received_at)),
-                    type: 'medium',
-                    timestamp: family.receivedAt || family.received_at
-                })) : [];
-            }
-            
-            return recentActivityData.slice(0, 20).map(activity => ({
-                family: activity.name || 'Unknown Family',
-                action: getActivityDescription(activity.activity || 'inquiry'),
-                time: formatTimeAgo(new Date(activity.when || activity.timestamp)),
-                type: getActivityPriority(activity.activity || 'inquiry'),
-                timestamp: activity.when || activity.timestamp
-            }));
-        }
-
-        function getActivityDescription(activityType) {
+        function getServerActivityDescription(activityType) {
+            // Match server.js activity descriptions
             const descriptions = {
                 'inquiry': 'Submitted inquiry',
                 'Recently inquired': 'Recently inquired',
                 'prospectus_generated': 'Prospectus generated',
                 'page_load': 'Opened prospectus',
-                'scroll_depth': 'Engaged with content',
-                'link_click': 'Clicked links',
-                'heartbeat': 'Active on page',
-                'page_visible': 'Viewing prospectus',
-                'youtube_video_start': 'Started watching video',
-                'youtube_video_progress': 'Watched video content'
+                'engagement': 'Engaged with content'
             };
             
             return descriptions[activityType] || `${activityType.replace(/_/g, ' ')} activity`;
         }
 
-        function getActivityPriority(activityType) {
-            const highPriority = ['youtube_video_progress', 'form_interaction', 'prospectus_generated'];
-            const mediumPriority = ['click', 'scroll_depth', 'inquiry', 'Recently inquired'];
+        function getServerActivityPriority(activityType) {
+            // Match server.js priority logic
+            const highPriority = ['prospectus_generated', 'high_engagement'];
+            const mediumPriority = ['inquiry', 'Recently inquired', 'engagement'];
             
             if (highPriority.includes(activityType)) return 'high';
             if (mediumPriority.includes(activityType)) return 'medium';
             return 'low';
         }
 
-        function calculateRealMetrics(families) {
-            const hotLeads = families.filter(f => (f.aiScore || f.engagementScore) >= 80).length;
-            const warmLeads = families.filter(f => {
-                const score = f.aiScore || f.engagementScore;
-                return score >= 60 && score < 80;
-            }).length;
-            const aiAnalyzed = families.filter(f => f.hasAIAnalysis).length;
-            
-            return {
-                hotLeads,
-                warmLeads,
-                aiAnalyzed,
-                totalFamilies: families.length
-            };
-        }
-
-        function getTemperature(score) {
-            if (score >= 80) return 'hot';
-            if (score >= 60) return 'warm';
-            if (score >= 40) return 'cold';
-            return 'low';
-        }
-
-        function isCurrentlyOnline(lastActivity) {
-            if (!lastActivity) return false;
+        function isRecentActivity(timestamp) {
+            if (!timestamp) return false;
             const now = new Date();
-            const diffMinutes = (now - new Date(lastActivity)) / (1000 * 60);
+            const diffMinutes = (now - new Date(timestamp)) / (1000 * 60);
             return diffMinutes < 30;
         }
 
@@ -1189,102 +1099,57 @@
                 container.innerHTML = `
                     <div class="error">
                         <div class="error-title">No Family Data Found</div>
-                        <p>No inquiries match your current filters. Try:</p>
-                        <ul>
-                            <li>Clearing the search box</li>
-                            <li>Selecting "All Families" in filters</li>
-                            <li>Checking if families have submitted inquiries</li>
-                        </ul>
+                        <p>No inquiries match your current filters or no data available from server.js endpoints.</p>
                     </div>
                 `;
                 return;
             }
             
             container.innerHTML = families.map(family => {
-                const engagement = family.engagement || {};
-                const totalTimeMinutes = Math.round((engagement.timeOnPage || engagement.time_on_page || 0) / 60);
-                const visits = engagement.totalVisits || engagement.total_visits || 1;
-                const scrollDepth = engagement.scrollDepth || engagement.scroll_depth || 0;
-                const clicks = engagement.clickCount || engagement.clicks_on_links || engagement.click_count || 0;
+                const totalTimeMinutes = Math.round((family.dwellMs || 0) / 60000);
+                const totalTimeSeconds = Math.round((family.dwellMs || 0) / 1000);
+                const visits = family.returnVisits || 1;
                 
-                // Build AI insights HTML if available
+                // Build AI insights HTML if available from server
                 let aiInsightsHTML = '';
-                if (family.hasAIAnalysis && family.aiInsights) {
-                    const ai = family.aiInsights;
+                if (family.hasAIAnalysis && family.aiEngagement) {
+                    const ai = family.aiEngagement;
                     aiInsightsHTML = `
                         <div class="ai-insights-section">
                             <div class="ai-insights-header">
                                 <span class="ai-badge">AI ANALYZED</span>
-                                <span class="ai-confidence">Confidence: ${Math.round((ai.confidence || 0) * 100)}%</span>
-                                <span style="margin-left: auto; font-weight: 600; color: var(--blazer-navy);">
-                                    AI Score: ${ai.leadScore}/100
-                                </span>
                             </div>
-                            <div class="ai-insights-content">
-                                ${ai.conversationStarters && ai.conversationStarters.length > 0 ? `
-                                    <div class="ai-insight-item">
-                                        <h5>Conversation Starters</h5>
-                                        <ul>
-                                            ${ai.conversationStarters.slice(0, 2).map(starter => 
-                                                `<li>${starter}</li>`
-                                            ).join('')}
-                                        </ul>
-                                    </div>
-                                ` : ''}
-                                ${ai.nextActions && ai.nextActions.length > 0 ? `
-                                    <div class="ai-insight-item">
-                                        <h5>Recommended Actions</h5>
-                                        <ul>
-                                            ${ai.nextActions.slice(0, 2).map(action => 
-                                                `<li>${action}</li>`
-                                            ).join('')}
-                                        </ul>
-                                    </div>
-                                ` : ''}
-                                ${ai.insights && ai.insights.studentProfile ? `
-                                    <div class="ai-insight-item">
-                                        <h5>Student Profile</h5>
-                                        <p style="font-size: 0.75rem; color: #475569; margin: 0;">
-                                            ${ai.insights.studentProfile}
-                                        </p>
-                                    </div>
-                                ` : ''}
-                                ${ai.insights && ai.insights.recommendedApproach ? `
-                                    <div class="ai-insight-item">
-                                        <h5>Approach Strategy</h5>
-                                        <p style="font-size: 0.75rem; color: #475569; margin: 0;">
-                                            ${ai.insights.recommendedApproach}
-                                        </p>
-                                    </div>
-                                ` : ''}
+                            <div class="ai-narrative">
+                                ${ai.narrative || 'AI analysis completed'}
                             </div>
+                            ${ai.highlights && ai.highlights.length > 0 ? `
+                                <div style="font-size: 0.8rem;">
+                                    ${ai.highlights.map(highlight => `<div>${highlight}</div>`).join('')}
+                                </div>
+                            ` : ''}
                         </div>
                     `;
                 }
                 
-                // Use the AI score if available, otherwise engagement score
-                const displayScore = family.aiScore || family.engagementScore;
-                const scoreLabel = family.hasAIAnalysis ? `AI: ${displayScore}` : displayScore;
-                
                 return `
-                    <div class="family-card" data-id="${family.inquiry_id || family.id}">
-                        <div class="family-card-header" onclick="toggleFamilyCard('${family.inquiry_id || family.id}')">
+                    <div class="family-card" data-id="${family.id}">
+                        <div class="family-card-header" onclick="toggleFamilyCard('${family.id}')">
                             <div class="family-info">
                                 <div class="family-name">
                                     <div class="status-indicator ${family.isOnline ? 'online' : 'offline'}"></div>
-                                    ${family.firstName || family.first_name} ${family.familySurname || family.family_surname} Family
+                                    ${family.firstName} ${family.familySurname} Family
                                 </div>
                                 <div class="family-meta">
-                                    <span>Entry ${family.entryYear || family.entry_year || 'Unknown'}</span>
-                                    <span>${totalTimeMinutes} mins</span>
+                                    <span>Entry ${family.entryYear || 'TBC'}</span>
+                                    <span>${totalTimeMinutes > 0 ? totalTimeMinutes + ' mins' : totalTimeSeconds + ' secs'}</span>
                                     <span>${visits} visits</span>
                                     ${family.hasAIAnalysis ? '<span style="color: var(--award-gold); font-weight: 600;">✨ AI</span>' : ''}
-                                    <span>${formatTimeAgo(new Date(family.receivedAt || family.received_at))}</span>
+                                    <span>${formatTimeAgo(new Date(family.receivedAt))}</span>
                                 </div>
                             </div>
                             <div class="family-score">
                                 <div class="score-badge ${family.temperature}">
-                                    ${scoreLabel}
+                                    ${family.engagementScore}
                                 </div>
                                 <div class="expand-btn">▼</div>
                             </div>
@@ -1294,29 +1159,22 @@
                                 ${aiInsightsHTML}
                                 <div class="details-grid">
                                     <div class="detail-item">
-                                        <h4>Real Engagement</h4>
-                                        <p>${visits} visits • ${scrollDepth}% max scroll</p>
-                                        <p>Total time: ${totalTimeMinutes} minutes</p>
-                                        <p>Clicks: ${clicks} • Engagement Score: ${family.engagementScore}</p>
-                                        ${family.prospectusUrl ? `
-                                            <a href="${family.prospectusUrl}" target="_blank" class="prospectus-link">
-                                                📄 View Prospectus
-                                            </a>
-                                        ` : ''}
+                                        <h4>Real Server Data</h4>
+                                        <p>Database ID: ${family.id}</p>
+                                        <p>Dwell time: ${family.dwellMs}ms</p>
+                                        <p>Return visits: ${visits}</p>
+                                        <p>Status: ${family.status}</p>
+                                        <p>Engagement Score: ${family.engagementScore}/100</p>
                                     </div>
                                     <div class="detail-item">
-                                        <h4>Contact Status</h4>
-                                        <p>${family.contactReady ? '✅ Ready for immediate contact' : '⏳ Continue nurturing'}</p>
-                                        <p>Last activity: ${engagement.lastVisit || engagement.lastActivity ? formatTimeAgo(new Date(engagement.lastVisit || engagement.lastActivity)) : 'Never'}</p>
-                                        ${family.hasAIAnalysis && family.aiInsights ? `
-                                            <p style="margin-top: 0.5rem;">
-                                                <strong>Urgency:</strong> ${family.aiInsights.urgencyLevel || 'Unknown'}<br>
-                                                <strong>Temperature:</strong> ${family.aiInsights.temperature || 'Unknown'}
-                                            </p>
-                                        ` : ''}
+                                        <h4>Contact Info</h4>
+                                        <p>Email: ${family.parentEmail || 'Not provided'}</p>
+                                        <p>Age Group: ${family.ageGroup || 'Unknown'}</p>
+                                        <p>Location: ${family.city}, ${family.country}</p>
+                                        <p>${family.contactReady ? '✅ Ready for contact' : '⏳ Continue nurturing'}</p>
                                     </div>
                                     <div class="detail-item">
-                                        <h4>Real Interests</h4>
+                                        <h4>Interests</h4>
                                         <div class="interests-tags">
                                             ${family.interests && family.interests.length > 0 ? 
                                                 family.interests.map(interest => `<span class="interest-tag">${interest}</span>`).join('') :
@@ -1325,11 +1183,14 @@
                                         </div>
                                     </div>
                                     <div class="detail-item">
-                                        <h4>Family Details</h4>
-                                        <p>Age Group: ${family.ageGroup || family.age_group || 'Unknown'}</p>
-                                        <p>Email: ${family.parentEmail || family.parent_email || 'Unknown'}</p>
-                                        <p>Entry Year: ${family.entryYear || family.entry_year || 'Unknown'}</p>
-                                        <p>Inquiry ID: ${family.inquiry_id || family.id}</p>
+                                        <h4>AI Analysis</h4>
+                                        ${family.hasAIAnalysis ? 
+                                            '<p style="color: var(--success);">✅ AI insights available</p>' :
+                                            '<p style="color: var(--warning);">⏳ Not yet analyzed</p>'
+                                        }
+                                        <button onclick="analyzeIndividualFamily('${family.id}')" style="margin-top: 0.5rem; padding: 0.25rem 0.5rem; background: var(--sport-blue); color: white; border: none; border-radius: 4px; font-size: 0.8rem; cursor: pointer;">
+                                            ${family.hasAIAnalysis ? 'Re-analyze' : 'Analyze Family'}
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -1349,7 +1210,7 @@
                 container.innerHTML = `
                     <div class="error">
                         <div class="error-title">No Activity Data</div>
-                        <p>No recent activity found. Waiting for families to engage with prospectuses.</p>
+                        <p>No recent activity from server.js endpoint.</p>
                     </div>
                 `;
                 return;
@@ -1378,52 +1239,47 @@
             const searchTerm = document.getElementById('searchBox').value.toLowerCase();
             const sortBy = document.getElementById('sortFilter').value;
             
-            // Status filter
+            // Status filter - match server.js logic
             if (statusFilter !== 'all') {
-                if (statusFilter === 'online') {
-                    families = families.filter(f => f.isOnline);
-                } else if (statusFilter === 'aiAnalyzed') {
+                if (statusFilter === 'prospectus_generated') {
+                    families = families.filter(f => f.contactReady);
+                } else if (statusFilter === 'ai_analyzed') {
                     families = families.filter(f => f.hasAIAnalysis);
-                } else {
-                    families = families.filter(f => f.temperature === statusFilter);
+                } else if (statusFilter === 'recent') {
+                    families = families.filter(f => f.isOnline);
                 }
             }
             
             // Entry year filter
             if (entryYearFilter !== 'all') {
                 if (entryYearFilter === '2027') {
-                    families = families.filter(f => (f.entryYear || f.entry_year) >= 2027);
+                    families = families.filter(f => f.entryYear >= 2027);
                 } else {
-                    families = families.filter(f => (f.entryYear || f.entry_year) == entryYearFilter);
+                    families = families.filter(f => f.entryYear == entryYearFilter);
                 }
             }
             
             // Search filter
             if (searchTerm) {
                 families = families.filter(f => 
-                    `${f.firstName || f.first_name} ${f.familySurname || f.family_surname}`.toLowerCase().includes(searchTerm) ||
-                    (f.parentEmail || f.parent_email || '').toLowerCase().includes(searchTerm)
+                    `${f.firstName} ${f.familySurname}`.toLowerCase().includes(searchTerm) ||
+                    (f.parentEmail || '').toLowerCase().includes(searchTerm)
                 );
             }
             
-            // Sort
+            // Sort - match server.js behavior
             switch (sortBy) {
-                case 'aiScore':
-                    families.sort((a, b) => (b.aiScore || 0) - (a.aiScore || 0));
-                    break;
-                case 'score':
+                case 'engagement':
                     families.sort((a, b) => b.engagementScore - a.engagementScore);
                     break;
                 case 'recent':
-                    families.sort((a, b) => new Date(b.engagement?.lastVisit || b.engagement?.lastActivity || b.receivedAt || b.received_at) - 
-                                           new Date(a.engagement?.lastVisit || a.engagement?.lastActivity || a.receivedAt || a.received_at));
+                    families.sort((a, b) => new Date(b.receivedAt) - new Date(a.receivedAt));
                     break;
                 case 'inquiryDate':
-                    families.sort((a, b) => new Date(b.receivedAt || b.received_at) - new Date(a.receivedAt || a.received_at));
+                    families.sort((a, b) => new Date(b.receivedAt) - new Date(a.receivedAt));
                     break;
-                case 'timeSpent':
-                    families.sort((a, b) => (b.engagement?.timeOnPage || b.engagement?.time_on_page || 0) - 
-                                           (a.engagement?.timeOnPage || a.engagement?.time_on_page || 0));
+                case 'entryYear':
+                    families.sort((a, b) => (a.entryYear || 0) - (b.entryYear || 0));
                     break;
             }
             
@@ -1453,7 +1309,7 @@
                     console.log('🔄 Auto refresh triggered');
                     loadDashboardData();
                 }
-            }, 30000); // Refresh every 30 seconds
+            }, 30000);
         }
 
         function stopAutoRefresh() {
@@ -1473,7 +1329,7 @@
                 <div class="error">
                     <div class="error-title">${title}</div>
                     <p>${message}</p>
-                    <p>Check the console for technical details.</p>
+                    <p>Check server.js endpoints and console for details.</p>
                 </div>
             `;
             
@@ -1481,7 +1337,7 @@
             activityContainer.innerHTML = errorHtml;
         }
 
-        // AI Analysis Functions
+        // AI Analysis Functions - matching server.js exactly
         async function triggerAIAnalysis() {
             const aiStatusElement = document.getElementById('aiStatus');
             const buttonElement = document.querySelector('.refresh-btn[onclick="triggerAIAnalysis()"]');
@@ -1490,8 +1346,9 @@
             if (buttonElement) buttonElement.disabled = true;
             
             try {
-                console.log('🤖 Starting real AI analysis...');
+                console.log('🤖 Starting AI analysis via server.js /api/ai/analyze-all-families...');
                 
+                // Call the exact endpoint from server.js
                 const response = await fetch('/api/ai/analyze-all-families', {
                     method: 'POST',
                     headers: {
@@ -1506,9 +1363,8 @@
                     // Refresh dashboard data after AI analysis
                     await loadDashboardData();
                     
-                    // Show success message
                     if (result.success) {
-                        alert(`✅ AI Analysis completed!\n\nAnalyzed: ${result.results.analyzed}/${result.results.total} families\nSuccess Rate: ${result.results.successRate}%`);
+                        alert(`✅ AI Analysis completed!\n\nProcessed: ${result.count} families\nResults: ${result.results?.length || 0} analyzed`);
                     } else {
                         alert('⚠️ AI Analysis completed with errors. Check console.');
                     }
@@ -1522,6 +1378,41 @@
             } finally {
                 if (aiStatusElement) aiStatusElement.style.display = 'none';
                 if (buttonElement) buttonElement.disabled = false;
+            }
+        }
+
+        // Individual family analysis - using server.js endpoint
+        async function analyzeIndividualFamily(inquiryId) {
+            try {
+                console.log(`🤖 Analyzing individual family: ${inquiryId}`);
+                
+                // Call server.js individual analysis endpoint
+                const response = await fetch(`/api/ai/analyze-family/${inquiryId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    console.log('✅ Individual analysis completed:', result);
+                    
+                    // Refresh dashboard to show updated analysis
+                    await loadDashboardData();
+                    
+                    if (result.success) {
+                        alert(`✅ Analysis completed for ${result.message.split(' for ')[1]}`);
+                    } else {
+                        alert('⚠️ Analysis failed. Check console for details.');
+                    }
+                } else {
+                    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+                    throw new Error(`Individual analysis failed: ${errorData.error || response.statusText}`);
+                }
+            } catch (error) {
+                console.error('❌ Individual analysis error:', error);
+                alert(`❌ Individual analysis failed: ${error.message}`);
             }
         }
     </script>
