@@ -1067,18 +1067,31 @@
 
         // Utility functions for formatting
         function formatLocation(family) {
-            const city = family.city && family.city !== 'Unknown' ? family.city : null;
-            const country = family.country && family.country !== 'Unknown' ? family.country : null;
-            
-            if (city && country) {
-                return `${city}, ${country}`;
-            } else if (country) {
-                return country;
-            } else if (city) {
-                return city;
-            } else {
-                return 'Location pending (check IP detection)';
-            }
+          // Debug what we actually have
+          console.log('Location data for', family.firstName, ':', {
+            city: family.city,
+            country: family.country,
+            region: family.region
+          });
+  
+          const city = family.city && family.city !== 'Unknown' && family.city !== 'Location pending' ? family.city : null;
+          const country = family.country && family.country !== 'Unknown' ? family.country : null;
+  
+          // If we have real location data, use it
+          if (city && country) {
+            return `${city}, ${country}`;
+          } else if (country && country !== 'Unknown') {
+            return country;
+          } else if (city && city !== 'Unknown') {
+            return city;
+          } 
+  
+          // Fallback: show what we actually got from the server
+          const rawLocation = [family.city, family.region, family.country]
+            .filter(loc => loc && loc !== 'Unknown' && loc !== 'null')
+            .join(', ');
+    
+          return rawLocation || 'Location data not captured';
         }
 
         async function checkGeoLocation(inquiryId) {
