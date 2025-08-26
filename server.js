@@ -165,13 +165,17 @@ let slugIndex = {};
 async function ensureDirectories() {
   await fs.mkdir(path.join(__dirname, 'data'), { recursive: true });
   await fs.mkdir(path.join(__dirname, 'prospectuses'), { recursive: true });
-async function loadSlugIndex() {
-    const p = path.join(__dirname, 'data', 'slug-index.json');
-    slugIndex = JSON.parse(await fs.readFile(p, 'utf8'));
-    console.log(`Loaded ${Object.keys(slugIndex).length} slug mappings`);
-  } catch {
-    slugIndex = {};
-    console.log('No slug-index.json yet; will create on first save.');
+  async function loadSlugIndex() {
+    try {
+      const p = path.join(__dirname, 'data', 'slug-index.json');
+      slugIndex = JSON.parse(await fs.readFile(p, 'utf8'));
+      console.log(`Loaded ${Object.keys(slugIndex).length} slug mappings`);
+    } catch {
+      slugIndex = {};
+      console.log('No slug-index.json yet; will create on first save.');
+    }
+  }
+
 async function saveSlugIndex() {
   const p = path.join(__dirname, 'data', 'slug-index.json');
   await fs.writeFile(p, JSON.stringify(slugIndex, null, 2));
