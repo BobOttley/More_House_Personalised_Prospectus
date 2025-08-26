@@ -2572,6 +2572,177 @@ app.get('/api/ai/engagement-summary/:inquiryId', async (req, res) => {
   }
 });
 
+// Add this endpoint to your server.js to fix all summaries
+
+app.post('/api/fix-all-summaries', async (req, res) => {
+  if (!db) return res.status(500).json({ error: 'Database not available' });
+
+  try {
+    // Find all inquiries with the default "Limited tracking" message but actual data
+    const problematic = await db.query(`
+      SELECT 
+        i.id,
+        i.first_name,
+        i.family_surname,
+        i.entry_year,
+        i.dwell_ms,
+        afi.insights_json
+      FROM inquiries i
+      LEFT JOIN ai_family_insights afi 
+        ON i.id = afi.inquiry_id 
+        AND afi.analysis_type = 'engagement_summary'
+      WHERE i.dwell_ms > 0
+        AND (
+          afi.insights_json->>'narrative' LIKE '%Limited tracking%'
+          OR afi.insights_json->>'narrative' LIKE '%awaiting%'
+          OR afi.insights_json->>'narrative' IS NULL
+        )
+    `);
+
+    const fixed = [];
+    
+    for (const inquiry of problematic.rows) {
+      // Get section data
+      const sections = await db.query(`
+        SELECT
+          COALESCE(event_data->>'currentSection', 'unknown') AS section,
+          SUM(COALESCE((event_data->>'timeInSectionSec')::int, 0)) AS dwell_seconds,
+          MAX(COALESCE((event_data->>'maxScrollPct')::int, 0)) AS scroll_pct
+        FROM tracking_events
+        WHERE inquiry_id = $1
+          AND event_type = 'section_exit'
+        GROUP BY 1
+        ORDER BY 2 DESC
+        LIMIT 5
+      `, [inquiry.id]);
+
+      const totalMinutes = Math.round((inquiry.dwell_ms || 0) / 60000);
+      const totalSeconds = Math.round((inquiry.dwell_ms || 0) / 1000);
+      
+      // Build a proper narrative based on actual data
+      let narrative = `${inquiry.first_name} ${inquiry.family_surname}'s family spent ${totalMinutes > 0 ? totalMinutes + ' minutes' : totalSeconds + ' seconds'} exploring their personalised prospectus. `;
+      
+      if (sections.rows.length > 0) {
+        const topSections = sections.rows
+          .slice(0, 3)
+          .filter(s => s.dwell_seconds > 0)
+          .map(s => s.section.replace(/_/g, ' '));
+        
+        if (topSections.length > 0) {
+          narrative += `They showed particular interest in ${topSections.join(', ')}, `;
+          
+          // Add scroll depth info if available
+          const highScroll = sections.rows.filter(s => s.scroll_pct >= 100);
+          if (highScroll.length > 0) {
+            narrative += `scrolling through ${highScroll.length} section${highScroll.length > 1 ? 's' : ''} completely. `;
+          }
+        }
+        
+        narrative += `This engagement pattern suggests genuine interest in understanding More House's offerings. `;
+      }
+      
+      narrative += `A follow-up conversation would be valuable to discuss their specific interests and answer any questions.`;
+
+      // Build highlights
+      const highlights = [
+        `• Engaged for ${totalMinutes > 0 ? totalMinutes + ' minutes' : totalSeconds + ' seconds'} reviewing materials`
+      ];
+      
+      if (sections.rows.length > 0) {
+        highlights.push(`• Explored ${sections.rows.length} different sections`);
+        
+        const topSection = sections.rows[0];
+        if (topSection && topSection.dwell_seconds > 0) {
+          highlights.push(`• Primary focus: ${topSection.section.replace(/_/g, ' ')}`);
+        }
+        
+        const completeScroll = sections.rows.filter(s => s.scroll_pct >= 100).length;
+        if (completeScroll > 0) {
+          highlights.push(`• Thoroughly reviewed ${completeScroll} section${completeScroll > 1 ? 's' : ''} (100% scroll)`);
+        }
+      }
+      
+      highlights.push(`• Ready for personalised follow-up`);
+
+      // Update the database
+      await db.query(`
+        INSERT INTO ai_family_insights (inquiry_id, analysis_type, insights_json, generated_at)
+        VALUES ($1, 'engagement_summary', $2::jsonb, NOW())
+        ON CONFLICT (inquiry_id, analysis_type)
+        DO UPDATE SET 
+          insights_json = EXCLUDED.insights_json,
+          generated_at = NOW()
+      `, [
+        inquiry.id,
+        JSON.stringify({ narrative, highlights })
+      ]);
+
+      fixed.push({
+        id: inquiry.id,
+        name: `${inquiry.first_name} ${inquiry.family_surname}`,
+        dwellMinutes: totalMinutes,
+        sectionsFound: sections.rows.length
+      });
+    }
+
+    res.json({
+      success: true,
+      message: `Fixed ${fixed.length} summaries`,
+      fixed
+    });
+
+  } catch (error) {
+    console.error('Fix summaries error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Also add this simple check endpoint to see what's wrong
+app.get('/api/check-summary/:inquiryId', async (req, res) => {
+  if (!db) return res.status(500).json({ error: 'Database not available' });
+  
+  const inquiryId = req.params.inquiryId;
+  
+  try {
+    const data = await db.query(`
+      SELECT 
+        i.id,
+        i.first_name,
+        i.family_surname,
+        i.dwell_ms,
+        i.return_visits,
+        afi.insights_json,
+        afi.generated_at
+      FROM inquiries i
+      LEFT JOIN ai_family_insights afi 
+        ON i.id = afi.inquiry_id 
+        AND afi.analysis_type = 'engagement_summary'
+      WHERE i.id = $1
+    `, [inquiryId]);
+    
+    const sections = await db.query(`
+      SELECT
+        event_type,
+        COUNT(*) as count,
+        SUM(COALESCE((event_data->>'timeInSectionSec')::int, 0)) AS total_dwell
+      FROM tracking_events
+      WHERE inquiry_id = $1
+      GROUP BY event_type
+    `, [inquiryId]);
+    
+    res.json({
+      inquiry: data.rows[0],
+      trackingEvents: sections.rows,
+      currentSummary: data.rows[0]?.insights_json,
+      problem: data.rows[0]?.insights_json?.narrative?.includes('Limited tracking') ? 
+        'DEFAULT_MESSAGE_DESPITE_DATA' : 'OK'
+    });
+    
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.post('/api/ai/analyze-family/:inquiryId', async (req, res) => {
  try {
    const inquiryId = req.params.inquiryId;
@@ -2726,6 +2897,313 @@ app.post('/api/ai/analyze-family/:inquiryId', async (req, res) => {
      inquiryId: req.params.inquiryId
    });
  }
+});
+
+// Add these endpoints to your server.js file
+
+// Fix all summaries that have the default "Limited tracking" message
+app.post('/api/fix-all-summaries', async (req, res) => {
+  if (!db) return res.status(500).json({ error: 'Database not available' });
+
+  try {
+    // Find all inquiries with problematic summaries
+    const problematic = await db.query(`
+      SELECT 
+        i.id,
+        i.first_name,
+        i.family_surname,
+        i.entry_year,
+        i.dwell_ms,
+        afi.insights_json
+      FROM inquiries i
+      LEFT JOIN ai_family_insights afi 
+        ON i.id = afi.inquiry_id 
+        AND afi.analysis_type = 'engagement_summary'
+      WHERE i.dwell_ms > 0
+        AND (
+          afi.insights_json->>'narrative' LIKE '%Limited tracking%'
+          OR afi.insights_json->>'narrative' LIKE '%awaiting%'
+          OR afi.insights_json->>'narrative' IS NULL
+        )
+    `);
+
+    const fixed = [];
+    
+    for (const inquiry of problematic.rows) {
+      const inquiryId = inquiry.id;
+      const dwellMs = Number(inquiry.dwell_ms || 0);
+      const minutes = Math.round(dwellMs / 60000);
+      const seconds = Math.round(dwellMs / 1000);
+      
+      // Get section data
+      const sections = await db.query(`
+        SELECT
+          COALESCE(event_data->>'currentSection', 'unknown') AS section,
+          SUM(COALESCE((event_data->>'timeInSectionSec')::int, 0)) AS dwell_seconds,
+          MAX(COALESCE((event_data->>'maxScrollPct')::int, 0)) AS scroll_pct
+        FROM tracking_events
+        WHERE inquiry_id = $1
+          AND event_type = 'section_exit'
+        GROUP BY 1
+        ORDER BY 2 DESC
+        LIMIT 5
+      `, [inquiryId]);
+
+      // Build narrative
+      let narrative = `${inquiry.first_name} ${inquiry.family_surname}'s family spent ${minutes > 0 ? minutes + ' minutes' : seconds + ' seconds'} exploring their personalised prospectus. `;
+      
+      if (sections.rows.length > 0) {
+        const topSections = sections.rows
+          .slice(0, 3)
+          .map(s => s.section.replace(/_/g, ' '))
+          .filter(s => s !== 'unknown');
+        
+        if (topSections.length > 0) {
+          narrative += `They showed particular interest in ${topSections.join(', ')}. `;
+        }
+      }
+      
+      narrative += `This engagement shows genuine interest in More House. A follow-up conversation would be valuable.`;
+
+      // Build highlights
+      const highlights = [
+        `• Engaged for ${minutes > 0 ? minutes + ' minutes' : seconds + ' seconds'}`,
+        `• Explored ${sections.rows.length} sections`,
+        `• Ready for personalised follow-up`
+      ];
+
+      // Update database
+      await db.query(`
+        INSERT INTO ai_family_insights (inquiry_id, analysis_type, insights_json, generated_at)
+        VALUES ($1, 'engagement_summary', $2::jsonb, NOW())
+        ON CONFLICT (inquiry_id, analysis_type)
+        DO UPDATE SET 
+          insights_json = EXCLUDED.insights_json,
+          generated_at = NOW()
+      `, [inquiryId, JSON.stringify({ narrative, highlights })]);
+
+      fixed.push({
+        id: inquiryId,
+        name: `${inquiry.first_name} ${inquiry.family_surname}`,
+        dwellMinutes: minutes
+      });
+    }
+
+    res.json({
+      success: true,
+      message: `Fixed ${fixed.length} summaries`,
+      fixed
+    });
+
+  } catch (error) {
+    console.error('Fix summaries error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Force regenerate a specific summary
+app.post('/api/ai/force-summary/:inquiryId', async (req, res) => {
+  if (!db) return res.status(500).json({ error: 'Database not available' });
+
+  const inquiryId = req.params.inquiryId;
+
+  try {
+    // Get inquiry data
+    const inquiryResult = await db.query(`
+      SELECT 
+        id,
+        first_name,
+        family_surname,
+        entry_year,
+        dwell_ms,
+        return_visits
+      FROM inquiries
+      WHERE id = $1
+    `, [inquiryId]);
+
+    if (!inquiryResult.rows[0]) {
+      return res.status(404).json({ error: 'Inquiry not found' });
+    }
+
+    const inquiry = inquiryResult.rows[0];
+    const dwellMs = Number(inquiry.dwell_ms || 0);
+    const minutes = Math.round(dwellMs / 60000);
+    const visits = Number(inquiry.return_visits || 1);
+
+    // Get section data
+    const sectionData = await db.query(`
+      SELECT
+        COALESCE(event_data->>'currentSection', 'unknown') AS section,
+        SUM(COALESCE((event_data->>'timeInSectionSec')::int, 0)) AS dwell_seconds,
+        MAX(COALESCE((event_data->>'maxScrollPct')::int, 0)) AS scroll_pct
+      FROM tracking_events
+      WHERE inquiry_id = $1
+        AND event_type = 'section_exit'
+      GROUP BY 1
+      ORDER BY 2 DESC
+    `, [inquiryId]);
+
+    const sections = sectionData.rows;
+
+    // Generate narrative with actual data
+    let narrative = `${inquiry.first_name} ${inquiry.family_surname}'s family has spent ${minutes} minutes exploring their personalised prospectus`;
+    
+    if (visits > 1) {
+      narrative += ` across ${visits} visits`;
+    }
+    
+    narrative += '. ';
+
+    if (sections.length > 0) {
+      const topSections = sections
+        .slice(0, 3)
+        .filter(s => s.dwell_seconds > 0)
+        .map(s => s.section.replace(/_/g, ' '));
+      
+      if (topSections.length > 0) {
+        narrative += `They showed strong interest in ${topSections.join(', ')}, `;
+        
+        const fullScroll = sections.filter(s => s.scroll_pct >= 100);
+        if (fullScroll.length > 0) {
+          narrative += `thoroughly reviewing ${fullScroll.length} section${fullScroll.length > 1 ? 's' : ''} completely. `;
+        }
+      }
+    }
+
+    narrative += `This level of engagement indicates genuine interest in More House. A personalised follow-up discussing their areas of interest would be valuable.`;
+
+    const highlights = [
+      `• ${minutes} minutes of focused engagement`,
+      `• ${sections.length} sections explored`,
+      visits > 1 ? `• ${visits} visits showing sustained interest` : `• Initial exploration completed`,
+      `• Ready for targeted follow-up`,
+      `• Strong candidate for admission`
+    ];
+
+    // If we have an AI API key, try to generate a better summary
+    if (process.env.ANTHROPIC_API_KEY || process.env.OPENAI_API_KEY) {
+      try {
+        const snapshot = {
+          totals: {
+            time_on_page_ms: dwellMs,
+            video_ms: 0,
+            clicks: 0,
+            total_visits: visits
+          },
+          sections: sections.map(s => ({
+            section: s.section,
+            dwell_ms: s.dwell_seconds * 1000,
+            video_ms: 0,
+            clicks: 0
+          }))
+        };
+
+        const aiResult = await generateAiEngagementStory(snapshot, {
+          first_name: inquiry.first_name,
+          family_surname: inquiry.family_surname,
+          entry_year: inquiry.entry_year
+        });
+
+        if (aiResult && aiResult.narrative) {
+          narrative = aiResult.narrative;
+          if (aiResult.highlights) {
+            highlights.length = 0;
+            highlights.push(...aiResult.highlights);
+          }
+        }
+      } catch (aiError) {
+        console.log('AI generation failed, using deterministic summary');
+      }
+    }
+
+    // Save to database
+    await db.query(`
+      INSERT INTO ai_family_insights (inquiry_id, analysis_type, insights_json, generated_at)
+      VALUES ($1, 'engagement_summary', $2::jsonb, NOW())
+      ON CONFLICT (inquiry_id, analysis_type)
+      DO UPDATE SET 
+        insights_json = EXCLUDED.insights_json,
+        generated_at = NOW()
+    `, [inquiryId, JSON.stringify({ narrative, highlights })]);
+
+    res.json({
+      success: true,
+      inquiryId,
+      summary: { narrative, highlights },
+      data: {
+        dwellMinutes: minutes,
+        visits,
+        sectionCount: sections.length
+      }
+    });
+
+  } catch (error) {
+    console.error('Force summary error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Ensure the GET endpoint returns the correct data
+app.get('/api/ai/engagement-summary/:inquiryId', async (req, res) => {
+  if (!db) return res.status(500).json({ error: 'Database not available' });
+
+  const inquiryId = req.params.inquiryId;
+
+  try {
+    // Get stored AI summary
+    const aiResult = await db.query(`
+      SELECT insights_json
+      FROM ai_family_insights
+      WHERE inquiry_id = $1 AND analysis_type = 'engagement_summary'
+    `, [inquiryId]);
+
+    // Get inquiry data
+    const inquiryData = await db.query(`
+      SELECT dwell_ms, return_visits
+      FROM inquiries
+      WHERE id = $1
+    `, [inquiryId]);
+
+    // Get section data
+    const sectionData = await db.query(`
+      SELECT
+        COALESCE(event_data->>'currentSection', 'unknown') AS section,
+        SUM(COALESCE((event_data->>'timeInSectionSec')::int, 0)) AS dwell_seconds,
+        MAX(COALESCE((event_data->>'maxScrollPct')::int, 0)) AS max_scroll_pct
+      FROM tracking_events
+      WHERE inquiry_id = $1
+        AND event_type = 'section_exit'
+      GROUP BY 1
+      ORDER BY 2 DESC
+    `, [inquiryId]);
+
+    const dwellMs = Number(inquiryData.rows[0]?.dwell_ms || 0);
+    const visits = Number(inquiryData.rows[0]?.return_visits || 1);
+    const score = Math.min(100, Math.round((dwellMs / 1000) / 10) + 50);
+
+    let summaryText = 'No summary available';
+    let highlights = [];
+
+    if (aiResult.rows[0]?.insights_json) {
+      const insights = aiResult.rows[0].insights_json;
+      summaryText = insights.narrative || summaryText;
+      highlights = insights.highlights || [];
+    }
+
+    res.json({
+      inquiryId,
+      visits,
+      score,
+      sections: sectionData.rows,
+      summaryText,
+      highlights,
+      total_dwell_ms: dwellMs
+    });
+
+  } catch (error) {
+    console.error('Get engagement summary error:', error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // --- Dwell accumulator endpoint (ADD THIS) ---
@@ -3037,18 +3515,6 @@ app.get('/api/debug/snapshot/:inquiryId', async (req, res) => {
   });
 });
 
-app.get('/api/debug/snapshot/:inquiryId', async (req, res) => {
-  if (!db) return res.status(500).json({ error: 'No database' });
-  
-  const inquiryId = req.params.inquiryId;
-  const snapshot = await buildEngagementSnapshot(db, inquiryId);
-  
-  res.json({
-    inquiryId,
-    snapshot,
-    hasData: snapshot.totals.time_on_page_ms > 0 || snapshot.sections.length > 0
-  });
-});
 
 app.use((req, res) => {
  res.status(404).json({ 
