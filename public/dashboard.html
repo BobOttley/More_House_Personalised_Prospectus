@@ -16,79 +16,251 @@
   --grey-50: #f8fafc;
   --grey-100: #f1f5f9;
   --grey-200: #e2e8f0;
-  --grey-300: #cbd5e1;
   --grey-600: #475569;
+  --grey-900: #0f172a;
 }
 
-* { box-sizing: border-box; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
 body {
-  margin: 0; background: var(--grey-50); color: var(--navy);
-  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  font-family: 'Inter', sans-serif;
+  background: var(--grey-50);
+  color: var(--grey-900);
+  line-height: 1.5;
 }
 
 .header {
-  background: white; border-bottom: 1px solid var(--grey-200);
-  position: sticky; top: 0; z-index: 10;
+  background: linear-gradient(135deg, var(--navy) 0%, #1e40af 100%);
+  color: white;
+  padding: 20px;
 }
+
 .header-content {
-  max-width: 1200px; margin: 0 auto; padding: 16px;
-  display: flex; align-items: center; justify-content: space-between;
+  max-width: 1400px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
-.header h1 { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: 0.2px; }
-.header-controls { display: flex; gap: 12px; align-items: center; }
 
-.btn { padding: 8px 16px; border: 1px solid transparent; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s; }
-.btn-primary { background: var(--gold); color: var(--navy); }
-.btn-secondary { background: white; color: var(--grey-600); border: 1px solid var(--grey-200); }
-.btn:hover { filter: brightness(0.98); }
+.header h1 {
+  font-size: 24px;
+  font-weight: 600;
+}
 
-.status { padding: 6px 10px; border-radius: 999px; font-size: 12px; border: 1px solid var(--grey-200); background: #fff; color: var(--slate); }
-.status-loading { background: #fff7ed; border-color: #fed7aa; color: #9a3412; }
-.status-ready { background: #ecfeff; border-color: #a5f3fc; color: #155e75; }
+.header-controls {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
 
-.main-content { max-width: 1200px; margin: 20px auto; padding: 0 16px; display: grid; gap: 16px; }
+.btn {
+  padding: 8px 16px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
 
-.card { background: white; border: 1px solid var(--grey-200); border-radius: 10px; overflow: hidden; }
-.card-header { padding: 14px 16px; border-bottom: 1px solid var(--grey-200); display: flex; align-items: center; justify-content: space-between; }
-.card-title { margin: 0; font-size: 16px; font-weight: 700; }
-.card-body { padding: 20px; }
+.btn-primary {
+  background: var(--gold);
+  color: var(--navy);
+}
 
-.metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
-.metric { background: white; border: 1px solid var(--grey-200); border-radius: 10px; padding: 16px; text-align: center; }
-.metric-value { font-size: 28px; font-weight: 700; color: var(--navy); }
-.metric-label { font-size: 13px; color: var(--slate); margin-top: 4px; }
+.btn-secondary {
+  background: white;
+  color: var(--grey-600);
+  border: 1px solid var(--grey-200);
+}
 
-.families { display: grid; gap: 12px; }
-.family-row { border: 1px solid var(--grey-200); border-radius: 10px; padding: 14px; background: #fff; }
-.family-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.family-name { font-size: 16px; font-weight: 700; }
-.family-meta { font-size: 13px; color: var(--slate); }
-.family-stats { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-.stat-badge { background: var(--grey-100); border: 1px solid var(--grey-200); border-radius: 999px; padding: 4px 8px; font-size: 12px; }
-.score-badge { background: #ecfeff; border: 1px solid #a5f3fc; color: #155e75; border-radius: 999px; padding: 4px 10px; font-weight: 700; font-size: 12px; }
+.status {
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+}
 
-.ai-summary { background: #fffaf0; border: 1px solid #fde68a; color: #713f12; border-radius: 8px; padding: 10px 12px; margin-top: 10px; font-size: 14px; }
+.status-ready { background: rgba(16, 185, 129, 0.1); color: var(--green); }
+.status-loading { background: rgba(245, 158, 11, 0.1); color: var(--amber); }
+.status-error { background: rgba(239, 68, 68, 0.1); color: var(--red); }
 
-.section-grid { margin-top: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-@media (max-width: 900px) { .section-grid { grid-template-columns: 1fr; } }
+.main-content {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 24px 20px;
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 24px;
+}
 
-.section-card { border: 1px solid var(--grey-200); border-radius: 8px; overflow: hidden; background: #fff; }
-.section-card h3 { margin: 0; padding: 10px 12px; font-size: 13px; font-weight: 700; background: var(--grey-100); border-bottom: 1px solid var(--grey-200); }
-.section-card .pad { padding: 10px 12px; }
+.card {
+  background: white;
+  border: 1px solid var(--grey-200);
+  border-radius: 12px;
+  overflow: hidden;
+}
 
-.section-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.section-table th, .section-table td { border-bottom: 1px solid var(--grey-200); padding: 6px 8px; text-align: left; }
-.section-table th { color: var(--slate); font-weight: 600; }
+.card-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--grey-200);
+  background: var(--grey-50);
+}
 
-.kv { display: grid; grid-template-columns: 160px 1fr; gap: 6px 10px; font-size: 13px; }
-.kv .k { color: var(--slate); }
-.kv .v { color: var(--navy); }
+.card-title {
+  font-size: 18px;
+  font-weight: 600;
+}
 
-.debug { white-space: pre-wrap; font-size: 12px; color: var(--slate); background: #fff; border: 1px dashed var(--grey-200); border-radius: 8px; padding: 10px; max-height: 160px; overflow: auto; }
+.card-body {
+  padding: 20px;
+}
 
-.loading { color: var(--slate); font-size: 14px; }
-.link { color: var(--gold); text-decoration: none; border-bottom: 1px dashed var(--gold); }
-.note { font-size: 12px; color: var(--slate); }
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.metric {
+  background: white;
+  border: 1px solid var(--grey-200);
+  border-radius: 10px;
+  padding: 16px;
+  text-align: center;
+}
+
+.metric-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--navy);
+}
+
+.metric-label {
+  font-size: 13px;
+  color: var(--slate);
+  margin-top: 4px;
+}
+
+.families-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.family-row {
+  background: white;
+  border: 1px solid var(--grey-200);
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.family-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.family-name {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.family-meta {
+  font-size: 13px;
+  color: var(--slate);
+}
+
+.family-stats {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.stat-badge {
+  background: var(--grey-100);
+  color: var(--grey-600);
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+}
+
+.score-badge {
+  background: var(--navy);
+  color: white;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+.ai-summary {
+  background: var(--grey-50);
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  color: var(--grey-600);
+  margin: 12px 0;
+}
+
+.section-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 8px;
+  font-size: 13px;
+}
+
+.section-table th {
+  background: var(--grey-100);
+  padding: 8px;
+  text-align: left;
+  font-weight: 600;
+  border-bottom: 1px solid var(--grey-200);
+}
+
+.section-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--grey-200);
+}
+
+.loading {
+  text-align: center;
+  padding: 40px;
+  color: var(--slate);
+}
+
+.error {
+  text-align: center;
+  padding: 40px;
+  color: var(--red);
+}
+
+.debug-log {
+  background: #1a1a1a;
+  color: #e0e0e0;
+  font-family: monospace;
+  font-size: 12px;
+  padding: 16px;
+  border-radius: 8px;
+  max-height: 300px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  margin-top: 16px;
+}
+
+@media (max-width: 1200px) {
+  .main-content {
+    grid-template-columns: 1fr;
+  }
+  .metrics {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
 </style>
 </head>
 <body>
@@ -120,28 +292,40 @@ body {
           </div>
           <div class="metric">
             <div id="aiCount" class="metric-value">0</div>
-            <div class="metric-label">AI Analysed</div>
+            <div class="metric-label">AI Analyzed</div>
           </div>
           <div class="metric">
             <div id="totalCount" class="metric-value">0</div>
             <div class="metric-label">Total Families</div>
           </div>
         </div>
-
-        <div id="familiesList" class="families">
-          <div class="loading">Loading families…</div>
+        
+        <div id="familiesList" class="families-list">
+          <div class="loading">Loading families...</div>
         </div>
       </div>
     </section>
 
-    <section class="card">
+    <aside class="card">
       <div class="card-header">
-        <h2 class="card-title">Debug / Endpoint Status</h2>
+        <h2 class="card-title">System Status</h2>
       </div>
       <div class="card-body">
-        <div id="debugLog" class="debug"></div>
+        <div id="systemStatus">
+          <div style="margin-bottom: 16px;">
+            <strong>API Status:</strong>
+            <div id="apiStatus" style="margin-top: 8px;">Checking...</div>
+          </div>
+          
+          <div style="margin-bottom: 16px;">
+            <strong>Available Endpoints:</strong>
+            <div id="endpointStatus" style="margin-top: 8px; font-size: 13px;">Checking...</div>
+          </div>
+        </div>
+        
+        <div class="debug-log" id="debugLog">Dashboard initialized...</div>
       </div>
-    </section>
+    </aside>
   </main>
 
 <script>
@@ -149,28 +333,29 @@ class Dashboard {
   constructor() {
     this.elements = {
       status: document.getElementById('status'),
-      debugLog: document.getElementById('debugLog'),
       familiesList: document.getElementById('familiesList'),
-      refreshBtn: document.getElementById('refreshBtn'),
-      analyzeBtn: document.getElementById('analyzeBtn'),
+      debugLog: document.getElementById('debugLog'),
+      apiStatus: document.getElementById('apiStatus'),
+      endpointStatus: document.getElementById('endpointStatus'),
       hotCount: document.getElementById('hotCount'),
       warmCount: document.getElementById('warmCount'),
       aiCount: document.getElementById('aiCount'),
-      totalCount: document.getElementById('totalCount'),
+      totalCount: document.getElementById('totalCount')
     };
-
-    this.bind();
-    this.boot();
+    
+    this.init();
   }
 
-  bind() {
-    this.elements.refreshBtn.addEventListener('click', () => this.boot());
-    this.elements.analyzeBtn.addEventListener('click', () => this.runAI());
+  init() {
+    this.log('Dashboard starting...');
+    document.getElementById('refreshBtn').onclick = () => this.refresh();
+    document.getElementById('analyzeBtn').onclick = () => this.runAI();
+    this.checkEndpoints();
   }
 
   log(message) {
-    const ts = new Date().toLocaleTimeString();
-    this.elements.debugLog.textContent += `\n[${ts}] ${message}`;
+    const timestamp = new Date().toLocaleTimeString();
+    this.elements.debugLog.textContent += `\n[${timestamp}] ${message}`;
     this.elements.debugLog.scrollTop = this.elements.debugLog.scrollHeight;
     console.log(message);
   }
@@ -181,84 +366,116 @@ class Dashboard {
   }
 
   async checkEndpoints() {
-    this.log('Checking API endpoints…');
-    const endpoints = ['/health','/api/analytics/inquiries','/api/dashboard-data'];
+    this.log('Checking API endpoints...');
+    const endpoints = [
+      '/health',
+      '/api/analytics/inquiries', 
+      '/api/dashboard-data'
+    ];
+
     const results = [];
-    for (const ep of endpoints) {
+    for (const endpoint of endpoints) {
       try {
-        const res = await fetch(ep);
-        const isJson = res.headers.get('content-type')?.includes('application/json');
-        results.push(`${ep}: ${res.status} ${isJson ? '(JSON)' : '(HTML)'}`);
-        if (!isJson && res.ok) this.log(`WARNING: ${ep} returned HTML instead of JSON`);
-      } catch (e) {
-        results.push(`${ep}: ERROR ${e.message}`);
+        const response = await fetch(endpoint);
+        const isJson = response.headers.get('content-type')?.includes('application/json');
+        results.push(`${endpoint}: ${response.status} ${isJson ? '(JSON)' : '(HTML)'}`);
+        
+        if (!isJson && response.ok) {
+          this.log(`WARNING: ${endpoint} returned HTML instead of JSON`);
+        }
+      } catch (error) {
+        results.push(`${endpoint}: ERROR - ${error.message}`);
+        this.log(`ERROR checking ${endpoint}: ${error.message}`);
       }
     }
-    this.log(results.join(' | '));
+
+    this.elements.endpointStatus.innerHTML = results.join('<br>');
+    this.refresh();
   }
 
-  async boot() {
-    this.setStatus('Loading…', 'loading');
-    await this.checkEndpoints();
+  async refresh() {
+    this.setStatus('Loading...', 'loading');
+    this.log('Refreshing data...');
 
     try {
-      const listRes = await fetch('/api/analytics/inquiries');
-      const isJson = listRes.headers.get('content-type')?.includes('application/json');
-      if (!isJson) throw new Error('/api/analytics/inquiries responded with HTML');
+      // Try different endpoints to see what works
+      let inquiriesData = null;
+      let dashboardData = null;
 
-      const families = await listRes.json();
-      this.renderFamilies(Array.isArray(families) ? families : (families?.items || []));
-      await this.loadDashboardMetrics();
-      this.setStatus('Ready', 'ready');
-    } catch (err) {
-      this.log(`Primary list failed: ${err.message}. Falling back to /api/dashboard-data`);
+      // Try inquiries endpoint
       try {
-        const fallback = await fetch('/api/dashboard-data');
-        const fbJson = await fallback.json();
-        this.renderFromDashboard(fbJson || {});
-        this.setStatus('Ready (fallback)', 'ready');
-      } catch (e2) {
-        this.elements.familiesList.innerHTML = '<div class="loading">No families found</div>';
-        this.setStatus('Error', 'loading');
-        this.log('Fallback failed: ' + e2.message);
+        const inquiriesResponse = await fetch('/api/analytics/inquiries');
+        this.log(`Inquiries response: ${inquiriesResponse.status} ${inquiriesResponse.headers.get('content-type')}`);
+        
+        if (inquiriesResponse.ok && inquiriesResponse.headers.get('content-type')?.includes('json')) {
+          inquiriesData = await inquiriesResponse.json();
+          this.log(`Got ${Array.isArray(inquiriesData) ? inquiriesData.length : 'non-array'} inquiries`);
+        } else {
+          const text = await inquiriesResponse.text();
+          this.log(`Inquiries endpoint returned HTML: ${text.substring(0, 100)}...`);
+        }
+      } catch (error) {
+        this.log(`Inquiries endpoint failed: ${error.message}`);
       }
+
+      // Try dashboard endpoint
+      try {
+        const dashboardResponse = await fetch('/api/dashboard-data');
+        this.log(`Dashboard response: ${dashboardResponse.status} ${dashboardResponse.headers.get('content-type')}`);
+        
+        if (dashboardResponse.ok && dashboardResponse.headers.get('content-type')?.includes('json')) {
+          dashboardData = await dashboardResponse.json();
+          this.log('Got dashboard data successfully');
+        } else {
+          const text = await dashboardResponse.text();
+          this.log(`Dashboard endpoint returned HTML: ${text.substring(0, 100)}...`);
+        }
+      } catch (error) {
+        this.log(`Dashboard endpoint failed: ${error.message}`);
+      }
+
+      // Render what we have
+      if (inquiriesData && Array.isArray(inquiriesData)) {
+        this.renderFamilies(inquiriesData);
+        this.updateMetrics(inquiriesData);
+        this.setStatus('Data loaded', 'ready');
+        this.elements.apiStatus.textContent = 'APIs responding correctly';
+        this.elements.apiStatus.style.color = 'var(--green)';
+      } else if (dashboardData) {
+        this.renderFromDashboard(dashboardData);
+        this.setStatus('Partial data loaded', 'loading');
+        this.elements.apiStatus.textContent = 'Some APIs returning HTML instead of JSON';
+        this.elements.apiStatus.style.color = 'var(--amber)';
+      } else {
+        throw new Error('No valid JSON data received from any endpoint');
+      }
+
+    } catch (error) {
+      this.log(`Refresh failed: ${error.message}`);
+      this.setStatus('Load failed', 'error');
+      this.elements.apiStatus.textContent = 'APIs not responding properly';
+      this.elements.apiStatus.style.color = 'var(--red)';
+      this.showError(error.message);
     }
-  }
-
-  async loadDashboardMetrics() {
-    try {
-      const res = await fetch('/api/dashboard-data');
-      if (!res.ok) return;
-      const data = await res.json();
-      if (!data || !data.summary) return;
-
-      this.elements.hotCount.textContent = data.summary.hotLeads ?? 0;
-      this.elements.warmCount.textContent = data.summary.warmLeads ?? 0;
-      this.elements.aiCount.textContent = data.summary.aiAnalyzed ?? 0;
-      this.elements.totalCount.textContent = data.summary.totalFamilies ?? 0;
-    } catch {}
   }
 
   renderFamilies(families) {
     this.log(`Rendering ${families.length} families`);
-    if (!families.length) {
+    
+    if (families.length === 0) {
       this.elements.familiesList.innerHTML = '<div class="loading">No families found</div>';
       return;
     }
-    this.elements.familiesList.innerHTML = '';
-    families.forEach(fam => {
-      const row = this.createFamilyRow(fam);
-      this.elements.familiesList.appendChild(row);
-      this.loadFamilyData(fam.id || fam.inquiry_id, row);
-    });
 
-    const hot = families.filter(f => this.calculateScore(f) >= 75).length;
-    const warm = families.filter(f => this.calculateScore(f) >= 50 && this.calculateScore(f) < 75).length;
-    const ai = families.length;
-    this.elements.hotCount.textContent = hot;
-    this.elements.warmCount.textContent = warm;
-    this.elements.aiCount.textContent = ai;
-    this.elements.totalCount.textContent = families.length;
+    this.elements.familiesList.innerHTML = '';
+    
+    families.forEach(family => {
+      const row = this.createFamilyRow(family);
+      this.elements.familiesList.appendChild(row);
+      
+      // Load additional data for each family
+      this.loadFamilyData(family.id || family.inquiry_id, row);
+    });
   }
 
   createFamilyRow(family) {
@@ -267,12 +484,10 @@ class Dashboard {
     const entryYear = family.entry_year || '';
     const dwellMs = parseInt(family.dwell_ms || 0);
     const score = this.calculateScore(family);
-    const prospectusUrl =
-      family.prospectus_pretty_url || family.pretty_path || family.slug || family.prospectus_url || '';
 
     const row = document.createElement('div');
     row.className = 'family-row';
-
+    
     row.innerHTML = `
       <div class="family-header">
         <div>
@@ -283,242 +498,88 @@ class Dashboard {
           <div class="stat-badge">Time: ${this.formatTime(dwellMs)}</div>
           <div class="stat-badge">Visits: <span data-visits>1</span></div>
           <div class="score-badge">${score}</div>
-          ${prospectusUrl ? `<a class="btn btn-secondary" href="${prospectusUrl}" target="_blank" rel="noopener">Open prospectus</a>` : ''}
         </div>
       </div>
-
-      <div class="ai-summary" data-summary>Loading engagement data…</div>
-
-      <div class="section-grid">
-        <div class="section-card">
-          <h3>Top sections</h3>
-          <div class="pad">
-            <table class="section-table" data-sections style="display:none">
-              <thead><tr><th>Section</th><th>Time</th><th>Scroll</th></tr></thead>
-              <tbody></tbody>
-            </table>
-            <div class="loading" data-sections-empty style="display:none">No section data yet</div>
-            <button class="btn btn-secondary" onclick="app.regenerateAI('${family.id || family.inquiry_id}')">Regenerate AI</button>
-          </div>
-        </div>
-
-        <div class="section-card">
-          <h3>Geolocation</h3>
-          <div class="pad">
-            <div class="kv" data-geo>
-              <div class="k">IP address</div><div class="v">—</div>
-              <div class="k">Country</div><div class="v">—</div>
-              <div class="k">City</div><div class="v">—</div>
-              <div class="k">Coordinates</div><div class="v">—</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="section-card" style="grid-column: 1 / -1;">
-          <h3>Family Profile</h3>
-          <div class="pad">
-            <div class="kv" data-profile>
-              <div class="k">Inquiry ID</div><div class="v" data-prof-id>—</div>
-              <div class="k">Child</div><div class="v" data-prof-child>—</div>
-              <div class="k">Entry year</div><div class="v" data-prof-entry>—</div>
-              <div class="k">Age group</div><div class="v" data-prof-age>—</div>
-              <div class="k">Parent email</div><div class="v" data-prof-email>—</div>
-              <div class="k">Referrer</div><div class="v" data-prof-ref>—</div>
-              <div class="k">Prospectus</div><div class="v" data-prof-url>—</div>
-              <div class="k">User agent</div><div class="v" data-prof-ua class="muted">—</div>
-            </div>
-            <div class="note" style="margin-top:8px;color:#64748b" data-prof-note>Live data from /api/family/:id</div>
-          </div>
-        </div>
+      
+      <div class="ai-summary" data-summary>Loading engagement data...</div>
+      
+      <table class="section-table" data-sections style="display: none;">
+        <thead>
+          <tr><th>Section</th><th>Time</th><th>Scroll</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      
+      <div style="margin-top: 12px;">
+        <button class="btn btn-secondary" onclick="app.regenerateAI('${family.id || family.inquiry_id}')">
+          Regenerate AI
+        </button>
       </div>
     `;
+    
     return row;
   }
 
   async loadFamilyData(inquiryId, row) {
     try {
-      const engRes = await fetch(`/api/family/${inquiryId}/engagement`);
-      if (engRes.ok) {
-        const eng = await engRes.json();
-        const visits = row.querySelector('[data-visits]');
-        if (visits && eng.visits != null) visits.textContent = eng.visits;
+      // Try to get section data
+      const sectionResponse = await fetch(`/api/section-data/${inquiryId}`);
+      if (sectionResponse.ok) {
+        const sectionData = await sectionResponse.json();
+        this.renderSectionData(row, sectionData);
+      }
 
-        if (eng.sections && eng.sections.length) {
-          this.renderSectionData(row, eng);
-        } else {
-          row.querySelector('[data-sections]').style.display = 'none';
-          row.querySelector('[data-sections-empty]').style.display = 'block';
+      // Try to get AI summary
+      const aiResponse = await fetch(`/api/ai/engagement-summary/${inquiryId}`);
+      if (aiResponse.ok) {
+        const aiData = await aiResponse.json();
+        const summary = row.querySelector('[data-summary]');
+        if (summary && aiData.summaryText) {
+          summary.textContent = aiData.summaryText;
         }
       }
-
-      const aiRes = await fetch(`/api/ai/engagement-summary/${inquiryId}`);
-      if (aiRes.ok) {
-        const ai = await aiRes.json();
-        const summary = row.querySelector('[data-summary]');
-        if (summary) summary.textContent = ai.summaryText || ai.summary || ai.narrative || 'No AI summary yet';
-      }
-
-      await this.loadDetailGeoAndRaw(inquiryId, row);
-
-    } catch (e) {
-      this.log(`Failed to load data for ${inquiryId}: ${e.message}`);
+    } catch (error) {
+      this.log(`Failed to load data for ${inquiryId}: ${error.message}`);
       const summary = row.querySelector('[data-summary]');
-      if (summary) { summary.textContent = 'Additional data unavailable'; summary.style.color = 'var(--slate)'; }
-    }
-  }
-
-  async loadDetailGeoAndRaw(inquiryId, row) {
-    try {
-      const res = await fetch(`/api/family/${inquiryId}`);
-      if (!res.ok) throw new Error(`/api/family/${inquiryId} -> ${res.status}`);
-      const detail = await res.json();
-
-      const nameEl = row.querySelector('.family-name');
-      const metaEl = row.querySelector('.family-meta');
-      const entryFromHeader = /\((\d{4})\)$/.exec(nameEl?.textContent || '')?.[1];
-      const entryYear = detail.entry_year || detail.entryYear || entryFromHeader || '';
-      const childFirst = detail.child_name || detail.first_name || detail.childFirstName || '';
-      const familySurname = detail.family_surname || detail.familySurname || '';
-      const parentEmail = detail.parent_email || detail.parentEmail || metaEl?.textContent || '';
-
-      if (nameEl) {
-        const display = `${this.escapeHtml(childFirst)} ${this.escapeHtml(familySurname)}`.trim() || nameEl.textContent;
-        nameEl.innerHTML = `${display} ${entryYear ? `<span style="color: var(--slate);">(${entryYear})</span>` : ''}`;
+      if (summary) {
+        summary.textContent = 'Additional data unavailable';
+        summary.style.color = 'var(--slate)';
       }
-      if (metaEl && parentEmail) metaEl.textContent = parentEmail;
-
-      const set = (sel, val) => { const el = row.querySelector(sel); if (el) el.textContent = val || '—'; };
-      set('[data-prof-id]', detail.inquiry_id || detail.id || inquiryId);
-      set('[data-prof-child]', `${childFirst} ${familySurname}`.trim());
-      set('[data-prof-entry]', entryYear || '');
-      set('[data-prof-age]', detail.age_group || detail.ageGroup || '');
-      set('[data-prof-email]', parentEmail || '');
-      set('[data-prof-ref]', detail.referrer || detail.source || '');
-      
-      const purl = detail.prospectus_pretty_url || detail.prospectus_url || detail.pretty_path || detail.slug || '';
-      const linkHtml = purl ? `<a class="link" href="${purl}" target="_blank" rel="noopener">Open prospectus</a>` : '—';
-      const urlEl = row.querySelector('[data-prof-url]'); if (urlEl) urlEl.innerHTML = linkHtml;
-      
-      const ua = (detail.user_agent || detail.userAgent || '').slice(0, 120);
-      set('[data-prof-ua]', ua);
-
-      const v = (k) => (detail[k] ?? detail?.geo?.[k] ?? detail?.location?.[k] ?? null);
-      const ip = v('ip_address') || v('ip') || '';
-      const country = v('country') || '';
-      const city = v('city') || '';
-      const lat = v('geo_lat') ?? v('lat') ?? null;
-      const lon = v('geo_lon') ?? v('lon') ?? null;
-      const coords = (lat != null && lon != null) ? `${lat}, ${lon}` : '';
-
-      const slots = row.querySelectorAll('[data-geo] .v');
-      if (slots[0]) slots[0].textContent = ip || '—';
-      if (slots[1]) slots[1].textContent = country || '—';
-      if (slots[2]) slots[2].textContent = city || '—';
-      if (slots[3]) slots[3].textContent = coords || '—';
-
-    } catch (e) {
-      this.log(`Geo/Profile load failed for ${inquiryId}: ${e.message}`);
     }
   }
 
   renderSectionData(row, data) {
+    if (!data.sections || data.sections.length === 0) return;
+
     const table = row.querySelector('[data-sections]');
     const tbody = table.querySelector('tbody');
-    tbody.innerHTML = (data.sections || []).slice(0, 5).map(s => `
+    
+    tbody.innerHTML = data.sections.slice(0, 5).map(section => `
       <tr>
-        <td>${this.escapeHtml(s.label || s.section || s.current_section || 'Unnamed')}</td>
-        <td>${this.formatTime(s.dwell_ms || s.dwell || 0)}</td>
-        <td>${(s.max_scroll ?? s.scroll_depth ?? 0)}%</td>
+        <td>${this.escapeHtml(section.section_name || section.section)}</td>
+        <td>${section.dwell_minutes || 0}m</td>
+        <td>${section.max_scroll_pct || 0}%</td>
       </tr>
     `).join('');
+    
     table.style.display = 'table';
-    row.querySelector('[data-sections-empty]').style.display = 'none';
   }
 
-  async runAI() {
-    this.setStatus('Running AI…', 'loading');
-    this.log('Starting AI analysis…');
-    try {
-      const res = await fetch('/api/ai/analyze-all-families', { method: 'POST' });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        this.log('AI analysis completed successfully');
-        this.setStatus('AI complete', 'ready');
-        this.boot();
-      } else {
-        throw new Error(data?.message || 'Unknown AI error');
-      }
-    } catch (e) {
-      this.setStatus('AI error', 'loading');
-      this.log('AI run failed: ' + e.message);
-    }
-  }
+  updateMetrics(families) {
+    const hot = families.filter(f => this.calculateScore(f) >= 80).length;
+    const warm = families.filter(f => this.calculateScore(f) >= 60 && this.calculateScore(f) < 80).length;
+    const ai = families.filter(f => f.aiEngagement).length;
 
-  async regenerateAI(inquiryId) {
-    try {
-      this.setStatus('Regenerating…', 'loading');
-      const row = Array.from(document.querySelectorAll('.family-row'))
-        .find(r => (r.innerHTML || '').includes(inquiryId));
-      const summaryEl = row?.querySelector('[data-summary]');
-      const previousText = summaryEl?.textContent || '';
-
-      if (summaryEl) summaryEl.insertAdjacentHTML(
-        'afterend',
-        '<div class="loading" data-ai-spinner style="margin-top:6px">Updating AI summary…</div>'
-      );
-
-      const res = await fetch(`/api/ai/engagement-summary/${inquiryId}`, { method: 'POST' });
-      const data = await res.json();
-
-      row?.querySelector('[data-ai-spinner]')?.remove();
-
-      if (res.ok) {
-        const newText = data.summaryText || data.summary || data.narrative || previousText || 'No AI summary yet';
-        if (summaryEl) summaryEl.textContent = newText;
-        this.setStatus('Ready', 'ready');
-      } else {
-        if (summaryEl) summaryEl.insertAdjacentHTML(
-          'afterend',
-          `<div class="loading" style="color:#b91c1c;margin-top:6px">AI error: ${this.escapeHtml(data?.message || 'Failed to regenerate')} (kept previous)</div>`
-        );
-        this.setStatus('AI error', 'loading');
-      }
-    } catch (e) {
-      const row = Array.from(document.querySelectorAll('.family-row'))
-        .find(r => (r.innerHTML || '').includes(inquiryId));
-      row?.querySelector('[data-ai-spinner]')?.remove();
-      if (row) row.insertAdjacentHTML(
-        'beforeend',
-        `<div class="loading" style="color:#b91c1c;margin-top:6px">AI error: ${this.escapeHtml(e.message)} (kept previous)</div>`
-      );
-      this.setStatus('AI error', 'loading');
-    }
-  }
-
-  calculateScore(f) {
-    const dwell = +f.dwell_ms || 0;
-    const scroll = +f.max_scroll || +f.scroll_depth || 0;
-    let score = 0;
-    if (dwell > 180000) score += 50; else if (dwell > 60000) score += 35; else if (dwell > 20000) score += 20;
-    score += Math.min(40, Math.round(scroll / 2));
-    return Math.max(10, Math.min(100, score));
-  }
-
-  formatTime(ms) {
-    const s = Math.round((+ms||0) / 1000);
-    const m = Math.floor(s / 60);
-    const r = s % 60;
-    return m > 0 ? `${m}m ${r}s` : `${r}s`;
-  }
-
-  escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text || '';
-    return div.innerHTML;
+    this.elements.hotCount.textContent = hot;
+    this.elements.warmCount.textContent = warm;
+    this.elements.aiCount.textContent = ai;
+    this.elements.totalCount.textContent = families.length;
   }
 
   renderFromDashboard(data) {
-    this.elements.familiesList.innerHTML = '<div class="loading">Using fallback data – some APIs returning HTML</div>';
+    // Fallback rendering from dashboard data
+    this.elements.familiesList.innerHTML = '<div class="loading">Using fallback data - some APIs returning HTML</div>';
+    
     if (data.summary) {
       this.elements.hotCount.textContent = data.summary.hotLeads || 0;
       this.elements.warmCount.textContent = data.summary.warmLeads || 0;
@@ -526,10 +587,79 @@ class Dashboard {
       this.elements.totalCount.textContent = data.summary.totalFamilies || 0;
     }
   }
+
+  async runAI() {
+    this.setStatus('Running AI...', 'loading');
+    this.log('Starting AI analysis...');
+
+    try {
+      const response = await fetch('/api/ai/analyze-all-families', { method: 'POST' });
+      const data = await response.json();
+      
+      if (response.ok && data.success) {
+        this.log('AI analysis completed successfully');
+        this.setStatus('AI complete', 'ready');
+        this.refresh();
+      } else {
+        throw new Error(data.message || data.error || 'AI analysis failed');
+      }
+    } catch (error) {
+      this.log(`AI analysis failed: ${error.message}`);
+      this.setStatus('AI failed', 'error');
+    }
+  }
+
+  async regenerateAI(inquiryId) {
+    this.log(`Regenerating AI for ${inquiryId}`);
+    
+    try {
+      const response = await fetch(`/api/ai/engagement-summary/${inquiryId}`, { method: 'POST' });
+      const data = await response.json();
+      
+      if (response.ok) {
+        this.log(`AI regenerated for ${inquiryId}`);
+        this.refresh();
+      } else {
+        throw new Error(data.message || 'Regeneration failed');
+      }
+    } catch (error) {
+      this.log(`AI regeneration failed: ${error.message}`);
+      alert('Regeneration failed: ' + error.message);
+    }
+  }
+
+  showError(message) {
+    this.elements.familiesList.innerHTML = `
+      <div class="error">
+        <div style="margin-bottom: 16px;">Error: ${message}</div>
+        <div style="font-size: 14px; color: var(--slate);">
+          Check the debug log for details. Your API endpoints may be returning HTML instead of JSON.
+        </div>
+      </div>
+    `;
+  }
+
+  calculateScore(family) {
+    const dwellMs = parseInt(family.dwell_ms || 0);
+    const minutes = dwellMs / (1000 * 60);
+    return Math.min(Math.round(minutes * 10 + 25), 100);
+  }
+
+  formatTime(ms) {
+    const minutes = Math.floor(ms / (1000 * 60));
+    const seconds = Math.floor((ms % (1000 * 60)) / 1000);
+    return minutes > 0 ? `${minutes}m` : `${seconds}s`;
+  }
+
+  escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text || '';
+    return div.innerHTML;
+  }
 }
 
+// Initialize
 const app = new Dashboard();
-window.app = app;
 </script>
 </body>
 </html>
