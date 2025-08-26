@@ -336,7 +336,7 @@ document.addEventListener('DOMContentLoaded', function(){
 window.MORE_HOUSE_INQUIRY_ID='${inquiry.id}';
 console.log('Inquiry ID set for tracking:', window.MORE_HOUSE_INQUIRY_ID);
 </script>
-<script src="/tracking.js?v=5.0.0"></script>`;
+<script src="/tracking.js?v=5.0.0" defer></script>`;
 
     const bodyCloseIndex = html.lastIndexOf('</body>');
     if (bodyCloseIndex === -1) {
@@ -354,7 +354,7 @@ console.log('Inquiry ID set for tracking:', window.MORE_HOUSE_INQUIRY_ID);
     await saveSlugIndex();
 
     const savedContent = await fs.readFile(absPath, 'utf8');
-    const hasTrackingJs = savedContent.includes('<script src="/tracking.js"></script>');
+    const hasTrackingJs = /<script\s+src="\/tracking\.js(\?v=[^"]*)?"[^>]*><\/script>/.test(savedContent);
     const hasInquiryId = savedContent.includes(`window.MORE_HOUSE_INQUIRY_ID='${inquiry.id}'`);
     const hasPersonalization = savedContent.includes('initializeProspectus');
 
