@@ -771,7 +771,12 @@ async function summariseFamilyEngagement(db, inquiry) {
     
     let result;
     
-    if (!snapshot.hasData || (snapshot.totals.time_on_page_ms === 0 && snapshot.sections.length === 0)) {
+    // FIXED: Check for ANY meaningful engagement, not just sections
+    const totalTimeMs = snapshot.totals.time_on_page_ms || 0;
+    const hasAnyEngagement = totalTimeMs > 0 || snapshot.sections.length > 0;
+    
+    if (!hasAnyEngagement) {
+      // No engagement at all
       result = {
         narrative: `Personalised prospectus created for ${inquiry.first_name || 'this student'} ${inquiry.family_surname || ''} (${inquiry.entry_year || 'entry year TBC'}). The family hasn't viewed their prospectus yet, but we're ready to track their journey as soon as they begin exploring. Once they start engaging with sections and videos, we'll provide detailed insights about their interests and priorities.`,
         highlights: [
@@ -781,8 +786,9 @@ async function summariseFamilyEngagement(db, inquiry) {
           '• Full analytics will activate upon first interaction'
         ]
       };
-    } else if (snapshot.totals.time_on_page_ms < 30000) {
-      const timeStr = Math.round(snapshot.totals.time_on_page_ms / 1000) + ' seconds';
+    } else if (totalTimeMs < 30000) {
+      // Less than 30 seconds of engagement
+      const timeStr = Math.round(totalTimeMs / 1000) + ' seconds';
       result = {
         narrative: `${inquiry.first_name || 'This student'}'s family has just started exploring their personalised prospectus, spending ${timeStr} so far. This initial glimpse suggests they've discovered the materials but haven't yet had time for a thorough review. Early engagement is promising - families who return within 48 hours typically show strong interest. A gentle follow-up reminding them to explore key sections could encourage deeper engagement.`,
         highlights: [
@@ -793,29 +799,35 @@ async function summariseFamilyEngagement(db, inquiry) {
         ]
       };
     } else {
+      // Meaningful engagement (30+ seconds) - Generate AI summary
       try {
+        console.log(`Generating AI summary for ${inquiry.first_name} ${inquiry.family_surname} with ${Math.round(totalTimeMs/1000)}s engagement`);
+        
         const aiPayload = await generateAiEngagementStory(snapshot, {
           first_name: inquiry.first_name,
           family_surname: inquiry.family_surname,
           entry_year: inquiry.entry_year
         });
         
-        result = {
-          narrative: aiPayload?.narrative || generateFallbackNarrative(snapshot, inquiry),
-          highlights: Array.isArray(aiPayload?.highlights) 
-            ? aiPayload.highlights 
-            : generateFallbackHighlights(snapshot)
-        };
+        if (aiPayload && aiPayload.narrative && !aiPayload.narrative.includes('Limited tracking')) {
+          result = {
+            narrative: aiPayload.narrative,
+            highlights: Array.isArray(aiPayload.highlights) ? aiPayload.highlights : generateFallbackHighlights(snapshot)
+          };
+        } else {
+          // AI failed or returned fallback - use deterministic summary
+          result = generateDeterministicSummary(snapshot, inquiry);
+        }
       } catch (aiError) {
-        console.warn('AI generation failed, using fallback:', aiError.message);
-        result = {
-          narrative: generateFallbackNarrative(snapshot, inquiry),
-          highlights: generateFallbackHighlights(snapshot)
-        };
+        console.warn('AI generation failed, using deterministic summary:', aiError.message);
+        result = generateDeterministicSummary(snapshot, inquiry);
       }
     }
     
+    // Store the result
     await upsertAiInsight(db, inquiryId, 'engagement_summary', result);
+    console.log(`AI summary generated for ${inquiry.first_name} ${inquiry.family_surname}: "${result.narrative.substring(0, 60)}..."`);
+    
     return result;
     
   } catch (error) {
@@ -833,6 +845,45 @@ async function summariseFamilyEngagement(db, inquiry) {
     await upsertAiInsight(db, inquiryId, 'engagement_summary', fallbackResult);
     return fallbackResult;
   }
+}
+
+// Helper function for deterministic summary when AI fails
+function generateDeterministicSummary(snapshot, inquiry) {
+  const totalMinutes = Math.round(snapshot.totals.time_on_page_ms / 60000);
+  const totalSeconds = Math.round(snapshot.totals.time_on_page_ms / 1000);
+  const name = `${inquiry.first_name || 'This student'} ${inquiry.family_surname || ''}`.trim();
+  const visits = snapshot.totals.total_visits || 1;
+  
+  let narrative = `${name}'s family spent ${totalMinutes > 0 ? totalMinutes + ' minutes' : totalSeconds + ' seconds'} exploring their personalised prospectus`;
+  
+  if (visits > 1) {
+    narrative += ` across ${visits} visits`;
+  }
+  narrative += '. ';
+  
+  // Add section details if available
+  if (snapshot.sections && snapshot.sections.length > 0) {
+    const topSections = snapshot.sections
+      .filter(s => s.dwell_ms > 1000) // At least 1 second
+      .slice(0, 3)
+      .map(s => s.section_id ? s.section_id.replace(/_/g, ' ') : 'unknown section');
+    
+    if (topSections.length > 0) {
+      narrative += `They showed particular interest in ${topSections.join(', ')}, `;
+    }
+  }
+  
+  narrative += `indicating genuine engagement with More House. This level of attention suggests they're seriously considering the school. A personalised follow-up discussing their specific interests would be valuable.`;
+  
+  const highlights = [
+    `• Total engagement: ${totalMinutes > 0 ? totalMinutes + ' minutes' : totalSeconds + ' seconds'}`,
+    `• ${snapshot.sections.length} sections explored`,
+    visits > 1 ? `• ${visits} visits showing sustained interest` : '• Thorough initial exploration',
+    '• Ready for targeted follow-up conversation',
+    '• Strong engagement indicates serious interest'
+  ];
+  
+  return { narrative, highlights };
 }
 
 function generateFallbackNarrative(snapshot, inquiry) {
