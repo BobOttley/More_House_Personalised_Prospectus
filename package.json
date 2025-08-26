@@ -66,4 +66,9 @@
     "type": "individual",
     "url": "https://morehouse.org.uk"
   }
+  {
+    "dependencies": {
+      "geoip-lite": "^1.4.8"
+    }
+  }
 }
