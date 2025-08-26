@@ -2159,6 +2159,7 @@
     }catch(e){console.error('YT init failed',e);}
   };
 })();
+</script>
 <script>
 /* --- Prospectus tracking (non-intrusive) ------------------------------ */
 /* Uses existing data-track-section labels. No DOM/branding changes.     */
@@ -2283,6 +2284,7 @@
       send('geo_enriched',{ geo:GEO });
     }
   })();
+</script>
 
   /* -------- video tracking (works with your existing modal/YouTube) --------
      - If you already load the YouTube IFrame API and use an element with id "videoPlayer",
@@ -2400,7 +2402,8 @@
   }
 })();
 </script>
-<script src="/tracking.js" defer></script>
+<script src="/tracking.js?v=5.0.0" defer></script>
+
 
 
 </body>
