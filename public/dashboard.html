@@ -27,11 +27,7 @@
             --grey-900: #0f172a;
         }
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -44,9 +40,7 @@
         /* Header */
         .header {
             position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
+            top: 0; left: 0; right: 0;
             height: 64px;
             background: linear-gradient(135deg, var(--navy) 0%, #1e40af 100%);
             color: white;
@@ -58,42 +52,20 @@
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
 
-        .header-title {
-            font-size: 20px;
-            font-weight: 600;
-        }
+        .header-title { font-size: 20px; font-weight: 600; }
+        .header-title .smart { color: var(--gold); }
 
-        .header-title .smart {
-            color: var(--gold);
-        }
-
-        .header-controls {
-            display: flex;
-            gap: 12px;
-            align-items: center;
-        }
-
+        .header-controls { display: flex; gap: 12px; align-items: center; }
         .header-btn {
             padding: 8px 16px;
             border: 1px solid rgba(255,255,255,0.2);
             border-radius: 6px;
-            font-size: 13px;
-            font-weight: 500;
+            font-size: 13px; font-weight: 500;
             background: rgba(255,255,255,0.1);
-            color: white;
-            cursor: pointer;
-            transition: all 0.2s;
+            color: white; cursor: pointer; transition: all 0.2s;
         }
-
-        .header-btn:hover {
-            background: rgba(255,255,255,0.2);
-        }
-
-        .header-btn.primary {
-            background: var(--gold);
-            border-color: var(--gold);
-            color: var(--navy);
-        }
+        .header-btn:hover { background: rgba(255,255,255,0.2); }
+        .header-btn.primary { background: var(--gold); border-color: var(--gold); color: var(--navy); }
 
         /* Layout */
         .dashboard {
@@ -102,273 +74,107 @@
             grid-template-columns: 320px 1fr;
             min-height: calc(100vh - 64px);
         }
-
-        .sidebar {
-            background: white;
-            border-right: 1px solid var(--grey-200);
-            overflow-y: auto;
-        }
-
-        .main-content {
-            padding: 24px;
-            overflow-y: auto;
-        }
+        .sidebar { background: white; border-right: 1px solid var(--grey-200); overflow-y: auto; }
+        .main-content { padding: 24px; overflow-y: auto; }
 
         /* Sidebar */
-        .sidebar-section {
-            padding: 20px;
-            border-bottom: 1px solid var(--grey-100);
-        }
-
+        .sidebar-section { padding: 20px; border-bottom: 1px solid var(--grey-100); }
         .sidebar-title {
-            font-size: 13px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: var(--grey-500);
-            margin-bottom: 16px;
+            font-size: 13px; font-weight: 600; text-transform: uppercase;
+            letter-spacing: 0.5px; color: var(--grey-500); margin-bottom: 16px;
         }
-
         .intelligence-summary {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 12px;
-            margin-bottom: 20px;
+            display: grid; grid-template-columns: repeat(2, 1fr);
+            gap: 12px; margin-bottom: 20px;
         }
-
         .intelligence-metric {
-            background: var(--grey-50);
-            padding: 12px;
-            border-radius: 8px;
-            text-align: center;
+            background: var(--grey-50); padding: 12px; border-radius: 8px; text-align: center;
         }
-
-        .intelligence-value {
-            font-size: 20px;
-            font-weight: 700;
-            color: var(--navy);
-            display: block;
-        }
-
-        .intelligence-label {
-            font-size: 11px;
-            color: var(--grey-500);
-            margin-top: 4px;
-        }
+        .intelligence-value { font-size: 20px; font-weight: 700; color: var(--navy); display: block; }
+        .intelligence-label { font-size: 11px; color: var(--grey-500); margin-top: 4px; }
 
         /* Family Cards */
-        .family-cards {
-            display: grid;
-            gap: 16px;
-        }
-
+        .family-cards { display: grid; gap: 16px; }
         .family-card {
-            background: white;
-            border: 1px solid var(--grey-200);
-            border-radius: 12px;
-            overflow: hidden;
-            transition: all 0.2s;
+            background: white; border: 1px solid var(--grey-200);
+            border-radius: 12px; overflow: hidden; transition: all 0.2s;
         }
-
-        .family-card:hover {
-            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-        }
+        .family-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
 
         .family-header {
-            padding: 16px 20px;
-            background: var(--grey-50);
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
+            padding: 16px 20px; background: var(--grey-50);
+            display: flex; justify-content: space-between; align-items: flex-start;
         }
-
-        .family-name-section h3 {
-            font-size: 16px;
-            font-weight: 600;
-            margin-bottom: 4px;
-        }
-
-        .family-meta-line {
-            font-size: 13px;
-            color: var(--grey-500);
-        }
-
-        .family-stats {
-            display: flex;
-            gap: 8px;
-            align-items: center;
-        }
-
+        .family-name-section h3 { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+        .family-meta-line { font-size: 13px; color: var(--grey-500); }
+        .family-stats { display: flex; gap: 8px; align-items: center; }
         .stat-badge {
-            background: white;
-            border: 1px solid var(--grey-200);
-            padding: 4px 8px;
-            border-radius: 6px;
-            font-size: 11px;
-            color: var(--grey-600);
+            background: white; border: 1px solid var(--grey-200);
+            padding: 4px 8px; border-radius: 6px; font-size: 11px; color: var(--grey-600);
+        }
+        .score-badge {
+            background: var(--navy); color: white; padding: 6px 10px;
+            border-radius: 6px; font-size: 12px; font-weight: 600;
         }
 
-        .score-badge {
-            background: var(--navy);
-            color: white;
-            padding: 6px 10px;
-            border-radius: 6px;
-            font-size: 12px;
-            font-weight: 600;
+        /* Prospectus actions */
+        .family-actions {
+            display:flex; gap:8px; align-items:center; justify-content:flex-start;
+            padding:12px 16px; border-top:1px solid var(--grey-100);
         }
+        .btn-link {
+            text-decoration:none; padding:6px 10px; border-radius:6px; font-size:12px; font-weight:600;
+        }
+        .btn-primary { background: var(--navy); color: #fff; }
+        .btn-ghost { color: var(--grey-600); text-decoration: underline; }
 
         /* Section Heatmap */
-        .section-heatmap {
-            padding: 16px;
-            background: white;
-        }
-
-        .section-heatmap-title {
-            font-size: 14px;
-            font-weight: 600;
-            margin-bottom: 12px;
-            color: var(--grey-700);
-        }
-
-        .heatmap-grid {
-            display: grid;
-            gap: 8px;
-        }
-
+        .section-heatmap { padding: 16px; background: white; }
+        .section-heatmap-title { font-size: 14px; font-weight: 600; margin-bottom: 12px; color: var(--grey-700); }
+        .heatmap-grid { display: grid; gap: 8px; }
         .heatmap-row {
-            display: grid;
-            grid-template-columns: 2fr 1fr 80px;
-            align-items: center;
-            padding: 8px 12px;
-            background: var(--grey-50);
-            border-radius: 6px;
-            font-size: 12px;
+            display: grid; grid-template-columns: 2fr 1fr 80px;
+            align-items: center; padding: 8px 12px; background: var(--grey-50);
+            border-radius: 6px; font-size: 12px;
         }
+        .heatmap-section { font-weight: 500; color: var(--grey-700); }
+        .heatmap-time { text-align: right; color: var(--grey-600); }
+        .heatmap-bar { background: var(--grey-200); height: 20px; border-radius: 4px; overflow: hidden; position: relative; }
+        .heatmap-fill { height: 100%; background: linear-gradient(90deg, var(--blue) 0%, var(--purple) 100%); transition: width 0.3s ease; }
 
-        .heatmap-section {
-            font-weight: 500;
-            color: var(--grey-700);
-        }
-
-        .heatmap-time {
-            text-align: right;
-            color: var(--grey-600);
-        }
-
-        .heatmap-bar {
-            background: var(--grey-200);
-            height: 20px;
-            border-radius: 4px;
-            overflow: hidden;
-            position: relative;
-        }
-
-        .heatmap-fill {
-            height: 100%;
-            background: linear-gradient(90deg, var(--blue) 0%, var(--purple) 100%);
-            transition: width 0.3s ease;
-        }
-
-        /* Behavioral Insights */
-        .behavioral-panel {
-            padding: 16px;
-            background: var(--grey-50);
-            border-radius: 8px;
-            margin: 16px;
-        }
-
-        .behavioral-title {
-            font-size: 14px;
-            font-weight: 600;
-            margin-bottom: 12px;
-            color: var(--grey-700);
-        }
-
-        .behavior-tags {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-        }
-
+        /* Behavioural (British spelling for labels) */
+        .behavioral-panel { padding: 16px; background: var(--grey-50); border-radius: 8px; margin: 16px; }
+        .behavioral-title { font-size: 14px; font-weight: 600; margin-bottom: 12px; color: var(--grey-700); }
+        .behavior-tags { display: flex; flex-wrap: wrap; gap: 8px; }
         .behavior-tag {
-            padding: 6px 12px;
-            background: white;
-            border: 1px solid var(--grey-200);
-            border-radius: 16px;
-            font-size: 12px;
-            color: var(--grey-600);
+            padding: 6px 12px; background: white; border: 1px solid var(--grey-200);
+            border-radius: 16px; font-size: 12px; color: var(--grey-600);
         }
-
-        .behavior-tag.hot {
-            background: rgba(239, 68, 68, 0.1);
-            border-color: var(--red);
-            color: var(--red);
-        }
-
-        .behavior-tag.warm {
-            background: rgba(245, 158, 11, 0.1);
-            border-color: var(--amber);
-            color: var(--amber);
-        }
+        .behavior-tag.hot { background: rgba(239, 68, 68, 0.1); border-color: var(--red); color: var(--red); }
+        .behavior-tag.warm { background: rgba(245, 158, 11, 0.1); border-color: var(--amber); color: var(--amber); }
 
         /* AI Narrative */
         .ai-narrative {
             background: linear-gradient(135deg, var(--navy) 0%, #1e40af 100%);
-            color: white;
-            padding: 16px;
-            margin: 16px;
-            border-radius: 8px;
-            font-size: 13px;
-            line-height: 1.6;
+            color: white; padding: 16px; margin: 16px; border-radius: 8px; font-size: 13px; line-height: 1.6;
         }
 
-        /* Empty State */
-        .empty-state {
-            text-align: center;
-            padding: 40px 20px;
-            color: var(--grey-500);
-        }
-
-        .loading {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 40px;
-        }
-
+        /* Empty & Loading */
+        .empty-state { text-align: center; padding: 40px 20px; color: var(--grey-500); }
+        .loading { display: flex; align-items: center; justify-content: center; padding: 40px; }
         .spinner {
-            width: 24px;
-            height: 24px;
-            border: 2px solid var(--grey-200);
-            border-top-color: var(--navy);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
+            width: 24px; height: 24px; border: 2px solid var(--grey-200);
+            border-top-color: var(--navy); border-radius: 50%; animation: spin 1s linear infinite;
         }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
+        @keyframes spin { to { transform: rotate(360deg); } }
 
         /* Section details expand */
-        .expand-sections {
-            margin: 16px;
-            text-align: center;
-        }
-
+        .expand-sections { margin: 16px; text-align: center; }
         .expand-btn {
-            padding: 8px 16px;
-            background: var(--grey-100);
-            border: 1px solid var(--grey-200);
-            border-radius: 6px;
-            font-size: 12px;
-            color: var(--grey-600);
-            cursor: pointer;
-            transition: all 0.2s;
+            padding: 8px 16px; background: var(--grey-100); border: 1px solid var(--grey-200);
+            border-radius: 6px; font-size: 12px; color: var(--grey-600); cursor: pointer; transition: all 0.2s;
         }
-
-        .expand-btn:hover {
-            background: var(--grey-200);
-        }
+        .expand-btn:hover { background: var(--grey-200); }
     </style>
 </head>
 <body>
@@ -433,25 +239,21 @@
                 console.log('🧠 SMART Intelligence Dashboard initializing...');
                 await this.loadAllData();
                 this.render();
-                
                 // Auto-refresh every 30 seconds
                 setInterval(() => this.loadAllData(), 30000);
             }
 
             async loadAllData() {
                 try {
-                    // Load family data with real engagement metrics
                     const response = await fetch('/api/raw-family-data');
                     if (!response.ok) throw new Error('Failed to load family data');
-                    
                     this.families = await response.json();
                     console.log(`Loaded ${this.families.length} families with raw data`);
 
                     // Load detailed section data for each engaged family
-                    for (const family of this.families.filter(f => f.dwell_ms > 0)) {
+                    for (const family of this.families.filter(f => (f.dwell_ms || 0) > 0)) {
                         await this.loadSectionData(family.id);
                     }
-                    
                     this.render();
                 } catch (error) {
                     console.error('Failed to load data:', error);
@@ -477,20 +279,18 @@
             }
 
             renderSidebar() {
-                // Calculate real metrics
-                const engaged = this.families.filter(f => f.dwell_ms > 0).length;
+                const engaged = this.families.filter(f => (f.dwell_ms || 0) > 0).length;
                 const hotLeads = this.families.filter(f => this.getEngagementScore(f) >= 70).length;
-                const deepReaders = this.families.filter(f => f.dwell_ms > 300000).length; // >5 minutes
+                const deepReaders = this.families.filter(f => (f.dwell_ms || 0) > 300000).length; // >5 minutes
 
                 document.getElementById('totalFamilies').textContent = this.families.length;
                 document.getElementById('engagedFamilies').textContent = engaged;
                 document.getElementById('hotLeads').textContent = hotLeads;
                 document.getElementById('deepReaders').textContent = deepReaders;
 
-                // Render top engaged families
                 const topFamilies = this.families
-                    .filter(f => f.dwell_ms > 0)
-                    .sort((a, b) => b.dwell_ms - a.dwell_ms)
+                    .filter(f => (f.dwell_ms || 0) > 0)
+                    .sort((a, b) => (b.dwell_ms || 0) - (a.dwell_ms || 0))
                     .slice(0, 5);
 
                 const topContainer = document.getElementById('topFamilies');
@@ -503,13 +303,12 @@
                     <div style="padding: 12px 0; border-bottom: 1px solid var(--grey-100);">
                         <div style="display: flex; justify-content: space-between; align-items: center;">
                             <div>
-                                <div style="font-weight: 500; font-size: 14px;">${family.first_name} ${family.family_surname}</div>
+                                <div style="font-weight: 500; font-size: 14px;">${family.first_name || ''} ${family.family_surname || 'Family'}</div>
                                 <div style="font-size: 12px; color: var(--grey-500);">
-                                    ${this.formatDwellTime(family.dwell_ms)} • ${family.return_visits} visits
+                                    ${this.formatDwellTime(family.dwell_ms)} • ${family.return_visits || 0} visits
                                 </div>
                             </div>
-                            <div style="padding: 4px 8px; background: ${this.getTemperatureColor(family)}; 
-                                        color: white; border-radius: 12px; font-size: 11px; font-weight: 500;">
+                            <div style="padding: 4px 8px; background: ${this.getTemperatureColor(family)}; color: white; border-radius: 12px; font-size: 11px; font-weight: 500;">
                                 ${this.getTemperature(family)}
                             </div>
                         </div>
@@ -519,14 +318,12 @@
 
             renderFamilyCards() {
                 const container = document.getElementById('familyIntelligence');
-                
-                if (this.families.length === 0) {
+                if (!this.families || this.families.length === 0) {
                     container.innerHTML = '<div class="empty-state">No families found</div>';
                     return;
                 }
 
-                // Sort by engagement level
-                const sortedFamilies = this.families.sort((a, b) => {
+                const sortedFamilies = this.families.slice().sort((a, b) => {
                     const aScore = this.getEngagementScore(a);
                     const bScore = this.getEngagementScore(b);
                     return bScore - aScore;
@@ -538,8 +335,14 @@
             renderFamilyCard(family) {
                 const score = this.getEngagementScore(family);
                 const sectionData = this.sectionData[family.id];
-                const hasSections = sectionData && sectionData.sections && sectionData.sections.length > 0;
-                const hasEngagement = family.dwell_ms > 0;
+                const hasSections = !!(sectionData && Array.isArray(sectionData.sections) && sectionData.sections.length > 0);
+                const hasEngagement = (family.dwell_ms || 0) > 0;
+
+                // Robust prospectus URL: prefer server-provided value; fallback to route by inquiry id
+                const prospectusUrl =
+                    (family.prospectus_url && (family.prospectus_url.startsWith('http') || family.prospectus_url.startsWith('/')))
+                        ? family.prospectus_url
+                        : `/prospectus/${family.id}`;
 
                 return `
                     <div class="family-card">
@@ -551,16 +354,21 @@
                             <div class="family-stats">
                                 ${hasEngagement ? `
                                     <div class="stat-badge">${this.formatDwellTime(family.dwell_ms)}</div>
-                                    <div class="stat-badge">${family.return_visits} visit${family.return_visits > 1 ? 's' : ''}</div>
+                                    <div class="stat-badge">${family.return_visits || 0} visit${(family.return_visits || 0) === 1 ? '' : 's'}</div>
                                 ` : ''}
                                 <div class="score-badge">${score}</div>
                             </div>
                         </div>
 
+                        <div class="family-actions">
+                            <a class="btn-link btn-primary" href="${prospectusUrl}" target="_blank" rel="noopener">Open prospectus</a>
+                            <a class="btn-link btn-ghost" href="/api/family/${family.id}/ai-summary" target="_blank" rel="noopener">AI summary (JSON)</a>
+                        </div>
+
                         ${!hasEngagement ? `
                             <div class="empty-state" style="padding: 40px 20px;">
                                 <h3>Awaiting Engagement</h3>
-                                <p>Intelligence will appear once the family begins exploring their prospectus</p>
+                                <p>Intelligence will appear once the family begins exploring their prospectus.</p>
                             </div>
                         ` : `
                             ${hasSections ? this.renderSectionHeatmap(sectionData) : ''}
@@ -572,12 +380,11 @@
             }
 
             renderSectionHeatmap(sectionData) {
-                if (!sectionData.sections || sectionData.sections.length === 0) {
-                    return '';
-                }
+                if (!sectionData.sections || sectionData.sections.length === 0) return '';
 
-                const maxDwell = Math.max(...sectionData.sections.map(s => s.dwell_seconds));
-                
+                // Guard against divide-by-zero
+                const maxDwell = Math.max(1, ...sectionData.sections.map(s => s.dwell_seconds || 0));
+
                 return `
                     <div class="section-heatmap">
                         <div class="section-heatmap-title">Section Engagement Heatmap</div>
@@ -587,7 +394,7 @@
                                     <div class="heatmap-section">${section.section_name}</div>
                                     <div class="heatmap-time">${section.dwell_minutes}m ${section.dwell_seconds % 60}s</div>
                                     <div class="heatmap-bar">
-                                        <div class="heatmap-fill" style="width: ${(section.dwell_seconds / maxDwell) * 100}%"></div>
+                                        <div class="heatmap-fill" style="width: ${Math.round(((section.dwell_seconds || 0) / maxDwell) * 100)}%"></div>
                                     </div>
                                 </div>
                             `).join('')}
@@ -605,16 +412,13 @@
 
             renderBehavioralInsights(family) {
                 const insights = this.extractBehavioralInsights(family);
-                
                 if (insights.length === 0) return '';
 
                 return `
                     <div class="behavioral-panel">
-                        <div class="behavioral-title">Behavioral Intelligence</div>
+                        <div class="behavioral-title">Behavioural Intelligence</div>
                         <div class="behavior-tags">
-                            ${insights.map(insight => `
-                                <div class="behavior-tag ${insight.type}">${insight.label}</div>
-                            `).join('')}
+                            ${insights.map(insight => `<div class="behavior-tag ${insight.type}">${insight.label}</div>`).join('')}
                         </div>
                     </div>
                 `;
@@ -624,11 +428,10 @@
                 if (!family.aiEngagement || !family.aiEngagement.narrative) {
                     return `
                         <div class="ai-narrative">
-                            <strong>AI Analysis:</strong> Engagement data captured. Click "Generate AI Summaries" to create personalized insights for this family.
+                            <strong>AI Analysis:</strong> Engagement data captured. Select “Generate AI Summaries” to create personalised insights for this family.
                         </div>
                     `;
                 }
-
                 return `
                     <div class="ai-narrative">
                         <strong>AI Intelligence:</strong> ${family.aiEngagement.narrative}
@@ -636,18 +439,15 @@
                 `;
             }
 
-            // Helper methods
+            // Helpers
             getEngagementScore(family) {
                 const dwellMs = family.dwell_ms || 0;
                 if (dwellMs === 0) return 25;
-                
                 const minutes = dwellMs / 60000;
                 const visits = family.return_visits || 1;
-                
-                let score = 25; // Base score
-                score += Math.min(minutes * 10, 50); // Up to 50 points for time
-                score += Math.min(visits * 5, 25); // Up to 25 points for visits
-                
+                let score = 25;
+                score += Math.min(minutes * 10, 50); // up to 50 for time
+                score += Math.min(visits * 5, 25);   // up to 25 for visits
                 return Math.min(Math.round(score), 100);
             }
 
@@ -657,7 +457,6 @@
                 if (score >= 40) return 'WARM';
                 return 'COOL';
             }
-
             getTemperatureColor(family) {
                 const temp = this.getTemperature(family);
                 if (temp === 'HOT') return 'var(--red)';
@@ -666,17 +465,12 @@
             }
 
             formatDwellTime(ms) {
-                if (!ms || ms === 0) return '0s';
-                
-                const totalSeconds = Math.round(ms / 1000);
+                const val = ms || 0;
+                if (val === 0) return '0s';
+                const totalSeconds = Math.round(val / 1000);
                 const minutes = Math.floor(totalSeconds / 60);
                 const seconds = totalSeconds % 60;
-                
-                if (minutes > 0) {
-                    return `${minutes}m ${seconds}s`;
-                } else {
-                    return `${seconds}s`;
-                }
+                return minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
             }
 
             extractBehavioralInsights(family) {
@@ -684,27 +478,28 @@
                 const score = this.getEngagementScore(family);
                 const dwellMs = family.dwell_ms || 0;
                 const visits = family.return_visits || 1;
-                
+
                 if (dwellMs > 300000) insights.push({ label: 'Deep Reader', type: 'hot' });
                 else if (dwellMs > 120000) insights.push({ label: 'Engaged Reader', type: 'warm' });
                 else if (dwellMs > 30000) insights.push({ label: 'Active Explorer', type: 'warm' });
-                
+
                 if (visits > 5) insights.push({ label: 'High Interest', type: 'hot' });
                 else if (visits > 2) insights.push({ label: 'Return Visitor', type: 'warm' });
-                
+
                 if (score >= 80) insights.push({ label: 'Priority Lead', type: 'hot' });
                 else if (score >= 60) insights.push({ label: 'Strong Interest', type: 'warm' });
-                
-                const sectionData = this.sectionData[family.id];
-                if (sectionData && sectionData.sections) {
-                    const videoSections = sectionData.sections.filter(s => 
-                        s.section.includes('video') || s.section.includes('discover')
+
+                // If we have section data, flag video interest (use section_name consistently)
+                const sd = this.sectionData[family.id];
+                if (sd && Array.isArray(sd.sections)) {
+                    const videoSections = sd.sections.filter(s =>
+                        (s.section_name || '').toLowerCase().includes('video') ||
+                        (s.section_name || '').toLowerCase().includes('discover')
                     );
                     if (videoSections.length > 0) {
                         insights.push({ label: 'Video Engaged', type: 'warm' });
                     }
                 }
-                
                 return insights;
             }
 
@@ -713,7 +508,6 @@
                     console.log('Generating AI summaries for all families...');
                     const response = await fetch('/api/ai/analyze-all-families', { method: 'POST' });
                     const result = await response.json();
-                    
                     if (result.success) {
                         console.log('AI summaries generated:', result);
                         await this.loadAllData();
@@ -723,23 +517,17 @@
                 }
             }
 
-            async refresh() {
-                await this.loadAllData();
-            }
+            async refresh() { await this.loadAllData(); }
 
             showAllSections(inquiryId) {
                 const sectionData = this.sectionData[inquiryId];
                 if (!sectionData || !sectionData.sections) return;
-                
-                // In a real implementation, this would open a modal or expand the section
-                console.log('All sections for', inquiryId, sectionData.sections);
-                alert(`${sectionData.sections.length} sections tracked:\n\n` + 
-                    sectionData.sections.map(s => `${s.section_name}: ${s.dwell_minutes}m ${s.dwell_seconds % 60}s`).join('\n')
-                );
+                alert(`${sectionData.sections.length} sections tracked:\n\n` +
+                    sectionData.sections.map(s => `${s.section_name}: ${s.dwell_minutes}m ${s.dwell_seconds % 60}s`).join('\n'));
             }
         }
 
-        // Initialize dashboard
+        // Initialise dashboard
         const dashboard = new SmartIntelligenceDashboard();
     </script>
 </body>
