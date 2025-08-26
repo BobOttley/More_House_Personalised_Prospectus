@@ -2673,68 +2673,178 @@ app.get('/api/section-data/:inquiryId', async (req, res) => {
   try {
     const inquiryId = req.params.inquiryId;
     
-    // Get section breakdown from tracking_events - this is the SAME query the AI uses
+    if (!db) {
+      return res.status(500).json({ error: 'Database not available' });
+    }
+    
+    // Enhanced section breakdown including video events
     const sections = await db.query(`
       SELECT
         COALESCE(event_data->>'currentSection', 'unknown') AS section_id,
         SUM(COALESCE((event_data->>'timeInSectionSec')::int, 0)) AS dwell_seconds,
+        SUM(COALESCE((event_data->>'thisVisitSeconds')::int, 0)) AS session_seconds,
         MAX(COALESCE((event_data->>'maxScrollPct')::int, 0)) AS max_scroll_pct,
-        COUNT(CASE WHEN event_type = 'link_click' THEN 1 END) AS clicks
+        COUNT(CASE WHEN event_type = 'link_click' OR event_type = 'content_link_click' THEN 1 END) AS clicks,
+        -- Video engagement aggregation
+        SUM(COALESCE((event_data->>'totalWatchTime')::int, 0)) AS video_watch_seconds,
+        SUM(COALESCE((event_data->>'watchedSec')::int, 0)) AS video_watched_alt,
+        COUNT(CASE WHEN event_type LIKE 'youtube_video_%' THEN 1 END) AS video_events,
+        -- Video milestones and completion
+        COUNT(CASE WHEN event_type = 'youtube_video_milestone' THEN 1 END) AS video_milestones,
+        COUNT(CASE WHEN event_type = 'youtube_video_complete' THEN 1 END) AS video_completions,
+        -- Enhanced engagement metrics
+        MAX(COALESCE((event_data->>'engagementScore')::int, 0)) AS section_engagement_score,
+        MAX(COALESCE((event_data->>'interactionQuality')::int, 0)) AS interaction_quality,
+        MAX(COALESCE((event_data->>'returnVisits')::int, 0)) AS section_return_visits
       FROM tracking_events
       WHERE inquiry_id = $1
-        AND event_type IN ('section_exit_enhanced', 'section_exit', 'link_click')
+        AND event_type IN (
+          'section_exit_enhanced', 'section_exit', 'link_click', 'content_link_click',
+          'youtube_video_play_enhanced', 'youtube_video_milestone', 'youtube_video_complete',
+          'youtube_video_pause', 'significant_click'
+        )
       GROUP BY 1
       HAVING SUM(COALESCE((event_data->>'timeInSectionSec')::int, 0)) > 0
+         OR COUNT(CASE WHEN event_type LIKE 'youtube_video_%' THEN 1 END) > 0
       ORDER BY 2 DESC
     `, [inquiryId]);
     
-    // Get basic stats
+    // Get unique session count for accurate visit tracking
     const visits = await db.query(`
       SELECT COUNT(DISTINCT session_id) as visit_count
       FROM tracking_events
       WHERE inquiry_id = $1
+        AND session_id IS NOT NULL
     `, [inquiryId]);
     
-    // Get total dwell from inquiries table
+    // Get total dwell from inquiries table (the authoritative source)
     const inquiryData = await db.query(`
-      SELECT dwell_ms, return_visits 
+      SELECT dwell_ms, return_visits, first_name, family_surname
       FROM inquiries 
       WHERE id = $1
     `, [inquiryId]);
     
-    const totalDwellMs = parseInt(inquiryData.rows[0]?.dwell_ms || '0');
-    const visitCount = parseInt(visits.rows[0]?.visit_count || '1');
+    const inquiry = inquiryData.rows[0];
+    if (!inquiry) {
+      return res.status(404).json({ error: 'Inquiry not found' });
+    }
     
-    // Calculate engagement score
-    const engagementScore = Math.min(100, Math.round(totalDwellMs / 1000 / 10) + 25);
+    const totalDwellMs = parseInt(inquiry.dwell_ms || '0');
+    const visitCount = Math.max(
+      parseInt(visits.rows[0]?.visit_count || '1'),
+      parseInt(inquiry.return_visits || '1')
+    );
     
-    // Format sections for dashboard display
-    const formattedSections = sections.rows.map(row => ({
-      section_name: prettySectionName(row.section_id), // Use your existing function
-      section_id: row.section_id,
-      dwell_seconds: parseInt(row.dwell_seconds || 0),
-      dwell_minutes: Math.round(parseInt(row.dwell_seconds || 0) / 60),
-      max_scroll_pct: parseInt(row.max_scroll_pct || 0),
-      clicks: parseInt(row.clicks || 0)
-    }));
+    // Calculate comprehensive engagement score
+    const engagementScore = calculateEngagementScore({
+      timeOnPage: totalDwellMs,
+      scrollDepth: sections.rows.length > 0 ? 
+        Math.max(...sections.rows.map(r => parseInt(r.max_scroll_pct || 0))) : 0,
+      totalVisits: visitCount,
+      clickCount: sections.rows.reduce((sum, r) => sum + parseInt(r.clicks || 0), 0)
+    });
+    
+    // Format sections with enhanced data including video metrics
+    const formattedSections = sections.rows.map(row => {
+      const dwellSeconds = parseInt(row.dwell_seconds || 0);
+      const videoWatchSeconds = Math.max(
+        parseInt(row.video_watch_seconds || 0),
+        parseInt(row.video_watched_alt || 0)
+      );
+      
+      return {
+        section_name: prettySectionName(row.section_id),
+        section_id: row.section_id,
+        dwell_seconds: dwellSeconds,
+        dwell_minutes: Math.round(dwellSeconds / 60),
+        max_scroll_pct: parseInt(row.max_scroll_pct || 0),
+        clicks: parseInt(row.clicks || 0),
+        // Video engagement data
+        video_watch_seconds: videoWatchSeconds,
+        video_watch_minutes: Math.round(videoWatchSeconds / 60),
+        video_events: parseInt(row.video_events || 0),
+        video_milestones: parseInt(row.video_milestones || 0),
+        video_completions: parseInt(row.video_completions || 0),
+        has_video_engagement: videoWatchSeconds > 0 || parseInt(row.video_events || 0) > 0,
+        // Enhanced metrics
+        engagement_score: parseInt(row.section_engagement_score || 0),
+        interaction_quality: parseInt(row.interaction_quality || 0),
+        return_visits: parseInt(row.section_return_visits || 0)
+      };
+    });
+    
+    // Calculate video engagement summary
+    const totalVideoSeconds = formattedSections.reduce((sum, s) => sum + s.video_watch_seconds, 0);
+    const sectionsWithVideo = formattedSections.filter(s => s.has_video_engagement).length;
+    const totalVideoCompletions = formattedSections.reduce((sum, s) => sum + s.video_completions, 0);
     
     res.json({
       inquiryId,
+      familyName: `${inquiry.first_name || ''} ${inquiry.family_surname || ''}`.trim(),
       sections: formattedSections,
       totalDwellMs,
       totalDwellMinutes: Math.round(totalDwellMs / 60000),
+      totalDwellSeconds: Math.round(totalDwellMs / 1000),
       visitCount,
       engagementScore,
+      // Video engagement summary
+      videoEngagement: {
+        totalVideoSeconds,
+        totalVideoMinutes: Math.round(totalVideoSeconds / 60),
+        sectionsWithVideo,
+        videoCompletions: totalVideoCompletions,
+        hasVideoEngagement: totalVideoSeconds > 0
+      },
+      // Enhanced metrics
+      summary: {
+        sectionsExplored: formattedSections.length,
+        totalClicks: formattedSections.reduce((sum, s) => sum + s.clicks, 0),
+        avgScrollDepth: formattedSections.length > 0 ? 
+          Math.round(formattedSections.reduce((sum, s) => sum + s.max_scroll_pct, 0) / formattedSections.length) : 0,
+        highEngagementSections: formattedSections.filter(s => s.dwell_seconds > 30).length
+      },
       hasData: formattedSections.length > 0 || totalDwellMs > 0
     });
+    
   } catch (error) {
     console.error('Section data endpoint error:', error);
     res.status(500).json({
       error: 'Failed to get section data',
-      message: error.message
+      message: error.message,
+      inquiryId: req.params.inquiryId
     });
   }
 });
+
+// Helper function (add this if not already present)
+function calculateEngagementScore(engagement) {
+  if (!engagement) return 0;
+  let score = 0;
+  
+  // Time spent (40% weight)
+  const timeMinutes = (engagement.timeOnPage || 0) / 60000;
+  if (timeMinutes >= 30) score += 40;
+  else if (timeMinutes >= 15) score += 30;
+  else if (timeMinutes >= 5) score += 20;
+  else score += Math.min(timeMinutes * 4, 15);
+  
+  // Content depth (30% weight)
+  const scrollDepth = engagement.scrollDepth || 0;
+  score += Math.min(scrollDepth * 0.3, 30);
+  
+  // Return visits (20% weight)
+  const visits = engagement.totalVisits || 1;
+  if (visits >= 7) score += 20;
+  else if (visits >= 4) score += 15;
+  else if (visits >= 2) score += 10;
+  else score += 5;
+  
+  // Interaction quality (10% weight)
+  const clicks = engagement.clickCount || 0;
+  score += Math.min(clicks * 2, 10);
+  
+  return Math.min(Math.round(score), 100);
+}
 
 app.get('/api/debug/snapshot/:inquiryId', async (req, res) => {
   if (!db) return res.status(500).json({ error: 'No database' });
