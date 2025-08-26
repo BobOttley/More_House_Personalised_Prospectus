@@ -1690,7 +1690,7 @@ app.get('/api/analytics/inquiries', async (req, res) => {
           },
           
           // Include AI insights
-          aiEngagement: row.ai_engagement ? (typeof row.ai_engagement === 'string' ? JSON.parse(row.ai_engagement) : row.ai_engagement) : null,
+          aiEngagement: row.ai_engagement ? (typeof row.ai_engagement === 'string' ? JSON.parse(row.ai_engagement) : row.ai_engagement) : null
           
           // Subject interests
           sciences: row.sciences,
@@ -2712,7 +2712,7 @@ app.get('/api/raw-family-data', async (req, res) => {
       received_at: row.received_at,
       country: row.country,
       city: row.city,
-      aiEngagement: row.ai_engagement ? JSON.parse(row.ai_engagement) : null
+      aiEngagement: row.ai_engagement ? (typeof row.ai_engagement === 'string' ? JSON.parse(row.ai_engagement) : row.ai_engagement) : null
     }));
     
     res.json(families);
