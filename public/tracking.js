@@ -976,6 +976,14 @@ function setupYouTubeTracking(videoId) {
   console.log('YouTube tracking set up for:', videoId);
 }
 
+// Force send a video event when tracking is set up
+window.trackingAPI.trackEvent('youtube_video_started', {
+  videoId: videoId,
+  videoTitle: title,
+  watchedSec: 0,
+  currentTimeSec: 0
+});
+
 // Replace the existing trackVideoState function with this:
 function trackVideoState(videoId, state) {
   console.log('Video state change:', videoId, state);
