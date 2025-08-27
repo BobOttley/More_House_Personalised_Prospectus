@@ -1697,19 +1697,6 @@ if (!document.getElementById('youtube-api-script')) {
       return __smart_originalFetch.apply(this, arguments);
     };
   }
-  // Watch for video modal changes
-setTimeout(function() {
-  var videoModal = document.getElementById('videoModal');
-  if (videoModal) {
-    new MutationObserver(function(mutations) {
-      mutations.forEach(function(mutation) {
-        if (mutation.attributeName === 'class' && videoModal.classList.contains('active')) {
-          setTimeout(function() { setupYouTubeTracking(videoId); }, 1500);
-        }
-      });
-    }).observe(videoModal, { attributes: true });
-  }
-}, 2000);
 
   // Monitor tracking overhead
   setInterval(function() {
