@@ -613,7 +613,14 @@ async function trackEngagementEvent(ev) {
       });      
     }
     
-    if (hasVideo) {
+    if (hasVideo && videoId) {
+      console.log('Inserting video tracking row:', {
+        inquiryId,
+        videoId,
+        videoTitle,
+        watchedSec: videoWatchSec
+      });
+      
       await insertVideoTrackingRow(db, {
         inquiryId,
         sessionId,
@@ -671,6 +678,8 @@ async function updateEngagementMetrics(m) {
 
 async function insertVideoTrackingRow(dbClient, payload) {
   try {
+    console.log('Video tracking insert attempt:', payload);
+    
     const q = `
       INSERT INTO video_engagement_tracking (
         inquiry_id, session_id, section_label, event_type,
@@ -683,18 +692,23 @@ async function insertVideoTrackingRow(dbClient, payload) {
       payload.inquiryId || null,
       payload.sessionId || null,
       payload.currentSection || null,
-      payload.eventType || null,
+      payload.eventType || 'video_event',
       payload.videoId || null,
-      payload.videoTitle || null,
-      pickNumber(payload.currentTimeSec, null),
-      pickNumber(payload.watchedSec, null),
+      payload.videoTitle || 'Unknown Video',
+      Math.round(payload.currentTimeSec || 0),
+      Math.round(payload.watchedSec || 0),
       payload.url || null,
       new Date(payload.timestamp || Date.now())
     ];
     
-    await dbClient.query(q, vals);
+    console.log('Video tracking SQL values:', vals);
+    
+    const result = await dbClient.query(q, vals);
+    console.log('Video tracking inserted successfully');
+    return result;
   } catch (e) {
-    console.warn('video_engagement_tracking insert skipped:', e.message);
+    console.error('Video tracking insert failed:', e.message);
+    console.error('Payload was:', payload);
   }
 }
 
