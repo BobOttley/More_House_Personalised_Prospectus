@@ -1704,7 +1704,7 @@ setTimeout(function() {
     new MutationObserver(function(mutations) {
       mutations.forEach(function(mutation) {
         if (mutation.attributeName === 'class' && videoModal.classList.contains('active')) {
-          setTimeout(initYouTubePlayers, 1500);
+          setTimeout(function() { setupYouTubeTracking(videoId); }, 1500);
         }
       });
     }).observe(videoModal, { attributes: true });
