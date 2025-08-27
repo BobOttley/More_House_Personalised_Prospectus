@@ -2569,7 +2569,7 @@ ${extracurricularPersonalization ? `<p>${extracurricularPersonalization}</p>` : 
             const personalMessage = document.getElementById('videoPersonalMessage');
 
             // CRITICAL FIX: Proper YouTube iframe src with required parameters
-            iframe.src = `https://www.youtube.com/embed/${videoId}?enablejsapi=1&origin=${encodeURIComponent(window.location.origin)}&rel=0&playsinline=1&autoplay=1`;
+            iframe.src = `https://www.youtube.com/embed/${videoId}?enablejsapi=1&origin=https://more-house-personalised-prospectus.onrender.com&rel=0&playsinline=1&autoplay=1`;
             
             modalTitle.textContent = title;
             modalDesc.textContent = description;
