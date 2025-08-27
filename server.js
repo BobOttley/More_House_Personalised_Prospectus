@@ -547,6 +547,8 @@ async function trackEngagementEvent(ev) {
   if (!db) return null;
   
   try {
+    console.log('RECEIVED EVENT:', ev.eventType || ev.type, 'VideoID:', ev.eventData?.videoId, 'VideoTitle:', ev.eventData?.videoTitle);
+  
     const eventType = ev.eventType || ev.type || 'unknown';
     const inquiryId = ev.inquiryId || ev.inquiry_id || null;
     const sessionId = ev.sessionId || ev.session_id || null;
