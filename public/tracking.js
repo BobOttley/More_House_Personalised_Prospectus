@@ -978,7 +978,15 @@ function setupYouTubeTracking(videoId) {
   }
   
   var iframe = document.getElementById('videoPlayer');
-  if (!iframe || ytPlayers.has('videoPlayer')) return;
+  if (!iframe) return;
+  
+  // Clear existing player if it exists
+  if (ytPlayers.has('videoPlayer')) {
+    try {
+      ytPlayers.get('videoPlayer').player.destroy();
+    } catch(e) {}
+    ytPlayers.delete('videoPlayer');
+  }
   
   try {
     var player = new YT.Player('videoPlayer', {
