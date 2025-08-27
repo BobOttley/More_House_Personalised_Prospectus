@@ -28,7 +28,7 @@
   var SCROLL_DELTA_MIN = 3;               // More sensitive scroll tracking
   var DWELL_URL = '/api/track/dwell';
   var DWELL_MIN_BATCH_MS = 500;           // Capture shorter interactions
-
+  var videoEngagement = new Map();
   // ---------- Enhanced Intelligence Config ----------
   var READING_SPEED_SAMPLES = [];         // Track reading speed over time
   var INTERACTION_QUALITY_THRESHOLD = 0.7;
@@ -976,25 +976,113 @@ function setupYouTubeTracking(videoId) {
   console.log('YouTube tracking set up for:', videoId);
 }
 
+// Replace the existing trackVideoState function with this:
 function trackVideoState(videoId, state) {
   console.log('Video state change:', videoId, state);
   
-  var eventType = '';
-  switch(state) {
-    case 1: eventType = 'youtube_video_play'; break;
-    case 2: eventType = 'youtube_video_pause'; break;
-    case 0: eventType = 'youtube_video_complete'; break;
-    default: return;
+  // Initialize video tracking if not exists
+  if (!videoEngagement.has(videoId)) {
+    videoEngagement.set(videoId, {
+      totalWatchTime: 0,
+      playStartTime: null,
+      plays: 0,
+      pauses: 0,
+      completed: false,
+      title: getVideoTitle(videoId)
+    });
   }
   
-  queueHighPriorityEvent({
-    inquiryId: INQUIRY_ID,
-    sessionId: SESSION_ID,
-    eventType: eventType,
-    currentSection: currentSectionId || 'discover_video',
-    timestamp: nowISO(),
-    data: { videoId: videoId }
-  });
+  var video = videoEngagement.get(videoId);
+  var now = Date.now();
+  
+  // Handle video state changes
+  switch(state) {
+    case 1: // playing
+      video.playStartTime = now;
+      video.plays++;
+      
+      queueHighPriorityEvent({
+        inquiryId: INQUIRY_ID,
+        sessionId: SESSION_ID,
+        eventType: 'individual_video_play',
+        currentSection: currentSectionId || 'discover_video',
+        timestamp: nowISO(),
+        data: { 
+          videoId: videoId,
+          videoTitle: video.title,
+          totalPlays: video.plays,
+          currentWatchTime: video.totalWatchTime
+        }
+      });
+      break;
+      
+    case 2: // paused
+      if (video.playStartTime) {
+        video.totalWatchTime += Math.round((now - video.playStartTime) / 1000);
+        video.playStartTime = null;
+      }
+      video.pauses++;
+      
+      queueEvent({
+        inquiryId: INQUIRY_ID,
+        sessionId: SESSION_ID,
+        eventType: 'individual_video_pause',
+        currentSection: currentSectionId || 'discover_video',
+        timestamp: nowISO(),
+        data: { 
+          videoId: videoId,
+          videoTitle: video.title,
+          totalWatchTime: video.totalWatchTime,
+          pauseCount: video.pauses
+        }
+      });
+      break;
+      
+    case 0: // ended/complete
+      if (video.playStartTime) {
+        video.totalWatchTime += Math.round((now - video.playStartTime) / 1000);
+        video.playStartTime = null;
+      }
+      video.completed = true;
+      
+      queueHighPriorityEvent({
+        inquiryId: INQUIRY_ID,
+        sessionId: SESSION_ID,
+        eventType: 'individual_video_complete',
+        currentSection: currentSectionId || 'discover_video',
+        timestamp: nowISO(),
+        data: { 
+          videoId: videoId,
+          videoTitle: video.title,
+          totalWatchTime: video.totalWatchTime,
+          completed: true,
+          engagementScore: calculateVideoEngagement(video)
+        }
+      });
+      break;
+  }
+}
+
+// Add this helper function
+function getVideoTitle(videoId) {
+  var titles = {
+    '38K5hmnqhjQ': 'Welcome to More House',
+    '_8kHeONBUyU': 'Parent Testimonial'
+  };
+  return titles[videoId] || 'Unknown Video';
+}
+
+// Add this helper function
+function calculateVideoEngagement(video) {
+  var engagementScore = 0;
+  
+  if (video.totalWatchTime > 30) engagementScore += 30;
+  if (video.totalWatchTime > 60) engagementScore += 20;
+  if (video.completed) engagementScore += 50;
+  if (video.plays === 1) engagementScore += 10; // Single focused watch
+  if (video.pauses < 3) engagementScore += 10; // Low interruption
+  
+  return Math.min(engagementScore, 100);
 }
 
 // Simple YouTube API loader
