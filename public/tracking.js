@@ -1737,6 +1737,27 @@ setTimeout(function() {
     }
   }, 300000); // Every 5 minutes
 
+
+  // Add this at the very end of tracking.js for debugging
+console.log('=== DEBUGGING VIDEO TRACKING ===');
+console.log('window.openVideo exists:', typeof window.openVideo);
+console.log('YouTube API loaded:', !!(window.YT && window.YT.Player));
+console.log('Video modal element:', !!document.getElementById('videoModal'));
+
+// Override openVideo with logging
+setTimeout(function() {
+  if (window.openVideo) {
+    var orig = window.openVideo;
+    window.openVideo = function(videoId, title, desc) {
+      console.log('🎥 VIDEO OPENED:', videoId, title);
+      return orig.apply(this, arguments);
+    };
+  } else {
+    console.log('❌ window.openVideo not found');
+  }
+}, 3000);
+
+
   // Initialize performance monitoring
   if (!window.__SMART_TRACKING_NS__.__BOOT_LOGGED__) {
     window.__SMART_TRACKING_NS__.__BOOT_LOGGED__ = true;
