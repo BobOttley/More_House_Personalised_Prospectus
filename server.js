@@ -2123,6 +2123,68 @@ app.post('/api/ai/analyze-family/:inquiryId', async (req, res) => {
   }
 });
 
+app.get('/api/analytics/video-metrics', async (req, res) => {
+  try {
+    if (!db) {
+      return res.status(500).json({ error: 'Database not available' });
+    }
+
+    console.log('Video metrics request...');
+
+    // Query video engagement data with family associations
+    const videoData = await db.query(`
+      SELECT 
+        vet.video_id,
+        vet.video_title,
+        vet.inquiry_id as family_id,
+        i.first_name,
+        i.family_surname,
+        -- Aggregate video metrics
+        SUM(vet.watched_sec) as totalWatchTime,
+        COUNT(DISTINCT vet.session_id) as sessions,
+        -- Calculate completion rate (you'll need video duration)
+        MAX(vet.current_time_sec) as maxProgress,
+        -- Count events for engagement scoring
+        COUNT(CASE WHEN vet.event_type = 'youtube_video_pause' THEN 1 END) as pauseCount,
+        COUNT(CASE WHEN vet.event_type = 'youtube_video_play_enhanced' THEN 1 END) as replayCount,
+        -- Estimated duration (you may need to store this separately)
+        180 as duration, -- Default 3 minutes, replace with actual duration
+        -- Calculate completion rate
+        ROUND((MAX(vet.current_time_sec) / 180.0) * 100) as completionRate
+      FROM video_engagement_tracking vet
+      LEFT JOIN inquiries i ON vet.inquiry_id = i.id
+      WHERE vet.video_id IS NOT NULL
+      GROUP BY vet.video_id, vet.video_title, vet.inquiry_id, i.first_name, i.family_surname
+      ORDER BY SUM(vet.watched_sec) DESC
+    `);
+
+    const formattedVideos = videoData.rows.map(row => ({
+      video_id: row.video_id,
+      title: row.video_title || 'Untitled Video',
+      family_id: row.family_id,
+      family_name: row.first_name && row.family_surname ? 
+        `${row.first_name} ${row.family_surname}` : null,
+      duration: parseInt(row.duration) || 180,
+      totalWatchTime: parseInt(row.totalwatchtime) || 0,
+      completionRate: parseInt(row.completionrate) || 0,
+      pauseCount: parseInt(row.pausecount) || 0,
+      replayCount: parseInt(row.replaycount) || 0,
+      bufferingCount: 0, // Not tracked yet
+      sessions: parseInt(row.sessions) || 1
+    }));
+
+    console.log(`Returning ${formattedVideos.length} video records`);
+    res.json(formattedVideos);
+
+  } catch (error) {
+    console.error('Video metrics error:', error);
+    res.status(500).json({ 
+      error: 'Failed to get video metrics',
+      message: error.message 
+    });
+  }
+});
+
 // AI narrative route
 app.get('/api/family/:inquiryId/ai-summary', async (req, res) => {
   const { inquiryId } = req.params;
