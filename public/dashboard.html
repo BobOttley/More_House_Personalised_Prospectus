@@ -1201,17 +1201,21 @@
                                         </button>
                                     </div>
                                     <div class="detail-item">
-                                        <h4>Prospectus Links</h4>
-                                        ${family.slug ? `<p>Slug: <code>${family.slug}</code></p>` : '<p>Slug: Not generated</p>'}
+                                        <h4>Prospectus Access</h4>
                                         ${family.prospectusUrl ? `
-                                            <p>Pretty URL: <a href="${family.prospectusUrl}" target="_blank" style="color: var(--sport-blue); text-decoration: none; font-weight: 600;">${family.prospectusUrl.split('/').pop()}</a></p>
+                                            <p>Status: <span style="color: var(--success); font-weight: 600;">Ready to share</span></p>
+                                            <p>Link: <a href="${family.prospectusUrl}" target="_blank" style="color: var(--sport-blue); text-decoration: none; font-weight: 600;">${family.prospectusUrl.split('/').pop()}</a></p>
                                             <button class="action-btn btn-success" onclick="copyToClipboard('${family.prospectusUrl}')">
                                                 Copy Link
                                             </button>
+                                            <button class="action-btn btn-secondary" onclick="window.open('${family.prospectusUrl}', '_blank')" style="margin-left: 0.5rem;">
+                                                Open Prospectus
+                                            </button>
                                         ` : `
-                                            <p>Prospectus: Not generated</p>
+                                            <p>Status: <span style="color: var(--warning); font-weight: 600;">Not generated</span></p>
+                                            <p>Generate a personalized prospectus to share with this family</p>
                                             <button class="action-btn btn-primary" onclick="generateProspectusFor('${family.id}')">
-                                                Generate Now
+                                                Generate Prospectus
                                             </button>
                                         `}
                                     </div>
