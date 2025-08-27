@@ -941,204 +941,88 @@ document.addEventListener('click', function(e){
       isConversionAction: hasConversionKeyword
     };
   }
+  
+  // ---------- Simplified YouTube Video Tracking ----------
+var ytPlayers = new Map();
 
-  // ---------- Fixed YouTube Video Tracking ----------
-  var ytPlayers = new Map();
-
-  function ensureYTAPI(){
-    if (window.YT && window.YT.Player){ 
-      initYouTubePlayers(); 
-      return; 
-    }
-    if (document.getElementById('youtube-iframe-api')) return;
+// Override the prospectus openVideo function to add tracking
+var originalOpenVideo = window.openVideo;
+if (originalOpenVideo) {
+  window.openVideo = function(videoId, title, description) {
+    console.log('Video opened:', videoId, title);
     
-    var tag = document.createElement('script');
-    tag.id = 'youtube-iframe-api';
-    tag.src = 'https://www.youtube.com/iframe_api';
-    document.head.appendChild(tag);
-  }
-
-  // Simple YouTube API ready handler - no complex wrapper
-  var originalYTReady = window.onYouTubeIframeAPIReady;
-  window.onYouTubeIframeAPIReady = function() {
-    // Call original if it exists (from prospectus template)
-    if (typeof originalYTReady === 'function') {
-      try { originalYTReady(); } catch(e) {}
-    }
+    // Call original function
+    originalOpenVideo(videoId, title, description);
     
-    // Initialize our tracking
-    initYouTubePlayers();
-  };
-
-  function initYouTubePlayers() {
-    if (!window.YT || !window.YT.Player) return;
-    
-    var iframes = document.querySelectorAll('iframe[src*="youtube.com"], iframe[src*="youtu.be"], iframe#videoPlayer');
-    
-    iframes.forEach(function(iframe, idx) {
-      if (iframe.dataset.ytTracked) return; // Skip if already tracked
-      iframe.dataset.ytTracked = 'true';
-      
-      if (!iframe.id) {
-        iframe.id = 'yt-tracker-' + idx + '-' + Date.now();
-      }
-      
-      var container = iframe.closest('[data-track-section]');
-      var sectionId = container ? container.getAttribute('data-track-section') : 'unknown';
-      
-      // Wait a moment for iframe to be ready
-      setTimeout(function() {
-        try {
-          var player = new YT.Player(iframe.id, {
-            events: {
-              'onStateChange': function(e) { handleYTStateChange(iframe.id, sectionId, e); },
-              'onReady': function(e) { handleYTReady(iframe.id, sectionId, e); }
-            }
-          });
-          
-          ytPlayers.set(iframe.id, {
-            player: player,
-            sectionId: sectionId,
-            lastState: -1,
-            playStartedAt: null,
-            watchedSec: 0,
-            milestones: {},
-            qualityMetrics: { pauseCount: 0, seekCount: 0, replayCount: 0, engagementScore: 0 }
-          });
-          
-        } catch(error) {
-          console.warn('YouTube tracking failed for:', iframe.id, error);
-        }
-      }, 1000);
-    });
-  }
-
-  function handleYTReady(iframeId, sectionId, event) {
-    var P = ytPlayers.get(iframeId);
-    if (!P) return;
-    
-    var videoId = getVideoId(P.player);
-    console.log('YouTube player ready:', videoId);
-    
-    queueEvent({
+    // Track the video open event
+    queueHighPriorityEvent({
       inquiryId: INQUIRY_ID,
       sessionId: SESSION_ID,
-      eventType: 'youtube_video_ready',
-      currentSection: sectionId,
+      eventType: 'youtube_video_play',
+      currentSection: currentSectionId || 'discover_video',
       timestamp: nowISO(),
-      data: { videoId: videoId }
+      data: { videoId: videoId, title: title }
     });
+    
+    // Set up YouTube API tracking after modal opens
+    setTimeout(function() {
+      setupYouTubeTracking(videoId);
+    }, 2000);
+  };
+}
+
+function setupYouTubeTracking(videoId) {
+  if (!window.YT || !window.YT.Player) {
+    console.log('YouTube API not ready');
+    return;
   }
-
-  function handleYTStateChange(iframeId, sectionId, event) {
-    var P = ytPlayers.get(iframeId);
-    if (!P) return;
-    
-    var state = event.data;
-    var now = Date.now();
-    var videoId = getVideoId(P.player);
-    
-    console.log('YouTube state change:', videoId, state);
-
-    // Playing
-    if (state === 1) {
-      P.playStartedAt = now;
-      P.lastState = 1;
-      
-      queueHighPriorityEvent({
-        inquiryId: INQUIRY_ID,
-        sessionId: SESSION_ID,
-        eventType: 'youtube_video_play',
-        currentSection: sectionId,
-        timestamp: nowISO(),
-        data: { videoId: videoId }
-      });
-    }
-
-    // Calculate watch time when leaving playing state
-    if (P.lastState === 1 && state !== 1 && P.playStartedAt) {
-      var watchSeconds = Math.max(0, Math.round((now - P.playStartedAt) / 1000));
-      P.watchedSec += watchSeconds;
-      P.playStartedAt = null;
-      
-      // Update section video time
-      var st = sectionState.get(sectionId);
-      if (st) st.videoSec += watchSeconds;
-      
-      // Track milestones
-      var duration = getDuration(P.player);
-      if (duration > 0) {
-        var progressPct = Math.floor((P.watchedSec / duration) * 100);
-        [25, 50, 75, 90].forEach(function(milestone) {
-          if (progressPct >= milestone && !P.milestones[milestone]) {
-            P.milestones[milestone] = true;
-            queueHighPriorityEvent({
-              inquiryId: INQUIRY_ID,
-              sessionId: SESSION_ID,
-              eventType: 'youtube_video_milestone',
-              currentSection: sectionId,
-              timestamp: nowISO(),
-              data: { videoId: videoId, milestone: milestone, totalWatchTime: P.watchedSec }
-            });
-          }
-        });
+  
+  var iframe = document.getElementById('videoPlayer');
+  if (!iframe || ytPlayers.has('videoPlayer')) return;
+  
+  try {
+    var player = new YT.Player('videoPlayer', {
+      events: {
+        'onStateChange': function(e) { trackVideoState(videoId, e.data); }
       }
-    }
-
-    // Paused
-    if (state === 2) {
-      P.qualityMetrics.pauseCount++;
-      queueEvent({
-        inquiryId: INQUIRY_ID,
-        sessionId: SESSION_ID,
-        eventType: 'youtube_video_pause',
-        currentSection: sectionId,
-        timestamp: nowISO(),
-        data: { videoId: videoId, pauseCount: P.qualityMetrics.pauseCount }
-      });
-    }
-
-    // Ended
-    if (state === 0) {
-      var duration = getDuration(P.player);
-      var completionRate = duration > 0 ? Math.round((P.watchedSec / duration) * 100) : 0;
-      
-      queueHighPriorityEvent({
-        inquiryId: INQUIRY_ID,
-        sessionId: SESSION_ID,
-        eventType: 'youtube_video_complete',
-        currentSection: sectionId,
-        timestamp: nowISO(),
-        data: {
-          videoId: videoId,
-          totalWatchTime: P.watchedSec,
-          completionRate: completionRate
-        }
-      });
-    }
-
-    P.lastState = state;
+    });
+    
+    ytPlayers.set('videoPlayer', { player: player, videoId: videoId, startTime: Date.now() });
+    console.log('YouTube tracking set up for:', videoId);
+    
+  } catch(e) {
+    console.error('YouTube setup failed:', e);
   }
+}
 
-  function getVideoId(player) {
-    try {
-      var videoData = player.getVideoData();
-      return videoData ? videoData.video_id : 'unknown';
-    } catch(e) {
-      return 'unknown';
-    }
+function trackVideoState(videoId, state) {
+  console.log('Video state change:', videoId, state);
+  
+  var eventType = '';
+  switch(state) {
+    case 1: eventType = 'youtube_video_play'; break;
+    case 2: eventType = 'youtube_video_pause'; break;
+    case 0: eventType = 'youtube_video_complete'; break;
+    default: return;
   }
+  
+  queueHighPriorityEvent({
+    inquiryId: INQUIRY_ID,
+    sessionId: SESSION_ID,
+    eventType: eventType,
+    currentSection: currentSectionId || 'discover_video',
+    timestamp: nowISO(),
+    data: { videoId: videoId }
+  });
+}
 
-  function getDuration(player) {
-    try {
-      return player.getDuration() || 0;
-    } catch(e) {
-      return 0;
-    }
-  }
-
-  // Initialize on load
-  ensureYTAPI();
+// Simple YouTube API loader
+if (!document.getElementById('youtube-api-script')) {
+  var script = document.createElement('script');
+  script.id = 'youtube-api-script';
+  script.src = 'https://www.youtube.com/iframe_api';
+  document.head.appendChild(script);
+}
 
   // Also try to initialize when new iframes are added (for modal videos)
   var iframeObserver = new MutationObserver(function(mutations) {
