@@ -1201,6 +1201,25 @@
                                         </button>
                                     </div>
                                     <div class="detail-item">
+                                        <h4>Prospectus Access</h4>
+                                        ${family.prospectusUrl ? `
+                                            <p>Personalized prospectus generated</p>
+                                            <p>Link: <a href="${family.prospectusUrl}" target="_blank" style="color: var(--sport-blue); text-decoration: none; font-weight: 600;">${family.prospectusUrl.split('/').pop()}</a></p>
+                                            <button class="action-btn btn-success" onclick="copyToClipboard('${family.prospectusUrl}')">
+                                                Copy Link
+                                            </button>
+                                            <button class="action-btn btn-secondary" onclick="window.open('${family.prospectusUrl}', '_blank')" style="margin-left: 0.5rem;">
+                                                Open Prospectus
+                                            </button>
+                                        ` : `
+                                            <p>No prospectus generated yet</p>
+                                            <p>Generate a personalized prospectus to share with this family</p>
+                                            <button class="action-btn btn-primary" onclick="generateProspectusFor('${family.id}')">
+                                                Generate Prospectus
+                                            </button>
+                                        `}
+                                    </div>
+                                    <div class="detail-item">
                                         <h4>Interests</h4>
                                         <div class="interests-tags">
                                             ${family.interests && family.interests.length > 0 ? 
