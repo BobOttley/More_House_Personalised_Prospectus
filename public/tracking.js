@@ -980,7 +980,10 @@ function setupYouTubeTracking(videoId) {
   var iframe = document.getElementById('videoPlayer');
   if (!iframe) return;
   
-  // Clear existing player if it exists
+  // Force iframe reset by clearing src first
+  iframe.src = 'about:blank';
+  
+  // Clear existing player immediately
   if (ytPlayers.has('videoPlayer')) {
     try {
       ytPlayers.get('videoPlayer').player.destroy();
@@ -988,19 +991,24 @@ function setupYouTubeTracking(videoId) {
     ytPlayers.delete('videoPlayer');
   }
   
-  try {
-    var player = new YT.Player('videoPlayer', {
-      events: {
-        'onStateChange': function(e) { trackVideoState(videoId, e.data); }
-      }
-    });
+  // Reset iframe src to new video after brief cleanup
+  setTimeout(function() {
+    iframe.src = iframe.dataset.originalSrc || iframe.src;
     
-    ytPlayers.set('videoPlayer', { player: player, videoId: videoId, startTime: Date.now() });
-    console.log('YouTube tracking set up for:', videoId);
-    
-  } catch(e) {
-    console.error('YouTube setup failed:', e);
-  }
+    try {
+      var player = new YT.Player('videoPlayer', {
+        events: {
+          'onStateChange': function(e) { trackVideoState(videoId, e.data); }
+        }
+      });
+      
+      ytPlayers.set('videoPlayer', { player: player, videoId: videoId, startTime: Date.now() });
+      console.log('YouTube tracking set up for:', videoId);
+      
+    } catch(e) {
+      console.error('YouTube setup failed:', e);
+    }
+  }, 500);
 }
 
 function trackVideoState(videoId, state) {
