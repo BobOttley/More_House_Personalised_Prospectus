@@ -892,29 +892,31 @@
   }
 
   // Enhanced click attribution
-  document.addEventListener('click', function(e){
-    if (!currentSectionId) return;
-    
-    var st = sectionState.get(currentSectionId);
-    if (st) st.clicks += 1;
-    
-    // Analyze click quality and intent
-    var clickAnalysis = analyzeClickIntent(e);
-    if (clickAnalysis.isSignificant) {
-      queueHighPriorityEvent({
-        inquiryId: INQUIRY_ID,
-        sessionId: SESSION_ID,
-        eventType: 'significant_click',
-        currentSection: currentSectionId,
-        timestamp: nowISO(),
-        data: {
-          clickAnalysis: clickAnalysis,
-          conversionPotential: clickAnalysis.conversionScore,
-          behavioralContext: behavioralIntelligence
-        }
-      });
-    }
-  }, { capture: true });
+document.addEventListener('click', function(e){
+  if (!currentSectionId) return;
+  
+  var st = sectionState.get(currentSectionId);
+  if (st) {
+    st.clicks = (st.clicks || 0) + 1; // Actually increment the counter
+  }
+  
+  // Analyze click quality and intent
+  var clickAnalysis = analyzeClickIntent(e);
+  if (clickAnalysis.isSignificant) {
+    queueHighPriorityEvent({
+      inquiryId: INQUIRY_ID,
+      sessionId: SESSION_ID,
+      eventType: 'significant_click',
+      currentSection: currentSectionId,
+      timestamp: nowISO(),
+      data: {
+        clickAnalysis: clickAnalysis,
+        conversionPotential: clickAnalysis.conversionScore,
+        behavioralContext: behavioralIntelligence
+      }
+    });
+  }
+}, { capture: true });
 
   function analyzeClickIntent(event) {
     var target = event.target;
@@ -971,7 +973,7 @@
   function initYouTubePlayers() {
     if (!window.YT || !window.YT.Player) return;
     
-    var iframes = document.querySelectorAll('iframe[src*="youtube.com"], iframe[src*="youtu.be"]');
+    var iframes = document.querySelectorAll('iframe[src*="youtube.com"], iframe[src*="youtu.be"], iframe#videoPlayer');
     
     iframes.forEach(function(iframe, idx) {
       if (iframe.dataset.ytTracked) return; // Skip if already tracked
@@ -1179,6 +1181,7 @@
       totalAttentionTime: totalAttentionTime,
       attentionEfficiency: totalAttentionTime > 0 ? Math.round((totalAttentionTime / (sessionDuration / 1000)) * 100) : 0,
       sectionsEngaged: sectionsVisited.length,
+      sectionsExplored: sectionsVisited.length,
       navigationPattern: behavioralIntelligence.navigationPattern,
       engagementTrend: behavioralIntelligence.engagementTrend,
       conversionSignals: behavioralIntelligence.conversionSignals,
@@ -1810,6 +1813,19 @@
       return __smart_originalFetch.apply(this, arguments);
     };
   }
+  // Watch for video modal changes
+setTimeout(function() {
+  var videoModal = document.getElementById('videoModal');
+  if (videoModal) {
+    new MutationObserver(function(mutations) {
+      mutations.forEach(function(mutation) {
+        if (mutation.attributeName === 'class' && videoModal.classList.contains('active')) {
+          setTimeout(initYouTubePlayers, 1500);
+        }
+      });
+    }).observe(videoModal, { attributes: true });
+  }
+}, 2000);
 
   // Monitor tracking overhead
   setInterval(function() {
@@ -1845,5 +1861,5 @@
     console.log('🎯 Inquiry ID:', INQUIRY_ID);
     console.log('🧠 AI Intelligence: Active');
   }
-
+  
 })();
