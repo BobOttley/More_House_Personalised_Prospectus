@@ -6,7 +6,6 @@
     <title>SMART Analytics - More House School</title>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        /* More House SMART Analytics Brand Colors */
         :root {
             --blazer-navy: #091825;
             --award-gold: #FF9F1C;
@@ -40,7 +39,6 @@
             font-size: 14px;
         }
 
-        /* Header */
         .dashboard-header {
             background: linear-gradient(135deg, var(--blazer-navy) 0%, var(--sport-blue) 100%);
             color: var(--white);
@@ -126,7 +124,6 @@
             font-size: 0.9rem;
         }
 
-        /* Metrics Bar */
         .metrics-bar {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -230,7 +227,6 @@
             gap: 0.25rem;
         }
 
-        /* Dashboard Grid */
         .dashboard-grid {
             display: grid;
             grid-template-columns: 2fr 1fr;
@@ -268,7 +264,38 @@
             padding: 1.5rem;
         }
 
-        /* Family Cards */
+        .controls-bar {
+            padding: 1rem 2rem;
+            background: var(--white);
+            border-bottom: 1px solid var(--border-grey);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .filter-group {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .filter-select {
+            padding: 0.5rem 1rem;
+            border: 1px solid var(--border-grey);
+            border-radius: 8px;
+            background: var(--white);
+            color: var(--text-primary);
+            font-size: 0.9rem;
+        }
+
+        .search-box {
+            padding: 0.5rem 1rem;
+            border: 1px solid var(--border-grey);
+            border-radius: 8px;
+            width: 250px;
+            font-size: 0.9rem;
+        }
+
         .family-cards-container {
             max-height: 600px;
             overflow-y: auto;
@@ -397,7 +424,7 @@
 
         .details-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
             gap: 1.5rem;
             margin-bottom: 1.5rem;
         }
@@ -431,7 +458,6 @@
             font-weight: 500;
         }
 
-        /* AI Insights Section */
         .ai-insights-section {
             background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
             border-radius: 8px;
@@ -468,7 +494,6 @@
             color: #475569;
         }
 
-        /* Activity Feed */
         .activity-feed {
             max-height: 600px;
             overflow-y: auto;
@@ -525,40 +550,6 @@
         .activity-type.medium { background: var(--warm-lead); }
         .activity-type.low { background: var(--cold-lead); }
 
-        /* Controls */
-        .controls-bar {
-            padding: 1rem 2rem;
-            background: var(--white);
-            border-bottom: 1px solid var(--border-grey);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .filter-group {
-            display: flex;
-            gap: 1rem;
-            align-items: center;
-        }
-
-        .filter-select {
-            padding: 0.5rem 1rem;
-            border: 1px solid var(--border-grey);
-            border-radius: 8px;
-            background: var(--white);
-            color: var(--text-primary);
-            font-size: 0.9rem;
-        }
-
-        .search-box {
-            padding: 0.5rem 1rem;
-            border: 1px solid var(--border-grey);
-            border-radius: 8px;
-            width: 250px;
-            font-size: 0.9rem;
-        }
-
-        /* Loading States */
         .loading {
             display: flex;
             justify-content: center;
@@ -582,7 +573,6 @@
             100% { transform: rotate(360deg); }
         }
 
-        /* Error State */
         .error {
             background: #FEF2F2;
             border: 1px solid #FECACA;
@@ -597,7 +587,6 @@
             margin-bottom: 0.5rem;
         }
 
-        /* AI Analysis Indicator */
         .ai-analyzing {
             display: inline-flex;
             align-items: center;
@@ -621,7 +610,37 @@
             100% { opacity: 0.4; }
         }
 
-        /* Responsive */
+        .action-btn {
+            padding: 0.25rem 0.5rem;
+            border: none;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            font-weight: 600;
+            margin: 0.25rem;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: var(--award-gold);
+            color: var(--blazer-navy);
+        }
+
+        .btn-secondary {
+            background: var(--sport-blue);
+            color: white;
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .action-btn:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
         @media (max-width: 1024px) {
             .dashboard-grid {
                 grid-template-columns: 1fr;
@@ -655,7 +674,6 @@
     </style>
 </head>
 <body>
-    <!-- Header -->
     <header class="dashboard-header">
         <div class="header-controls">
             <div class="auto-refresh-toggle">
@@ -675,7 +693,6 @@
         <div class="header-meta">Admissions Intelligence Dashboard</div>
     </header>
 
-    <!-- Metrics Bar -->
     <section class="metrics-bar">
         <div class="metric-card hot">
             <div class="metric-header">
@@ -722,7 +739,6 @@
         </div>
     </section>
 
-    <!-- Controls -->
     <section class="controls-bar">
         <div class="filter-group">
             <select class="filter-select" id="sortFilter">
@@ -750,9 +766,7 @@
         <input type="text" class="search-box" placeholder="Search families..." id="searchBox">
     </section>
 
-    <!-- Main Dashboard Grid -->
     <main class="dashboard-grid">
-        <!-- Family Cards Panel -->
         <div class="panel">
             <div class="panel-header">
                 <div>
@@ -779,7 +793,6 @@
             </div>
         </div>
 
-        <!-- Live Activity Feed -->
         <div class="panel">
             <div class="panel-header">
                 <h2>Recent Activity</h2>
@@ -799,7 +812,6 @@
     </main>
 
     <script>
-        // Dashboard State
         let dashboardData = {
             families: [],
             activities: [],
@@ -809,24 +821,19 @@
         let autoRefreshInterval;
         let isRefreshing = false;
 
-        // Initialize Dashboard
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('🚀 Dashboard initializing...');
+            console.log('Dashboard initializing...');
             loadDashboardData();
             setupEventListeners();
             startAutoRefresh();
         });
 
         function setupEventListeners() {
-            // Search functionality
             document.getElementById('searchBox').addEventListener('input', filterFamilies);
-            
-            // Filter dropdowns
             document.getElementById('sortFilter').addEventListener('change', filterFamilies);
             document.getElementById('statusFilter').addEventListener('change', filterFamilies);
             document.getElementById('entryYearFilter').addEventListener('change', filterFamilies);
             
-            // Auto-refresh toggle
             document.getElementById('autoRefresh').addEventListener('change', function() {
                 if (this.checked) {
                     startAutoRefresh();
@@ -841,12 +848,10 @@
             isRefreshing = true;
             
             try {
-                console.log('📡 Fetching real data from server.js endpoints...');
+                console.log('Fetching real data from server.js endpoints...');
                 
-                // Update refresh icon
                 document.getElementById('refreshIcon').style.animation = 'spin 1s linear infinite';
                 
-                // Fetch from exact server.js endpoints
                 const [dashboardResponse, inquiriesResponse] = await Promise.all([
                     fetch('/api/dashboard-data'),
                     fetch('/api/analytics/inquiries')
@@ -863,27 +868,25 @@
                 const dashboardApiData = await dashboardResponse.json();
                 const inquiriesApiData = await inquiriesResponse.json();
                 
-                console.log('✅ Dashboard API data:', dashboardApiData);
-                console.log('✅ Inquiries API data:', Array.isArray(inquiriesApiData) ? inquiriesApiData.length : 'object', 'families');
+                console.log('Dashboard API data:', dashboardApiData);
+                console.log('Inquiries API data:', Array.isArray(inquiriesApiData) ? inquiriesApiData.length : 'object', 'families');
                 
-                // Process data exactly as server.js provides it
                 dashboardData.families = processServerInquiries(inquiriesApiData);
                 dashboardData.activities = processServerActivity(dashboardApiData.recentlyActive || []);
                 dashboardData.metrics = processServerMetrics(dashboardApiData.summary || {}, dashboardData.families);
                 
-                console.log('📊 Processed data:', {
+                console.log('Processed data:', {
                     families: dashboardData.families.length,
                     activities: dashboardData.activities.length,
                     metrics: dashboardData.metrics
                 });
                 
-                // Update UI
                 updateMetrics();
                 renderFamilyCards();
                 renderActivityFeed();
                 
             } catch (error) {
-                console.error('❌ Failed to load dashboard data:', error);
+                console.error('Failed to load dashboard data:', error);
                 showError('Failed to load real data', error.message);
             } finally {
                 isRefreshing = false;
@@ -891,9 +894,8 @@
             }
         }
 
-        // Process data exactly as server.js provides it
         function processServerInquiries(inquiriesData) {
-            console.log('📄 Processing server inquiries data...');
+            console.log('Processing server inquiries data...');
             
             if (!Array.isArray(inquiriesData)) {
                 console.warn('Expected array, got:', typeof inquiriesData);
@@ -901,7 +903,6 @@
             }
             
             return inquiriesData.map(family => {
-                // Extract interests exactly as server.js does
                 const interests = [];
                 const interestFields = [
                     'sciences', 'mathematics', 'english', 'languages', 'humanities', 'business',
@@ -917,27 +918,23 @@
                     }
                 });
                 
-                // Use REAL data from server - dwell_ms and return_visits from inquiries table
                 const dwellMs = family.dwell_ms || 0;
                 const returnVisits = family.return_visits || 1;
                 
-                // Calculate engagement score from real server data
                 const engagementScore = family.engagement ? family.engagement.engagementScore : 
                     calculateEngagementScoreFromServer({
                         timeOnPage: dwellMs,
                         totalVisits: returnVisits,
-                        scrollDepth: 50, // Server estimate
-                        clickCount: Math.floor(dwellMs / 10000) // Server estimate
+                        scrollDepth: 50,
+                        clickCount: Math.floor(dwellMs / 10000)
                     });
                 
-                // Determine temperature
                 let temperature = 'low';
                 if (engagementScore >= 70) temperature = 'hot';
                 else if (engagementScore >= 50) temperature = 'warm';
                 else if (engagementScore >= 30) temperature = 'cold';
                 
                 return {
-                    // Core data from server.js
                     id: family.id,
                     firstName: family.first_name,
                     familySurname: family.family_surname,
@@ -947,23 +944,23 @@
                     receivedAt: family.received_at,
                     status: family.status,
                     
-                    // Real engagement data from database
                     dwellMs: dwellMs,
                     returnVisits: returnVisits,
                     engagementScore: engagementScore,
                     temperature: temperature,
                     
-                    // AI insights if available (server.js provides this)
                     aiEngagement: family.ai_engagement || family.aiEngagement || null,
                     hasAIAnalysis: !!(family.ai_engagement || family.aiEngagement),
                     
-                    // Other processed data
+                    slug: family.slug,
+                    prospectusUrl: family.prospectus_pretty_url || family.prospectus_direct_url || null,
+                    prospectusFilename: family.prospectus_filename,
+                    prospectusGeneratedAt: family.prospectus_generated_at,
+                    
                     interests: interests,
                     contactReady: family.status === 'prospectus_generated',
                     isOnline: isRecentActivity(family.updated_at || family.received_at),
-                    prospectusUrl: family.prospectus_pretty_url || family.prospectus_direct_url || null,
                     
-                    // Location data
                     country: family.country || 'Unknown',
                     region: family.region || 'Unknown',
                     city: family.city || 'Unknown'
@@ -973,7 +970,6 @@
 
         function processServerActivity(recentActivityData) {
             if (!Array.isArray(recentActivityData) || recentActivityData.length === 0) {
-                // Server.js fallback: create from families
                 return dashboardData.families ? dashboardData.families.slice(0, 10).map(family => ({
                     family: `${family.firstName} ${family.familySurname}`,
                     action: getServerActivityDescription(family.activity || 'Recently inquired'),
@@ -983,7 +979,6 @@
                 })) : [];
             }
             
-            // Process server activity exactly as provided
             return recentActivityData.slice(0, 20).map(activity => ({
                 family: activity.name || 'Unknown Family',
                 action: getServerActivityDescription(activity.activity || 'inquiry'),
@@ -994,7 +989,6 @@
         }
 
         function processServerMetrics(summary, families) {
-            // Use server.js calculated metrics first, fallback to calculated
             const aiAnalyzedCount = families.filter(f => f.hasAIAnalysis).length;
             
             return {
@@ -1005,30 +999,25 @@
             };
         }
 
-        // Server.js compatible functions
         function calculateEngagementScoreFromServer(engagement) {
             if (!engagement) return 0;
             let score = 0;
             
-            // Time spent (40% weight) - server uses milliseconds
             const timeMinutes = (engagement.timeOnPage || 0) / 60000;
             if (timeMinutes >= 30) score += 40;
             else if (timeMinutes >= 15) score += 30;
             else if (timeMinutes >= 5) score += 20;
             else score += Math.min(timeMinutes * 4, 15);
             
-            // Content depth (30% weight)
             const scrollDepth = engagement.scrollDepth || 0;
             score += Math.min(scrollDepth * 0.3, 30);
             
-            // Return visits (20% weight)
             const visits = engagement.totalVisits || 1;
             if (visits >= 7) score += 20;
             else if (visits >= 4) score += 15;
             else if (visits >= 2) score += 10;
             else score += 5;
             
-            // Interaction quality (10% weight)
             const clicks = engagement.clickCount || 0;
             score += Math.min(clicks * 2, 10);
             
@@ -1036,7 +1025,6 @@
         }
 
         function getServerActivityDescription(activityType) {
-            // Match server.js activity descriptions
             const descriptions = {
                 'inquiry': 'Submitted inquiry',
                 'Recently inquired': 'Recently inquired',
@@ -1049,7 +1037,6 @@
         }
 
         function getServerActivityPriority(activityType) {
-            // Match server.js priority logic
             const highPriority = ['prospectus_generated', 'high_engagement'];
             const mediumPriority = ['inquiry', 'Recently inquired', 'engagement'];
             
@@ -1065,61 +1052,29 @@
             return diffMinutes < 30;
         }
 
-        // Utility functions for formatting
         function formatLocation(family) {
-          // Debug what we actually have
-          console.log('Location data for', family.firstName, ':', {
-            city: family.city,
-            country: family.country,
-            region: family.region
-          });
-  
-          const city = family.city && family.city !== 'Unknown' && family.city !== 'Location pending' ? family.city : null;
-          const country = family.country && family.country !== 'Unknown' ? family.country : null;
-  
-          // If we have real location data, use it
-          if (city && country) {
-            return `${city}, ${country}`;
-          } else if (country && country !== 'Unknown') {
-            return country;
-          } else if (city && city !== 'Unknown') {
-            return city;
-          } 
-  
-          // Fallback: show what we actually got from the server
-          const rawLocation = [family.city, family.region, family.country]
-            .filter(loc => loc && loc !== 'Unknown' && loc !== 'null')
-            .join(', ');
-    
-          return rawLocation || 'Location data not captured';
-        }
+            console.log('Location data for', family.firstName, ':', {
+                city: family.city,
+                country: family.country,
+                region: family.region
+            });
 
-        async function checkGeoLocation(inquiryId) {
-            try {
-                // Test current IP detection
-                const ipResponse = await fetch('/api/debug/ip');
-                const ipData = await ipResponse.json();
-                
-                console.log('Current IP detection:', ipData);
-                
-                alert(`IP Detection Debug:
-                
-Detected IP: ${ipData.ip || 'None detected'}
-Country: ${ipData.geo?.country || 'Unknown'}
-City: ${ipData.geo?.city || 'Unknown'}
+            const city = family.city && family.city !== 'Unknown' && family.city !== 'Location pending' ? family.city : null;
+            const country = family.country && family.country !== 'Unknown' ? family.country : null;
 
-Headers:
-- X-Forwarded-For: ${ipData.headers['x-forwarded-for'] || 'Not set'}
-- CF-Connecting-IP: ${ipData.headers['cf-connecting-ip'] || 'Not set'}
-- X-Real-IP: ${ipData.headers['x-real-ip'] || 'Not set'}
+            if (city && country) {
+                return `${city}, ${country}`;
+            } else if (country && country !== 'Unknown') {
+                return country;
+            } else if (city && city !== 'Unknown') {
+                return city;
+            } 
 
-Note: Local IPs (127.0.0.1, 192.168.x.x) are filtered out.
-Deploy to production for real IP detection.`);
-                
-            } catch (error) {
-                console.error('Failed to check geo location:', error);
-                alert(`Geo location debug failed: ${error.message}`);
-            }
+            const rawLocation = [family.city, family.region, family.country]
+                .filter(loc => loc && loc !== 'Unknown' && loc !== 'null')
+                .join(', ');
+        
+            return rawLocation || 'Location data not captured';
         }
 
         function formatDwellTime(milliseconds) {
@@ -1158,14 +1113,14 @@ Deploy to production for real IP detection.`);
             document.getElementById('aiAnalyzed').textContent = metrics.aiAnalyzed || 0;
             document.getElementById('totalFamilies').textContent = metrics.totalFamilies || 0;
             
-            console.log('📊 Updated metrics:', metrics);
+            console.log('Updated metrics:', metrics);
         }
 
         function renderFamilyCards() {
             const container = document.getElementById('familyCards');
             const families = getFilteredFamilies();
             
-            console.log('🎨 Rendering', families.length, 'family cards');
+            console.log('Rendering', families.length, 'family cards');
             
             if (families.length === 0) {
                 container.innerHTML = `
@@ -1178,11 +1133,6 @@ Deploy to production for real IP detection.`);
             }
             
             container.innerHTML = families.map(family => {
-                const totalTimeMinutes = Math.round((family.dwellMs || 0) / 60000);
-                const totalTimeSeconds = Math.round((family.dwellMs || 0) / 1000);
-                const visits = family.returnVisits || 1;
-                
-                // Build AI insights HTML if available from server
                 let aiInsightsHTML = '';
                 if (family.hasAIAnalysis && family.aiEngagement) {
                     const ai = family.aiEngagement;
@@ -1214,8 +1164,8 @@ Deploy to production for real IP detection.`);
                                 <div class="family-meta">
                                     <span>Entry ${family.entryYear || 'TBC'}</span>
                                     <span>${formatDwellTime(family.dwellMs)}</span>
-                                    <span>${visits} visits</span>
-                                    ${family.hasAIAnalysis ? '<span style="color: var(--award-gold); font-weight: 600;">✨ AI</span>' : ''}
+                                    <span>${family.returnVisits} visits</span>
+                                    ${family.hasAIAnalysis ? '<span style="color: var(--award-gold); font-weight: 600;">AI</span>' : ''}
                                     <span>${formatTimeAgo(new Date(family.receivedAt))}</span>
                                 </div>
                             </div>
@@ -1233,10 +1183,10 @@ Deploy to production for real IP detection.`);
                                     <div class="detail-item">
                                         <h4>Real Engagement Data</h4>
                                         <p>Total dwell time: ${formatDwellTime(family.dwellMs)}</p>
-                                        <p>Return visits: ${visits}</p>
+                                        <p>Return visits: ${family.returnVisits}</p>
                                         <p>Engagement Score: ${family.engagementScore}/100</p>
                                         <p>Status: ${family.status}</p>
-                                        <button onclick="loadSectionDetails('${family.id}')" style="margin-top: 0.5rem; padding: 0.25rem 0.5rem; background: var(--award-gold); color: var(--blazer-navy); border: none; border-radius: 4px; font-size: 0.8rem; cursor: pointer; font-weight: 600;">
+                                        <button class="action-btn btn-primary" onclick="loadSectionDetails('${family.id}')">
                                             View Section Details
                                         </button>
                                     </div>
@@ -1245,10 +1195,25 @@ Deploy to production for real IP detection.`);
                                         <p>Email: ${family.parentEmail || 'Not provided'}</p>
                                         <p>Age Group: ${family.ageGroup || 'Unknown'}</p>
                                         <p>Location: ${formatLocation(family)}</p>
-                                        <p>${family.contactReady ? '✅ Ready for contact' : '⏳ Continue nurturing'}</p>
-                                        <button onclick="checkGeoLocation('${family.id}')" style="margin-top: 0.5rem; padding: 0.25rem 0.5rem; background: var(--sport-blue); color: white; border: none; border-radius: 4px; font-size: 0.8rem; cursor: pointer;">
+                                        <p>${family.contactReady ? 'Ready for contact' : 'Continue nurturing'}</p>
+                                        <button class="action-btn btn-secondary" onclick="checkGeoLocation('${family.id}')">
                                             Debug Location
                                         </button>
+                                    </div>
+                                    <div class="detail-item">
+                                        <h4>Prospectus Links</h4>
+                                        ${family.slug ? `<p>Slug: <code>${family.slug}</code></p>` : '<p>Slug: Not generated</p>'}
+                                        ${family.prospectusUrl ? `
+                                            <p>Pretty URL: <a href="${family.prospectusUrl}" target="_blank" style="color: var(--sport-blue); text-decoration: none; font-weight: 600;">${family.prospectusUrl.split('/').pop()}</a></p>
+                                            <button class="action-btn btn-success" onclick="copyToClipboard('${family.prospectusUrl}')">
+                                                Copy Link
+                                            </button>
+                                        ` : `
+                                            <p>Prospectus: Not generated</p>
+                                            <button class="action-btn btn-primary" onclick="generateProspectusFor('${family.id}')">
+                                                Generate Now
+                                            </button>
+                                        `}
                                     </div>
                                     <div class="detail-item">
                                         <h4>Interests</h4>
@@ -1258,14 +1223,12 @@ Deploy to production for real IP detection.`);
                                                 '<span class="interest-tag">No interests selected</span>'
                                             }
                                         </div>
-                                    </div>
-                                    <div class="detail-item">
-                                        <h4>AI Analysis</h4>
+                                        <h4 style="margin-top: 1rem;">AI Analysis</h4>
                                         ${family.hasAIAnalysis ? 
-                                            '<p style="color: var(--success);">✅ AI insights available</p>' :
-                                            '<p style="color: var(--warning);">⏳ Not yet analyzed</p>'
+                                            '<p style="color: var(--success);">AI insights available</p>' :
+                                            '<p style="color: var(--warning);">Not yet analyzed</p>'
                                         }
-                                        <button onclick="analyzeIndividualFamily('${family.id}')" style="margin-top: 0.5rem; padding: 0.25rem 0.5rem; background: var(--sport-blue); color: white; border: none; border-radius: 4px; font-size: 0.8rem; cursor: pointer;">
+                                        <button class="action-btn btn-secondary" onclick="analyzeIndividualFamily('${family.id}')">
                                             ${family.hasAIAnalysis ? 'Re-analyze' : 'Analyze Family'}
                                         </button>
                                     </div>
@@ -1281,7 +1244,7 @@ Deploy to production for real IP detection.`);
             const container = document.getElementById('activityFeed');
             const activities = dashboardData.activities;
             
-            console.log('📢 Rendering', activities.length, 'activity items');
+            console.log('Rendering', activities.length, 'activity items');
             
             if (activities.length === 0) {
                 container.innerHTML = `
@@ -1310,13 +1273,11 @@ Deploy to production for real IP detection.`);
         function getFilteredFamilies() {
             let families = [...dashboardData.families];
             
-            // Apply filters
             const statusFilter = document.getElementById('statusFilter').value;
             const entryYearFilter = document.getElementById('entryYearFilter').value;
             const searchTerm = document.getElementById('searchBox').value.toLowerCase();
             const sortBy = document.getElementById('sortFilter').value;
             
-            // Status filter - match server.js logic
             if (statusFilter !== 'all') {
                 if (statusFilter === 'prospectus_generated') {
                     families = families.filter(f => f.contactReady);
@@ -1327,7 +1288,6 @@ Deploy to production for real IP detection.`);
                 }
             }
             
-            // Entry year filter
             if (entryYearFilter !== 'all') {
                 if (entryYearFilter === '2027') {
                     families = families.filter(f => f.entryYear >= 2027);
@@ -1336,7 +1296,6 @@ Deploy to production for real IP detection.`);
                 }
             }
             
-            // Search filter
             if (searchTerm) {
                 families = families.filter(f => 
                     `${f.firstName} ${f.familySurname}`.toLowerCase().includes(searchTerm) ||
@@ -1344,7 +1303,6 @@ Deploy to production for real IP detection.`);
                 );
             }
             
-            // Sort - match server.js behavior
             switch (sortBy) {
                 case 'engagement':
                     families.sort((a, b) => b.engagementScore - a.engagementScore);
@@ -1375,7 +1333,7 @@ Deploy to production for real IP detection.`);
         }
 
         function refreshDashboard() {
-            console.log('🔄 Manual refresh triggered');
+            console.log('Manual refresh triggered');
             loadDashboardData();
         }
 
@@ -1383,7 +1341,7 @@ Deploy to production for real IP detection.`);
             stopAutoRefresh();
             autoRefreshInterval = setInterval(() => {
                 if (document.getElementById('autoRefresh').checked) {
-                    console.log('🔄 Auto refresh triggered');
+                    console.log('Auto refresh triggered');
                     loadDashboardData();
                 }
             }, 30000);
@@ -1396,25 +1354,6 @@ Deploy to production for real IP detection.`);
             }
         }
 
-        function showError(title, message) {
-            console.error('❌ Dashboard Error:', title, message);
-            
-            const familyContainer = document.getElementById('familyCards');
-            const activityContainer = document.getElementById('activityFeed');
-            
-            const errorHtml = `
-                <div class="error">
-                    <div class="error-title">${title}</div>
-                    <p>${message}</p>
-                    <p>Check server.js endpoints and console for details.</p>
-                </div>
-            `;
-            
-            familyContainer.innerHTML = errorHtml;
-            activityContainer.innerHTML = errorHtml;
-        }
-
-        // AI Analysis Functions - matching server.js exactly
         async function triggerAIAnalysis() {
             const aiStatusElement = document.getElementById('aiStatus');
             const buttonElement = document.querySelector('.refresh-btn[onclick="triggerAIAnalysis()"]');
@@ -1423,9 +1362,8 @@ Deploy to production for real IP detection.`);
             if (buttonElement) buttonElement.disabled = true;
             
             try {
-                console.log('🤖 Starting AI analysis via server.js /api/ai/analyze-all-families...');
+                console.log('Starting AI analysis via server.js /api/ai/analyze-all-families...');
                 
-                // Call the exact endpoint from server.js
                 const response = await fetch('/api/ai/analyze-all-families', {
                     method: 'POST',
                     headers: {
@@ -1435,30 +1373,28 @@ Deploy to production for real IP detection.`);
                 
                 if (response.ok) {
                     const result = await response.json();
-                    console.log('✅ AI Analysis completed:', result);
+                    console.log('AI Analysis completed:', result);
                     
-                    // Refresh dashboard data after AI analysis
                     await loadDashboardData();
                     
                     if (result.success) {
-                        alert(`✅ AI Analysis completed!\n\nProcessed: ${result.count} families\nResults: ${result.results?.length || 0} analyzed`);
+                        alert(`AI Analysis completed!\n\nProcessed: ${result.count} families\nResults: ${result.results?.length || 0} analyzed`);
                     } else {
-                        alert('⚠️ AI Analysis completed with errors. Check console.');
+                        alert('AI Analysis completed with errors. Check console.');
                     }
                 } else {
                     const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
                     throw new Error(`AI Analysis failed: ${errorData.error || response.statusText}`);
                 }
             } catch (error) {
-                console.error('❌ AI Analysis error:', error);
-                alert(`❌ AI Analysis failed: ${error.message}`);
+                console.error('AI Analysis error:', error);
+                alert(`AI Analysis failed: ${error.message}`);
             } finally {
                 if (aiStatusElement) aiStatusElement.style.display = 'none';
                 if (buttonElement) buttonElement.disabled = false;
             }
         }
 
-        // Section details loading - matches server.js /api/section-data/:inquiryId endpoint
         async function loadSectionDetails(inquiryId) {
             try {
                 console.log(`Loading section details for inquiry: ${inquiryId}`);
@@ -1471,7 +1407,6 @@ Deploy to production for real IP detection.`);
                 const sectionData = await response.json();
                 console.log('Section data received:', sectionData);
                 
-                // Display section details in a modal or expanded view
                 showSectionDetailsModal(sectionData);
                 
             } catch (error) {
@@ -1552,12 +1487,10 @@ Deploy to production for real IP detection.`);
             }
         }
 
-        // Individual family analysis - using server.js endpoint
         async function analyzeIndividualFamily(inquiryId) {
             try {
-                console.log(`🤖 Analyzing individual family: ${inquiryId}`);
+                console.log(`Analyzing individual family: ${inquiryId}`);
                 
-                // Call server.js individual analysis endpoint
                 const response = await fetch(`/api/ai/analyze-family/${inquiryId}`, {
                     method: 'POST',
                     headers: {
@@ -1567,24 +1500,112 @@ Deploy to production for real IP detection.`);
                 
                 if (response.ok) {
                     const result = await response.json();
-                    console.log('✅ Individual analysis completed:', result);
+                    console.log('Individual analysis completed:', result);
                     
-                    // Refresh dashboard to show updated analysis
                     await loadDashboardData();
                     
                     if (result.success) {
-                        alert(`✅ Analysis completed for ${result.message.split(' for ')[1]}`);
+                        alert(`Analysis completed for ${result.message.split(' for ')[1]}`);
                     } else {
-                        alert('⚠️ Analysis failed. Check console for details.');
+                        alert('Analysis failed. Check console for details.');
                     }
                 } else {
                     const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
                     throw new Error(`Individual analysis failed: ${errorData.error || response.statusText}`);
                 }
             } catch (error) {
-                console.error('❌ Individual analysis error:', error);
-                alert(`❌ Individual analysis failed: ${error.message}`);
+                console.error('Individual analysis error:', error);
+                alert(`Individual analysis failed: ${error.message}`);
             }
+        }
+
+        async function generateProspectusFor(inquiryId) {
+            try {
+                console.log(`Generating prospectus for inquiry ${inquiryId}...`);
+                
+                const response = await fetch(`/api/generate-prospectus/${inquiryId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    console.log('Prospectus generated:', result);
+                    
+                    await loadDashboardData();
+                    
+                    alert(`Prospectus generated successfully!\n\nYou can now access it from the family card.`);
+                } else {
+                    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+                    throw new Error(`Generation failed: ${errorData.error || response.statusText}`);
+                }
+            } catch (error) {
+                console.error('Prospectus generation error:', error);
+                alert(`Failed to generate prospectus: ${error.message}`);
+            }
+        }
+
+        async function copyToClipboard(text) {
+            try {
+                await navigator.clipboard.writeText(text);
+                alert('URL copied to clipboard!');
+            } catch (error) {
+                console.error('Failed to copy to clipboard:', error);
+                const textArea = document.createElement('textarea');
+                textArea.value = text;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                alert('URL copied to clipboard!');
+            }
+        }
+
+        async function checkGeoLocation(inquiryId) {
+            try {
+                const ipResponse = await fetch('/api/debug/ip');
+                const ipData = await ipResponse.json();
+                
+                console.log('Current IP detection:', ipData);
+                
+                alert(`IP Detection Debug:
+                
+Detected IP: ${ipData.ip || 'None detected'}
+Country: ${ipData.geo?.country || 'Unknown'}
+City: ${ipData.geo?.city || 'Unknown'}
+
+Headers:
+- X-Forwarded-For: ${ipData.headers['x-forwarded-for'] || 'Not set'}
+- CF-Connecting-IP: ${ipData.headers['cf-connecting-ip'] || 'Not set'}
+- X-Real-IP: ${ipData.headers['x-real-ip'] || 'Not set'}
+
+Note: Local IPs (127.0.0.1, 192.168.x.x) are filtered out.
+Deploy to production for real IP detection.`);
+                
+            } catch (error) {
+                console.error('Failed to check geo location:', error);
+                alert(`Geo location debug failed: ${error.message}`);
+            }
+        }
+
+        function showError(title, message) {
+            console.error('Dashboard Error:', title, message);
+            
+            const familyContainer = document.getElementById('familyCards');
+            const activityContainer = document.getElementById('activityFeed');
+            
+            const errorHtml = `
+                <div class="error">
+                    <div class="error-title">${title}</div>
+                    <p>${message}</p>
+                    <p>Check server.js endpoints and console for details.</p>
+                </div>
+            `;
+            
+            familyContainer.innerHTML = errorHtml;
+            activityContainer.innerHTML = errorHtml;
         }
     </script>
 </body>
