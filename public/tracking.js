@@ -1071,6 +1071,84 @@ function trackVideoState(videoId, state) {
   }
 }
 
+// Add this NEW function after the existing trackVideoState function
+function onPlayerStateChange(event) {
+  var videoId = event.target.getVideoData ? event.target.getVideoData().video_id : 'unknown';
+  var videoTitle = event.target.getVideoData ? event.target.getVideoData().title : 'Unknown Video';
+  
+  if (event.data == YT.PlayerState.PLAYING) {
+    // Send play event to server (your requested format)
+    fetch('/api/track-engagement', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        events: [{
+          inquiryId: INQUIRY_ID,
+          sessionId: SESSION_ID,
+          eventType: 'youtube_video_play',
+          eventData: {
+            videoId: videoId,
+            videoTitle: videoTitle,
+            currentTimeSec: event.target.getCurrentTime ? event.target.getCurrentTime() : 0,
+            watchedSec: 1
+          }
+        }]
+      })
+    });
+    
+    // Also call existing tracking
+    trackVideoState(videoId, 1);
+  }
+  
+  if (event.data == YT.PlayerState.PAUSED) {
+    // Send pause event with watch time
+    fetch('/api/track-engagement', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        events: [{
+          inquiryId: INQUIRY_ID,
+          sessionId: SESSION_ID,
+          eventType: 'youtube_video_pause',
+          eventData: {
+            videoId: videoId,
+            videoTitle: videoTitle,
+            currentTimeSec: event.target.getCurrentTime ? event.target.getCurrentTime() : 0,
+            watchedSec: Math.floor(event.target.getCurrentTime ? event.target.getCurrentTime() : 0)
+          }
+        }]
+      })
+    });
+    
+    // Also call existing tracking
+    trackVideoState(videoId, 2);
+  }
+  
+  if (event.data == YT.PlayerState.ENDED) {
+    // Send completion event
+    fetch('/api/track-engagement', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        events: [{
+          inquiryId: INQUIRY_ID,
+          sessionId: SESSION_ID,
+          eventType: 'youtube_video_complete',
+          eventData: {
+            videoId: videoId,
+            videoTitle: videoTitle,
+            currentTimeSec: event.target.getCurrentTime ? event.target.getCurrentTime() : 0,
+            watchedSec: Math.floor(event.target.getCurrentTime ? event.target.getCurrentTime() : 0)
+          }
+        }]
+      })
+    });
+    
+    // Also call existing tracking
+    trackVideoState(videoId, 0);
+  }
+}
+
 // Add this helper function
 function getVideoTitle(videoId) {
   var titles = {
