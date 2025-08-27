@@ -940,12 +940,12 @@
     };
   }
 
-  // ---------- Enhanced YouTube Video Tracking ----------
+  // ---------- Fixed YouTube Video Tracking ----------
   var ytPlayers = new Map();
 
   function ensureYTAPI(){
     if (window.YT && window.YT.Player){ 
-      onYouTubeIframeAPIReady(); 
+      initYouTubePlayers(); 
       return; 
     }
     if (document.getElementById('youtube-iframe-api')) return;
@@ -956,193 +956,169 @@
     document.head.appendChild(tag);
   }
 
-  // Safe YT init: chain any existing handler, run ours once
-  window.onYouTubeIframeAPIReady = (function(prev){
-    return function onYouTubeIframeAPIReady(){
-      if (!window.__SMART_TRACKING_NS__.__YT_INIT_DONE__) {
-        window.__SMART_TRACKING_NS__.__YT_INIT_DONE__ = true;
-        // (our original body continues below unchanged)
-        var iframes = Array.prototype.slice.call(document.querySelectorAll('iframe[src*="youtube.com"],iframe[src*="youtu.be"]'));
-        
-        iframes.forEach(function(iframe, idx){
-          var url = new URL(iframe.src, location.href);
-          if (!/enablejsapi=1/.test(url.search)){
-            url.searchParams.set('enablejsapi', '1');
-            iframe.src = url.toString();
-          }
-          if (!iframe.id) iframe.id = 'yt-'+idx+'-'+Math.random().toString(36).slice(2,6);
-          
-          var container = iframe.closest('[data-track-section]');
-          var sectionId = container ? container.getAttribute('data-track-section') : currentSectionId;
-          
-          try {
-            var player = new YT.Player(iframe.id, {
-              events: { 
-                'onStateChange': function(e){ handleYTStateChange(iframe.id, sectionId, e); },
-                'onReady': function(e){ handleYTReady(iframe.id, sectionId, e); }
-              }
-            });
-            
-            ytPlayers.set(iframe.id, { 
-              player: player, 
-              sectionId: sectionId, 
-              lastState: -1, 
-              playStartedAt: null, 
-              watchedSec: 0, 
-              milestones: {},
-              qualityMetrics: {
-                pauseCount: 0,
-                seekCount: 0,
-                replayCount: 0,
-                engagementScore: 0
-              }
-            });
-          } catch(e) {
-            console.warn('YouTube player initialization failed:', e);
-          }
-        });
+  // Simple YouTube API ready handler - no complex wrapper
+  var originalYTReady = window.onYouTubeIframeAPIReady;
+  window.onYouTubeIframeAPIReady = function() {
+    // Call original if it exists (from prospectus template)
+    if (typeof originalYTReady === 'function') {
+      try { originalYTReady(); } catch(e) {}
+    }
+    
+    // Initialize our tracking
+    initYouTubePlayers();
+  };
+
+  function initYouTubePlayers() {
+    if (!window.YT || !window.YT.Player) return;
+    
+    var iframes = document.querySelectorAll('iframe[src*="youtube.com"], iframe[src*="youtu.be"]');
+    
+    iframes.forEach(function(iframe, idx) {
+      if (iframe.dataset.ytTracked) return; // Skip if already tracked
+      iframe.dataset.ytTracked = 'true';
+      
+      if (!iframe.id) {
+        iframe.id = 'yt-tracker-' + idx + '-' + Date.now();
       }
-      if (typeof prev === 'function') { try { prev(); } catch(_){} }
-    };
-  }(window.onYouTubeIframeAPIReady));
+      
+      var container = iframe.closest('[data-track-section]');
+      var sectionId = container ? container.getAttribute('data-track-section') : 'unknown';
+      
+      // Wait a moment for iframe to be ready
+      setTimeout(function() {
+        try {
+          var player = new YT.Player(iframe.id, {
+            events: {
+              'onStateChange': function(e) { handleYTStateChange(iframe.id, sectionId, e); },
+              'onReady': function(e) { handleYTReady(iframe.id, sectionId, e); }
+            }
+          });
+          
+          ytPlayers.set(iframe.id, {
+            player: player,
+            sectionId: sectionId,
+            lastState: -1,
+            playStartedAt: null,
+            watchedSec: 0,
+            milestones: {},
+            qualityMetrics: { pauseCount: 0, seekCount: 0, replayCount: 0, engagementScore: 0 }
+          });
+          
+        } catch(error) {
+          console.warn('YouTube tracking failed for:', iframe.id, error);
+        }
+      }, 1000);
+    });
+  }
 
   function handleYTReady(iframeId, sectionId, event) {
     var P = ytPlayers.get(iframeId);
     if (!P) return;
+    
+    var videoId = getVideoId(P.player);
+    console.log('YouTube player ready:', videoId);
     
     queueEvent({
       inquiryId: INQUIRY_ID,
       sessionId: SESSION_ID,
       eventType: 'youtube_video_ready',
       currentSection: sectionId,
-      url: location.href,
       timestamp: nowISO(),
-      data: {
-        videoId: extractVideoId(P.player),
-        videoDuration: getVideoDuration(P.player)
-      }
+      data: { videoId: videoId }
     });
   }
 
-  function handleYTStateChange(iframeId, sectionId, event){
-    var P = ytPlayers.get(iframeId); 
+  function handleYTStateChange(iframeId, sectionId, event) {
+    var P = ytPlayers.get(iframeId);
     if (!P) return;
     
     var state = event.data;
     var now = Date.now();
-    var videoId = extractVideoId(P.player);
-    var videoDuration = getVideoDuration(P.player);
+    var videoId = getVideoId(P.player);
+    
+    console.log('YouTube state change:', videoId, state);
 
-    // Track state changes only when attention is active
-    if (state === 1 && attentionActive){ // playing
+    // Playing
+    if (state === 1) {
       P.playStartedAt = now;
       P.lastState = 1;
       
-      queueHighPriorityEvent({ 
-        inquiryId: INQUIRY_ID, 
-        sessionId: SESSION_ID, 
-        eventType: 'youtube_video_play_enhanced', 
-        currentSection: sectionId, 
-        url: location.href, 
-        timestamp: nowISO(), 
-        data: { 
-          videoId: videoId,
-          videoDuration: videoDuration,
-          playbackQuality: getPlaybackQuality(P.player),
-          deviceOptimized: isVideoOptimizedForDevice(),
-          viewerContext: {
-            timeToPlay: now - sessionStartTime,
-            sectionTimeWhenPlayed: getSectionTimeWhenVideoPlayed(sectionId),
-            behavioralContext: behavioralIntelligence
-          }
-        } 
+      queueHighPriorityEvent({
+        inquiryId: INQUIRY_ID,
+        sessionId: SESSION_ID,
+        eventType: 'youtube_video_play',
+        currentSection: sectionId,
+        timestamp: nowISO(),
+        data: { videoId: videoId }
       });
     }
 
-    // Calculate watched time when leaving playing state
-    var leavingPlaying = (P.lastState === 1 && state !== 1);
-    if (leavingPlaying && P.playStartedAt){
-      var watchSeconds = Math.max(0, Math.round((now - P.playStartedAt)/1000));
-      P.watchedSec += watchSeconds; 
+    // Calculate watch time when leaving playing state
+    if (P.lastState === 1 && state !== 1 && P.playStartedAt) {
+      var watchSeconds = Math.max(0, Math.round((now - P.playStartedAt) / 1000));
+      P.watchedSec += watchSeconds;
       P.playStartedAt = null;
       
       // Update section video time
-      var st = sectionState.get(sectionId); 
+      var st = sectionState.get(sectionId);
       if (st) st.videoSec += watchSeconds;
       
-      // Calculate video engagement quality
-      var engagementQuality = calculateVideoEngagementQuality(P, watchSeconds, videoDuration);
-      P.qualityMetrics.engagementScore = engagementQuality;
-      
-      // Track milestone progress
-      try {
-        if (videoDuration > 0){
-          var progressPct = Math.floor((P.watchedSec / videoDuration) * 100);
-          [25, 50, 75, 90].forEach(function(milestone){
-            if (progressPct >= milestone && !P.milestones[milestone]){
-              P.milestones[milestone] = true;
-              queueHighPriorityEvent({ 
-                inquiryId: INQUIRY_ID, 
-                sessionId: SESSION_ID, 
-                eventType: 'youtube_video_milestone', 
-                currentSection: sectionId, 
-                url: location.href, 
-                timestamp: nowISO(), 
-                data: { 
-                  videoId: videoId,
-                  milestonePct: milestone,
-                  totalWatchTime: P.watchedSec,
-                  engagementQuality: engagementQuality,
-                  isConversionSignal: milestone >= 75 ? 1 : 0
-                } 
-              });
-            }
-          });
-        }
-      } catch(e){}
+      // Track milestones
+      var duration = getDuration(P.player);
+      if (duration > 0) {
+        var progressPct = Math.floor((P.watchedSec / duration) * 100);
+        [25, 50, 75, 90].forEach(function(milestone) {
+          if (progressPct >= milestone && !P.milestones[milestone]) {
+            P.milestones[milestone] = true;
+            queueHighPriorityEvent({
+              inquiryId: INQUIRY_ID,
+              sessionId: SESSION_ID,
+              eventType: 'youtube_video_milestone',
+              currentSection: sectionId,
+              timestamp: nowISO(),
+              data: { videoId: videoId, milestone: milestone, totalWatchTime: P.watchedSec }
+            });
+          }
+        });
+      }
     }
 
-    // Track specific state changes
-    if (state === 2){ // paused
+    // Paused
+    if (state === 2) {
       P.qualityMetrics.pauseCount++;
-      queueEvent({ 
-        inquiryId: INQUIRY_ID, 
-        sessionId: SESSION_ID, 
-        eventType: 'youtube_video_pause', 
-        currentSection: sectionId, 
-        url: location.href, 
-        timestamp: nowISO(), 
-        data: { 
-          videoId: videoId,
-          pauseCount: P.qualityMetrics.pauseCount,
-          currentTime: getCurrentTime(P.player),
-          engagementPattern: analyzePausePattern(P)
-        } 
+      queueEvent({
+        inquiryId: INQUIRY_ID,
+        sessionId: SESSION_ID,
+        eventType: 'youtube_video_pause',
+        currentSection: sectionId,
+        timestamp: nowISO(),
+        data: { videoId: videoId, pauseCount: P.qualityMetrics.pauseCount }
       });
     }
-    
-    if (state === 0){ // ended
-      queueHighPriorityEvent({ 
-        inquiryId: INQUIRY_ID, 
-        sessionId: SESSION_ID, 
-        eventType: 'youtube_video_complete', 
-        currentSection: sectionId, 
-        url: location.href, 
-        timestamp: nowISO(), 
-        data: { 
+
+    // Ended
+    if (state === 0) {
+      var duration = getDuration(P.player);
+      var completionRate = duration > 0 ? Math.round((P.watchedSec / duration) * 100) : 0;
+      
+      queueHighPriorityEvent({
+        inquiryId: INQUIRY_ID,
+        sessionId: SESSION_ID,
+        eventType: 'youtube_video_complete',
+        currentSection: sectionId,
+        timestamp: nowISO(),
+        data: {
           videoId: videoId,
           totalWatchTime: P.watchedSec,
-          completionRate: videoDuration > 0 ? Math.round((P.watchedSec / videoDuration) * 100) : 0,
-          engagementScore: P.qualityMetrics.engagementScore,
-          isConversionSignal: 1 // Completing a video is a strong signal
-        } 
+          completionRate: completionRate
+        }
       });
     }
-    
+
     P.lastState = state;
   }
 
-  function extractVideoId(player) {
+  function getVideoId(player) {
     try {
       var videoData = player.getVideoData();
       return videoData ? videoData.video_id : 'unknown';
@@ -1151,7 +1127,7 @@
     }
   }
 
-  function getVideoDuration(player) {
+  function getDuration(player) {
     try {
       return player.getDuration() || 0;
     } catch(e) {
@@ -1159,63 +1135,29 @@
     }
   }
 
-  function getCurrentTime(player) {
-    try {
-      return player.getCurrentTime() || 0;
-    } catch(e) {
-      return 0;
-    }
-  }
-
-  function getPlaybackQuality(player) {
-    try {
-      return player.getPlaybackQuality() || 'unknown';
-    } catch(e) {
-      return 'unknown';
-    }
-  }
-
-  function isVideoOptimizedForDevice() {
-    var deviceInfo = getDeviceInfo();
-    return {
-      isMobile: deviceInfo.deviceType === 'mobile',
-      hasGoodConnection: navigator.connection ? navigator.connection.effectiveType !== 'slow-2g' : true,
-      screenSize: deviceInfo.viewport
-    };
-  }
-
-  function getSectionTimeWhenVideoPlayed(sectionId) {
-    var st = sectionState.get(sectionId);
-    return st ? st.attentionSec : 0;
-  }
-
-  function calculateVideoEngagementQuality(playerData, watchSeconds, totalDuration) {
-    if (totalDuration === 0) return 0;
-    
-    var completionRate = Math.min(playerData.watchedSec / totalDuration, 1);
-    var pauseFrequency = playerData.qualityMetrics.pauseCount / Math.max(playerData.watchedSec / 30, 1); // Pauses per 30s
-    var continuousWatchScore = Math.min(watchSeconds / 30, 1); // Longer continuous watches = higher score
-    
-    var qualityScore = (
-      (completionRate * 40) +
-      (Math.max(1 - pauseFrequency * 0.2, 0) * 30) + // Too many pauses reduce score
-      (continuousWatchScore * 30)
-    );
-    
-    return Math.round(qualityScore);
-  }
-
-  function analyzePausePattern(playerData) {
-    var pauseCount = playerData.qualityMetrics.pauseCount;
-    var watchTime = playerData.watchedSec;
-    
-    if (pauseCount === 0) return 'continuous';
-    if (pauseCount / Math.max(watchTime / 60, 1) > 2) return 'frequently_interrupted';
-    if (pauseCount === 1) return 'single_pause';
-    return 'normal_pausing';
-  }
-
+  // Initialize on load
   ensureYTAPI();
+
+  // Also try to initialize when new iframes are added (for modal videos)
+  var iframeObserver = new MutationObserver(function(mutations) {
+    var hasNewIframes = false;
+    mutations.forEach(function(mutation) {
+      mutation.addedNodes.forEach(function(node) {
+        if (node.nodeType === 1 && (
+            node.tagName === 'IFRAME' || 
+            node.querySelector && node.querySelector('iframe[src*="youtube"]')
+        )) {
+          hasNewIframes = true;
+        }
+      });
+    });
+    
+    if (hasNewIframes) {
+      setTimeout(initYouTubePlayers, 1000);
+    }
+  });
+  
+  iframeObserver.observe(document.body, { childList: true, subtree: true });
 
   // ---------- Enhanced Batching + Heartbeat ----------
   function estimateAttentionTotal(){
