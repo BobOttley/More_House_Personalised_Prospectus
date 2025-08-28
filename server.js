@@ -1359,6 +1359,60 @@ app.get('/:slug', async (req, res, next) => {
  }
 });
 
+app.get('/api/section-data/:inquiryId', async (req, res) => {
+  try {
+    const inquiryId = req.params.inquiryId;
+    
+    if (!db) {
+      return res.json({
+        inquiryId,
+        sections: [],
+        totalDwellMs: 0,
+        visitCount: 1,
+        engagementScore: 0,
+        hasData: false
+      });
+    }
+    
+    const sectionQuery = `
+      SELECT 
+        COALESCE(event_data->>'currentSection', event_data->>'section', 'unknown') as section_name,
+        SUM(COALESCE((event_data->>'timeSpent')::int, 0)) as dwell_seconds,
+        MAX(COALESCE((event_data->>'scrollPercentage')::int, 0)) as max_scroll_pct,
+        COUNT(*) as clicks
+      FROM tracking_events 
+      WHERE inquiry_id = $1 AND event_type = 'section_exit'
+      GROUP BY section_name
+      ORDER BY dwell_seconds DESC
+    `;
+    
+    const result = await db.query(sectionQuery, [inquiryId]);
+    
+    const sections = result.rows.map(row => ({
+      section_name: row.section_name,
+      dwell_seconds: parseInt(row.dwell_seconds) || 0,
+      dwell_minutes: Math.round((parseInt(row.dwell_seconds) || 0) / 60),
+      max_scroll_pct: parseInt(row.max_scroll_pct) || 0,
+      clicks: parseInt(row.clicks) || 0
+    }));
+    
+    const totalDwellMs = sections.reduce((sum, s) => sum + (s.dwell_seconds * 1000), 0);
+    
+    res.json({
+      inquiryId,
+      sections,
+      totalDwellMs,
+      visitCount: 1,
+      engagementScore: Math.min(100, Math.round(totalDwellMs / 10000)),
+      hasData: sections.length > 0
+    });
+    
+  } catch (error) {
+    console.error('Section data error:', error);
+    res.status(500).json({ error: 'Failed to load section data' });
+  }
+});
+
 // Add this endpoint after your other analytics endpoints
 app.get('/api/analytics/video-metrics', async (req, res) => {
   try {
@@ -1376,14 +1430,14 @@ app.get('/api/analytics/video-metrics', async (req, res) => {
         i.first_name,
         i.family_surname,
         COUNT(*) as total_plays,
-        SUM(vet.watched_sec) as total_watched_seconds,
-        AVG(vet.watched_sec) as avg_watch_time,
+        SUM(COALESCE(vet.watched_sec, 0)) as total_watched_seconds,
+        AVG(COALESCE(vet.watched_sec, 0)) as avg_watch_time,
         MAX(vet.timestamp) as last_watched
       FROM video_engagement_tracking vet
       LEFT JOIN inquiries i ON vet.inquiry_id = i.id
       WHERE vet.video_id IS NOT NULL
       GROUP BY vet.video_id, vet.video_title, vet.inquiry_id, i.first_name, i.family_surname
-      ORDER BY SUM(vet.watched_sec) DESC
+      ORDER BY SUM(COALESCE(vet.watched_sec, 0)) DESC
       LIMIT 50
     `;
 
@@ -1393,7 +1447,7 @@ app.get('/api/analytics/video-metrics', async (req, res) => {
     
     const videoMetrics = result.rows.map(row => ({
       video_id: row.video_id,
-      title: row.video_title || row.title,
+      title: row.title,
       family_id: row.family_id,
       familyName: row.first_name && row.family_surname ? 
         `${row.first_name} ${row.family_surname}` : 'Unknown Family',
