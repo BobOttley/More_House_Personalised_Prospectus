@@ -2662,27 +2662,30 @@ function setupFallbackVideoTracking(videoId) {
     sendTrackingData(payload);
 }
 
-        function sendTrackingData(payload) {
-            const payloadString = JSON.stringify(payload);
-            
-            // Try sendBeacon first for reliability
-            if (navigator.sendBeacon) {
-                const sent = navigator.sendBeacon('/api/track-engagement', payloadString);
-                if (sent) return;
-            }
-            
-            // Fallback to fetch
-            fetch('/api/track-engagement', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: payloadString,
-                keepalive: true
-            }).catch(error => {
-                console.error('Tracking error:', error);
-            });
-        }
+        // Add logging to see if events are actually being sent
+function sendTrackingData(payload) {
+    console.log('Sending tracking data:', payload.event_type);
+    const payloadString = JSON.stringify(payload);
+    
+    // Try sendBeacon first
+    if (navigator.sendBeacon) {
+        const sent = navigator.sendBeacon('/api/track-engagement', payloadString);
+        console.log('Beacon sent:', sent);
+        if (sent) return;
+    }
+    
+    // Fallback to fetch with logging
+    fetch('/api/track-engagement', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: payloadString,
+        keepalive: true
+    }).then(response => {
+        console.log('Fetch response:', response.status);
+    }).catch(error => {
+        console.error('Tracking error:', error);
+    });
+}
 
         // Personalization functions (preserved from original)
         function initializeProspectus(data) {
