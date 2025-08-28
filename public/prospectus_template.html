@@ -2089,16 +2089,16 @@
                         videoId: videoId,
                         videoTitle: videoTitle,
                         clickType: 'video_play'
-                    });
+                    }));
                 } else if (target.closest('.cta-button') || target.closest('a[href*="open-events"]')) {
                     trackEvent('conversion_click', Object.assign({}, clickData, {
                         conversionType: 'open_morning',
                         clickType: 'cta'
-                    });
+                    }));
                 } else if (target.closest('.photo-card')) {
                     trackEvent('photo_click', Object.assign({}, clickData, {
                         clickType: 'photo_modal'
-                    });
+                    }));
                 } else if (target.closest('.entry-card-header')) {
                     const entryCard = target.closest('.entry-card');
                     const entryType = entryCard?.className.match(/entry-(\w+)/)?.[1];
@@ -2106,14 +2106,14 @@
                     trackEvent('entry_point_expand', Object.assign({}, clickData, {
                         entryType: entryType,
                         clickType: 'expand_section'
-                    });
+                    }));
                 } else if (target.tagName === 'A' || target.closest('a')) {
                     const link = target.closest('a');
                     trackEvent('link_click', Object.assign({}, clickData, {
                         href: link.href,
                         isExternal: !link.href.includes(window.location.hostname),
                         clickType: 'navigation'
-                    });
+                    }));
                 } else {
                     // Track other significant clicks
                     trackEvent('general_click', clickData);
@@ -2214,7 +2214,7 @@ function openVideo(videoId, title, description) {
     videoTitle: title,
     section,
     timestamp: new Date().toISOString()
-  });
+  }))
 
   // Initialise the YT player only AFTER the iframe has a real src
   const initPlayer = () => setTimeout(() => initializeYouTubePlayerSafe(videoId), 800);
@@ -2653,10 +2653,7 @@ function setupFallbackVideoTracking(videoId) {
 }
 
         // Add logging to see if events are actually being sent
-        function sendTrackingData(payload) {
-  const evt = payload.eventType || payload.event_type;
-  console.log('Sending tracking data:', evt);
-
+function sendTrackingData(payload) {
   const json = JSON.stringify(payload);
   const blob = new Blob([json], { type: 'application/json' });
 
@@ -2679,6 +2676,7 @@ function setupFallbackVideoTracking(videoId) {
   }).then(r => console.log('Fetch response:', r.status))
     .catch(err => console.error('Tracking error:', err));
 }
+
 
 
         // Personalization functions (preserved from original)
