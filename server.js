@@ -1359,6 +1359,58 @@ app.get('/:slug', async (req, res, next) => {
  }
 });
 
+// Add this endpoint after your other analytics endpoints
+app.get('/api/analytics/video-metrics', async (req, res) => {
+  try {
+    console.log('Video metrics request...');
+    
+    if (!db) {
+      return res.json([]);
+    }
+
+    const videoQuery = `
+      SELECT 
+        vet.video_id,
+        vet.video_title,
+        vet.inquiry_id as family_id,
+        i.first_name,
+        i.family_surname,
+        COUNT(*) as total_plays,
+        SUM(vet.watched_sec) as total_watched_seconds,
+        AVG(vet.watched_sec) as avg_watch_time,
+        MAX(vet.timestamp) as last_watched
+      FROM video_engagement_tracking vet
+      LEFT JOIN inquiries i ON vet.inquiry_id = i.id
+      WHERE vet.video_id IS NOT NULL
+      GROUP BY vet.video_id, vet.video_title, vet.inquiry_id, i.first_name, i.family_surname
+      ORDER BY SUM(vet.watched_sec) DESC
+      LIMIT 50
+    `;
+
+    const result = await db.query(videoQuery);
+    
+    console.log(`Returning ${result.rows.length} video records`);
+    
+    const videoMetrics = result.rows.map(row => ({
+      video_id: row.video_id,
+      title: row.video_title,
+      family_id: row.family_id,
+      familyName: row.first_name && row.family_surname ? 
+        `${row.first_name} ${row.family_surname}` : 'Unknown Family',
+      totalPlays: parseInt(row.total_plays) || 0,
+      totalWatchTime: parseInt(row.total_watched_seconds) || 0,
+      avgWatchTime: parseInt(row.avg_watch_time) || 0,
+      lastWatched: row.last_watched
+    }));
+
+    res.json(videoMetrics);
+    
+  } catch (error) {
+    console.error('Video metrics error:', error);
+    res.status(500).json({ error: 'Failed to load video metrics' });
+  }
+});
+
 // Root route
 app.get('/', (req, res) => {
  const base = getBaseUrl(req);
