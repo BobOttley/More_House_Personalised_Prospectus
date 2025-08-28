@@ -1228,6 +1228,7 @@ app.get('/', (req, res) => {
 });
 
 // Video metrics endpoint (missing)
+// Video metrics endpoint (fixed)
 app.get('/api/analytics/video-metrics', async (req, res) => {
   try {
     if (!db) {
@@ -1238,12 +1239,14 @@ app.get('/api/analytics/video-metrics', async (req, res) => {
       SELECT 
         inquiry_id,
         event_data->>'videoId' as video_id,
-        event_data->>'videoTitle' as video_title,
+        MAX(event_data->>'videoTitle') as video_title,
         SUM(COALESCE((event_data->>'totalWatchTime')::int, 0)) as total_watch_time,
-        MAX(COALESCE((event_data->>'completionRate')::int, 0)) as completion_rate
+        MAX(COALESCE((event_data->>'completionRate')::int, 0)) as completion_rate,
+        COUNT(*) as play_count
       FROM tracking_events 
       WHERE event_type IN ('video_complete', 'video_progress')
-      GROUP BY inquiry_id, video_id, video_title
+        AND event_data->>'videoId' IS NOT NULL
+      GROUP BY inquiry_id, event_data->>'videoId'
       ORDER BY total_watch_time DESC
       LIMIT 50
     `);
