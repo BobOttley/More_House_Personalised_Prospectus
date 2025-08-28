@@ -1873,28 +1873,7 @@
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                     allowfullscreen>
                 </iframe>
-                <script>
-                    (function () {
-                      var iframe = document.getElementById('videoPlayer');
-                      if (!iframe) return;
-                    
-                      // Try to get a default ID from meta, fallback to YouTube demo video
-                      var meta = document.querySelector('meta[name="default-video-id"]');
-                      var id = (meta && meta.content) || 'M7lc1UVf-VE';
-                    
-                      var wanted = 'https://www.youtube.com/embed/' + encodeURIComponent(id) +
-                                   '?enablejsapi=1&origin=' + encodeURIComponent(location.origin) +
-                                   '&playsinline=1';
-                    
-                      var cur = iframe.getAttribute('src') || '';
-                      if (!cur || cur.startsWith('about:') ||
-                          cur.indexOf('enablejsapi=1') === -1 ||
-                          cur.indexOf('origin=') === -1) {
-                        iframe.setAttribute('src', wanted);
-                        console.log('YouTube iframe src initialised:', wanted);
-                      }
-                    })();
-                    </script>
+                
             </div>
 
             <div class="video-modal-footer">
@@ -1945,1417 +1924,206 @@
     </div>
 
     <!-- COMPREHENSIVE TRACKING SYSTEM -->
-    <script>
-        // Global tracking variables
-        let prospectusData = {};
-        let currentSection = 'unknown';
-        let sectionStartTime = Date.now();
-        let scrollData = {};
-        let videoPlayers = new Map();
-        let videoStates = new Map();
-        let totalVideoTime = 0;
-        let isTracking = true;
-
-        // YouTube API ready flag
-        let ytAPIReady = false;
-        
-        // Initialize comprehensive tracking
-        function initializeComprehensiveTracking() {
-            setupSectionTracking();
-            setupScrollTracking();
-            setupClickTracking();
-            setupVideoTracking();
-            setupVisibilityTracking();
-            setupPerformanceTracking();
-            
-            // Track page load
-            trackEvent('page_load', {
-                loadTime: performance.now(),
-                userAgent: navigator.userAgent,
-                viewport: `${window.innerWidth}x${window.innerHeight}`,
-                timestamp: new Date().toISOString()
-            });
-
-            console.log('Comprehensive tracking initialized');
-        }
-
-        // Enhanced section tracking with detailed analytics
-        function setupSectionTracking() {
-            const sections = document.querySelectorAll('[data-track-section]');
-            
-            const observer = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
-                    const sectionName = entry.target.getAttribute('data-track-section');
-                    
-                    if (entry.isIntersecting && entry.intersectionRatio > 0.5) {
-                        if (currentSection !== sectionName) {
-                            // Track section exit
-                            if (currentSection !== 'unknown') {
-                                const timeSpent = Date.now() - sectionStartTime;
-                                trackEvent('section_exit', {
-                                    section: currentSection,
-                                    timeSpent: Math.round(timeSpent / 1000),
-                                    scrollPercentage: scrollData[currentSection] || 0
-                                });
-                            }
-                            
-                            // Track section entry
-                            currentSection = sectionName;
-                            sectionStartTime = Date.now();
-                            scrollData[sectionName] = 0;
-                            
-                            trackEvent('section_enter', {
-                                section: sectionName,
-                                timestamp: new Date().toISOString()
-                            });
-                        }
-                    }
-                });
-            }, { threshold: [0.5] });
-
-            sections.forEach(section => observer.observe(section));
-        }
-
-        // Enhanced scroll tracking
-        function setupScrollTracking() {
-            let lastScrollTime = 0;
-            
-            function trackScroll() {
-                const now = Date.now();
-                if (now - lastScrollTime < 100) return; // Throttle
-                lastScrollTime = now;
-                
-                const section = getCurrentSection();
-                if (!section) return;
-                
-                const element = document.querySelector(`[data-track-section="${section}"]`);
-                if (!element) return;
-                
-                const rect = element.getBoundingClientRect();
-                const viewportHeight = window.innerHeight;
-                const elementHeight = element.offsetHeight;
-                
-                let scrollPercentage = 0;
-                if (rect.top <= 0) {
-                    scrollPercentage = Math.min(100, Math.abs(rect.top) / elementHeight * 100);
-                } else if (rect.top < viewportHeight) {
-                    scrollPercentage = (viewportHeight - rect.top) / elementHeight * 100;
-                }
-                
-                scrollPercentage = Math.min(100, Math.max(0, scrollPercentage));
-                scrollData[section] = Math.max(scrollData[section] || 0, scrollPercentage);
-                
-                // Track significant scroll milestones
-                const milestones = [25, 50, 75, 100];
-                const currentMilestone = milestones.find(m => 
-                    scrollPercentage >= m && 
-                    (scrollData[`${section}_milestone_${m}`] === undefined)
-                );
-                
-                if (currentMilestone) {
-                    scrollData[`${section}_milestone_${currentMilestone}`] = true;
-                    trackEvent('scroll_milestone', {
-                        section: section,
-                        percentage: currentMilestone
-                    });
-                }
-            }
-            
-            window.addEventListener('scroll', trackScroll, { passive: true });
-        }
-
-        // Enhanced click tracking
-        function setupClickTracking() {
-            document.addEventListener('click', (event) => {
-                const target = event.target;
-                const section = getCurrentSection();
-                
-                // Track all meaningful clicks
-                const clickData = {
-                    section: section,
-                    elementType: target.tagName,
-                    elementId: target.id || null,
-                    elementClass: target.className || null,
-                    elementText: target.textContent?.substring(0, 100) || null,
-                    timestamp: new Date().toISOString()
-                };
-                
-                // Classify click type
-                if (target.closest('.video-wrapper') || target.closest('.video-card-thumbnail')) {
-                    const videoElement = target.closest('[data-video-id]');
-                    const videoId = videoElement?.getAttribute('data-video-id');
-                    const videoTitle = videoElement?.getAttribute('data-video-title');
-                    
-                    trackEvent('video_click', Object.assign({}, clickData, {
-                        videoId: videoId,
-                        videoTitle: videoTitle,
-                        clickType: 'video_play'
-                    }));
-                } else if (target.closest('.cta-button') || target.closest('a[href*="open-events"]')) {
-                    trackEvent('conversion_click', Object.assign({}, clickData, {
-                        conversionType: 'open_morning',
-                        clickType: 'cta'
-                    }));
-                } else if (target.closest('.photo-card')) {
-                    trackEvent('photo_click', Object.assign({}, clickData, {
-                        clickType: 'photo_modal'
-                    }));
-                } else if (target.closest('.entry-card-header')) {
-                    const entryCard = target.closest('.entry-card');
-                    const entryType = entryCard?.className.match(/entry-(\w+)/)?.[1];
-                    
-                    trackEvent('entry_point_expand', Object.assign({}, clickData, {
-                        entryType: entryType,
-                        clickType: 'expand_section'
-                    }));
-                } else if (target.tagName === 'A' || target.closest('a')) {
-                    const link = target.closest('a');
-                    trackEvent('link_click', Object.assign({}, clickData, {
-                        href: link.href,
-                        isExternal: !link.href.includes(window.location.hostname),
-                        clickType: 'navigation'
-                    }));
-                } else {
-                    // Track other significant clicks
-                    trackEvent('general_click', clickData);
-                }
-            }, true);
-        }
-
-        // Comprehensive video tracking system
-        function setupVideoTracking() {
-           // Only load API when actually needed
-           console.log('Video tracking setup - API will load on first video play');
-        }
     
 
-// Enhanced close video function (single, canonical)
-function closeVideo() {
-  const modal = document.getElementById('videoModal');
-  const oldIframe = document.getElementById('videoPlayer');
-  const section = getCurrentSection();
 
-  // Track which video was being watched
-  const currentVideoId = getCurrentVideoId();
-  if (currentVideoId && videoStates.has(currentVideoId)) {
-    const state = videoStates.get(currentVideoId);
-    const watchTime = Date.now() - state.startTime;
+<script src="/tracking.js?v=5.0.0" defer></script>
+<script>
+(function() {
+  'use strict';
 
-    trackEvent('video_modal_close', {
-      videoId: currentVideoId,
-      videoTitle: state.title,
-      section: section,
-      totalWatchTime: Math.round(state.totalWatchTime / 1000),
-      sessionLength: Math.round(watchTime / 1000),
-      hasStarted: state.hasStarted,
-      hasCompleted: state.hasCompleted
-    });
+  // ===== Singleton guard to prevent duplicate boot =====
+  if (window.__PROSPECTUS_BOOTED__) { return; }
+  window.__PROSPECTUS_BOOTED__ = true;
 
-    if (state.progressInterval) {
-      clearInterval(state.progressInterval);
-      state.progressInterval = null;
-    }
+  // ===== Utilities =====
+  function safeTrack(type, data) {
+    try {
+      if (typeof window.trackEvent === 'function') {
+        window.trackEvent(type, data || {});
+      } else if (window.parent && typeof window.parent.postMessage === 'function') {
+        window.parent.postMessage({ eventType: type, eventData: data || {} }, '*');
+      }
+    } catch (e) { /* no-op */ }
   }
 
-  // Destroy any YT player instances cleanly
-  if (videoPlayers && videoPlayers.size > 0) {
-    videoPlayers.forEach((player) => {
-      try { if (player && typeof player.destroy === 'function') player.destroy(); } catch(e){}
-    });
-    videoPlayers.clear();
-  }
-
-  // Replace the iframe element to sever widget references (no about:blank)
-  if (oldIframe && oldIframe.parentNode) {
-    const freshIframe = oldIframe.cloneNode(false); // no children/attrs except id
-    freshIframe.removeAttribute('src');             // don't set about:blank
-    freshIframe.setAttribute('id', 'videoPlayer');
-    freshIframe.setAttribute('frameborder', '0');
-    freshIframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture');
-    freshIframe.setAttribute('allowfullscreen', '');
-    oldIframe.parentNode.replaceChild(freshIframe, oldIframe);
-  }
-
-  // Close modal
-  modal.classList.remove('active');
-  document.body.style.overflow = 'auto';
-}
-
-
-// Enhanced fallback tracking that doesn't rely on YouTube API
-function setupFallbackVideoTracking(videoId) {
-    const state = videoStates.get(videoId);
-    if (!state) return;
-    
-    console.log('Using fallback video tracking for:', videoId);
-    
-    // Track that video started (fallback)
-    setTimeout(() => {
-        trackEvent('video_play_fallback', {
-            videoId: videoId,
-            videoTitle: state.title,
-            section: state.section,
-            trackingMethod: 'fallback',
-            note: 'YouTube API not available - using basic tracking'
-        });
-    }, 2000);
-    
-    // Track progress milestones at intervals (estimated)
-    const milestones = [
-        { time: 10000, progress: 25 },
-        { time: 20000, progress: 50 },
-        { time: 30000, progress: 75 }
-    ];
-    
-    milestones.forEach(milestone => {
-        setTimeout(() => {
-            if (document.getElementById('videoModal').classList.contains('active')) {
-                trackEvent('video_progress_fallback', {
-                    videoId: videoId,
-                    videoTitle: state.title,
-                    section: state.section,
-                    progress: milestone.progress,
-                    trackingMethod: 'fallback'
-                });
-            }
-        }, milestone.time);
-    });
-}
-
-        function initializeYouTubePlayer(videoId) {
-            const iframe = document.getElementById('videoPlayer');
-            if (!iframe || !window.YT || !window.YT.Player) return;
-
-            try {
-                const player = new YT.Player('videoPlayer', {
-                    events: {
-                        onReady: (event) => onPlayerReady(event, videoId),
-                        onStateChange: (event) => onPlayerStateChange(event, videoId),
-                        onError: (event) => onPlayerError(event, videoId)
-                    }
-                });
-                
-                videoPlayers.set(videoId, player);
-                console.log(`YouTube player initialized for ${videoId}`);
-            } catch (error) {
-                console.error('Failed to initialize YouTube player:', error);
-                setupFallbackVideoTracking(videoId);
-            }
-        }
-
-        function onPlayerReady(event, videoId) {
-            const state = videoStates.get(videoId);
-            if (state) {
-                trackEvent('video_player_ready', {
-                    videoId: videoId,
-                    videoTitle: state.title,
-                    section: state.section
-                });
-            }
-        }
-
-        function onPlayerStateChange(event, videoId) {
-            const player = event.target;
-            const state = videoStates.get(videoId);
-            if (!state) return;
-
-            const currentTime = Math.round(player.getCurrentTime());
-            const duration = Math.round(player.getDuration());
-            const playerState = event.data;
-
-            // YouTube player states
-            const YT_STATES = {
-                UNSTARTED: -1,
-                ENDED: 0,
-                PLAYING: 1,
-                PAUSED: 2,
-                BUFFERING: 3,
-                CUED: 5
-            };
-
-            switch (playerState) {
-                case YT_STATES.PLAYING:
-                    if (!state.hasStarted) {
-                        state.hasStarted = true;
-                        state.playStartTime = Date.now();
-                        
-                        trackEvent('video_play_start', {
-                            videoId: videoId,
-                            videoTitle: state.title,
-                            section: state.section,
-                            duration: duration
-                        });
-                    } else {
-                        state.playStartTime = Date.now();
-                    }
-                    
-                    state.isPlaying = true;
-                    
-                    // Start progress tracking
-                    if (!state.progressInterval) {
-                        state.progressInterval = setInterval(() => {
-                            trackVideoProgress(player, videoId);
-                        }, 5000); // Track every 5 seconds
-                    }
-                    break;
-
-                case YT_STATES.PAUSED:
-                    if (state.isPlaying) {
-                        state.pauseCount++;
-                        const watchTime = Date.now() - state.playStartTime;
-                        state.totalWatchTime += watchTime;
-                        
-                        trackEvent('video_pause', {
-                            videoId: videoId,
-                            videoTitle: state.title,
-                            currentTime: currentTime,
-                            pauseCount: state.pauseCount,
-                            totalWatchTime: Math.round(state.totalWatchTime / 1000)
-                        });
-                    }
-                    
-                    state.isPlaying = false;
-                    if (state.progressInterval) {
-                        clearInterval(state.progressInterval);
-                        state.progressInterval = null;
-                    }
-                    break;
-
-                case YT_STATES.ENDED:
-                    if (state.isPlaying) {
-                        const watchTime = Date.now() - state.playStartTime;
-                        state.totalWatchTime += watchTime;
-                    }
-                    
-                    state.hasCompleted = true;
-                    state.isPlaying = false;
-                    
-                    if (state.progressInterval) {
-                        clearInterval(state.progressInterval);
-                        state.progressInterval = null;
-                    }
-                    
-                    trackEvent('video_complete', {
-                        videoId: videoId,
-                        videoTitle: state.title,
-                        section: state.section,
-                        totalWatchTime: Math.round(state.totalWatchTime / 1000),
-                        duration: duration,
-                        completionRate: 100
-                    });
-                    break;
-
-                case YT_STATES.BUFFERING:
-                    state.bufferCount++;
-                    trackEvent('video_buffer', {
-                        videoId: videoId,
-                        currentTime: currentTime,
-                        bufferCount: state.bufferCount
-                    });
-                    break;
-            }
-        }
-
-        function trackVideoProgress(player, videoId) {
-            const state = videoStates.get(videoId);
-            if (!state || !state.isPlaying) return;
-
-            try {
-                const currentTime = Math.round(player.getCurrentTime());
-                const duration = Math.round(player.getDuration());
-                
-                if (duration > 0) {
-                    const progressPercent = Math.round((currentTime / duration) * 100);
-                    const milestones = [25, 50, 75];
-                    
-                    // Track milestone progress
-                    milestones.forEach(milestone => {
-                        if (progressPercent >= milestone && !state.progressEvents.has(milestone)) {
-                            state.progressEvents.add(milestone);
-                            
-                            trackEvent('video_progress', {
-                                videoId: videoId,
-                                videoTitle: state.title,
-                                section: state.section,
-                                progress: milestone,
-                                currentTime: currentTime,
-                                duration: duration
-                            });
-                        }
-                    });
-                    
-                    // Update watch time
-                    if (currentTime !== state.lastCurrentTime) {
-                        const timeDiff = Date.now() - state.playStartTime;
-                        state.totalWatchTime += Math.min(timeDiff, 6000); // Cap at 6 seconds max
-                        state.playStartTime = Date.now();
-                    }
-                    
-                    state.lastCurrentTime = currentTime;
-                }
-            } catch (error) {
-                console.error('Error tracking video progress:', error);
-            }
-        }
-
-        function onPlayerError(event, videoId) {
-            const state = videoStates.get(videoId);
-            trackEvent('video_error', {
-                videoId: videoId,
-                videoTitle: state?.title || 'unknown',
-                errorCode: event.data,
-                section: getCurrentSection()
-            });
-        }
-
-        function setupFallbackVideoTracking(videoId) {
-            // Basic tracking without YouTube API
-            const state = videoStates.get(videoId);
-            if (!state) return;
-            
-            console.log('Using fallback video tracking for', videoId);
-            
-            // Simulate basic tracking
-            setTimeout(() => {
-                trackEvent('video_play_fallback', {
-                    videoId: videoId,
-                    videoTitle: state.title,
-                    section: state.section,
-                    note: 'Fallback tracking - YouTube API not available'
-                });
-            }, 2000);
-        }
-
-        // Utility functions
-        function getCurrentSection() {
-            return currentSection;
-        }
-
-        function getCurrentVideoId() {
-            const iframe = document.getElementById('videoPlayer');
-            if (!iframe || !iframe.src) return null;
-            
-            const match = iframe.src.match(/embed\/([^?]+)/);
-            return match ? match[1] : null;
-        }
-
-        function setupVisibilityTracking() {
-            document.addEventListener('visibilitychange', () => {
-                trackEvent('visibility_change', {
-                    section: getCurrentSection(),
-                    isVisible: !document.hidden,
-                    timestamp: new Date().toISOString()
-                });
-            });
-        }
-
-        function setupPerformanceTracking() {
-            window.addEventListener('load', () => {
-                setTimeout(() => {
-                    const perfData = performance.getEntriesByType('navigation')[0];
-                    trackEvent('page_performance', {
-                        loadTime: Math.round(perfData.loadEventEnd - perfData.fetchStart),
-                        domContentLoaded: Math.round(perfData.domContentLoadedEventEnd - perfData.fetchStart),
-                        responseTime: Math.round(perfData.responseEnd - perfData.requestStart)
-                    });
-                }, 1000);
-            });
-        }
-
-        // Enhanced event tracking function
-        function trackEvent(eventType, eventData = {}) {
-    if (!isTracking) return;
-    
-    const payload = {
-        inquiryId: window.MORE_HOUSE_INQUIRY_ID, // Move this to top level
-        event_type: eventType,
-        eventType: eventType, // Also include both formats
-        event_data: {
-            ...eventData,
-            currentSection: getCurrentSection(),
-            timestamp: new Date().toISOString(),
-            url: window.location.href,
-            userAgent: navigator.userAgent.substring(0, 200)
-        }
-    };
-    
-    // Send tracking data
-    sendTrackingData(payload);
-}
-
-        // Add logging to see if events are actually being sent
-function sendTrackingData(payload) {
-  const json = JSON.stringify(payload);
-  const blob = new Blob([json], { type: 'application/json' });
-
-  let sent = false;
-  try {
-    if (navigator.sendBeacon) {
-      sent = navigator.sendBeacon('/api/track-engagement', blob);
-      console.log('Beacon sent:', sent);
-    }
-  } catch (e) {
-    console.warn('sendBeacon failed:', e);
-  }
-  if (sent) return;
-
-  fetch('/api/track-engagement', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: json,
-    keepalive: true
-  }).then(r => console.log('Fetch response:', r.status))
-    .catch(err => console.error('Tracking error:', err));
-}
-
-        // Personalization functions (preserved from original)
-        function initializeProspectus(data) {
-            prospectusData = data;
-            personalizeProspectus(data);
-            initializeScrollAnimations();
-        }
-
-        function initializeScrollAnimations() {
-            const observerOptions = {
-                threshold: 0.1,
-                rootMargin: '0px 0px -50px 0px'
-            };
-
-            const observer = new IntersectionObserver(entries => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting) {
-                        entry.target.classList.add('visible');
-                    }
-                });
-            }, observerOptions);
-
-            document.querySelectorAll('.photo-reveal').forEach(element => {
-                observer.observe(element);
-            });
-        }
-
-        function personalizeProspectus(data) {
-            const firstName = data.firstName || 'your daughter';
-            const entryYear = data.entryYear || '2025';
-            
-            document.getElementById('personalizedCover').textContent = `Prepared especially for ${firstName} joining in ${entryYear}`;
-            personalizeHeroSections(data);
-
-            const tagline = generatePersonalizedTagline(data);
-            if (tagline) {
-                document.getElementById('greenhouseTagline').textContent = tagline;
-            }
-
-            const headsWelcome = createPersonalizedHeadsWelcome(data);
-            document.getElementById('headsWelcomeMessage').innerHTML = headsWelcome;
-
-            personalizeDayTimeline(data);
-            showRelevantEntryPoints(data.ageGroup, firstName);
-
-            let welcome = createPersonalizedWelcome(data);
-            document.getElementById('welcomePersonalization').textContent = welcome;
-
-            showInterestReveals(data);
-            personalizeUniversityDestinations(data);
-            personalizeLinearLondonSection(data);
-            personalizeMissionWithTimeline(data);
-            personalizeCallToAction(data);
-            showDiscoveryVideos(data, firstName);
-            personalizeDiscoveryVideos(data, firstName);
-        }
-
-        function personalizeHeroSections(data) {
-            const firstName = data.firstName || 'your daughter';
-            
-            if (data.sciences && data.university_prep) {
-                document.getElementById('academicHeroTitle').textContent = firstName + ', Academic Excellence Awaits';
-                document.getElementById('academicHeroTagline').textContent = 'Where scientific curiosity meets university excellence';
-            } else if (data.academic_excellence) {
-                document.getElementById('academicHeroTitle').textContent = firstName + ', Academic Excellence Awaits';
-                document.getElementById('academicHeroTagline').textContent = 'Where high expectations meet exceptional support';
-            }
-            
-            if (data.drama && data.music) {
-                document.getElementById('creativeHeroTitle').textContent = firstName + ', Where Creativity Flourishes';
-                document.getElementById('creativeHeroTagline').textContent = 'From West End stages to concert halls - your talents will shine';
-            } else if (data.art) {
-                document.getElementById('creativeHeroTitle').textContent = firstName + ', Your Artistic Vision';
-                document.getElementById('creativeHeroTagline').textContent = 'Where imagination meets expert guidance in our inspiring studios';
-            }
-            
-            if (data.london_location) {
-                document.getElementById('londonHeroTagline').textContent = `Where London becomes ${firstName}'s extended classroom`;
-            }
-            
-            if (data.leadership && data.values_based) {
-                document.getElementById('valuesHeroTagline').textContent = `Where ${firstName} will develop the values and confidence to lead with purpose`;
-            }
-        }
-
-        function generatePersonalizedTagline(data) {
-            const firstName = data.firstName || 'your daughter';
-            
-            if (data.drama && data.music) {
-                return `"Where creative spirits like ${firstName} flourish on stage and beyond"`;
-            } else if (data.sciences && data.mathematics) {
-                return `"Where scientific minds like ${firstName} discover their potential"`;
-            } else if (data.leadership && data.community_service) {
-                return `"Where future leaders like ${firstName} develop their voice and values"`;
-            } else if (data.pastoral_care) {
-                return `"Where girls like ${firstName} are known, valued, and celebrated"`;
-            } else if (data.london_location) {
-                return `"Where London becomes ${firstName}'s classroom"`;
-            }
-            
-            return `"A Greenhouse Environment Where ${firstName} Flourishes"`;
-        }
-
-        function createPersonalizedHeadsWelcome(data) {
-            const firstName = data.firstName || 'your daughter';
-            const entryYear = data.entryYear || '2025';
-            const ageGroup = data.ageGroup || '11-16';
-            
-            let ageDescription = '';
-            let journeyPhase = '';
-            let futureOutlook = '';
-            
-            if (ageGroup === '9-11') {
-                ageDescription = 'building strong foundations and nurturing natural inquisitiveness';
-                journeyPhase = 'developing confidence, independence, and academic excellence';
-                futureOutlook = 'the exciting years ahead, from Pre-Senior through to Sixth Form';
-            } else if (ageGroup === '11-16') {
-                ageDescription = 'at this crucial stage before university';
-                journeyPhase = 'at this wonderful age of curiosity and discovery';
-                futureOutlook = 'her journey through senior school and potential progression to our Sixth Form';
-            } else if (ageGroup === '16-18') {
-                ageDescription = 'preparing for higher education and future leadership roles';
-                journeyPhase = 'at this crucial stage before university';
-                futureOutlook = 'her transition to university and the exciting career paths that await';
-            }
-            
-            let personalizedAcademicFocus = '';
-            let londonAdvantage = '';
-            
-            if (data.sciences && data.mathematics) {
-                personalizedAcademicFocus = firstName + "'s passion for sciences and mathematics will flourish in our state-of-the-art laboratories and through our partnerships with London's world-renowned Science Museum and Natural History Museum.";
-                londonAdvantage = 'From conducting real research projects to exploring cutting-edge scientific developments in the heart of London, ';
-            } else if (data.drama && data.music) {
-                personalizedAcademicFocus = firstName + "'s creative talents in drama and music will be nurtured through our exceptional performing arts programme, including opportunities to perform on actual West End stages.";
-                londonAdvantage = 'From professional theatre workshops to collaborations with London\'s vibrant arts scene, ';
-            } else if (data.languages && data.humanities) {
-                personalizedAcademicFocus = firstName + "'s interest in languages and humanities will be enriched by our dynamic approach to learning, using London itself as an extended classroom for cultural immersion and historical exploration.";
-                londonAdvantage = 'From embassy cultural events to museum partnerships that bring history to life, ';
-            } else if (data.sciences) {
-                personalizedAcademicFocus = firstName + "'s scientific curiosity will be inspired through hands-on learning in our excellent laboratories and through our unique London location, with regular fieldwork in Hyde Park and collaborations with world-class scientific institutions.";
-                londonAdvantage = 'From ecological research to cutting-edge scientific exhibitions, ';
-            } else if (data.drama) {
-                personalizedAcademicFocus = firstName + "'s dramatic talents will be nurtured through our outstanding drama programme, where girls regularly perform on professional West End stages and work with industry professionals.";
-                londonAdvantage = 'From backstage tours to professional workshops, ';
-            } else if (data.languages) {
-                personalizedAcademicFocus = firstName + "'s linguistic abilities will flourish through our immersive approach to modern languages, taking full advantage of London's international community and cultural diversity.";
-                londonAdvantage = 'From cultural festivals to embassy partnerships, ';
-            } else if (data.music) {
-                personalizedAcademicFocus = firstName + "'s musical journey will be enriched by our exceptional music programme, where individual talents are celebrated and developed through both traditional and contemporary approaches.";
-                londonAdvantage = 'From solo performances to ensemble work, ';
-            } else if (data.art) {
-                personalizedAcademicFocus = firstName + "'s artistic vision will be inspired by our creative programme and London's incredible gallery scene, from the Tate Modern to intimate contemporary spaces.";
-                londonAdvantage = 'From gallery workshops to curatorial projects, ';
-            } else if (data.business) {
-                personalizedAcademicFocus = firstName + "'s interest in business will be developed through real-world learning opportunities in the City of London, where theory meets practice in the world's financial capital.";
-                londonAdvantage = 'From economics fieldwork to financial market insights, ';
-            } else {
-                personalizedAcademicFocus = firstName + "'s unique interests and talents will be nurtured through our broad, challenging curriculum and the incredible opportunities that London provides.";
-                londonAdvantage = 'From museum partnerships to cultural experiences, ';
-            }
-            
-            let pastoralPersonalization = '';
-            
-            if (data.pastoral_care && data.small_classes) {
-                pastoralPersonalization = `I understand that ${firstName}'s family values exceptional pastoral care and small class sizes. At More House, ${firstName} will experience the individual attention that comes from our deliberately small community - every teacher will know her name, her strengths, and her aspirations. This personal approach means ${firstName} will never be just a number, but a valued member of our family.`;
-            } else if (data.academic_excellence && data.university_prep) {
-                pastoralPersonalization = `I recognize that ${firstName}'s family prioritizes academic excellence and university preparation. Our track record speaks for itself - 100% of our girls progress to their chosen universities, with 82% achieving A*-B grades at A Level. ${firstName} will benefit from our proven approach that adds an average of one grade to student outcomes across all subjects.`;
-            } else if (data.london_location) {
-                pastoralPersonalization = firstName + "'s family clearly appreciates the unique advantages of our central London location. Beyond our beautiful Knightsbridge buildings, the entire city becomes " + firstName + "'s classroom - from the British Museum to the Houses of Parliament, from the Royal Opera House to the financial district. These opportunities simply don't exist anywhere else.";
-            } else if (data.values_based) {
-                pastoralPersonalization = `I'm delighted that ${firstName}'s family values education rooted in strong principles. Our Catholic heritage and commitment to developing ethical leaders means ${firstName} will grow not just academically, but as a young woman of integrity, compassion, and purpose - prepared to make a positive difference in the world.`;
-            } else if (data.small_classes) {
-                pastoralPersonalization = firstName + " will experience the individual attention and care that comes from our deliberately small class sizes - she'll never be just a number here. " + firstName + " will be known, valued, and celebrated for her unique contributions to our community.";
-            } else if (data.academic_excellence) {
-                pastoralPersonalization = firstName + " will be challenged and inspired by our rigorous academic standards. Our teachers are passionate about their subjects and committed to helping " + firstName + " achieve her very best, whether that's in the sciences, humanities, or creative arts.";
-            } else {
-                pastoralPersonalization = firstName + " will discover that More House offers something truly special - a community where academic excellence meets genuine care for each individual student.";
-            }
-            
-            let extracurricularPersonalization = '';
-            
-            if (data.leadership && data.community_service) {
-                extracurricularPersonalization = 'Beyond academics, ' + firstName + ' will have many opportunities to develop her leadership potential and make a meaningful contribution to our community and beyond. From student leadership roles to our community service programmes, ' + firstName + ' will grow into a compassionate global citizen through our community service programmes, learning that true education means using one\'s gifts to serve others.';
-            } else if (data.sport && data.leadership) {
-                extracurricularPersonalization = firstName + ' will discover the joy of physical achievement and teamwork through our excellent sports programmes, developing not just fitness but resilience and determination, alongside opportunities to take on leadership roles that will prepare her for future success.';
-            } else if (data.debating && data.leadership) {
-                extracurricularPersonalization = firstName + ' will find her voice through our debating society and leadership programmes, developing the critical thinking and communication skills essential for tomorrow\'s leaders.';
-            } else if (data.community_service) {
-                extracurricularPersonalization = firstName + ' will grow into a compassionate global citizen through our community service programmes, learning that true education means using one\'s gifts to serve others.';
-            } else if (data.leadership) {
-                extracurricularPersonalization = firstName + ' will have numerous opportunities to develop her leadership potential and make a meaningful contribution to our community and beyond. From student leadership roles to our community service programmes, she\'ll develop the confidence and responsibility that will serve her throughout life.';
-            } else if (data.sport) {
-                extracurricularPersonalization = firstName + ' will discover the joy of physical achievement and teamwork through our excellent sports programmes, developing not just fitness but resilience and determination.';
-            }
-            
-            let graduationVision = '';
-            const graduationYear = calculateGraduationYear(ageGroup, entryYear);
-            
-            if (data.university_prep) {
-                graduationVision = `Looking ahead to ${firstName}'s graduation in ${graduationYear}, she'll be thoroughly prepared for university success and equipped with the confidence to pursue her chosen career path, whether that's in medicine, law, the sciences, the arts, or any other field that captures her imagination.`;
-            } else {
-                graduationVision = `By the time ${firstName} completes her journey with us in ${graduationYear}, she'll be a confident, compassionate, and capable young woman, ready to make her mark on the world.`;
-            }
-            
-            let timingPersonalization = '';
-            const currentYear = new Date().getFullYear();
-            const yearsUntilEntry = parseInt(entryYear) - currentYear;
-            
-            if (yearsUntilEntry > 1) {
-                timingPersonalization = `Looking ahead to ${firstName} joining us in ${entryYear}, with ${yearsUntilEntry} years until she joins us, I hope this gives you a sense of the exciting journey that awaits her at More House.`;
-            } else if (yearsUntilEntry === 1) {
-                timingPersonalization = `With just one year until ${firstName} prepares to join us, I hope you're as excited as we are about the journey ahead.`;
-            } else {
-                timingPersonalization = `As ${firstName} prepares to join us this year, I hope this preview of life at More House fills you with excitement for the journey ahead.`;
-            }
-            
-            return `<p><strong>Dear ${firstName} and Family,</strong></p>
-
-<p>I am absolutely delighted to extend a heartfelt welcome to ${firstName} and your family to More House School. This is a truly special place where tradition and innovation unite to create an exceptional educational experience, particularly for young women like ${firstName} ${ageDescription}.</p>
-
-<p>${pastoralPersonalization}</p>
-
-<p>At More House School, our mission is to cultivate an environment where pupils like ${firstName} can excel academically, exhibit kindness in all that they do, develop essential life skills, and embrace their unique strengths and talents. We are committed to independent education, grounded in the belief that every child has unique gifts and aspirations that deserve to be nurtured and celebrated.</p>
-
-<p>${personalizedAcademicFocus} ${londonAdvantage}${firstName} will experience learning that goes far beyond textbooks and classrooms.</p>
-
-<p>Within our historic Knightsbridge walls, we create a supportive and forward-thinking atmosphere that encourages ${firstName}'s growth throughout ${futureOutlook}. Our curriculum is thoughtfully designed to inspire curiosity, promote critical thinking, and instill a global perspective. By balancing academic challenges with a rich variety of co-curricular activities, we nurture girls like ${firstName} to become compassionate, confident, and responsible citizens, equipped with the resilience and purpose needed to face the complexities of the modern world.</p>
-
-${extracurricularPersonalization ? `<p>${extracurricularPersonalization}</p>` : ''}
-
-<p>Our central London location offers a unique and stimulating setting, where pupils like ${firstName} are surrounded by endless opportunities for exploration and inspiration. From world-class cultural institutions to the vibrant life of the city, our girls thrive in an environment that fosters a lifelong love of learning.</p>
-
-<p>What truly sets More House apart is our deeply caring and inclusive community, where every pupil like ${firstName} feels valued and supported. Our dedicated staff are committed to nurturing the academic, social, and emotional wellbeing of each girl, helping them reach their full potential in every aspect of life.</p>
-
-<p>${graduationVision}</p>
-
-<p>${timingPersonalization}</p>
-
-<p>I look forward to meeting with you and welcoming ${firstName} into the More House family.</p>
-
-<p style="margin-top: 2rem;"><strong>Ms C Phelps<br>Head</strong></p>`;
-        }
-
-        function calculateGraduationYear(ageGroup, entryYear) {
-            const entryYearInt = parseInt(entryYear);
-            if (ageGroup === '9-11') {
-                return entryYearInt + 9;
-            } else if (ageGroup === '11-16') {
-                return entryYearInt + 7;
-            } else if (ageGroup === '16-18') {
-                return entryYearInt + 2;
-            }
-            return entryYearInt + 7;
-        }
-
-        function personalizeDayTimeline(data) {
-            const firstName = data.firstName || 'your daughter';
-            
-            document.getElementById('dayTitle').textContent = `${firstName}'s Day at More House`;
-            document.getElementById('arrivalText').textContent = `${firstName} arrives at our beautiful Knightsbridge campus, greeted by teachers who know her by name and care about her individual journey ahead.`;
-            
-            if (data.sciences) {
-                document.getElementById('academicTitle').textContent = `${firstName}'s Scientific Explorations`;
-                document.getElementById('academicText').textContent = `In small science classes, ${firstName} explores her curiosity through hands-on experiments and discussions that bring complex concepts to life.`;
-            } else if (data.languages) {
-                document.getElementById('academicTitle').textContent = `${firstName}'s Global Perspectives`;
-                document.getElementById('academicText').textContent = `${firstName} develops her language skills through immersive lessons that connect her to cultures around the world.`;
-            } else if (data.humanities) {
-                document.getElementById('academicTitle').textContent = `${firstName}'s Historical Explorations`;
-                document.getElementById('academicText').textContent = `Through engaging discussions and critical analysis, ${firstName} develops the thinking skills that will serve her throughout life.`;
-            }
-            
-            if (data.music) {
-                document.getElementById('creativeTitle').textContent = `${firstName}'s Musical Expression`;
-                document.getElementById('creativeText').textContent = `From individual piano lessons to choir rehearsals, ${firstName} discovers the joy and confidence that comes from musical achievement.`;
-            } else if (data.art) {
-                document.getElementById('creativeTitle').textContent = `${firstName}'s Artistic Vision`;
-                document.getElementById('creativeText').textContent = `In our inspiring art studios, ${firstName} works with dedicated teachers to develop her unique creative voice and artistic skills.`;
-            } else if (data.drama) {
-                document.getElementById('creativeTitle').textContent = `${firstName}'s Dramatic Development`;
-                document.getElementById('creativeText').textContent = `Through drama workshops and performance opportunities, ${firstName} builds confidence and discovers the power of creative expression.`;
-            }
-            
-            if (data.sport) {
-                document.getElementById('sportTitle').textContent = `${firstName}'s Athletic Excellence`;
-                document.getElementById('sportText').textContent = `Whether it's netball, football, or table tennis, ${firstName} develops teamwork, resilience, and the joy of physical achievement.`;
-            } else if (data.leadership) {
-                document.getElementById('sportTitle').textContent = `${firstName}'s Leadership Development`;
-                document.getElementById('sportText').textContent = `Through co-curricular activities and student leadership opportunities, ${firstName} builds the confidence to make a positive difference.`;
-            }
-        }
-
-        function showRelevantEntryPoints(ageGroup, firstName) {
-            // Show/hide relevant entry point cards based on age group
-            const cards = ['preseniorCard', 'seniorCard', 'sixthformCard'];
-            cards.forEach(cardId => {
-                document.getElementById(cardId).style.display = 'none';
-            });
-            
-            let entryMessage = firstName + "'s journey could begin";
-            let personalization = '';
-            
-            if (ageGroup === '9-11') {
-                document.getElementById('preseniorCard').style.display = 'block';
-                document.getElementById('seniorCard').style.display = 'block';
-                document.getElementById('sixthformCard').style.display = 'block';
-                personalization = `From Pre-Senior foundations through to Sixth Form leadership - ${firstName}'s complete journey`;
-                
-                document.getElementById('preseniorTitle').textContent = `${firstName}'s Pre-Senior Adventure`;
-                document.getElementById('preseniorPersonalization').textContent = `At this wonderful age, ${firstName} will discover that learning is an adventure. Our Pre-Senior programme creates an environment where curious minds like ${firstName} flourish, building the strong foundations that will support her throughout her educational journey.`;
-                
-                document.getElementById('seniorTitle').textContent = `${firstName}'s Senior School Excellence`;
-                document.getElementById('seniorPersonalization').textContent = `Starting her More House journey in Senior School, ${firstName} will join a community that seeks to nurture girls with natural curiosity and a spark for learning. Our goal is to cultivate in ${firstName} a genuine love of learning that will flourish throughout her life with us and beyond.`;
-                
-                document.getElementById('sixthformTitle').textContent = `${firstName}'s Leadership Preparation`;
-                document.getElementById('sixthformPersonalization').textContent = `For Sixth Form pupils, we build a curriculum to suit the individual. Small class sizes mean ${firstName} will have strong bonds with teachers who truly understand her goals, adapting our offering to ensure she's perfectly prepared for her chosen university and career path.`;
-                
-                personalizeBeMoreProgramme(firstName);
-            } else if (ageGroup === '11-16') {
-                document.getElementById('seniorCard').style.display = 'block';
-                document.getElementById('sixthformCard').style.display = 'block';
-                personalization = `From Senior School excellence to Sixth Form leadership - ${firstName}'s path to university`;
-                
-                document.getElementById('seniorTitle').textContent = `${firstName}'s Senior School Journey`;
-                document.getElementById('seniorPersonalization').textContent = `We seek to nurture girls who have a natural curiosity and a spark for learning like ${firstName}. Our goal is to cultivate a genuine love of learning that stays with ${firstName} throughout her life, developing her unique talents and preparing her for the exciting challenges ahead.`;
-                
-                document.getElementById('sixthformTitle').textContent = `${firstName}'s University Preparation`;
-                document.getElementById('sixthformPersonalization').textContent = `Starting her More House journey in Senior School, ${firstName}'s Sixth Form years will be carefully tailored to her university aspirations. Small class sizes mean ${firstName} will develop strong mentoring relationships with teachers who understand her ambitions and will guide her towards her chosen path.`;
-                
-                personalizeBeMoreProgramme(firstName);
-            } else if (ageGroup === '16-18') {
-                document.getElementById('sixthformCard').style.display = 'block';
-                personalization = firstName + "'s Sixth Form excellence - the final steps to university success";
-                
-                document.getElementById('sixthformTitle').textContent = `${firstName}'s Final Flourish`;
-                document.getElementById('sixthformPersonalization').textContent = `For Sixth Form pupils, we build a curriculum to suit the individual like ${firstName}. Small class sizes mean you'll have strong bonds with teachers who truly understand ${firstName}'s specific needs and interests, adapting our offering regularly to ensure you're perfectly prepared for your chosen university and career path.`;
-                
-                document.getElementById('sixthformOfferingsTitle').textContent = `${firstName}'s A Level Journey`;
-                document.getElementById('sixthformOfferings').textContent = `${firstName} can study between two and four A Levels or Cambridge Technicals, with most students choosing three. We'll work closely with ${firstName} to choose the perfect combination for her university aspirations, ensuring every subject choice aligns with her future goals.`;
-                
-                personalizeSixthFormDetails(firstName);
-            }
-            
-            document.getElementById('entryTitle').textContent = entryMessage;
-            document.getElementById('entryPersonalization').textContent = personalization;
-        }
-
-        function personalizeBeMoreProgramme(firstName) {
-            const beMoreText = document.getElementById('seniorBeMore');
-            const academicStrand = document.getElementById('seniorAcademic');
-            const coCurricularStrand = document.getElementById('seniorCoCurricular');
-            
-            beMoreText.textContent = `This innovative initiative is designed to help pupils like ${firstName} reach their full potential through two key strands that will shape her entire More House experience:`;
-            
-            academicStrand.innerHTML = `
-                <li>Challenging curricula that will foster ${firstName}'s critical thinking and debate skills</li>
-                <li>Extended learning opportunities beyond the syllabus, perfect for curious minds like ${firstName}'s</li>
-                <li>Academic societies and subject-specific clubs where ${firstName} can explore her passions</li>
-                <li>National competitions and challenges that will stretch ${firstName}'s abilities</li>
-                <li>Research projects that develop ${firstName}'s independent study skills</li>
-            `;
-            
-            coCurricularStrand.innerHTML = `
-                <li>Diverse range of clubs and activities tailored to interests like ${firstName}'s</li>
-                <li>Guest speakers from professional fields that inspire students like ${firstName}</li>
-                <li>University visits and taster sessions to help ${firstName} plan her future</li>
-                <li>Cultural trips and experiences that broaden ${firstName}'s horizons</li>
-                <li>Duke of Edinburgh Award Scheme for adventurous spirits like ${firstName}</li>
-                <li>Community service opportunities where ${firstName} can make a real difference</li>
-            `;
-        }
-
-        function personalizeSixthFormDetails(firstName) {
-            const universityPrep = document.getElementById('sixthformUniversityPrep');
-            
-            universityPrep.innerHTML = `
-                <li>Oxbridge preparation with specialist mentoring for ambitious students like ${firstName}</li>
-                <li>Medicine, Veterinary and Dentistry application support tailored to ${firstName}'s aspirations</li>
-                <li>UCAS application guidance ensuring ${firstName} presents her best self</li>
-                <li>Interview preparation and mock interviews to build ${firstName}'s confidence</li>
-                <li>Extended Project Qualification (EPQ) allowing ${firstName} to explore her passions</li>
-                <li>Creative Leadership Ethical Enterprise Programme (CLEEP) developing ${firstName}'s leadership potential</li>
-            `;
-        }
-
-        function createPersonalizedWelcome(data) {
-            const firstName = data.firstName || 'your daughter';
-            let welcome = `For over 70 years, More House has been preparing young women like ${firstName} for success in an ever-changing world.`;
-            
-            if (data.academic_excellence && data.university_prep) {
-                welcome += ` Given ${firstName}'s focus on academic excellence and university preparation, she'll join a community where 100% of girls progress to their chosen universities.`;
-            }
-            
-            if (data.pastoral_care && data.small_classes) {
-                welcome += `${firstName} will experience the individual attention and care that comes from our deliberately small class sizes - she'll never be just a number here. `;
-            }
-            
-            if (data.london_location) {
-                welcome += `${firstName} will discover that London itself becomes her classroom, with unparalleled opportunities right on our doorstep. `;
-            }
-            
-            welcome += `We are an ambitious, values-led independent day school where academic excellence meets pastoral care second to none - exactly what ${firstName} deserves.`;
-            
-            return welcome;
-        }
-
-        function showInterestReveals(data) {
-            if (data.music) {
-                document.getElementById('musicReveal').classList.add('active');
-                document.getElementById('musicReveal').classList.add('visible');
-            }
-            if (data.sport) {
-                document.getElementById('sportReveal').classList.add('active');
-                document.getElementById('sportReveal').classList.add('visible');
-            }
-            if (data.art) {
-                document.getElementById('artReveal').classList.add('active');
-                document.getElementById('artReveal').classList.add('visible');
-            }
-        }
-
-        function personalizeUniversityDestinations(data) {
-            const firstName = data.firstName || 'your daughter';
-            let destinations = '<strong>Durham</strong> • <strong>King\'s College London</strong> • <strong>Bath</strong> • <strong>Imperial College London</strong> • <strong>St Andrews</strong> • <strong>Exeter</strong>';
-            let context = 'Our value-added scores show we add at least one grade to pupils\' outcomes on average across all subjects';
-            
-            if (data.sciences && data.university_prep) {
-                destinations = '<strong>Imperial College London</strong> • <strong>Cambridge</strong> • <strong>Durham</strong> • <strong>UCL</strong> • <strong>Bath</strong> • <strong>Edinburgh</strong>';
-                context = firstName + ' would join our science alumni who have progressed to leading universities and careers in research, medicine, and engineering';
-            } else if (data.drama && data.art) {
-                destinations = '<strong>RADA</strong> • <strong>Central Saint Martins</strong> • <strong>King\'s College London</strong> • <strong>Edinburgh</strong> • <strong>Warwick</strong> • <strong>Bristol</strong>';
-                context = firstName + ' would follow in the footsteps of our creative graduates who have succeeded in the arts, media, and creative industries';
-            } else if (data.business) {
-                destinations = '<strong>LSE</strong> • <strong>Warwick</strong> • <strong>Durham</strong> • <strong>Bath</strong> • <strong>St Andrews</strong> • <strong>UCL</strong>';
-                context = firstName + ' would join our business-minded graduates who have succeeded in finance, consulting, and entrepreneurship';
-            }
-            
-            document.getElementById('universityDestinations').innerHTML = destinations;
-            document.getElementById('universityContext').textContent = context;
-        }
-
-        function personalizeLinearLondonSection(data) {
-            const firstName = data.firstName || 'your daughter';
-            
-            let personalization = `Our City Curriculum Days take pupils like ${firstName} from Years 5-9 off regular timetable to explore the capital's cultural treasures, making real-world connections with classroom learning across all subjects.`;
-            
-            if (data.london_location) {
-                personalization = `${firstName}'s family clearly values our London location, and she'll discover why! Our City Curriculum Days transform the entire capital into ${firstName}'s extended classroom. `;
-            }
-            
-            personalization += ` In the heart of one of the world's greatest cities, we transform museums, galleries, parks and historic sites into extensions of our classrooms where ${firstName} will learn in ways simply not possible anywhere else.`;
-            
-            document.getElementById('londonPersonalization').textContent = personalization;
-            
-            if (data.sciences) {
-                document.getElementById('scienceCardText').textContent = `Perfect for ${firstName}'s scientific interests! Using London's largest royal park as our natural laboratory for ecological studies, biodiversity surveys, and environmental science investigations that bring her classroom learning to life.`;
-            }
-            
-            if (data.drama) {
-                document.getElementById('dramaCardText').textContent = `${firstName} will love our drama programme! Theatre trips, backstage tours, and workshops with professional companies, plus opportunities to perform on actual West End stages - bringing her dramatic studies into the real world.`;
-            }
-            
-            if (data.art) {
-                document.getElementById('artCardText').textContent = `Ideal for ${firstName}'s artistic interests! Regular visits to world-class galleries including the Tate, National Gallery, and contemporary spaces, with sketch workshops and curatorial projects that extend her classroom creativity.`;
-            }
-            
-            if (data.languages) {
-                document.getElementById('languagesCardText').textContent = `Perfect for ${firstName}'s linguistic interests! Experiencing authentic cultural venues, from embassy events to international festivals, bringing modern languages to life in cosmopolitan London's diverse communities.`;
-            }
-            
-            if (data.business) {
-                document.getElementById('businessCardText').textContent = `Excellent for ${firstName}'s business interests! Visits to the City of London for real-world business applications, including economics fieldwork and understanding global financial markets where theory meets practice.`;
-            }
-        }
-
-        function personalizeMissionWithTimeline(data) {
-            const firstName = data.firstName || 'your daughter';
-            let mission = `"Preparing young women like ${firstName} to be the ethical leaders of tomorrow, equipped with confidence, curiosity, and heart."`;
-            document.getElementById('missionPersonalization').textContent = mission;
-        }
-
-        function personalizeCallToAction(data) {
-            const firstName = data.firstName || 'your daughter';
-            let ctaMessage = `Come and feel the warmth of our community - see why ${firstName} will thrive here`;
-            let personalMessage = `Experience firsthand what makes More House the perfect place for ${firstName} to flourish`;
-            
-            if (data.pastoral_care) {
-                ctaMessage = `Join us for an Open Morning to see our caring community where ${firstName} will be known and valued`;
-                personalMessage = `Come and feel the warmth of our community - see why ${firstName} will love being part of the More House family`;
-            } else if (data.academic_excellence) {
-                ctaMessage = `Witness our academic excellence firsthand and see how we'll challenge and support ${firstName}`;
-                personalMessage = `Experience our unique London setting and see how the capital will enrich ${firstName}'s education every day`;
-            } else if (data.london_location) {
-                ctaMessage = `Join us for an Open Morning in the heart of Knightsbridge to see how London becomes ${firstName}'s classroom`;
-                personalMessage = `Experience our unique London setting and see how the capital will enrich ${firstName}'s education every day`;
-            }
-            
-            document.getElementById('finalPersonalization').textContent = ctaMessage;
-            document.getElementById('ctaPersonalMessage').textContent = personalMessage;
-        }
-
-        function showDiscoveryVideos(data, firstName) {
-            const discoverySection = document.getElementById('discoveryVideos');
-            const cards = document.querySelectorAll('.discovery-card');
-            
-            const hasInterests = data.drama || data.languages || data.leadership || data.sport || data.sciences || data.music;
-            
-            if (hasInterests) {
-                document.getElementById('discoveryTitle').textContent = `Discover ${firstName}'s Interests at More House`;
-                
-                cards.forEach(card => {
-                    const interest = card.getAttribute('data-interest');
-                    if ((interest === 'drama' && data.drama) ||
-                        (interest === 'languages' && data.languages) ||
-                        (interest === 'leadership' && data.leadership) ||
-                        (interest === 'sport' && data.sport) ||
-                        (interest === 'sciences' && data.sciences) ||
-                        (interest === 'music' && data.music)) {
-                        card.style.display = 'block';
-                    }
-                });
-                
-                discoverySection.style.display = 'block';
-            }
-        }
-
-        function personalizeDiscoveryVideos(data, firstName) {
-            if (data.drama) {
-                const dramaTitle = document.getElementById('dramaDiscoveryTitle');
-                const dramaText = document.getElementById('dramaDiscoveryText');
-                if (dramaTitle) dramaTitle.textContent = `${firstName}'s Drama Journey`;
-                if (dramaText) dramaText.textContent = `Explore our vibrant programme where ${firstName}'s dramatic talents will flourish through West End opportunities`;
-            }
-            
-            if (data.languages) {
-                const languagesTitle = document.getElementById('languagesDiscoveryTitle');
-                const languagesText = document.getElementById('languagesDiscoveryText');
-                if (languagesTitle) languagesTitle.textContent = `${firstName}'s Global Journey`;
-                if (languagesText) languagesText.textContent = `Open doors to international opportunities through our exceptional modern languages programme tailored for ${firstName}`;
-            }
-            
-            if (data.leadership) {
-                const leadershipTitle = document.getElementById('leadershipDiscoveryTitle');
-                const leadershipText = document.getElementById('leadershipDiscoveryText');
-                if (leadershipTitle) leadershipTitle.textContent = `${firstName}'s Leadership Development`;
-                if (leadershipText) leadershipText.textContent = `Develop the confidence and responsibility that will serve ${firstName} throughout life`;
-            }
-            
-            if (data.sport) {
-                const sportTitle = document.getElementById('sportDiscoveryTitle');
-                const sportText = document.getElementById('sportDiscoveryText');
-                if (sportTitle) sportTitle.textContent = `${firstName}'s Athletic Excellence`;
-                if (sportText) sportText.textContent = `Experience our commitment to excellence in physical education and competitive sport, perfect for ${firstName}`;
-            }
-            
-            if (data.sciences) {
-                const scienceTitle = document.getElementById('scienceDiscoveryTitle');
-                const scienceText = document.getElementById('scienceDiscoveryText');
-                if (scienceTitle) scienceTitle.textContent = `${firstName}'s Scientific Discovery`;
-                if (scienceText) scienceText.textContent = `Where ${firstName}'s curiosity meets cutting-edge facilities and inspiring scientific innovation`;
-            }
-            
-            if (data.music) {
-                const musicTitle = document.getElementById('musicDiscoveryTitle');
-                const musicText = document.getElementById('musicDiscoveryText');
-                if (musicTitle) musicTitle.textContent = `${firstName}'s Musical Journey`;
-                if (musicText) musicText.textContent = `Find your voice and discover ${firstName}'s musical potential in our exceptional programme`;
-            }
-        }
-
-        // Photo modal functions
-        function openPhotoModal(imageSrc) {
-            const modal = document.getElementById('photoModal');
-            const image = document.getElementById('photoModalImage');
-            
-            image.src = imageSrc;
-            modal.classList.add('active');
-            document.body.style.overflow = 'hidden';
-            
-            trackEvent('photo_modal_open', {
-                imageSrc: imageSrc,
-                section: getCurrentSection()
-            });
-        }
-
-        function closePhotoModal() {
-            const modal = document.getElementById('photoModal');
-            modal.classList.remove('active');
-            document.body.style.overflow = 'auto';
-            
-            trackEvent('photo_modal_close', {
-                section: getCurrentSection()
-            });
-        }
-
-        // Entry point card toggle
-        function toggleCard(cardId) {
-            const card = document.getElementById(cardId);
-            const isExpanding = !card.classList.contains('expanded');
-            card.classList.toggle('expanded');
-            
-            trackEvent('entry_card_toggle', {
-                cardId: cardId,
-                isExpanding: isExpanding,
-                section: getCurrentSection()
-            });
-        }
-
-        // Event listeners and initialization
-        document.addEventListener('keydown', function(event) {
-            if (event.key === 'Escape') {
-                closeVideo();
-                closePhotoModal();
-            }
-        });
-
-        document.getElementById('videoModal').addEventListener('click', function(event) {
-            if (event.target === this) {
-                closeVideo();
-            }
-        });
-
-        document.getElementById('photoModal').addEventListener('click', function(event) {
-            if (event.target === this) {
-                closePhotoModal();
-            }
-        });
-
-        // Smooth scrolling for anchor links
-        document.addEventListener('DOMContentLoaded', function() {
-            const anchorLinks = document.querySelectorAll('a[href^="#"]');
-            anchorLinks.forEach(link => {
-                link.addEventListener('click', function(e) {
-                    const targetId = this.getAttribute('href');
-                    if (targetId !== '#') {
-                        e.preventDefault();
-                        const targetElement = document.querySelector(targetId);
-                        if (targetElement) {
-                            targetElement.scrollIntoView({ behavior: 'smooth' });
-                        }
-                    }
-                });
-            });
-        });
-
-        // Initialize when page loads
-        document.addEventListener('DOMContentLoaded', function() {
-            initializeComprehensiveTracking();
-        });
-
-        // Initialize inquiry ID tracking
-        (function () {
-            'use strict';
-
-            function inferInquiryIdFromURL() {
-                try {
-                    var m = (location.pathname || '').match(/INQ-\d{16,}/);
-                    return m ? m[0] : null;
-                } catch (_) { 
-                    return null; 
-                }
-            }
-
-            // First try to get from meta tag (primary method)
-            var metaEl = document.querySelector('meta[name="inquiry-id"], meta[inquiry-id]');
-            var INQUIRY_ID = null;
-            
-            if (metaEl && metaEl.content && metaEl.content.trim()) {
-                INQUIRY_ID = metaEl.content.trim();
-            } else {
-                // Fallback to URL pattern
-                INQUIRY_ID = inferInquiryIdFromURL();
-            }
-            
-            // Use UNKNOWN as last resort
-            if (!INQUIRY_ID) {
-                INQUIRY_ID = 'UNKNOWN';
-            }
-
-            // Expose for tracking system
-            window.MORE_HOUSE_INQUIRY_ID = INQUIRY_ID;
-            
-            // Set tracking context
-            window.__TRACK_CONTEXT__ = {
-                inquiryId: INQUIRY_ID,
-                timestamp: new Date().toISOString()
-            };
-
-            console.log('Inquiry ID set for tracking:', INQUIRY_ID); 
-            console.log('Tracking context initialized:', window.__TRACK_CONTEXT__);
-        })();
-
-        // Expose initialization function globally
-        window.initializeProspectus = initializeProspectus;
-
-        // Page unload tracking
-        window.addEventListener('beforeunload', function() {
-            // Track final section data
-            if (currentSection !== 'unknown') {
-                const timeSpent = Date.now() - sectionStartTime;
-                trackEvent('page_unload', {
-                    finalSection: currentSection,
-                    finalSectionTime: Math.round(timeSpent / 1000),
-                    totalVideoTime: Math.round(totalVideoTime / 1000),
-                    finalScrollData: scrollData
-                });
-            }
-        });
-        
-/*
-  YOUTUBE — SINGLE INSTANCE, SAFE ORIGIN, CLEANUP BETWEEN VIDEOS
-  - Guarantees only one YT.Player at a time
-  - Destroys the old player on close/switch
-  - Ensures correct origin for the iframe API
-*/
-
-(function () {
-  if (window.__MH_YT_INIT__) return;
-  window.__MH_YT_INIT__ = true;
-
-  let YT_READY = false;
-  let player = null;
-  let iframe = null;
-
-  // Adjust these selectors ONLY if your template uses different ones
-  const MODAL_SELECTOR  = '.video-modal';
-  const IFRAME_SELECTOR = '#videoPlayer';                 // matches your logs
-  const TITLE_SELECTOR  = '.video-modal-header h3';
-  const MSG_SELECTOR    = '.video-modal-header .personal-message';
-
-  // Load YT Iframe API once
   function ensureYouTubeAPI() {
-    if (window.YT && window.YT.Player) { YT_READY = true; return; }
-    if (document.getElementById('yt-iframe-api')) return;
+    if (window.YT && window.YT.Player) { return; }
+    if (document.getElementById('yt-iframe-api')) { return; }
     var tag = document.createElement('script');
     tag.id = 'yt-iframe-api';
-    document.head.appendChild(tag);
-  }
-  ensureYouTubeAPI();
-
-  // Chain any pre-existing handler safely
-  var prevOnReady = window.onYouTubeIframeAPIReady;
-  window.onYouTubeIframeAPIReady = function () {
-    YT_READY = true;
-    if (typeof prevOnReady === 'function') { try { prevOnReady(); } catch (_) {} }
-  };
-
-  function cleanupYouTube() {
-    try { if (player && typeof player.destroy === 'function') player.destroy(); } catch (_) {}
-    player = null;
-    iframe = null;
+    tag.src = 'https://www.youtube.com/iframe_api'; // REQUIRED: set src
+    var firstScriptTag = document.getElementsByTagName('script')[0] || document.body;
+    firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
   }
 
-  function openModal() {
-    var modal = document.querySelector(MODAL_SELECTOR);
-    if (modal) modal.classList.add('active');
+  // ===== Modal + Single-instance Player =====
+  var modal = document.querySelector('.video-modal');
+  var closeBtn = document.querySelector('.video-close');
+  var iframeContainer = document.querySelector('.video-iframe-container');
+  var iframe = iframeContainer ? iframeContainer.querySelector('iframe') : null;
+  var player = null;
+  var currentVideoId = null;
+  var startedOnce = false;
+
+  // Ensure iframe exists; if not, create it
+  if (!iframe && iframeContainer) {
+    iframe = document.createElement('iframe');
+    iframe.setAttribute('allow', 'autoplay; encrypted-media');
+    iframe.setAttribute('allowfullscreen', '1');
+    iframeContainer.appendChild(iframe);
   }
 
-  function closeModal() {
-    var modal = document.querySelector(MODAL_SELECTOR);
-    if (modal) modal.classList.remove('active');
-    cleanupYouTube();
+  // Default one-time initialiser for iframe src
+  if (iframe && (!iframe.src || iframe.src === '' || iframe.src === 'about:blank')) {
+    iframe.src = 'about:blank';
   }
 
-  // If you already have a close button, this keeps it working
-  window.closeVideoModal = closeModal;
+  // Openers: any element with [data-video-id] inside .video-card-thumbnail or .video-wrapper
+  function bindOpeners() {
+    var triggers = document.querySelectorAll('.video-card-thumbnail [data-video-id], .video-wrapper [data-video-id], [data-open-video-id]');
+    triggers.forEach(function(el) {
+      el.addEventListener('click', function(e) {
+        e.preventDefault();
+        var vid = el.getAttribute('data-video-id') || el.getAttribute('data-open-video-id');
+        if (!vid) { return; }
+        openVideo(vid);
+      }, { capture: true });
+    });
+  }
 
-  function playYouTubeVideo(videoId, titleText, personalMsg) {
-    // Update header text (keeps your current UI behaviour)
-    try {
-      var t = document.querySelector(TITLE_SELECTOR);
-      if (t && titleText) t.textContent = titleText;
-      var m = document.querySelector(MSG_SELECTOR);
-      if (m && typeof personalMsg === 'string') m.textContent = personalMsg;
-    } catch (_) {}
-
-    openModal(); // show modal first to get correct dimensions
-    iframe = document.querySelector(IFRAME_SELECTOR);
-    if (!iframe) return;
-
-    var origin = location.origin;
+  function buildEmbedSrc(videoId) {
     var base = 'https://www.youtube.com/embed/' + encodeURIComponent(videoId);
-    var qs = 'enablejsapi=1&origin=' + encodeURIComponent(origin) +
-             '&rel=0&playsinline=1&modestbranding=1&fs=1';
-    var wantSrc = base + '?' + qs;
+    var qs = '?enablejsapi=1&playsinline=1&origin=' + encodeURIComponent(window.location.origin);
+    return base + qs;
+  }
 
-    // Reuse existing player if possible
-    if (player && typeof player.loadVideoById === 'function') {
-      try {
-        player.loadVideoById({ videoId: videoId });
-        return;
-      } catch (_) {
-        cleanupYouTube();
-      }
-    }
+  function openVideo(videoId) {
+    if (!modal || !iframe) { return; }
+    currentVideoId = videoId;
+    ensureYouTubeAPI();
+    // Set src *before* building player to keep origins aligned
+    try { iframe.src = buildEmbedSrc(videoId); } catch (_) {}
 
-    // Set src before building player to keep origins aligned
-    iframe.src = wantSrc;
+    // Show modal
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
 
+    // Start when YT API is ready
     (function startWhenReady() {
-      if (!YT_READY || !(window.YT && window.YT.Player)) {
+      if (!(window.YT && window.YT.Player)) {
         setTimeout(startWhenReady, 50);
         return;
       }
       try {
+        if (player) {
+          try { player.destroy(); } catch (_) {}
+          player = null;
+        }
         player = new YT.Player(iframe, {
           events: {
-            onReady: function (e) {
+            onReady: function(e) {
               try { e.target.playVideo(); } catch (_) {}
             },
-            onStateChange: function (e) {
-              // Hook your tracking here if needed:
-              // e.data === YT.PlayerState.PLAYING / PAUSED / ENDED
+            onStateChange: function(e) {
+              try {
+                var st = window.YT && window.YT.PlayerState ? window.YT.PlayerState : {};
+                if (e.data === st.PLAYING) {
+                  if (!startedOnce) {
+                    startedOnce = true;
+                    safeTrack('video_start', { provider: 'youtube', video_id: currentVideoId });
+                  } else {
+                    safeTrack('video_resume', { provider: 'youtube', video_id: currentVideoId });
+                  }
+                } else if (e.data === st.PAUSED) {
+                  safeTrack('video_pause', { provider: 'youtube', video_id: currentVideoId });
+                } else if (e.data === st.ENDED) {
+                  safeTrack('video_complete', { provider: 'youtube', video_id: currentVideoId });
+                }
+              } catch (_) {}
             }
           }
         });
       } catch (err) {
-        // Last resort fallback
-        try { iframe.src = wantSrc + '&autoplay=1'; } catch (_) {}
+        // Fallback: try autoplay via URL param
+        try { iframe.src = buildEmbedSrc(videoId) + '&autoplay=1'; } catch (_) {}
       }
     })();
   }
 
-  // Replace/define the global open function your buttons call
-  var oldOpenVideo = window.openVideo;
-  window.openVideo = function (videoId, titleText, personalMsg) {
-    try { playYouTubeVideo(videoId, titleText, personalMsg); }
-    catch (e) { if (typeof oldOpenVideo === 'function') oldOpenVideo(videoId, titleText, personalMsg); }
-  };
+  function closeVideo() {
+    if (!modal || !iframe) { return; }
+    try { if (player && player.stopVideo) { player.stopVideo(); } } catch (_) {}
+    try { if (player && player.destroy) { player.destroy(); } } catch (_) {}
+    player = null;
+    startedOnce = false;
+    currentVideoId = null;
+    try { iframe.src = 'about:blank'; } catch (_) {}
+    modal.classList.remove('active');
+    document.body.style.overflow = '';
+    safeTrack('video_close', { provider: 'youtube' });
+  }
 
-  // Close via any element with `.video-close`
-  document.addEventListener('click', function (ev) {
-    var btn = ev.target.closest('.video-close');
-    if (btn) { ev.preventDefault(); closeModal(); }
+  if (closeBtn) {
+    closeBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      closeVideo();
+    });
+  }
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && modal && modal.classList.contains('active')) {
+      closeVideo();
+    }
+  });
+  if (modal) {
+    modal.addEventListener('click', function(e) {
+      if (e.target === modal) { closeVideo(); }
+    });
+  }
+
+  // Expose openVideo if other code calls it
+  window.openVideo = openVideo;
+
+  // ===== Tracking bootstrap (safe, single copy) =====
+  // Smooth scrolling (basic)
+  document.querySelectorAll('a[href^="#"]').forEach(function(a) {
+    a.addEventListener('click', function(e) {
+      var id = a.getAttribute('href').slice(1);
+      var target = document.getElementById(id);
+      if (target) {
+        e.preventDefault();
+        target.scrollIntoView({ behavior: 'smooth' });
+      }
+    });
+  });
+
+  // Initialise comprehensive tracking if available
+  try {
+    if (typeof window.initializeComprehensiveTracking === 'function') {
+      window.initializeComprehensiveTracking();
+    }
+  } catch (_) {}
+
+  // Minimal, de-noised click tracking (left-clicks on meaningful targets)
+  document.addEventListener('click', function(e) {
+    if (e.button !== 0) { return; } // left-click only
+    var a = e.target.closest('a, button, .cta-button');
+    if (!a) { return; }
+    var href = (a.tagName === 'A') ? a.getAttribute('href') : '';
+    safeTrack('ui_click', {
+      tag: a.tagName.toLowerCase(),
+      href: href || '',
+      text: (a.getAttribute('aria-label') || a.textContent || '').trim().slice(0, 120)
+    });
   }, true);
 
-  // Defensive helper ONLY if you still have legacy manual postMessages elsewhere
-  window.__mh_safePostToYouTube = function (msg) {
-    try {
-      if (!iframe || !iframe.contentWindow) return;
-      var payload = (typeof msg === 'string') ? msg : JSON.stringify(msg);
-      iframe.contentWindow.postMessage(payload, 'https://www.youtube.com');
-    } catch (_) {
-      try { iframe.contentWindow.postMessage(payload, '*'); } catch (__){}
-    }
-  };
+  // Bind openers after DOM ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bindOpeners);
+  } else {
+    bindOpeners();
+  }
 })();
 </script>
-
-
 </body>
 </html>
