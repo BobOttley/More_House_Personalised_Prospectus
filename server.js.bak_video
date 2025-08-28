@@ -13,6 +13,18 @@ const PORT = process.env.PORT || 3000;
 let db = null;
 let slugIndex = {};
 
+const VIDEO_TITLE_MAP = {
+  '38K5hmnqhjQ': 'Welcome to More House',
+  '_8kHeONBUyU': 'Paired Testimonial',
+  'vI_4_xg8t2Y': 'More About Drama',
+  'ag1iPIOeB_o': 'More About Languages',
+  'padq3XuwtOc': 'More About Leadership',
+  'MKthCUVbWuY': 'More About Sport',
+  'GrEDkrLYFQs': 'More About Science',
+  'ZN4XjOzbn6E': 'More About Singing'
+};
+
+
 // ===== GEO/IP helpers =====================================
 app.set("trust proxy", true);
 
@@ -182,6 +194,19 @@ function calculateEngagementScore(engagement) {
   return Math.min(Math.round(score), 100);
 }
 
+// ---- In-memory video watch cursors per (inquiryId, sessionId, videoId) ----
+const __VIDEO_CURSORS__ = new Map();
+function computeVideoDelta({ inquiryId, sessionId, videoId, currentTimeSec }) {
+  if (!inquiryId || !sessionId || !videoId) return 0;
+  const key = `${inquiryId}::${sessionId}::${videoId}`;
+  const last = __VIDEO_CURSORS__.get(key) || 0;
+  const now = Math.max(0, Math.round(currentTimeSec || 0));
+  const delta = Math.max(0, now - last);
+  if (now >= last) __VIDEO_CURSORS__.set(key, now);
+  return delta;
+}
+
+
 function prettySectionName(id) {
   const PROSPECTUS_SECTION_NAMES = {
     cover_page: 'Cover Page',
@@ -195,7 +220,7 @@ function prettySectionName(id) {
     city_curriculum_days: 'City Curriculum Days',
     values_hero: 'Values & Faith',
     ethical_leaders: 'Ethical Leaders',
-    discover_video: 'Discover Video',
+    discover_video: 'Welcome to More House',
     cta_begin_your_journey: 'Begin Your Journey'
   };
   return PROSPECTUS_SECTION_NAMES[id] || (id ? id.replace(/_/g, ' ') : 'Unknown Section');
@@ -405,574 +430,244 @@ async function rebuildSlugIndexFromData() {
 }
 
 // ===================== PROSPECTUS GENERATION =====================
-// Fixed generateProspectus function - EMBED tracking instead of external file
-
 async function generateProspectus(inquiry) {
   try {
+    console.log(`Generating prospectus for ${inquiry.firstName} ${inquiry.familySurname}`);
     const templatePath = path.join(__dirname, 'public', 'prospectus_template.html');
     let html = await fs.readFile(templatePath, 'utf8');
-
-    // Create filename and paths
-    const filename = `More-House-School-${inquiry.familySurname}-Family-${inquiry.firstName}-${new Date().getFullYear()}-${new Date().toISOString().split('T')[0]}.html`;
-    const relPath = `prospectuses/${filename}`;
-    const absPath = path.join(__dirname, relPath);
-
-    await fs.mkdir(path.dirname(absPath), { recursive: true });
-
-    // Update title
+    
+    const filename = generateFilename(inquiry);
+    const relPath = `/prospectuses/${filename}`;
+    const absPath = path.join(__dirname, 'prospectuses', filename);
+    
+    const meta = `
+<meta name="inquiry-id" content="${inquiry.id}">
+<meta name="generated-date" content="${new Date().toISOString()}">
+<meta name="student-name" content="${inquiry.firstName} ${inquiry.familySurname}">
+<meta name="entry-year" content="${inquiry.entryYear}">
+<meta name="age-group" content="${inquiry.ageGroup}">
+<meta name="tracking-enabled" content="true">`;
+    
+    html = html.replace('</head>', `${meta}\n</head>`);
+    
     const title = `${inquiry.firstName} ${inquiry.familySurname} - More House School Prospectus ${inquiry.entryYear}`;
     html = html.replace(/<title>.*?<\/title>/, `<title>${title}</title>`);
-
-    // STEP 1: Create personalization script (unchanged)
+    
     const personalizeBoot = `<script>
 document.addEventListener('DOMContentLoaded', function(){
-  const userData = ${JSON.stringify(inquiry, null, 2)};
-  console.log('🎯 Initializing prospectus with data:', userData);
-  if (typeof initializeProspectus === 'function') {
-    initializeProspectus(userData);
-    console.log('✅ Prospectus personalized successfully');
-  } else {
-    console.error('❌ initializeProspectus function not found');
+  try {
+    const userData = ${JSON.stringify(inquiry)};
+    console.log('Initializing prospectus with data:', userData);
+    if (typeof initializeProspectus === 'function') {
+      initializeProspectus(userData);
+      console.log('Prospectus personalized successfully');
+    } else {
+      console.error('initializeProspectus function not found');
+    }
+  } catch (error) {
+    console.error('Failed to initialize prospectus:', error);
   }
 });
 </script>`;
-
-    // STEP 2: EMBED THE TRACKING SCRIPT DIRECTLY (NOT as external file)
-    const embeddedTrackingScript = `<script>
-/* More House School - Embedded Prospectus Tracking System */
-(function() {
-  'use strict';
-
-  // Configuration
-  const INQUIRY_ID = '${inquiry.id}';
-  const SESSION_ID = 'S-' + Date.now() + '-' + Math.random().toString(36).substr(2, 6);
-  const POST_URL = '/api/track-engagement';
-  const HEARTBEAT_MS = 5000;
-
-  console.log('🚀 Enhanced SMART Analytics initialised');
-  console.log('📊 Session ID:', SESSION_ID);
-  console.log('🎯 Inquiry ID:', INQUIRY_ID);
-  console.log('🧠 AI Intelligence: Active');
-
-  // Core state
-  let sessionStartTime = Date.now();
-  let eventQueue = [];
-  let highPriorityQueue = [];
-  let sectionState = new Map();
-  let currentSectionId = null;
-  let currentSectionEl = null;
-  let attentionActive = false;
-  let lastScrollY = 0;
-
-  // Enhanced behavioral intelligence
-  let behavioralIntelligence = {
-    engagementTrend: 'neutral',
-    interactionVelocity: 0,
-    attentionPatterns: [],
-    conversionSignals: 0
-  };
-
-  let readingBehaviorData = {
-    readingSpeed: 0,
-    attentionQuality: 'scanning',
-    comprehensionIndicators: []
-  };
-
-  // Section detection with robust fallback
-  function detectCurrentSection() {
-    // Method 1: Try data-section attributes
-    const sections = document.querySelectorAll('[data-track-section]');
-    if (sections.length > 0) {
-      for (let section of sections) {
-        const rect = section.getBoundingClientRect();
-        const viewportHeight = window.innerHeight;
-        const visibleHeight = Math.min(rect.bottom, viewportHeight) - Math.max(rect.top, 0);
-        const visibilityRatio = visibleHeight / viewportHeight;
-        
-        if (visibilityRatio > 0.3) {
-          return {
-            id: section.dataset.trackSection,
-            element: section,
-            label: getSectionLabel(section.dataset.section)
-          };
-        }
-      }
-    }
-
-    // Method 2: Viewport-based fallback
-    const scrollPercent = Math.round((window.pageYOffset / (document.documentElement.scrollHeight - window.innerHeight)) * 100);
-    let sectionId = 'top';
     
-    if (scrollPercent > 80) sectionId = 'bottom';
-    else if (scrollPercent > 60) sectionId = 'lower';
-    else if (scrollPercent > 40) sectionId = 'middle';
-    else if (scrollPercent > 20) sectionId = 'upper';
+    const trackingInject = `<!-- More House Analytics Tracking -->
+<script>
+window.MORE_HOUSE_INQUIRY_ID='${inquiry.id}';
+console.log('Inquiry ID set for tracking:', window.MORE_HOUSE_INQUIRY_ID);
+</script>
+<script src="/tracking.js?v=5.0.0" defer></script>`;
     
-    return {
-      id: sectionId,
-      element: document.body,
-      label: getSectionLabel(sectionId)
-    };
-  }
-
-  function getSectionLabel(sectionId) {
-    const labels = {
-      'welcome': "Headmaster's Welcome",
-      'academic': 'Academic Excellence',
-      'pastoral': 'Pastoral Care',
-      'facilities': 'Facilities',
-      'admissions': 'Admissions',
-      'fees': 'Fees & Scholarships',
-      'contact': 'Contact Information',
-      'top': 'Introduction',
-      'upper': 'Academic Overview',
-      'middle': 'School Life',
-      'lower': 'Facilities & Activities',
-      'bottom': 'Admissions & Contact'
-    };
-    return labels[sectionId] || sectionId.charAt(0).toUpperCase() + sectionId.slice(1);
-  }
-
-  // Robust data sending
-  async function sendData(url, payload) {
-    try {
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify(payload),
-        keepalive: true
-      });
-
-      if (!response.ok) {
-        throw new Error(\`HTTP \${response.status}: \${response.statusText}\`);
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.warn('📡 Send failed:', error.message);
-      throw error;
-    }
-  }
-
-  // Event tracking
-  function track(eventType, data = {}) {
-    const event = {
-      eventType,
-      timestamp: new Date().toISOString(),
-      data: {
-        ...data,
-        inquiryId: INQUIRY_ID,
-        sessionId: SESSION_ID,
-        currentSection: currentSectionId,
-        url: window.location.href,
-        scrollPosition: window.pageYOffset,
-        viewportHeight: window.innerHeight,
-        documentHeight: document.documentElement.scrollHeight
-      }
-    };
-
-    // High priority events
-    if (['section_enter', 'video_open', 'conversion_signal'].includes(eventType)) {
-      event.data.conversionSignal = 1;
-      highPriorityQueue.push(event);
-    } else {
-      eventQueue.push(event);
-    }
-
-    console.log(\`📝 EVENT: \${eventType} | Section: \${currentSectionId}\`);
-  }
-
-  // Section management
-  function enterSection(sectionData) {
-    if (currentSectionId === sectionData.id) return;
-
-    if (currentSectionId) {
-      exitSection();
-    }
-
-    currentSectionId = sectionData.id;
-    currentSectionEl = sectionData.element;
-    
-    if (!sectionState.has(sectionData.id)) {
-      sectionState.set(sectionData.id, {
-        id: sectionData.id,
-        label: sectionData.label,
-        attentionSec: 0,
-        visitCount: 0,
-        lastTickAt: null,
-        maxScrollPct: 0,
-        clicks: 0,
-        firstEnterAt: Date.now()
-      });
-    }
-
-    const st = sectionState.get(sectionData.id);
-    st.visitCount++;
-    st.lastTickAt = Date.now();
-
-    track('section_enter_enhanced', {
-      section: sectionData.id,
-      label: sectionData.label,
-      visitCount: st.visitCount
-    });
-
-    attentionActive = true;
-  }
-
-  function exitSection() {
-    if (!currentSectionId) return;
-
-    const st = sectionState.get(currentSectionId);
-    if (st && st.lastTickAt) {
-      const exitTime = Date.now();
-      const timeInSection = Math.round((exitTime - st.lastTickAt) / 1000);
-      st.attentionSec += timeInSection;
-
-      track('section_exit_enhanced', {
-        section: currentSectionId,
-        label: st.label,
-        timeInSectionSec: timeInSection,
-        totalAttentionSec: st.attentionSec,
-        visitCount: st.visitCount,
-        scrollPct: st.maxScrollPct
-      });
-    }
-
-    attentionActive = false;
-  }
-
-  function sectionScrollPct(element) {
-    if (!element) return 0;
-    const rect = element.getBoundingClientRect();
-    const elementHeight = element.offsetHeight;
-    const viewportHeight = window.innerHeight;
-    
-    if (elementHeight <= viewportHeight) {
-      return rect.top <= 0 && rect.bottom >= 0 ? 100 : 0;
-    }
-    
-    const visibleTop = Math.max(0, -rect.top);
-    const visibleHeight = Math.min(elementHeight - visibleTop, viewportHeight - Math.max(0, rect.top));
-    return Math.round((visibleHeight / elementHeight) * 100);
-  }
-
-  // Heartbeat function
-  function heartbeat() {
-    if (currentSectionId && attentionActive) {
-      const st = sectionState.get(currentSectionId);
-      if (st && st.lastTickAt) {
-        const now = Date.now();
-        const deltaMs = now - st.lastTickAt;
-        st.attentionSec += Math.max(0, Math.round(deltaMs / 1000));
-        st.lastTickAt = now;
-        st.maxScrollPct = Math.max(st.maxScrollPct, sectionScrollPct(currentSectionEl));
-      }
-    }
-    
-    const allEvents = highPriorityQueue.splice(0, highPriorityQueue.length)
-                        .concat(eventQueue.splice(0, eventQueue.length));
-    
-    const sessionInfo = {
-      inquiryId: INQUIRY_ID,
-      sessionId: SESSION_ID,
-      timeOnPage: Math.round((Date.now() - sessionStartTime) / 1000),
-      maxScrollDepth: Math.max(0, ...Array.from(sectionState.values()).map(s => s.maxScrollPct)),
-      clickCount: Array.from(sectionState.values()).reduce((a, b) => a + (b.clicks || 0), 0),
-      sectionsExplored: Array.from(sectionState.keys()),
-      currentSection: currentSectionId,
-      deviceInfo: getDeviceInfo()
-    };
-    
-    const payload = {
-      events: allEvents,
-      sessionInfo: sessionInfo,
-      intelligence: behavioralIntelligence,
-      readingBehaviorData: readingBehaviorData
-    };
-    
-    const hasEvents = allEvents.length > 0;
-    const isRegularUpdate = (Date.now() - sessionStartTime) % (HEARTBEAT_MS * 3) < HEARTBEAT_MS;
-    
-    if (hasEvents || isRegularUpdate) {
-      sendData(POST_URL, payload).catch(error => {
-        console.error('❌ Heartbeat failed:', error);
-      });
-    }
-  }
-
-  function getDeviceInfo() {
-    return {
-      userAgent: navigator.userAgent,
-      viewport: \`\${window.innerWidth}x\${window.innerHeight}\`,
-      mobile: /Mobi|Android/i.test(navigator.userAgent),
-      timestamp: Date.now()
-    };
-  }
-
-  // Event listeners
-  function setupEventListeners() {
-    let scrollTimeout;
-    window.addEventListener('scroll', () => {
-      if (scrollTimeout) clearTimeout(scrollTimeout);
-      scrollTimeout = setTimeout(() => {
-        const currentSection = detectCurrentSection();
-        if (currentSection) {
-          enterSection(currentSection);
-        }
-        
-        const currentScrollY = window.pageYOffset;
-        if (Math.abs(currentScrollY - lastScrollY) > 100) {
-          track('section_scroll_enhanced', {
-            scrollY: currentScrollY,
-            scrollDelta: currentScrollY - lastScrollY
-          });
-        }
-        lastScrollY = currentScrollY;
-      }, 150);
-    }, { passive: true });
-
-    document.addEventListener('click', (e) => {
-      if (currentSectionId) {
-        const st = sectionState.get(currentSectionId);
-        if (st) st.clicks++;
-      }
-      
-      track('click', {
-        target: e.target.tagName,
-        className: e.target.className,
-        href: e.target.href,
-        text: e.target.textContent?.substring(0, 50)
-      });
-    }, { passive: true });
-
-    // Video tracking override
-    const originalOpenVideo = window.openVideo;
-    if (typeof originalOpenVideo === 'function') {
-      window.openVideo = function(videoId, title) {
-        track('video_opened', { videoId, title });
-        console.log(\`🎥 VIDEO OPENED: \${videoId} \${title}\`);
-        return originalOpenVideo.apply(this, arguments);
-      };
-    }
-
-    window.addEventListener('beforeunload', () => {
-      if (currentSectionId) {
-        exitSection();
-      }
-      
-      const finalPayload = {
-        events: [{
-          eventType: 'session_end',
-          timestamp: new Date().toISOString(),
-          data: {
-            inquiryId: INQUIRY_ID,
-            sessionId: SESSION_ID,
-            totalTimeOnPage: Math.round((Date.now() - sessionStartTime) / 1000),
-            sectionsVisited: Array.from(sectionState.keys())
-          }
-        }]
-      };
-      
-      navigator.sendBeacon(POST_URL, JSON.stringify(finalPayload));
-    });
-  }
-
-  // Initialize when ready
-  function initialize() {
-    console.log('Comprehensive tracking initialized');
-
-    setTimeout(() => {
-      const initialSection = detectCurrentSection();
-      if (initialSection) {
-        enterSection(initialSection);
-        track('session_entry_context', {
-          landingSection: initialSection.id,
-          landingLabel: initialSection.label,
-          referrer: document.referrer,
-          userAgent: navigator.userAgent
-        });
-      }
-    }, 500);
-
-    setupEventListeners();
-
-    const heartbeatInterval = setInterval(() => {
-      try {
-        heartbeat();
-      } catch (error) {
-        console.error('❌ Heartbeat error:', error);
-      }
-    }, HEARTBEAT_MS);
-
-    track('tracking_initialized', {
-      version: '5.0.0-EMBEDDED',
-      sessionId: SESSION_ID,
-      inquiryId: INQUIRY_ID
-    });
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initialize);
-  } else {
-    initialize();
-  }
-
-})();
-</script>`;
-
-    // STEP 3: Inject BOTH scripts before </body>
     const bodyCloseIndex = html.lastIndexOf('</body>');
     if (bodyCloseIndex === -1) {
       throw new Error('Template missing </body> tag');
     }
     
-    const allScripts = personalizeBoot + '\n' + embeddedTrackingScript + '\n';
-    const finalHtml = html.slice(0, bodyCloseIndex) + allScripts + html.slice(bodyCloseIndex);
-
-    // Save the file
+    let finalHtml = html;
+// only inject tracking if not already present
+if (!/<script\s+src="\/tracking\.js(\?v=[^"]*)?"[^>]*><\/script>/i.test(finalHtml)) {
+  const allScripts = personalizeBoot + '\n' + trackingInject + '\n';
+  finalHtml = html.slice(0, bodyCloseIndex) + allScripts + html.slice(bodyCloseIndex);
+} else {
+  const allScripts = personalizeBoot + '\n';
+  finalHtml = html.slice(0, bodyCloseIndex) + allScripts + html.slice(bodyCloseIndex);
+}
+    
     await fs.writeFile(absPath, finalHtml, 'utf8');
-
-    // Create slug mapping
+    
     const slug = makeSlug(inquiry);
     const prettyPath = `/${slug}`;
     slugIndex[slug] = relPath;
     await saveSlugIndex();
-
-    // Verify the injection worked
+    
     const savedContent = await fs.readFile(absPath, 'utf8');
-    const hasEmbeddedTracking = savedContent.includes('Enhanced SMART Analytics initialised');
-    const hasInquiryId = savedContent.includes(\`const INQUIRY_ID = '\${inquiry.id}';\`);
+    const hasTrackingJs = /<script\s+src="\/tracking\.js(\?v=[^"]*)?"[^>]*><\/script>/.test(savedContent);
+    const hasInquiryId = savedContent.includes(`window.MORE_HOUSE_INQUIRY_ID='${inquiry.id}'`);
     const hasPersonalization = savedContent.includes('initializeProspectus');
-
-    console.log(\`📄 Prospectus saved: \${filename}\`);
-    console.log(\`🌐 Pretty URL: \${prettyPath}\`);
-    console.log(\`📊 Embedded tracking: \${hasEmbeddedTracking ? '✅ VERIFIED' : '❌ MISSING'}\`);
-    console.log(\`🔑 Inquiry ID: \${hasInquiryId ? '✅ VERIFIED' : '❌ MISSING'}\`);
-    console.log(\`🎯 Personalization: \${hasPersonalization ? '✅ VERIFIED' : '❌ MISSING'}\`);
-
-    if (!hasEmbeddedTracking || !hasInquiryId) {
-      console.error('🚨 CRITICAL: Embedded tracking injection FAILED!');
+    
+    console.log(`Prospectus saved: ${filename}`);
+    console.log(`Pretty URL: ${prettyPath}`);
+    console.log(`Tracking script: ${hasTrackingJs ? 'VERIFIED' : 'MISSING'}`);
+    console.log(`Inquiry ID: ${hasInquiryId ? 'VERIFIED' : 'MISSING'}`);
+    console.log(`Personalization: ${hasPersonalization ? 'VERIFIED' : 'MISSING'}`);
+    
+    if (!hasTrackingJs || !hasInquiryId) {
+      console.error('CRITICAL: Tracking script injection FAILED!');
     }
-
-    // Update database record with the URL
-    if (db) {
-      await db.query(
-        'UPDATE inquiries SET pretty_url = $1, prospectus_filename = $2 WHERE inquiry_id = $3',
-        [prettyPath, filename, inquiry.id]
-      );
-      console.log(\`📝 Database updated: \${inquiry.id} -> \${prettyPath}\`);
-    }
-
+    
     return {
       filename,
-      prettyUrl: prettyPath,
-      fullPath: absPath
+      url: relPath,
+      slug,
+      prettyPath,
+      generatedAt: new Date().toISOString()
     };
-
-  } catch (error) {
-    console.error('❌ Error generating prospectus:', error);
-    throw error;
+  } catch (e) {
+    console.error('Prospectus generation failed:', e.message);
+    throw new Error(`prospectus_template.html error: ${e.message}`);
   }
 }
 
-// ===================== ENGAGEMENT TRACKING =====================
-async function trackEngagementEvent(ev) {
-  if (!db) return null;
-  
+async function updateInquiryStatus(inquiryId, pInfo) {
   try {
-    console.log('RECEIVED EVENT:', ev.eventType || ev.type, 'VideoID:', ev.eventData?.videoId, 'VideoTitle:', ev.eventData?.videoTitle);
-  
-    const eventType = ev.eventType || ev.type || 'unknown';
-    const inquiryId = ev.inquiryId || ev.inquiry_id || null;
-    const sessionId = ev.sessionId || ev.session_id || null;
-    const currentSection = ev.currentSection || ev.section || ev?.eventData?.currentSection || null;
-    const tsISO = ev.timestamp || new Date().toISOString();
-    const pageUrl = ev.url || null;
-    const deviceInfo = ev.deviceInfo || ev?.eventData?.deviceInfo || {};
-    const ed = Object.assign({}, ev.eventData || ev.data || {});
-    const timeInSectionSec = pickNumber(ed.timeInSectionSec);
-    
-    let sessionTime = 0;
-    if (ev.sessionInfo && Number.isFinite(ev.sessionInfo.timeOnPage)) {
-      sessionTime = Math.round(ev.sessionInfo.timeOnPage);
+    const files = await fs.readdir(path.join(__dirname, 'data'));
+    for (const f of files.filter(x => x.startsWith('inquiry-') && x.endsWith('.json'))) {
+      try {
+        const p = path.join(__dirname, 'data', f);
+        const j = JSON.parse(await fs.readFile(p, 'utf8'));
+        if (j.id === inquiryId) {
+          j.prospectusGenerated = true;
+          j.prospectusFilename = pInfo.filename;
+          j.prospectusUrl = pInfo.url;          
+          j.prospectusPrettyPath = pInfo.prettyPath;   
+          j.slug = pInfo.slug;
+          j.prospectusGeneratedAt = pInfo.generatedAt;
+          j.status = 'prospectus_generated';
+          await fs.writeFile(p, JSON.stringify(j, null, 2));
+          break;
+        }
+      } catch (fileError) {
+        console.warn(`Failed to update ${f}:`, fileError.message);
+      }
     }
     
-    const maxScrollPct = pickNumber(ed.maxScrollPct);
-    const clicks = pickNumber(ed.clicks);
-    const videoWatchSec = pickNumber(ed.videoWatchSec);
-    const videoId = ed.videoId || ed.video_id || null;
-    const videoTitle = ed.videoTitle || ed.video_title || null;
-    const currentTimeSec = pickNumber(ed.currentTimeSec ?? ed.current_time_sec);
-    
-    const rawEventData = {
-      ...ed,
-      currentSection: currentSection,
-      deviceInfo,
-      sessionTimeOnPage: sessionTime
+    if (db) {
+      try {
+        await db.query(
+          `UPDATE inquiries
+           SET status='prospectus_generated',
+               prospectus_generated=true,
+               prospectus_filename=$2,
+               prospectus_url=$3,
+               slug=$4,
+               prospectus_generated_at=$5,
+               updated_at=CURRENT_TIMESTAMP
+           WHERE id=$1`,
+          [inquiryId, pInfo.filename, pInfo.url, pInfo.slug, new Date(pInfo.generatedAt)]
+        );
+        console.log(`Database updated: ${inquiryId} -> ${pInfo.prettyPath}`);
+      } catch (dbError) {
+        console.warn('DB update failed (non-fatal):', dbError.message);
+      }
+    }
+  } catch (e) {
+    console.error('Failed to update inquiry status:', e.message);
+  }
+}
+
+// UPDATED trackEngagementEvent function - replace in server.js
+
+// UPDATED: correctly extract from eventData/top-level AND persist to video_engagement_tracking
+async function trackEngagementEvent(ev) {
+  try {
+    // Prefer eventData (how /api/track-engagement sends payloads), fall back to .data, then top-level
+    const ed = (ev?.eventData) || (ev?.data) || ev || {};
+    const tsISO = ev?.timestamp || new Date().toISOString();
+
+    // IDs can live at top-level (ev) OR inside ed depending on emitter
+    const inquiryId      = ed.inquiryId      || ev?.inquiryId      || ed.inquiry_id      || ev?.inquiry_id      || null;
+    const sessionId      = ed.sessionId      || ev?.sessionId      || ed.session_id      || ev?.session_id      || null;
+    const pageUrl        = ed.pageUrl        || ed.url             || ev?.url            || null;
+    const eventType      = ed.eventType      || ev?.eventType      || ed.type            || 'event';
+    const currentSection = ed.currentSection || ed.section         || ev?.currentSection || null;
+
+    // Device info (lightweight)
+    const deviceInfo = {
+      userAgent: ev?.userAgent || ed.userAgent || (typeof navigator !== 'undefined' ? navigator.userAgent : null),
+      deviceType: ed.deviceType || 'unknown',
+      browser: ed.browser || 'unknown',
+      operatingSystem: ed.operatingSystem || 'unknown'
     };
-    
-    const insertRaw = `
+
+    // Section/session metrics
+    const timeInSectionSec = Number.isFinite(Number(ed.timeInSectionSec)) ? Number(ed.timeInSectionSec) : 0;
+    const maxScrollPct     = Number.isFinite(Number(ed.maxScrollPct))     ? Number(ed.maxScrollPct)     : 0;
+    const clicks           = Number.isFinite(Number(ed.clicks))           ? Number(ed.clicks)           : 0;
+
+    let sessionTime = 0;
+    if (ev?.sessionInfo?.timeOnPage != null) {
+      sessionTime = Math.round(Number(ev.sessionInfo.timeOnPage));
+    }
+
+    // Video fields
+    const videoId        = ed.videoId    || ed.video_id    || null;
+    const videoTitle     = ed.videoTitle || ed.video_title || ed.title || null;
+    const currentTimeSec = (ed.currentTimeSec ?? ed.current_time_sec ?? null);
+    let   watchedSec     = (ed.watchedSec ?? ed.watched_sec ?? 0);
+
+    const isYouTubeEvent = typeof eventType === 'string' && eventType.startsWith('youtube_video_');
+
+    // Debug
+    if (eventType.includes('video') || eventType.includes('youtube')) {
+      console.log('🎥 VIDEO EVENT DEBUG:', {
+        eventType, videoId, videoTitle,
+        rawEventData: ev,
+        extractedData: ed
+      });
+    }
+    console.log('RECEIVED EVENT:', eventType, 'VideoID:', videoId, 'VideoTitle:', videoTitle || 'NO_TITLE_FOUND');
+
+    // Always insert a raw record for analytics (tracking_events)
+    await db.query(`
       INSERT INTO tracking_events (
         inquiry_id, event_type, event_data, page_url,
         user_agent, ip_address, session_id, timestamp
       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
-    `;
-    
-    const rawVals = [
+    `, [
       inquiryId,
       eventType,
-      JSON.stringify(rawEventData),
+      JSON.stringify({
+        ...ed,
+        currentSection,
+        deviceInfo,
+        sessionTimeOnPage: sessionTime,
+        timeInSectionSec,
+        maxScrollPct,
+        clicks,
+        videoId, videoTitle, currentTimeSec, watchedSec
+      }),
       pageUrl,
-      deviceInfo.userAgent || ev.userAgent || null,
-      ev.ip || null,
+      deviceInfo.userAgent || null,
+      ev?.ip || null,
       sessionId,
       new Date(tsISO)
-    ];
-    
-    await db.query(insertRaw, rawVals).catch(e => {
-      console.warn('tracking_events insert failed:', e.message);
-    });
-    
-    const hasSectionMetrics = (eventType === 'section_exit') || (eventType === 'section_scroll');
-    const hasClicks = clicks > 0;
-    const hasVideo = eventType.startsWith('video_') || videoWatchSec > 0;
-    
-    if (hasSectionMetrics || hasClicks || hasVideo) {
-      await updateEngagementMetrics({
-        inquiryId,
-        sessionId,
-        timeOnPage: sessionTime || timeInSectionSec,
-        maxScrollDepth: maxScrollPct,
-        clickCount: clicks,
-        deviceInfo
-      });      
-    }
-    
-    if (hasVideo && videoId) {
-      console.log('Inserting video tracking row:', {
-        inquiryId,
-        videoId,
-        videoTitle,
-        watchedSec: videoWatchSec
-      });
-      
-      await insertVideoTrackingRow(db, {
+    ]);
+
+    // NEW: also persist video rows used by the dashboard (/api/analytics/video-metrics)
+    if (isYouTubeEvent && typeof insertVideoTracking === 'function') {
+      await insertVideoTracking(db, {
         inquiryId,
         sessionId,
         currentSection,
         eventType,
         videoId,
-        videoTitle,
-        currentTimeSec,
-        watchedSec: videoWatchSec,
+        videoTitle: videoTitle || (VIDEO_TITLE_MAP?.[videoId] || null),
+        currentTimeSec: (currentTimeSec != null ? Math.round(Number(currentTimeSec)) : 0),
+        watchedSec: (watchedSec != null ? Math.round(Number(watchedSec)) : 0),
         url: pageUrl,
         timestamp: tsISO
       });
     }
-    
+
     return { ok: true };
   } catch (e) {
     console.warn('trackEngagementEvent failed:', e.message);
@@ -1014,16 +709,9 @@ async function updateEngagementMetrics(m) {
   }
 }
 
-// FIXED SERVER-SIDE VIDEO TRACKING
-// Add this to your server.js file, replacing the existing video tracking sections:
-
 async function insertVideoTrackingRow(dbClient, payload) {
   try {
-    console.log('🎬 Video tracking insert:', {
-      videoId: payload.videoId,
-      watchedSec: payload.watchedSec,
-      eventType: payload.eventType
-    });
+    console.log('Video tracking insert attempt:', payload);
     
     const q = `
       INSERT INTO video_engagement_tracking (
@@ -1036,7 +724,7 @@ async function insertVideoTrackingRow(dbClient, payload) {
     const vals = [
       payload.inquiryId || null,
       payload.sessionId || null,
-      payload.currentSection || 'discover_video',
+      payload.currentSection || null,
       payload.eventType || 'video_event',
       payload.videoId || null,
       payload.videoTitle || 'Unknown Video',
@@ -1046,265 +734,17 @@ async function insertVideoTrackingRow(dbClient, payload) {
       new Date(payload.timestamp || Date.now())
     ];
     
-    const result = await dbClient.query(q, vals);
-    console.log('✅ Video tracking inserted:', payload.videoId, payload.watchedSec + 's');
-    return result;
-  } catch (e) {
-    console.error('❌ Video tracking insert failed:', e.message);
-  }
-}
-
-// Enhanced trackEngagementEvent function to handle video events
-// Add this to your server.js - REPLACE the existing insertVideoTrackingRow function
-
-async function insertVideoTrackingRow(dbClient, payload) {
-  try {
-    console.log('🎬 Video tracking insert:', {
-      videoId: payload.videoId,
-      watchedSec: payload.watchedSec,
-      eventType: payload.eventType
-    });
-    
-    const q = `
-      INSERT INTO video_engagement_tracking (
-        inquiry_id, session_id, section_label, event_type,
-        video_id, video_title, current_time_sec, watched_sec,
-        page_url, timestamp
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
-    `;
-    
-    const vals = [
-      payload.inquiryId || null,
-      payload.sessionId || null,
-      payload.currentSection || 'discover_video',
-      payload.eventType || 'video_event',
-      payload.videoId || null,
-      payload.videoTitle || 'Unknown Video',
-      Math.round(payload.currentTimeSec || 0),
-      Math.round(payload.watchedSec || 0),
-      payload.url || null,
-      new Date(payload.timestamp || Date.now())
-    ];
+    console.log('Video tracking SQL values:', vals);
     
     const result = await dbClient.query(q, vals);
-    console.log('✅ Video tracking inserted:', payload.videoId, payload.watchedSec + 's');
+    console.log('Video tracking inserted successfully');
     return result;
   } catch (e) {
-    console.error('❌ Video tracking insert failed:', e.message);
+    console.error('Video tracking insert failed:', e.message);
+    console.error('Payload was:', payload);
   }
 }
 
-// REPLACE your trackEngagementEvent function with this enhanced version
-async function trackEngagementEvent(ev) {
-  if (!db) return null;
-  
-  try {
-    const eventType = ev.eventType || ev.type || 'unknown';
-    const inquiryId = ev.inquiryId || ev.inquiry_id || null;
-    const sessionId = ev.sessionId || ev.session_id || null;
-    const currentSection = ev.currentSection || ev.section || ev?.eventData?.currentSection || null;
-    const tsISO = ev.timestamp || new Date().toISOString();
-    const ed = Object.assign({}, ev.eventData || ev.data || {});
-    
-    // Extract video data
-    const videoId = ed.videoId || ed.video_id || null;
-    const videoTitle = ed.videoTitle || ed.video_title || null;
-    const currentTimeSec = parseFloat(ed.currentTimeSec || ed.current_time_sec || 0);
-    const watchedSec = parseFloat(ed.watchedSec || ed.watched_sec || 0);
-    
-    console.log(`📝 EVENT: ${eventType} | Video: ${videoId} | Watch: ${watchedSec}s`);
-    
-    // Always insert raw tracking event
-    await db.query(`
-      INSERT INTO tracking_events (
-        inquiry_id, event_type, event_data, page_url, session_id, timestamp
-      ) VALUES ($1,$2,$3,$4,$5,$6)
-    `, [
-      inquiryId,
-      eventType,
-      JSON.stringify(ed),
-      ev.url || null,
-      sessionId,
-      new Date(tsISO)
-    ]).catch(e => console.warn('Raw event insert failed:', e.message));
-    
-    // Handle video events specially
-    if (eventType.includes('youtube_video_') && videoId) {
-      console.log(`🎬 Processing video event: ${eventType} for ${videoId}`);
-      
-      await insertVideoTrackingRow(db, {
-        inquiryId,
-        sessionId,
-        currentSection,
-        eventType,
-        videoId,
-        videoTitle,
-        currentTimeSec,
-        watchedSec,
-        url: ev.url,
-        timestamp: tsISO
-      });
-    }
-    
-    return { ok: true };
-  } catch (e) {
-    console.error('❌ trackEngagementEvent failed:', e.message);
-    return null;
-  }
-}
-
-// New function to maintain video engagement summaries
-async function updateVideoEngagementSummary(db, data) {
-  try {
-    const { inquiryId, sessionId, videoId, videoTitle, eventType, watchedSec, currentTimeSec, completionRate } = data;
-    
-    console.log(`🔄 Updating video summary for ${videoId}: ${watchedSec}s watched`);
-    
-    // Upsert video engagement summary
-    await db.query(`
-      INSERT INTO video_engagement_summary (
-        inquiry_id, video_id, video_title, 
-        total_watch_time, play_count, pause_count, completion_rate,
-        last_interaction, created_at, updated_at
-      ) VALUES ($1, $2, $3, $4, 
-        CASE WHEN $5 = 'youtube_video_play' THEN 1 ELSE 0 END,
-        CASE WHEN $5 = 'youtube_video_pause' THEN 1 ELSE 0 END,
-        $6, $7, NOW(), NOW()
-      )
-      ON CONFLICT (inquiry_id, video_id) 
-      DO UPDATE SET
-        total_watch_time = GREATEST(video_engagement_summary.total_watch_time, EXCLUDED.total_watch_time),
-        play_count = video_engagement_summary.play_count + 
-          CASE WHEN $5 = 'youtube_video_play' THEN 1 ELSE 0 END,
-        pause_count = video_engagement_summary.pause_count + 
-          CASE WHEN $5 = 'youtube_video_pause' THEN 1 ELSE 0 END,
-        completion_rate = GREATEST(video_engagement_summary.completion_rate, EXCLUDED.completion_rate),
-        last_interaction = EXCLUDED.last_interaction,
-        updated_at = NOW()
-    `, [
-      inquiryId, videoId, videoTitle, 
-      Math.round(watchedSec), eventType, 
-      Math.round(completionRate), new Date()
-    ]);
-    
-    console.log(`✅ Video summary updated for ${videoId}`);
-  } catch (error) {
-    console.error('❌ Video summary update failed:', error.message);
-  }
-}
-
-// Updated video metrics endpoint
-app.get('/api/analytics/video-metrics', async (req, res) => {
-  try {
-    if (!db) {
-      return res.status(500).json({ error: 'Database not available' });
-    }
-
-    console.log('📊 Video metrics request...');
-
-    // Try the summary table first
-    let videoData;
-    try {
-      videoData = await db.query(`
-        SELECT 
-          ves.video_id,
-          ves.video_title as title,
-          ves.inquiry_id as family_id,
-          i.first_name,
-          i.family_surname,
-          ves.total_watch_time as totalWatchTime,
-          ves.play_count as sessions,
-          ves.pause_count as pauseCount,
-          ves.completion_rate as completionRate,
-          0 as replayCount,
-          180 as duration
-        FROM video_engagement_summary ves
-        LEFT JOIN inquiries i ON ves.inquiry_id = i.id
-        WHERE ves.total_watch_time > 0
-        ORDER BY ves.total_watch_time DESC
-      `);
-    } catch (summaryError) {
-      console.log('Summary table not available, using raw tracking data...');
-      
-      // Fallback to raw tracking events
-      videoData = await db.query(`
-        SELECT 
-          vet.video_id,
-          vet.video_title as title,
-          vet.inquiry_id as family_id,
-          i.first_name,
-          i.family_surname,
-          MAX(vet.watched_sec) as totalWatchTime,
-          COUNT(DISTINCT vet.session_id) as sessions,
-          COUNT(CASE WHEN vet.event_type = 'youtube_video_pause' THEN 1 END) as pauseCount,
-          MAX(COALESCE(vet.current_time_sec::float / 180.0 * 100, 0)) as completionRate,
-          0 as replayCount,
-          180 as duration
-        FROM video_engagement_tracking vet
-        LEFT JOIN inquiries i ON vet.inquiry_id = i.id
-        WHERE vet.video_id IS NOT NULL AND vet.watched_sec > 0
-        GROUP BY vet.video_id, vet.video_title, vet.inquiry_id, i.first_name, i.family_surname
-        ORDER BY MAX(vet.watched_sec) DESC
-      `);
-    }
-
-    const formattedVideos = videoData.rows.map(row => ({
-      video_id: row.video_id,
-      title: row.title || 'Untitled Video',
-      family_id: row.family_id,
-      family_name: row.first_name && row.family_surname ? 
-        `${row.first_name} ${row.family_surname}` : null,
-      duration: parseInt(row.duration) || 180,
-      totalWatchTime: parseInt(row.totalwatchtime) || 0,
-      completionRate: Math.round(parseFloat(row.completionrate) || 0),
-      pauseCount: parseInt(row.pausecount) || 0,
-      replayCount: parseInt(row.replaycount) || 0,
-      sessions: parseInt(row.sessions) || 1
-    }));
-
-    console.log(`📊 Returning ${formattedVideos.length} video records with watch times`);
-    res.json(formattedVideos);
-
-  } catch (error) {
-    console.error('❌ Video metrics error:', error);
-    res.status(500).json({ 
-      error: 'Failed to get video metrics',
-      message: error.message 
-    });
-  }
-});
-
-// Create the summary table if it doesn't exist
-async function createVideoSummaryTable() {
-  if (!db) return;
-  
-  try {
-    await db.query(`
-      CREATE TABLE IF NOT EXISTS video_engagement_summary (
-        id SERIAL PRIMARY KEY,
-        inquiry_id VARCHAR(255) NOT NULL,
-        video_id VARCHAR(100) NOT NULL,
-        video_title VARCHAR(255),
-        total_watch_time INTEGER DEFAULT 0,
-        play_count INTEGER DEFAULT 0,
-        pause_count INTEGER DEFAULT 0,
-        completion_rate INTEGER DEFAULT 0,
-        last_interaction TIMESTAMP WITH TIME ZONE,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(inquiry_id, video_id)
-      );
-      
-      CREATE INDEX IF NOT EXISTS idx_video_summary_inquiry 
-        ON video_engagement_summary(inquiry_id);
-      CREATE INDEX IF NOT EXISTS idx_video_summary_watch_time 
-        ON video_engagement_summary(total_watch_time DESC);
-    `);
-    console.log('✅ Video summary table ready');
-  } catch (error) {
-    console.warn('⚠️ Video summary table creation failed:', error.message);
-  }
-}
 
 // ===================== AI ENGAGEMENT ANALYSIS =====================
 async function buildEngagementSnapshot(db, inquiryId) {
@@ -2022,30 +1462,29 @@ app.post(["/api/track","/api/tracking"], (req,res) => res.redirect(307, "/api/tr
 
 app.post('/api/track-engagement', async (req, res) => {
   try {
-    // Handle both the old format and new comprehensive format
-    const { events = [], sessionInfo, event_type, event_data, inquiryId, timestamp } = req.body;
+    const { events = [], sessionInfo } = req.body || {};
+    const clientIP = req.ip || req.connection?.remoteAddress;
     
-    // New comprehensive format from enhanced prospectus
-    if (event_type && !events.length) {
-      const singleEvent = {
-        inquiryId: inquiryId || 'UNKNOWN',
-        sessionId: `session-${Date.now()}`,
-        eventType: event_type,
-        timestamp: timestamp || new Date().toISOString(),
-        eventData: event_data || {},
-        currentSection: event_data?.currentSection
-      };
+    console.log(`Tracking: ${events.length} events from ${sessionInfo?.inquiryId || 'unknown'}`);
+    
+    for (const e of (events.length ? events : [req.body])) {
+      const { inquiryId, sessionId, eventType, timestamp, data = {}, url, currentSection } = e;
+      if (!inquiryId || !sessionId || !eventType) continue;
       
-      await trackEngagementEvent(singleEvent);
-      return res.json({ success: true });
+      await trackEngagementEvent({
+        inquiryId, 
+        sessionId, 
+        eventType,
+        timestamp: timestamp || new Date().toISOString(),
+        eventData: data, 
+        url, 
+        currentSection,
+        deviceInfo: data.deviceInfo,
+        ip: clientIP,
+        sessionInfo: sessionInfo
+      });
     }
     
-    // Existing batch format (keep for compatibility)
-    for (const e of events) {
-      await trackEngagementEvent(e);
-    }
-    
-    // Existing sessionInfo handling
     if (sessionInfo?.inquiryId) {
       await updateEngagementMetrics({
         inquiryId: sessionInfo.inquiryId,
@@ -2056,9 +1495,29 @@ app.post('/api/track-engagement', async (req, res) => {
         deviceInfo: sessionInfo.deviceInfo,
         prospectusFilename: 'unknown'
       });
+      
+      if (sessionInfo.timeOnPage && db) {
+        const totalSeconds = Math.round(sessionInfo.timeOnPage);
+        const totalMs = totalSeconds * 1000;
+        
+        console.log(`Updating inquiry ${sessionInfo.inquiryId} with ${totalMs}ms dwell time`);
+        
+        await db.query(`
+          UPDATE inquiries 
+          SET dwell_ms = GREATEST(COALESCE(dwell_ms, 0), $2),
+              updated_at = CURRENT_TIMESTAMP
+          WHERE id = $1
+        `, [sessionInfo.inquiryId, totalMs]);
+        
+        console.log(`Successfully updated dwell_ms for inquiry ${sessionInfo.inquiryId}`);
+      }
     }
     
-    res.json({ success: true, eventsProcessed: events.length || 1 });
+    res.json({ 
+      success: true, 
+      message: `Tracked ${(events.length || 1)} event(s)`,
+      eventsProcessed: events.length || 1
+    });
   } catch (e) {
     console.error('track-engagement error:', e);
     res.status(500).json({ success: false, error: e.message });
