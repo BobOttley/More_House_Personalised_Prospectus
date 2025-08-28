@@ -867,7 +867,7 @@ document.addEventListener('DOMContentLoaded', function(){
     // Update database record with the URL
     if (db) {
       await db.query(
-        'UPDATE inquiries SET pretty_url = $1, prospectus_filename = $2 WHERE inquiry_id = $3',
+        'UPDATE inquiries SET pretty_url = $1, prospectus_filename = $2 WHERE id = $3',
         [prettyPath, filename, inquiry.id]
       );
       console.log(`📝 Database updated: ${inquiry.id} -> ${prettyPath}`);
