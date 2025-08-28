@@ -2460,27 +2460,24 @@
 
         // Enhanced event tracking function
         function trackEvent(eventType, eventData = {}) {
-            if (!isTracking) return;
-            
-            const payload = {
-                event_type: eventType,
-                event_data: {
-                    ...eventData,
-                    currentSection: getCurrentSection(),
-                    timestamp: new Date().toISOString(),
-                    url: window.location.href,
-                    userAgent: navigator.userAgent.substring(0, 200)
-                }
-            };
-            
-            // Add inquiry context if available
-            if (window.MORE_HOUSE_INQUIRY_ID) {
-                payload.inquiryId = window.MORE_HOUSE_INQUIRY_ID;
-            }
-            
-            // Send tracking data
-            sendTrackingData(payload);
+    if (!isTracking) return;
+    
+    const payload = {
+        inquiryId: window.MORE_HOUSE_INQUIRY_ID, // Move this to top level
+        event_type: eventType,
+        eventType: eventType, // Also include both formats
+        event_data: {
+            ...eventData,
+            currentSection: getCurrentSection(),
+            timestamp: new Date().toISOString(),
+            url: window.location.href,
+            userAgent: navigator.userAgent.substring(0, 200)
         }
+    };
+    
+    // Send tracking data
+    sendTrackingData(payload);
+}
 
         function sendTrackingData(payload) {
             const payloadString = JSON.stringify(payload);
@@ -3167,7 +3164,7 @@ ${extracurricularPersonalization ? `<p>${extracurricularPersonalization}</p>` : 
             }
 
             // First try to get from meta tag (primary method)
-            var metaEl = document.querySelector('meta[name="inquiry-id"]');
+            var metaEl = document.querySelector('meta[name="inquiry-id"], meta[inquiry-id]');
             var INQUIRY_ID = null;
             
             if (metaEl && metaEl.content && metaEl.content.trim()) {
