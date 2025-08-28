@@ -2086,20 +2086,20 @@
                     const videoTitle = videoElement?.getAttribute('data-video-title');
                     
                     trackEvent('video_click', {
-                        .....clickData,
+                        .......clickData,
                         videoId: videoId,
                         videoTitle: videoTitle,
                         clickType: 'video_play'
                     });
                 } else if (target.closest('.cta-button') || target.closest('a[href*="open-events"]')) {
                     trackEvent('conversion_click', {
-                        .....clickData,
+                        .......clickData,
                         conversionType: 'open_morning',
                         clickType: 'cta'
                     });
                 } else if (target.closest('.photo-card')) {
                     trackEvent('photo_click', {
-                        .....clickData,
+                        .......clickData,
                         clickType: 'photo_modal'
                     });
                 } else if (target.closest('.entry-card-header')) {
@@ -2107,14 +2107,14 @@
                     const entryType = entryCard?.className.match(/entry-(\w+)/)?.[1];
                     
                     trackEvent('entry_point_expand', {
-                        .....clickData,
+                        .......clickData,
                         entryType: entryType,
                         clickType: 'expand_section'
                     });
                 } else if (target.tagName === 'A' || target.closest('a')) {
                     const link = target.closest('a');
                     trackEvent('link_click', {
-                        .....clickData,
+                        .......clickData,
                         href: link.href,
                         isExternal: !link.href.includes(window.location.hostname),
                         clickType: 'navigation'
