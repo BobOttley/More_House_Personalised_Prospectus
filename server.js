@@ -68,20 +68,6 @@ function generateFilename(inquiry) {
  return `More-House-School-${fam}-Family-${first}-${inquiry.entryYear}-${date}.html`;
 }
 
-function makeSlug(inquiry) {
- const familyName = (inquiry.familySurname || inquiry.family_surname || 'Family')
-   .toLowerCase()
-   .replace(/[^a-z0-9]+/g, '-')
-   .replace(/^-+|-+$/g, '');
-   
- const shortId = String(inquiry.id || '')
-   .replace(/[^a-z0-9]/gi, '')
-   .slice(-6)
-   .toLowerCase() || Math.random().toString(36).slice(-6);
-   
- return `the-${familyName}-family-${shortId}`;
-}
-
 let slugIndex = {};
 
 async function ensureDirectories() {
@@ -457,7 +443,7 @@ async function getEngagementDataForAI(inquiryId) {
 }
 
 // ============================================================================
-// PROSPECTUS GENERATION - Works with template tracking system
+// PROSPECTUS GENERATION - Fixed version based on working copy 3
 // ============================================================================
 
 async function generateProspectus(inquiry) {
@@ -508,21 +494,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
    await fs.writeFile(absPath, finalHtml, 'utf8');
 
-   // Generate pretty URL
-   const slug = makeSlug(inquiry);
-   const prettyPath = `/${slug}`;
-   slugIndex[slug] = relPath;
-   await saveSlugIndex();
-
    console.log(`Prospectus saved: ${filename}`);
-   console.log(`Pretty URL: ${prettyPath}`);
-   console.log(`Tracking: Enabled for ${inquiry.id}`);
 
+   // SIMPLIFIED RETURN - matching working version
    return {
      filename,
-     url: relPath,
-     slug,
-     prettyPath,
+     url: relPath,  // This is `/prospectuses/filename.html`
      generatedAt: new Date().toISOString()
    };
  } catch (e) {
@@ -541,8 +518,6 @@ async function updateInquiryStatus(inquiryId, pInfo) {
      j.prospectusGenerated = true;
      j.prospectusFilename = pInfo.filename;
      j.prospectusUrl = pInfo.url;          
-     j.prospectusPrettyPath = pInfo.prettyPath;   
-     j.slug = pInfo.slug;
      j.prospectusGeneratedAt = pInfo.generatedAt;
      j.status = 'prospectus_generated';
      await fs.writeFile(p, JSON.stringify(j, null, 2));
@@ -559,11 +534,10 @@ async function updateInquiryStatus(inquiryId, pInfo) {
             prospectus_generated=true,
             prospectus_filename=$2,
             prospectus_url=$3,
-            slug=$4,
-            prospectus_generated_at=$5,
+            prospectus_generated_at=$4,
             updated_at=CURRENT_TIMESTAMP
         WHERE id=$1`,
-       [inquiryId, pInfo.filename, pInfo.url, pInfo.slug, new Date(pInfo.generatedAt)]
+       [inquiryId, pInfo.filename, pInfo.url, new Date(pInfo.generatedAt)]
      );
      console.log(`Database updated: ${inquiryId}`);
    } catch (e) {
@@ -665,30 +639,6 @@ async function getEngagementSummaryFromTracking(inquiryId) {
   }
 }
 
-async function getEngagementDataForAI(inquiryId) {
-  const summary = await getEngagementSummaryFromTracking(inquiryId);
-  
-  if (!summary) {
-    return {
-      totalTimeSeconds: 0,
-      sectionsViewed: 0,
-      totalVisits: 1,
-      videoWatchTime: 0,
-      topSections: [],
-      averageScrollDepth: 0
-    };
-  }
-
-  return {
-    totalTimeSeconds: summary.totalEngagementTime,
-    sectionsViewed: summary.sections.length,
-    totalVisits: summary.sessionCount,
-    videoWatchTime: summary.totalVideoTime,
-    topSections: summary.sections.slice(0, 5).map(s => s.section),
-    averageScrollDepth: summary.avgScrollDepth
-  };
-}
-
 // ============================================================================
 // EXPRESS ROUTES
 // ============================================================================
@@ -739,7 +689,7 @@ app.post('/api/track-engagement', async (req, res) => {
   }
 });
 
-// Webhook for new inquiries
+// Webhook for new inquiries - FIXED VERSION
 app.post(['/webhook', '/api/inquiry'], async (req, res) => {
  try {
    const data = req.body || {};
@@ -810,15 +760,14 @@ app.post(['/webhook', '/api/inquiry'], async (req, res) => {
    const p = await generateProspectus(record);
    await updateInquiryStatus(record.id, p);
 
+   // FIXED RESPONSE - using p.url directly like working version
    return res.json({
      success: true,
      inquiryId: record.id,
      receivedAt: record.receivedAt,
      prospectus: {
        filename: p.filename,
-       url: `${base}${p.prettyPath}`,
-       directFile: `${base}${p.url}`,
-       slug: p.slug,
+       url: `${base}${p.url}`,  // Using p.url directly - this is `/prospectuses/filename.html`
        generatedAt: p.generatedAt
      }
    });
@@ -840,7 +789,7 @@ app.get('/api/dashboard-data', async (req, res) => {
        const result = await db.query(`
          SELECT id, first_name, family_surname, parent_email, age_group, entry_year,
                 received_at, status, prospectus_generated, prospectus_filename, 
-                prospectus_url, slug, prospectus_generated_at
+                prospectus_url, prospectus_generated_at
          FROM inquiries 
          ORDER BY received_at DESC
        `);
@@ -854,9 +803,7 @@ app.get('/api/dashboard-data', async (req, res) => {
          entryYear: row.entry_year,
          receivedAt: row.received_at,
          status: row.status,
-         prospectusGenerated: row.prospectus_generated,
-         slug: row.slug,
-         prospectusPrettyPath: row.slug ? `/${row.slug}` : null
+         prospectusGenerated: row.prospectus_generated
        }));
        
        console.log(`Loaded ${inquiries.length} inquiries from database`);
@@ -950,8 +897,7 @@ app.get('/api/analytics/inquiries', async (req, res) => {
          age_group: row.age_group,
          received_at: row.received_at,
          status: row.status || (row.prospectus_generated ? 'prospectus_generated' : 'received'),
-         slug: row.slug,
-         prospectus_pretty_url: row.slug ? `${base}/${row.slug}` : null,
+         prospectus_pretty_url: row.prospectus_url ? `${base}${row.prospectus_url}` : null,
          engagement: {
            timeOnPage: row.time_on_page || 0,
            scrollDepth: row.scroll_depth || 0,
@@ -1006,8 +952,7 @@ app.get('/api/analytics/inquiries', async (req, res) => {
            age_group: inquiry.ageGroup,
            received_at: inquiry.receivedAt,
            status: inquiry.status || (inquiry.prospectusGenerated ? 'prospectus_generated' : 'received'),
-           slug: inquiry.slug,
-           prospectus_pretty_url: inquiry.prospectusPrettyPath ? `${base}${inquiry.prospectusPrettyPath}` : null,
+           prospectus_pretty_url: inquiry.prospectusUrl ? `${base}${inquiry.prospectusUrl}` : null,
            engagement: {
              timeOnPage: 0,
              scrollDepth: 0,
@@ -1212,9 +1157,7 @@ app.post('/api/generate-prospectus/:inquiryId', async (req, res) => {
      inquiryId,
      prospectus: {
        filename: p.filename,
-       url: `${base}${p.prettyPath}`,
-       directFile: `${base}${p.url}`,
-       slug: p.slug,
+       url: `${base}${p.url}`,  // FIXED - using p.url directly
        generatedAt: p.generatedAt
      }
    });
@@ -1244,89 +1187,13 @@ app.get('/prospectuses/:filename', async (req, res) => {
 
 app.use('/prospectuses', express.static(path.join(__dirname, 'prospectuses')));
 
-// Pretty URL handler
-const RESERVED = new Set(['api','prospectuses','health','dashboard','admin']);
-
-app.get('/:slug', async (req, res, next) => {
- const slug = String(req.params.slug || '').toLowerCase();
- 
- if (!/^[a-z0-9-]+$/.test(slug) || RESERVED.has(slug)) {
-   return next();
- }
-
- console.log(`Looking up slug: ${slug}`);
-
- let rel = slugIndex[slug];
- if (!rel && db) {
-   try {
-     const result = await db.query('SELECT * FROM inquiries WHERE slug = $1 LIMIT 1', [slug]);
-     if (result.rows.length > 0) {
-       const inquiry = {
-         id: result.rows[0].id,
-         firstName: result.rows[0].first_name,
-         familySurname: result.rows[0].family_surname,
-         parentEmail: result.rows[0].parent_email,
-         ageGroup: result.rows[0].age_group,
-         entryYear: result.rows[0].entry_year,
-         // Add interest fields
-         sciences: result.rows[0].sciences,
-         mathematics: result.rows[0].mathematics,
-         english: result.rows[0].english,
-         languages: result.rows[0].languages,
-         humanities: result.rows[0].humanities,
-         business: result.rows[0].business,
-         drama: result.rows[0].drama,
-         music: result.rows[0].music,
-         art: result.rows[0].art,
-         creative_writing: result.rows[0].creative_writing,
-         sport: result.rows[0].sport,
-         leadership: result.rows[0].leadership,
-         community_service: result.rows[0].community_service,
-         outdoor_education: result.rows[0].outdoor_education,
-         academic_excellence: result.rows[0].academic_excellence,
-         pastoral_care: result.rows[0].pastoral_care,
-         university_preparation: result.rows[0].university_preparation,
-         personal_development: result.rows[0].personal_development,
-         career_guidance: result.rows[0].career_guidance,
-         extracurricular_opportunities: result.rows[0].extracurricular_opportunities
-       };
-       
-       const p = await generateProspectus(inquiry);
-       await updateInquiryStatus(inquiry.id, p);
-       rel = p.url;
-       slugIndex[slug] = rel;
-       await saveSlugIndex();
-     }
-   } catch (e) {
-     console.warn('Slug lookup failed:', e.message);
-   }
- }
-
- if (!rel) {
-   return res.status(404).send(`
-     <h1>Prospectus Not Found</h1>
-     <p>The link /${slug} could not be found.</p>
-   `);
- }
-
- const abs = path.join(__dirname, rel);
- try {
-   await fs.access(abs);
-   console.log(`Serving: ${slug} -> ${rel}`);
-   return res.sendFile(abs);
- } catch {
-   console.error('File not found for slug:', slug);
-   return res.status(500).send('Failed to load prospectus');
- }
-});
-
 // Health check
 app.get('/health', (req, res) => {
  res.json({
    status: 'healthy',
    timestamp: new Date().toISOString(),
    database: db ? 'connected' : 'json-only',
-   version: '7.0.0-CHATGPT',
+   version: '7.0.0-FIXED',
    features: {
      tracking: 'prospectus-integrated',
      analytics: 'chatgpt-powered',
@@ -1343,7 +1210,7 @@ app.get('/', (req, res) => {
 <style>body{font-family:system-ui;padding:24px;max-width:780px;margin:auto;line-height:1.6}</style></head>
 <body>
  <h1>More House Prospectus Service</h1>
- <p><strong>Version 7.0.0 - ChatGPT Analytics</strong></p>
+ <p><strong>Version 7.0.0 - FIXED</strong></p>
  <ul>
    <li>Health: <a href="${base}/health">${base}/health</a></li>
    <li>Dashboard: <a href="${base}/dashboard.html">${base}/dashboard.html</a></li>
@@ -1386,7 +1253,7 @@ async function startServer() {
 Server running on port ${PORT}
 Database: ${dbConnected ? 'PostgreSQL Connected' : 'JSON-only mode'}
 Environment: ${process.env.NODE_ENV || 'development'}
-Version: 7.0.0-CHATGPT
+Version: 7.0.0-FIXED
 Tracking: Prospectus integrated
 Analytics: ChatGPT powered
 =====================================
