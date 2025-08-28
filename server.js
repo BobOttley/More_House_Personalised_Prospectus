@@ -61,6 +61,26 @@ function sanitise(s, fallback) {
    .replace(/-+/g, '-');
 }
 
+function makeSlug(inquiry) {
+  const firstName = sanitise(inquiry.firstName || 'student', '');
+  const familySurname = sanitise(inquiry.familySurname || 'family', '');
+  const entryYear = inquiry.entryYear || new Date().getFullYear();
+  
+  // Create a readable slug: firstname-surname-year
+  const slug = `${firstName}-${familySurname}-${entryYear}`.toLowerCase();
+  
+  // Ensure uniqueness by checking if slug exists
+  let uniqueSlug = slug;
+  let counter = 1;
+  
+  while (slugIndex[uniqueSlug]) {
+    uniqueSlug = `${slug}-${counter}`;
+    counter++;
+  }
+  
+  return uniqueSlug;
+}
+
 function generateFilename(inquiry) {
  const date = new Date().toISOString().split('T')[0];
  const fam = sanitise(inquiry.familySurname, 'Family');
@@ -502,6 +522,19 @@ document.addEventListener('DOMContentLoaded', function() {
    slugIndex[slug] = relPath;
    await saveSlugIndex();
 
+   // Also update database with slug if connected
+   if (db) {
+     try {
+       await db.query(
+         'UPDATE inquiries SET slug = $1 WHERE id = $2',
+         [slug, inquiry.id]
+       );
+       console.log(`Database slug updated: ${inquiry.id} -> ${slug}`);
+     } catch (e) {
+       console.warn('DB slug update failed (non-fatal):', e.message);
+     }
+   }
+
    console.log(`Prospectus saved: ${filename}`);
    console.log(`Pretty URL: ${prettyPath}`);
 
@@ -529,6 +562,7 @@ async function updateInquiryStatus(inquiryId, pInfo) {
      j.prospectusFilename = pInfo.filename;
      j.prospectusUrl = pInfo.url;          
      j.prospectusGeneratedAt = pInfo.generatedAt;
+     j.slug = pInfo.slug;
      j.status = 'prospectus_generated';
      await fs.writeFile(p, JSON.stringify(j, null, 2));
      break;
@@ -545,9 +579,10 @@ async function updateInquiryStatus(inquiryId, pInfo) {
             prospectus_filename=$2,
             prospectus_url=$3,
             prospectus_generated_at=$4,
+            slug=$5,
             updated_at=CURRENT_TIMESTAMP
         WHERE id=$1`,
-       [inquiryId, pInfo.filename, pInfo.url, new Date(pInfo.generatedAt)]
+       [inquiryId, pInfo.filename, pInfo.url, new Date(pInfo.generatedAt), pInfo.slug]
      );
      console.log(`Database updated: ${inquiryId}`);
    } catch (e) {
@@ -908,7 +943,7 @@ app.get('/api/analytics/inquiries', async (req, res) => {
          age_group: row.age_group,
          received_at: row.received_at,
          status: row.status || (row.prospectus_generated ? 'prospectus_generated' : 'received'),
-         prospectus_pretty_url: row.prospectus_url ? `${base}${row.prospectus_url}` : null,
+         prospectus_pretty_url: row.slug ? `${base}/${row.slug}` : (row.prospectus_url ? `${base}${row.prospectus_url}` : null),
          engagement: {
            timeOnPage: row.time_on_page || 0,
            scrollDepth: row.scroll_depth || 0,
@@ -954,6 +989,9 @@ app.get('/api/analytics/inquiries', async (req, res) => {
          const content = await fs.readFile(path.join(__dirname, 'data', f), 'utf8');
          const inquiry = JSON.parse(content);
          
+         const prettyUrl = inquiry.slug ? `${base}/${inquiry.slug}` : 
+                          (inquiry.prospectusUrl ? `${base}${inquiry.prospectusUrl}` : null);
+         
          inquiries.push({
            id: inquiry.id,
            first_name: inquiry.firstName,
@@ -963,7 +1001,7 @@ app.get('/api/analytics/inquiries', async (req, res) => {
            age_group: inquiry.ageGroup,
            received_at: inquiry.receivedAt,
            status: inquiry.status || (inquiry.prospectusGenerated ? 'prospectus_generated' : 'received'),
-           prospectus_pretty_url: inquiry.prospectusUrl ? `${base}${inquiry.prospectusUrl}` : null,
+           prospectus_pretty_url: prettyUrl,
            engagement: {
              timeOnPage: 0,
              scrollDepth: 0,
@@ -996,7 +1034,7 @@ app.post('/api/fix-existing-slugs', async (req, res) => {
   
   try {
     const result = await db.query(`
-      SELECT id, first_name, family_surname, prospectus_filename 
+      SELECT id, first_name, family_surname, prospectus_filename, entry_year
       FROM inquiries 
       WHERE prospectus_generated = true AND (slug IS NULL OR slug = '')
     `);
@@ -1006,11 +1044,11 @@ app.post('/api/fix-existing-slugs', async (req, res) => {
       const inquiry = {
         id: row.id,
         firstName: row.first_name,
-        familySurname: row.family_surname
+        familySurname: row.family_surname,
+        entryYear: row.entry_year
       };
       
       const slug = makeSlug(inquiry);
-      const prettyPath = `/${slug}`;
       
       // Update database
       await db.query(
@@ -1310,7 +1348,7 @@ app.get('/:slug', async (req, res, next) => {
    `);
  }
 
- const abs = path.join(__dirname, rel);
+ const abs = path.join(__dirname, rel.replace('/prospectuses/', 'prospectuses/'));
  try {
    await fs.access(abs);
    console.log(`Serving: ${slug} -> ${rel}`);
@@ -1329,7 +1367,7 @@ app.get('/', (req, res) => {
 <style>body{font-family:system-ui;padding:24px;max-width:780px;margin:auto;line-height:1.6}</style></head>
 <body>
  <h1>More House Prospectus Service</h1>
- <p><strong>Version 7.0.0 - FIXED</strong></p>
+ <p><strong>Version 7.0.1 - SLUG FIXED</strong></p>
  <ul>
    <li>Health: <a href="${base}/health">${base}/health</a></li>
    <li>Dashboard: <a href="${base}/dashboard.html">${base}/dashboard.html</a></li>
@@ -1342,6 +1380,7 @@ app.get('/', (req, res) => {
    <li>Tracking: Built into prospectus template</li>
    <li>Analytics: ChatGPT powered</li>
    <li>Dashboard: Active</li>
+   <li>Slug Generation: Fixed</li>
  </ul>
 </body></html>`);
 });
@@ -1372,9 +1411,10 @@ async function startServer() {
 Server running on port ${PORT}
 Database: ${dbConnected ? 'PostgreSQL Connected' : 'JSON-only mode'}
 Environment: ${process.env.NODE_ENV || 'development'}
-Version: 7.0.0-FIXED
+Version: 7.0.1-SLUG-FIXED
 Tracking: Prospectus integrated
 Analytics: ChatGPT powered
+Slug Generation: WORKING
 =====================================
    `);
  });
@@ -1393,7 +1433,7 @@ process.on('SIGINT', async () => {
 process.on('SIGTERM', async () => { 
  console.log('\nShutting down gracefully...');
  if (db) {
-   await Fdb.end();
+   await db.end();
    console.log('Database connection closed.');
  }
  process.exit(0); 
