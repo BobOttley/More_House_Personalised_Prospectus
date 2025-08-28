@@ -2129,27 +2129,6 @@
 
         
 // Enhanced video functions with fixed YouTube integration
-function openVideo(videoId, title, description) {
-  const modal = document.getElementById('videoModal');
-  const modalTitle = document.getElementById('videoModalTitle');
-  const modalDesc = document.getElementById('videoModalDescription');
-  const personalMessage = document.getElementById('videoPersonalMessage');
-  const section = getCurrentSection();
-
-  // Set modal text
-  modalTitle.textContent = title;
-  modalDesc.textContent = description;
-  if (prospectusData && prospectusData.firstName) {
-    personalMessage.textContent = `Specially selected for ${prospectusData.firstName}'s interests`;
-    personalMessage.style.display = 'block';
-  } else {
-    personalMessage.style.display = 'none';
-  }
-
-  // Show modal
-  modal.classList.add('active');
-  document.body.style.overflow = 'hidden';
-
   // Build the proper YT URL
   const origin = window.location.origin;
   const ytUrl = `https://www.youtube.com/embed/${videoId}?enablejsapi=1&origin=${origin}&rel=0&playsinline=1&autoplay=1&modestbranding=1&fs=1`;
@@ -2288,7 +2267,6 @@ function loadYouTubeAPIWithCallback(callback) {
 
     // Load the API script
     const tag = document.createElement('script');
-    tag.src = 'https://www.youtube.com/iframe_api';
     tag.onerror = function() {
         console.error('Failed to load YouTube API');
         if (callback) callback(); // Still call callback for fallback
@@ -3384,6 +3362,147 @@ ${extracurricularPersonalization ? `<p>${extracurricularPersonalization}</p>` : 
                 });
             }
         });
-    </script>
+        <script>
+/*
+  YOUTUBE — SINGLE INSTANCE, SAFE ORIGIN, CLEANUP BETWEEN VIDEOS
+  - Guarantees only one YT.Player at a time
+  - Destroys the old player on close/switch
+  - Ensures correct origin for the iframe API
+*/
+
+(function () {
+  if (window.__MH_YT_INIT__) return;
+  window.__MH_YT_INIT__ = true;
+
+  let YT_READY = false;
+  let player = null;
+  let iframe = null;
+
+  // Adjust these selectors ONLY if your template uses different ones
+  const MODAL_SELECTOR  = '.video-modal';
+  const IFRAME_SELECTOR = '#videoPlayer';                 // matches your logs
+  const TITLE_SELECTOR  = '.video-modal-header h3';
+  const MSG_SELECTOR    = '.video-modal-header .personal-message';
+
+  // Load YT Iframe API once
+  function ensureYouTubeAPI() {
+    if (window.YT && window.YT.Player) { YT_READY = true; return; }
+    if (document.getElementById('yt-iframe-api')) return;
+    var tag = document.createElement('script');
+    tag.id = 'yt-iframe-api';
+    document.head.appendChild(tag);
+  }
+  ensureYouTubeAPI();
+
+  // Chain any pre-existing handler safely
+  var prevOnReady = window.onYouTubeIframeAPIReady;
+  window.onYouTubeIframeAPIReady = function () {
+    YT_READY = true;
+    if (typeof prevOnReady === 'function') { try { prevOnReady(); } catch (_) {} }
+  };
+
+  function cleanupYouTube() {
+    try { if (player && typeof player.destroy === 'function') player.destroy(); } catch (_) {}
+    player = null;
+    iframe = null;
+  }
+
+  function openModal() {
+    var modal = document.querySelector(MODAL_SELECTOR);
+    if (modal) modal.classList.add('active');
+  }
+
+  function closeModal() {
+    var modal = document.querySelector(MODAL_SELECTOR);
+    if (modal) modal.classList.remove('active');
+    cleanupYouTube();
+  }
+
+  // If you already have a close button, this keeps it working
+  window.closeVideoModal = closeModal;
+
+  function playYouTubeVideo(videoId, titleText, personalMsg) {
+    // Update header text (keeps your current UI behaviour)
+    try {
+      var t = document.querySelector(TITLE_SELECTOR);
+      if (t && titleText) t.textContent = titleText;
+      var m = document.querySelector(MSG_SELECTOR);
+      if (m && typeof personalMsg === 'string') m.textContent = personalMsg;
+    } catch (_) {}
+
+    openModal(); // show modal first to get correct dimensions
+    iframe = document.querySelector(IFRAME_SELECTOR);
+    if (!iframe) return;
+
+    var origin = location.origin;
+    var base = 'https://www.youtube.com/embed/' + encodeURIComponent(videoId);
+    var qs = 'enablejsapi=1&origin=' + encodeURIComponent(origin) +
+             '&rel=0&playsinline=1&modestbranding=1&fs=1';
+    var wantSrc = base + '?' + qs;
+
+    // Reuse existing player if possible
+    if (player && typeof player.loadVideoById === 'function') {
+      try {
+        player.loadVideoById({ videoId: videoId });
+        return;
+      } catch (_) {
+        cleanupYouTube();
+      }
+    }
+
+    // Set src before building player to keep origins aligned
+    iframe.src = wantSrc;
+
+    (function startWhenReady() {
+      if (!YT_READY || !(window.YT && window.YT.Player)) {
+        setTimeout(startWhenReady, 50);
+        return;
+      }
+      try {
+        player = new YT.Player(iframe, {
+          events: {
+            onReady: function (e) {
+              try { e.target.playVideo(); } catch (_) {}
+            },
+            onStateChange: function (e) {
+              // Hook your tracking here if needed:
+              // e.data === YT.PlayerState.PLAYING / PAUSED / ENDED
+            }
+          }
+        });
+      } catch (err) {
+        // Last resort fallback
+        try { iframe.src = wantSrc + '&autoplay=1'; } catch (_) {}
+      }
+    })();
+  }
+
+  // Replace/define the global open function your buttons call
+  var oldOpenVideo = window.openVideo;
+  window.openVideo = function (videoId, titleText, personalMsg) {
+    try { playYouTubeVideo(videoId, titleText, personalMsg); }
+    catch (e) { if (typeof oldOpenVideo === 'function') oldOpenVideo(videoId, titleText, personalMsg); }
+  };
+
+  // Close via any element with `.video-close`
+  document.addEventListener('click', function (ev) {
+    var btn = ev.target.closest('.video-close');
+    if (btn) { ev.preventDefault(); closeModal(); }
+  }, true);
+
+  // Defensive helper ONLY if you still have legacy manual postMessages elsewhere
+  window.__mh_safePostToYouTube = function (msg) {
+    try {
+      if (!iframe || !iframe.contentWindow) return;
+      var payload = (typeof msg === 'string') ? msg : JSON.stringify(msg);
+      iframe.contentWindow.postMessage(payload, 'https://www.youtube.com');
+    } catch (_) {
+      try { iframe.contentWindow.postMessage(payload, '*'); } catch (__){}
+    }
+  };
+})();
+</script>
+
+
 </body>
 </html>
