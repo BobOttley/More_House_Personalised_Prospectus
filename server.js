@@ -1686,29 +1686,30 @@ app.post(["/api/track","/api/tracking"], (req,res) => res.redirect(307, "/api/tr
 
 app.post('/api/track-engagement', async (req, res) => {
   try {
-    const { events = [], sessionInfo } = req.body || {};
-    const clientIP = req.ip || req.connection?.remoteAddress;
+    // Handle both the old format and new comprehensive format
+    const { events = [], sessionInfo, event_type, event_data, inquiryId, timestamp } = req.body;
     
-    console.log(`Tracking: ${events.length} events from ${sessionInfo?.inquiryId || 'unknown'}`);
-    
-    for (const e of (events.length ? events : [req.body])) {
-      const { inquiryId, sessionId, eventType, timestamp, data = {}, url, currentSection } = e;
-      if (!inquiryId || !sessionId || !eventType) continue;
-      
-      await trackEngagementEvent({
-        inquiryId, 
-        sessionId, 
-        eventType,
+    // New comprehensive format from enhanced prospectus
+    if (event_type && !events.length) {
+      const singleEvent = {
+        inquiryId: inquiryId || 'UNKNOWN',
+        sessionId: `session-${Date.now()}`,
+        eventType: event_type,
         timestamp: timestamp || new Date().toISOString(),
-        eventData: data, 
-        url, 
-        currentSection,
-        deviceInfo: data.deviceInfo,
-        ip: clientIP,
-        sessionInfo: sessionInfo
-      });
+        eventData: event_data || {},
+        currentSection: event_data?.currentSection
+      };
+      
+      await trackEngagementEvent(singleEvent);
+      return res.json({ success: true });
     }
     
+    // Existing batch format (keep for compatibility)
+    for (const e of events) {
+      await trackEngagementEvent(e);
+    }
+    
+    // Existing sessionInfo handling
     if (sessionInfo?.inquiryId) {
       await updateEngagementMetrics({
         inquiryId: sessionInfo.inquiryId,
@@ -1719,29 +1720,9 @@ app.post('/api/track-engagement', async (req, res) => {
         deviceInfo: sessionInfo.deviceInfo,
         prospectusFilename: 'unknown'
       });
-      
-      if (sessionInfo.timeOnPage && db) {
-        const totalSeconds = Math.round(sessionInfo.timeOnPage);
-        const totalMs = totalSeconds * 1000;
-        
-        console.log(`Updating inquiry ${sessionInfo.inquiryId} with ${totalMs}ms dwell time`);
-        
-        await db.query(`
-          UPDATE inquiries 
-          SET dwell_ms = GREATEST(COALESCE(dwell_ms, 0), $2),
-              updated_at = CURRENT_TIMESTAMP
-          WHERE id = $1
-        `, [sessionInfo.inquiryId, totalMs]);
-        
-        console.log(`Successfully updated dwell_ms for inquiry ${sessionInfo.inquiryId}`);
-      }
     }
     
-    res.json({ 
-      success: true, 
-      message: `Tracked ${(events.length || 1)} event(s)`,
-      eventsProcessed: events.length || 1
-    });
+    res.json({ success: true, eventsProcessed: events.length || 1 });
   } catch (e) {
     console.error('track-engagement error:', e);
     res.status(500).json({ success: false, error: e.message });
