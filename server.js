@@ -847,12 +847,12 @@ document.addEventListener('DOMContentLoaded', function(){
     const hasInquiryId = savedContent.includes(`const INQUIRY_ID = '${inquiry.id}';`);
     const hasPersonalization = savedContent.includes('initializeProspectus');
 
-    console.log(\`📄 Prospectus saved: \${filename}\`);
-    console.log(\`🌐 Pretty URL: \${prettyPath}\`);
-    console.log(\`📊 Embedded tracking: \${hasEmbeddedTracking ? '✅ VERIFIED' : '❌ MISSING'}\`);
-    console.log(\`🔑 Inquiry ID: \${hasInquiryId ? '✅ VERIFIED' : '❌ MISSING'}\`);
-    console.log(\`🎯 Personalization: \${hasPersonalization ? '✅ VERIFIED' : '❌ MISSING'}\`);
-
+    console.log(`📄 Prospectus saved: ${filename}`);
+    console.log(`🌐 Pretty URL: ${prettyPath}`);
+    console.log(`📊 Embedded tracking: ${hasEmbeddedTracking ? '✅ VERIFIED' : '❌ MISSING'}`);
+    console.log(`🔑 Inquiry ID: ${hasInquiryId ? '✅ VERIFIED' : '❌ MISSING'}`);
+    console.log(`🎯 Personalization: ${hasPersonalization ? '✅ VERIFIED' : '❌ MISSING'}`);
+  
     if (!hasEmbeddedTracking || !hasInquiryId) {
       console.error('🚨 CRITICAL: Embedded tracking injection FAILED!');
     }
