@@ -409,13 +409,14 @@ async function rebuildSlugIndexFromData() {
 
 async function generateProspectus(inquiry) {
   try {
+    console.log(`Generating prospectus for ${inquiry.firstName} ${inquiry.familySurname}`);
     const templatePath = path.join(__dirname, 'public', 'prospectus_template.html');
     let html = await fs.readFile(templatePath, 'utf8');
 
     // Create filename and paths
     const filename = `More-House-School-${inquiry.familySurname}-Family-${inquiry.firstName}-${new Date().getFullYear()}-${new Date().toISOString().split('T')[0]}.html`;
-    const relPath = `prospectuses/${filename}`;
-    const absPath = path.join(__dirname, relPath);
+    const relPath = `/prospectuses/${filename}`;
+    const absPath = path.join(__dirname, 'prospectuses', filename);
 
     await fs.mkdir(path.dirname(absPath), { recursive: true });
 
@@ -480,7 +481,7 @@ document.addEventListener('DOMContentLoaded', function(){
 
   // Section detection with robust fallback
   function detectCurrentSection() {
-    // Method 1: Try data-section attributes
+    // Method 1: Try data-track-section attributes
     const sections = document.querySelectorAll('[data-track-section]');
     if (sections.length > 0) {
       for (let section of sections) {
@@ -493,7 +494,7 @@ document.addEventListener('DOMContentLoaded', function(){
           return {
             id: section.dataset.trackSection,
             element: section,
-            label: getSectionLabel(section.dataset.section)
+            label: getSectionLabel(section.dataset.trackSection)
           };
         }
       }
@@ -517,13 +518,19 @@ document.addEventListener('DOMContentLoaded', function(){
 
   function getSectionLabel(sectionId) {
     const labels = {
-      'welcome': "Headmaster's Welcome",
-      'academic': 'Academic Excellence',
-      'pastoral': 'Pastoral Care',
-      'facilities': 'Facilities',
-      'admissions': 'Admissions',
-      'fees': 'Fees & Scholarships',
-      'contact': 'Contact Information',
+      'cover_page': 'Cover Page',
+      'heads_welcome': 'Head\\'s Welcome',
+      'academic_excellence': 'Academic Excellence',
+      'about_more_house': 'About More House',
+      'day_in_the_life': 'Day in the Life',
+      'creative_arts_hero': 'Creative Arts',
+      'your_journey': 'Your Journey',
+      'london_extended_classroom': 'London Learning',
+      'city_curriculum_days': 'City Curriculum',
+      'values_hero': 'Values',
+      'ethical_leaders': 'Ethical Leaders',
+      'discover_video': 'Discovery Videos',
+      'cta_begin_your_journey': 'Begin Your Journey',
       'top': 'Introduction',
       'upper': 'Academic Overview',
       'middle': 'School Life',
@@ -547,7 +554,7 @@ document.addEventListener('DOMContentLoaded', function(){
       });
 
       if (!response.ok) {
-        throw new Error(\`HTTP \${response.status}: \${response.statusText}\`);
+        throw new Error('HTTP ' + response.status + ': ' + response.statusText);
       }
 
       return await response.json();
@@ -582,7 +589,7 @@ document.addEventListener('DOMContentLoaded', function(){
       eventQueue.push(event);
     }
 
-    console.log(\`📝 EVENT: \${eventType} | Section: \${currentSectionId}\`);
+    console.log('EVENT: ' + eventType + ' | Section: ' + currentSectionId);
   }
 
   // Section management
@@ -706,7 +713,7 @@ document.addEventListener('DOMContentLoaded', function(){
   function getDeviceInfo() {
     return {
       userAgent: navigator.userAgent,
-      viewport: \`\${window.innerWidth}x\${window.innerHeight}\`,
+      viewport: window.innerWidth + 'x' + window.innerHeight,
       mobile: /Mobi|Android/i.test(navigator.userAgent),
       timestamp: Date.now()
     };
@@ -753,7 +760,7 @@ document.addEventListener('DOMContentLoaded', function(){
     if (typeof originalOpenVideo === 'function') {
       window.openVideo = function(videoId, title) {
         track('video_opened', { videoId, title });
-        console.log(\`🎥 VIDEO OPENED: \${videoId} \${title}\`);
+        console.log('VIDEO OPENED: ' + videoId + ' ' + title);
         return originalOpenVideo.apply(this, arguments);
       };
     }
@@ -852,7 +859,7 @@ document.addEventListener('DOMContentLoaded', function(){
     console.log(`📊 Embedded tracking: ${hasEmbeddedTracking ? '✅ VERIFIED' : '❌ MISSING'}`);
     console.log(`🔑 Inquiry ID: ${hasInquiryId ? '✅ VERIFIED' : '❌ MISSING'}`);
     console.log(`🎯 Personalization: ${hasPersonalization ? '✅ VERIFIED' : '❌ MISSING'}`);
-  
+
     if (!hasEmbeddedTracking || !hasInquiryId) {
       console.error('🚨 CRITICAL: Embedded tracking injection FAILED!');
     }
@@ -863,7 +870,7 @@ document.addEventListener('DOMContentLoaded', function(){
         'UPDATE inquiries SET pretty_url = $1, prospectus_filename = $2 WHERE inquiry_id = $3',
         [prettyPath, filename, inquiry.id]
       );
-      console.log(\`📝 Database updated: \${inquiry.id} -> \${prettyPath}\`);
+      console.log(`📝 Database updated: ${inquiry.id} -> ${prettyPath}`);
     }
 
     return {
