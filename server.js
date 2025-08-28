@@ -1371,7 +1371,7 @@ app.get('/api/analytics/video-metrics', async (req, res) => {
     const videoQuery = `
       SELECT 
         vet.video_id,
-        vet.video_title,
+        vet.video_title as title,
         vet.inquiry_id as family_id,
         i.first_name,
         i.family_surname,
@@ -1393,7 +1393,7 @@ app.get('/api/analytics/video-metrics', async (req, res) => {
     
     const videoMetrics = result.rows.map(row => ({
       video_id: row.video_id,
-      title: row.video_title,
+      title: row.video_title || row.title,
       family_id: row.family_id,
       familyName: row.first_name && row.family_surname ? 
         `${row.first_name} ${row.family_surname}` : 'Unknown Family',
