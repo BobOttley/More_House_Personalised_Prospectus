@@ -457,9 +457,13 @@ async function generateProspectus(inquiry) {
    const relPath = `/prospectuses/${filename}`;
    const absPath = path.join(__dirname, 'prospectuses', filename);
 
+   // Generate slug and pretty path
+   const slug = makeSlug(inquiry);
+   const prettyPath = `/${slug}`;
+
    // Add meta tags for tracking (used by template)
    const meta = `
-<meta name="inquiry-id" content="${inquiry.id}" name="inquiry-id">
+<meta name="inquiry-id" content="${inquiry.id}">
 <meta name="generated-date" content="${new Date().toISOString()}">
 <meta name="student-name" content="${inquiry.firstName} ${inquiry.familySurname}">
 <meta name="entry-year" content="${inquiry.entryYear}">
@@ -494,12 +498,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
    await fs.writeFile(absPath, finalHtml, 'utf8');
 
-   console.log(`Prospectus saved: ${filename}`);
+   // Update slug index
+   slugIndex[slug] = relPath;
+   await saveSlugIndex();
 
-   // SIMPLIFIED RETURN - matching working version
+   console.log(`Prospectus saved: ${filename}`);
+   console.log(`Pretty URL: ${prettyPath}`);
+
    return {
      filename,
-     url: relPath,  // This is `/prospectuses/filename.html`
+     url: relPath,
+     slug,
+     prettyPath,
      generatedAt: new Date().toISOString()
    };
  } catch (e) {
@@ -760,14 +770,15 @@ app.post(['/webhook', '/api/inquiry'], async (req, res) => {
    const p = await generateProspectus(record);
    await updateInquiryStatus(record.id, p);
 
-   // FIXED RESPONSE - using p.url directly like working version
    return res.json({
      success: true,
      inquiryId: record.id,
      receivedAt: record.receivedAt,
      prospectus: {
        filename: p.filename,
-       url: `${base}${p.url}`,  // Using p.url directly - this is `/prospectuses/filename.html`
+       url: `${base}${p.prettyPath}`,
+       directFile: `${base}${p.url}`,
+       slug: p.slug,
        generatedAt: p.generatedAt
      }
    });
@@ -1157,7 +1168,9 @@ app.post('/api/generate-prospectus/:inquiryId', async (req, res) => {
      inquiryId,
      prospectus: {
        filename: p.filename,
-       url: `${base}${p.url}`,  // FIXED - using p.url directly
+       url: `${base}${p.prettyPath}`,
+       directFile: `${base}${p.url}`,
+       slug: p.slug,
        generatedAt: p.generatedAt
      }
    });
@@ -1187,19 +1200,79 @@ app.get('/prospectuses/:filename', async (req, res) => {
 
 app.use('/prospectuses', express.static(path.join(__dirname, 'prospectuses')));
 
-// Health check
-app.get('/health', (req, res) => {
- res.json({
-   status: 'healthy',
-   timestamp: new Date().toISOString(),
-   database: db ? 'connected' : 'json-only',
-   version: '7.0.0-FIXED',
-   features: {
-     tracking: 'prospectus-integrated',
-     analytics: 'chatgpt-powered',
-     dashboard: 'active'
+// Pretty URL handler
+const RESERVED = new Set(['api','prospectuses','health','dashboard','admin']);
+
+app.get('/:slug', async (req, res, next) => {
+ const slug = String(req.params.slug || '').toLowerCase();
+ 
+ if (!/^[a-z0-9-]+$/.test(slug) || RESERVED.has(slug)) {
+   return next();
+ }
+
+ console.log(`Looking up slug: ${slug}`);
+
+ let rel = slugIndex[slug];
+ if (!rel && db) {
+   try {
+     const result = await db.query('SELECT * FROM inquiries WHERE slug = $1 LIMIT 1', [slug]);
+     if (result.rows.length > 0) {
+       const inquiry = {
+         id: result.rows[0].id,
+         firstName: result.rows[0].first_name,
+         familySurname: result.rows[0].family_surname,
+         parentEmail: result.rows[0].parent_email,
+         ageGroup: result.rows[0].age_group,
+         entryYear: result.rows[0].entry_year,
+         sciences: result.rows[0].sciences,
+         mathematics: result.rows[0].mathematics,
+         english: result.rows[0].english,
+         languages: result.rows[0].languages,
+         humanities: result.rows[0].humanities,
+         business: result.rows[0].business,
+         drama: result.rows[0].drama,
+         music: result.rows[0].music,
+         art: result.rows[0].art,
+         creative_writing: result.rows[0].creative_writing,
+         sport: result.rows[0].sport,
+         leadership: result.rows[0].leadership,
+         community_service: result.rows[0].community_service,
+         outdoor_education: result.rows[0].outdoor_education,
+         academic_excellence: result.rows[0].academic_excellence,
+         pastoral_care: result.rows[0].pastoral_care,
+         university_preparation: result.rows[0].university_preparation,
+         personal_development: result.rows[0].personal_development,
+         career_guidance: result.rows[0].career_guidance,
+         extracurricular_opportunities: result.rows[0].extracurricular_opportunities
+       };
+       
+       const p = await generateProspectus(inquiry);
+       await updateInquiryStatus(inquiry.id, p);
+       rel = p.url;
+       slugIndex[slug] = rel;
+       await saveSlugIndex();
+     }
+   } catch (e) {
+     console.warn('Slug lookup failed:', e.message);
    }
- });
+ }
+
+ if (!rel) {
+   return res.status(404).send(`
+     <h1>Prospectus Not Found</h1>
+     <p>The link /${slug} could not be found.</p>
+   `);
+ }
+
+ const abs = path.join(__dirname, rel);
+ try {
+   await fs.access(abs);
+   console.log(`Serving: ${slug} -> ${rel}`);
+   return res.sendFile(abs);
+ } catch {
+   console.error('File not found for slug:', slug);
+   return res.status(500).send('Failed to load prospectus');
+ }
 });
 
 // Root route
@@ -1225,81 +1298,6 @@ app.get('/', (req, res) => {
    <li>Dashboard: Active</li>
  </ul>
 </body></html>`);
-});
-
-// Video metrics endpoint (missing)
-// Video metrics endpoint (fixed)
-app.get('/api/analytics/video-metrics', async (req, res) => {
-  try {
-    if (!db) {
-      return res.json([]);
-    }
-    
-    const result = await db.query(`
-      SELECT 
-        inquiry_id,
-        event_data->>'videoId' as video_id,
-        MAX(event_data->>'videoTitle') as video_title,
-        SUM(COALESCE((event_data->>'totalWatchTime')::int, 0)) as total_watch_time,
-        MAX(COALESCE((event_data->>'completionRate')::int, 0)) as completion_rate,
-        COUNT(*) as play_count
-      FROM tracking_events 
-      WHERE event_type IN ('video_complete', 'video_progress')
-        AND event_data->>'videoId' IS NOT NULL
-      GROUP BY inquiry_id, event_data->>'videoId'
-      ORDER BY total_watch_time DESC
-      LIMIT 50
-    `);
-    
-    res.json(result.rows || []);
-  } catch (error) {
-    console.error('Video metrics error:', error);
-    res.status(500).json({ error: 'Failed to get video metrics' });
-  }
-});
-
-// Section data endpoint (missing)
-app.get('/api/section-data/:inquiryId', async (req, res) => {
-  try {
-    const inquiryId = req.params.inquiryId;
-    
-    if (!db) {
-      return res.json({
-        inquiryId,
-        sections: [],
-        totalTime: 0
-      });
-    }
-    
-    const result = await db.query(`
-      SELECT 
-        COALESCE(event_data->>'currentSection', event_data->>'section', 'unknown') as section,
-        SUM(COALESCE((event_data->>'timeSpent')::int, 0)) as dwell_seconds,
-        MAX(COALESCE((event_data->>'scrollPercentage')::int, 0)) as max_scroll_pct,
-        COUNT(*) as interactions
-      FROM tracking_events 
-      WHERE inquiry_id = $1 AND event_type = 'section_exit'
-      GROUP BY section
-      ORDER BY dwell_seconds DESC
-    `, [inquiryId]);
-    
-    const sections = result.rows || [];
-    const totalTime = sections.reduce((sum, row) => sum + (row.dwell_seconds || 0), 0);
-    
-    res.json({
-      inquiryId,
-      sections,
-      totalTime
-    });
-  } catch (error) {
-    console.error('Section data error:', error);
-    res.status(500).json({ 
-      error: 'Failed to get section data',
-      inquiryId: req.params.inquiryId,
-      sections: [],
-      totalTime: 0
-    });
-  }
 });
 
 // 404 handler
