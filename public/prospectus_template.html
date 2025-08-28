@@ -2127,9 +2127,6 @@
            // Only load API when actually needed
            console.log('Video tracking setup - API will load on first video play');
         }
-
-        console.error('Failed to load YouTube API');
-        if (callback) callback(); // Still call callback for fallback
     
     
     const firstScriptTag = document.getElementsByTagName('script')[0];
