@@ -885,6 +885,51 @@ document.addEventListener('DOMContentLoaded', function(){
   }
 }
 
+async function updateInquiryStatus(inquiryId, pInfo) {
+  try {
+    const files = await fs.readdir(path.join(__dirname, 'data'));
+    for (const f of files.filter(x => x.startsWith('inquiry-') && x.endsWith('.json'))) {
+      try {
+        const p = path.join(__dirname, 'data', f);
+        const j = JSON.parse(await fs.readFile(p, 'utf8'));
+        if (j.id === inquiryId) {
+          j.prospectusGenerated = true;
+          j.prospectusFilename = pInfo.filename;
+          j.prospectusUrl = pInfo.prettyUrl;          
+          j.prospectusPrettyPath = pInfo.prettyUrl;   
+          j.slug = pInfo.slug;
+          j.prospectusGeneratedAt = new Date().toISOString();
+          j.status = 'prospectus_generated';
+          await fs.writeFile(p, JSON.stringify(j, null, 2));
+          break;
+        }
+      } catch (fileError) {
+        console.warn(`Failed to update ${f}:`, fileError.message);
+      }
+    }
+    
+    if (db) {
+      try {
+        await db.query(
+          `UPDATE inquiries
+           SET status='prospectus_generated',
+               prospectus_generated=true,
+               prospectus_filename=$2,
+               pretty_url=$3,
+               updated_at=CURRENT_TIMESTAMP
+           WHERE id=$1`,
+          [inquiryId, pInfo.filename, pInfo.prettyUrl]
+        );
+        console.log(`Database updated: ${inquiryId} -> ${pInfo.prettyUrl}`);
+      } catch (dbError) {
+        console.warn('DB update failed (non-fatal):', dbError.message);
+      }
+    }
+  } catch (e) {
+    console.error('Failed to update inquiry status:', e.message);
+  }
+}
+
 // ===================== ENGAGEMENT TRACKING =====================
 async function trackEngagementEvent(ev) {
   if (!db) return null;
