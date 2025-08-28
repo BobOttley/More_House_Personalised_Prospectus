@@ -2568,12 +2568,9 @@ ${extracurricularPersonalization ? `<p>${extracurricularPersonalization}</p>` : 
             const modalDesc = document.getElementById('videoModalDescription');
             const personalMessage = document.getElementById('videoPersonalMessage');
 
-            // CRITICAL FIX: Proper YouTube iframe src with required parameters
-            iframe.src = `https://www.youtube.com/embed/${videoId}?enablejsapi=1&origin=https://more-house-personalised-prospectus.onrender.com&rel=0&playsinline=1&autoplay=1`;
-            
             modalTitle.textContent = title;
             modalDesc.textContent = description;
-
+    
             if (prospectusData && prospectusData.firstName) {
                 personalMessage.textContent = `Specially selected for ${prospectusData.firstName}'s interests`;
                 personalMessage.style.display = 'block';
@@ -2581,8 +2578,22 @@ ${extracurricularPersonalization ? `<p>${extracurricularPersonalization}</p>` : 
                 personalMessage.style.display = 'none';
             }
 
+            iframe.src = `https://www.youtube.com/embed/${videoId}?enablejsapi=1&origin=${window.location.origin}&rel=0&playsinline=1&autoplay=1`;
+    
             modal.classList.add('active');
             document.body.style.overflow = 'hidden';
+    
+            if (window.resetVideoTracking) {
+                window.resetVideoTracking();
+            }
+    
+            iframe.onload = function() {
+                setTimeout(() => {
+                    if (window.initializeYouTubePlayer) {
+                        window.initializeYouTubePlayer();
+                    }
+                }, 1000);
+            };
         }
 
         function closeVideo() {

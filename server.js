@@ -678,9 +678,12 @@ async function updateEngagementMetrics(m) {
   }
 }
 
+// FIXED SERVER-SIDE VIDEO TRACKING
+// Add this to your server.js file, replacing the existing video tracking sections:
+
 async function insertVideoTrackingRow(dbClient, payload) {
   try {
-    console.log('Video tracking insert attempt:', payload);
+    console.log('Video tracking insert attempt:', JSON.stringify(payload, null, 2));
     
     const q = `
       INSERT INTO video_engagement_tracking (
@@ -693,7 +696,7 @@ async function insertVideoTrackingRow(dbClient, payload) {
     const vals = [
       payload.inquiryId || null,
       payload.sessionId || null,
-      payload.currentSection || null,
+      payload.currentSection || 'discover_video',
       payload.eventType || 'video_event',
       payload.videoId || null,
       payload.videoTitle || 'Unknown Video',
@@ -706,11 +709,251 @@ async function insertVideoTrackingRow(dbClient, payload) {
     console.log('Video tracking SQL values:', vals);
     
     const result = await dbClient.query(q, vals);
-    console.log('Video tracking inserted successfully');
+    console.log('✅ Video tracking inserted successfully');
     return result;
   } catch (e) {
-    console.error('Video tracking insert failed:', e.message);
+    console.error('❌ Video tracking insert failed:', e.message);
     console.error('Payload was:', payload);
+  }
+}
+
+// Enhanced trackEngagementEvent function to handle video events
+async function trackEngagementEvent(ev) {
+  if (!db) return null;
+  
+  try {
+    const eventType = ev.eventType || ev.type || 'unknown';
+    const inquiryId = ev.inquiryId || ev.inquiry_id || null;
+    const sessionId = ev.sessionId || ev.session_id || null;
+    const currentSection = ev.currentSection || ev.section || ev?.eventData?.currentSection || null;
+    const tsISO = ev.timestamp || new Date().toISOString();
+    const pageUrl = ev.url || null;
+    const deviceInfo = ev.deviceInfo || ev?.eventData?.deviceInfo || {};
+    const ed = Object.assign({}, ev.eventData || ev.data || {});
+    
+    // Extract video data
+    const videoId = ed.videoId || ed.video_id || null;
+    const videoTitle = ed.videoTitle || ed.video_title || null;
+    const currentTimeSec = parseFloat(ed.currentTimeSec || ed.current_time_sec || 0);
+    const watchedSec = parseFloat(ed.watchedSec || ed.watched_sec || 0);
+    const milestone = ed.milestone || null;
+    const completionRate = ed.completionRate || 0;
+    
+    console.log(`📝 TRACKING EVENT: ${eventType} | VideoID: ${videoId} | WatchTime: ${watchedSec}s`);
+    
+    // Always insert raw tracking event
+    const rawEventData = {
+      ...ed,
+      currentSection: currentSection,
+      deviceInfo,
+      sessionTimeOnPage: 0
+    };
+    
+    await db.query(`
+      INSERT INTO tracking_events (
+        inquiry_id, event_type, event_data, page_url,
+        user_agent, ip_address, session_id, timestamp
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+    `, [
+      inquiryId,
+      eventType,
+      JSON.stringify(rawEventData),
+      pageUrl,
+      deviceInfo.userAgent || ev.userAgent || null,
+      ev.ip || null,
+      sessionId,
+      new Date(tsISO)
+    ]).catch(e => console.warn('Raw tracking_events insert failed:', e.message));
+    
+    // Handle video events specially
+    if (eventType.includes('youtube_video_') && videoId) {
+      console.log(`🎬 Processing video event: ${eventType} for video ${videoId}`);
+      
+      await insertVideoTrackingRow(db, {
+        inquiryId,
+        sessionId,
+        currentSection,
+        eventType,
+        videoId,
+        videoTitle,
+        currentTimeSec,
+        watchedSec,
+        milestone,
+        completionRate,
+        url: pageUrl,
+        timestamp: tsISO
+      });
+      
+      // Update video summary in video_engagement_tracking
+      await updateVideoEngagementSummary(db, {
+        inquiryId,
+        sessionId,
+        videoId,
+        videoTitle,
+        eventType,
+        watchedSec,
+        currentTimeSec,
+        completionRate
+      });
+    }
+    
+    return { ok: true };
+  } catch (e) {
+    console.error('❌ trackEngagementEvent failed:', e.message, e.stack);
+    return null;
+  }
+}
+
+// New function to maintain video engagement summaries
+async function updateVideoEngagementSummary(db, data) {
+  try {
+    const { inquiryId, sessionId, videoId, videoTitle, eventType, watchedSec, currentTimeSec, completionRate } = data;
+    
+    console.log(`🔄 Updating video summary for ${videoId}: ${watchedSec}s watched`);
+    
+    // Upsert video engagement summary
+    await db.query(`
+      INSERT INTO video_engagement_summary (
+        inquiry_id, video_id, video_title, 
+        total_watch_time, play_count, pause_count, completion_rate,
+        last_interaction, created_at, updated_at
+      ) VALUES ($1, $2, $3, $4, 
+        CASE WHEN $5 = 'youtube_video_play' THEN 1 ELSE 0 END,
+        CASE WHEN $5 = 'youtube_video_pause' THEN 1 ELSE 0 END,
+        $6, $7, NOW(), NOW()
+      )
+      ON CONFLICT (inquiry_id, video_id) 
+      DO UPDATE SET
+        total_watch_time = GREATEST(video_engagement_summary.total_watch_time, EXCLUDED.total_watch_time),
+        play_count = video_engagement_summary.play_count + 
+          CASE WHEN $5 = 'youtube_video_play' THEN 1 ELSE 0 END,
+        pause_count = video_engagement_summary.pause_count + 
+          CASE WHEN $5 = 'youtube_video_pause' THEN 1 ELSE 0 END,
+        completion_rate = GREATEST(video_engagement_summary.completion_rate, EXCLUDED.completion_rate),
+        last_interaction = EXCLUDED.last_interaction,
+        updated_at = NOW()
+    `, [
+      inquiryId, videoId, videoTitle, 
+      Math.round(watchedSec), eventType, 
+      Math.round(completionRate), new Date()
+    ]);
+    
+    console.log(`✅ Video summary updated for ${videoId}`);
+  } catch (error) {
+    console.error('❌ Video summary update failed:', error.message);
+  }
+}
+
+// Updated video metrics endpoint
+app.get('/api/analytics/video-metrics', async (req, res) => {
+  try {
+    if (!db) {
+      return res.status(500).json({ error: 'Database not available' });
+    }
+
+    console.log('📊 Video metrics request...');
+
+    // Try the summary table first
+    let videoData;
+    try {
+      videoData = await db.query(`
+        SELECT 
+          ves.video_id,
+          ves.video_title as title,
+          ves.inquiry_id as family_id,
+          i.first_name,
+          i.family_surname,
+          ves.total_watch_time as totalWatchTime,
+          ves.play_count as sessions,
+          ves.pause_count as pauseCount,
+          ves.completion_rate as completionRate,
+          0 as replayCount,
+          180 as duration
+        FROM video_engagement_summary ves
+        LEFT JOIN inquiries i ON ves.inquiry_id = i.id
+        WHERE ves.total_watch_time > 0
+        ORDER BY ves.total_watch_time DESC
+      `);
+    } catch (summaryError) {
+      console.log('Summary table not available, using raw tracking data...');
+      
+      // Fallback to raw tracking events
+      videoData = await db.query(`
+        SELECT 
+          vet.video_id,
+          vet.video_title as title,
+          vet.inquiry_id as family_id,
+          i.first_name,
+          i.family_surname,
+          MAX(vet.watched_sec) as totalWatchTime,
+          COUNT(DISTINCT vet.session_id) as sessions,
+          COUNT(CASE WHEN vet.event_type = 'youtube_video_pause' THEN 1 END) as pauseCount,
+          MAX(COALESCE(vet.current_time_sec::float / 180.0 * 100, 0)) as completionRate,
+          0 as replayCount,
+          180 as duration
+        FROM video_engagement_tracking vet
+        LEFT JOIN inquiries i ON vet.inquiry_id = i.id
+        WHERE vet.video_id IS NOT NULL AND vet.watched_sec > 0
+        GROUP BY vet.video_id, vet.video_title, vet.inquiry_id, i.first_name, i.family_surname
+        ORDER BY MAX(vet.watched_sec) DESC
+      `);
+    }
+
+    const formattedVideos = videoData.rows.map(row => ({
+      video_id: row.video_id,
+      title: row.title || 'Untitled Video',
+      family_id: row.family_id,
+      family_name: row.first_name && row.family_surname ? 
+        `${row.first_name} ${row.family_surname}` : null,
+      duration: parseInt(row.duration) || 180,
+      totalWatchTime: parseInt(row.totalwatchtime) || 0,
+      completionRate: Math.round(parseFloat(row.completionrate) || 0),
+      pauseCount: parseInt(row.pausecount) || 0,
+      replayCount: parseInt(row.replaycount) || 0,
+      sessions: parseInt(row.sessions) || 1
+    }));
+
+    console.log(`📊 Returning ${formattedVideos.length} video records with watch times`);
+    res.json(formattedVideos);
+
+  } catch (error) {
+    console.error('❌ Video metrics error:', error);
+    res.status(500).json({ 
+      error: 'Failed to get video metrics',
+      message: error.message 
+    });
+  }
+});
+
+// Create the summary table if it doesn't exist
+async function createVideoSummaryTable() {
+  if (!db) return;
+  
+  try {
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS video_engagement_summary (
+        id SERIAL PRIMARY KEY,
+        inquiry_id VARCHAR(255) NOT NULL,
+        video_id VARCHAR(100) NOT NULL,
+        video_title VARCHAR(255),
+        total_watch_time INTEGER DEFAULT 0,
+        play_count INTEGER DEFAULT 0,
+        pause_count INTEGER DEFAULT 0,
+        completion_rate INTEGER DEFAULT 0,
+        last_interaction TIMESTAMP WITH TIME ZONE,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(inquiry_id, video_id)
+      );
+      
+      CREATE INDEX IF NOT EXISTS idx_video_summary_inquiry 
+        ON video_engagement_summary(inquiry_id);
+      CREATE INDEX IF NOT EXISTS idx_video_summary_watch_time 
+        ON video_engagement_summary(total_watch_time DESC);
+    `);
+    console.log('✅ Video summary table ready');
+  } catch (error) {
+    console.warn('⚠️ Video summary table creation failed:', error.message);
   }
 }
 

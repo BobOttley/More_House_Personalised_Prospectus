@@ -942,134 +942,227 @@ document.addEventListener('click', function(e){
     };
   }
   
-  // ---------- Simplified YouTube Video Tracking ----------
-var ytPlayers = new Map();
+// FIXED VIDEO TRACKING FOR tracking.js
+// Replace the video tracking section in your tracking.js with this:
 
-// Override the prospectus openVideo function to add tracking
-var originalOpenVideo = window.openVideo;
-if (originalOpenVideo) {
-  window.openVideo = function(videoId, title, description) {
-    console.log('Video opened:', videoId, title);
+let ytPlayer = null;
+let currentVideoId = null;
+let videoStartTime = null;
+let totalWatchTime = 0;
+
+// YouTube API Ready Handler
+window.onYouTubeIframeAPIReady = function() {
+    console.log('YouTube API Ready');
     
-    // Call original function
-    originalOpenVideo(videoId, title, description);
+    // Wait for video modal to be opened
+    const checkForPlayer = setInterval(() => {
+        const iframe = document.getElementById('videoPlayer');
+        if (iframe && iframe.src.includes('youtube.com/embed/')) {
+            clearInterval(checkForPlayer);
+            initializeYouTubePlayer();
+        }
+    }, 500);
+};
+
+function initializeYouTubePlayer() {
+    const iframe = document.getElementById('videoPlayer');
+    if (!iframe) return;
     
-    // Track the video open event
-    queueHighPriorityEvent({
-      inquiryId: INQUIRY_ID,
-      sessionId: SESSION_ID,
-      eventType: 'youtube_video_play',
-      currentSection: currentSectionId || 'discover_video',
-      timestamp: nowISO(),
-      data: { videoId: videoId, title: title }
+    // Extract video ID from iframe src
+    const videoIdMatch = iframe.src.match(/\/embed\/([^?]+)/);
+    if (!videoIdMatch) return;
+    
+    currentVideoId = videoIdMatch[1];
+    console.log('Initializing YouTube player for video:', currentVideoId);
+    
+    // Create YouTube player
+    ytPlayer = new YT.Player('videoPlayer', {
+        events: {
+            'onStateChange': onPlayerStateChange,
+            'onReady': onPlayerReady
+        }
     });
+}
+
+function onPlayerReady(event) {
+    console.log('YouTube player ready for video:', currentVideoId);
     
-    // Set up YouTube API tracking after modal opens
-    setTimeout(function() {
-      setupYouTubeTracking(videoId);
-    }, 2000);
-  };
-}
-
-function setupYouTubeTracking(videoId) {
-  // Just log that we're tracking - don't mess with the iframe
-  console.log('YouTube tracking set up for:', videoId);
-}
-
-// Force send a video event when tracking is set up
-window.trackingAPI.trackEvent('youtube_video_started', {
-  videoId: videoId,
-  videoTitle: title,
-  watchedSec: 0,
-  currentTimeSec: 0
-});
-
-// Replace the existing trackVideoState function with this:
-function trackVideoState(videoId, state) {
-  console.log('Video state change:', videoId, state);
-  
-  // Initialize video tracking if not exists
-  if (!videoEngagement.has(videoId)) {
-    videoEngagement.set(videoId, {
-      totalWatchTime: 0,
-      playStartTime: null,
-      plays: 0,
-      pauses: 0,
-      completed: false,
-      title: getVideoTitle(videoId)
+    // Get video title
+    const videoData = event.target.getVideoData();
+    const videoTitle = videoData ? videoData.title : 'Unknown Video';
+    
+    // Track video open
+    queueEvent({
+        inquiryId: INQUIRY_ID,
+        sessionId: SESSION_ID,
+        eventType: 'youtube_video_open',
+        currentSection: currentSectionId || 'discover_video',
+        timestamp: nowISO(),
+        data: {
+            videoId: currentVideoId,
+            videoTitle: videoTitle
+        }
     });
-  }
-  
-  var video = videoEngagement.get(videoId);
-  var now = Date.now();
-  
-  // Handle video state changes
-  switch(state) {
-    case 1: // playing
-      video.playStartTime = now;
-      video.plays++;
-      
-      queueHighPriorityEvent({
-        inquiryId: INQUIRY_ID,
-        sessionId: SESSION_ID,
-        eventType: 'individual_video_play',
-        currentSection: currentSectionId || 'discover_video',
-        timestamp: nowISO(),
-        data: { 
-          videoId: videoId,
-          videoTitle: video.title,
-          totalPlays: video.plays,
-          currentWatchTime: video.totalWatchTime
-        }
-      });
-      break;
-      
-    case 2: // paused
-      if (video.playStartTime) {
-        video.totalWatchTime += Math.round((now - video.playStartTime) / 1000);
-        video.playStartTime = null;
-      }
-      video.pauses++;
-      
-      queueEvent({
-        inquiryId: INQUIRY_ID,
-        sessionId: SESSION_ID,
-        eventType: 'individual_video_pause',
-        currentSection: currentSectionId || 'discover_video',
-        timestamp: nowISO(),
-        data: { 
-          videoId: videoId,
-          videoTitle: video.title,
-          totalWatchTime: video.totalWatchTime,
-          pauseCount: video.pauses
-        }
-      });
-      break;
-      
-    case 0: // ended/complete
-      if (video.playStartTime) {
-        video.totalWatchTime += Math.round((now - video.playStartTime) / 1000);
-        video.playStartTime = null;
-      }
-      video.completed = true;
-      
-      queueHighPriorityEvent({
-        inquiryId: INQUIRY_ID,
-        sessionId: SESSION_ID,
-        eventType: 'individual_video_complete',
-        currentSection: currentSectionId || 'discover_video',
-        timestamp: nowISO(),
-        data: { 
-          videoId: videoId,
-          videoTitle: video.title,
-          totalWatchTime: video.totalWatchTime,
-          completed: true,
-          engagementScore: calculateVideoEngagement(video)
-        }
-      });
-      break;
-  }
 }
+
+function onPlayerStateChange(event) {
+    if (!currentVideoId) return;
+    
+    const videoData = event.target.getVideoData();
+    const videoTitle = videoData ? videoData.title : 'Unknown Video';
+    const currentTime = event.target.getCurrentTime();
+    const duration = event.target.getDuration();
+    
+    console.log('Video state change:', event.data, 'for video:', currentVideoId);
+    
+    switch(event.data) {
+        case YT.PlayerState.PLAYING:
+            handleVideoPlay(currentTime, videoTitle);
+            break;
+            
+        case YT.PlayerState.PAUSED:
+            handleVideoPause(currentTime, videoTitle);
+            break;
+            
+        case YT.PlayerState.ENDED:
+            handleVideoEnded(currentTime, duration, videoTitle);
+            break;
+    }
+}
+
+function handleVideoPlay(currentTime, videoTitle) {
+    videoStartTime = Date.now();
+    
+    console.log('Video play tracked:', currentVideoId, videoTitle);
+    
+    queueEvent({
+        inquiryId: INQUIRY_ID,
+        sessionId: SESSION_ID,
+        eventType: 'youtube_video_play',
+        currentSection: currentSectionId || 'discover_video',
+        timestamp: nowISO(),
+        data: {
+            videoId: currentVideoId,
+            videoTitle: videoTitle,
+            currentTimeSec: Math.round(currentTime),
+            watchedSec: Math.round(totalWatchTime)
+        }
+    });
+}
+
+function handleVideoPause(currentTime, videoTitle) {
+    if (videoStartTime) {
+        const sessionTime = Math.round((Date.now() - videoStartTime) / 1000);
+        totalWatchTime += sessionTime;
+        videoStartTime = null;
+    }
+    
+    console.log('Video pause tracked:', currentVideoId, 'Total watch time:', totalWatchTime);
+    
+    queueEvent({
+        inquiryId: INQUIRY_ID,
+        sessionId: SESSION_ID,
+        eventType: 'youtube_video_pause',
+        currentSection: currentSectionId || 'discover_video',
+        timestamp: nowISO(),
+        data: {
+            videoId: currentVideoId,
+            videoTitle: videoTitle,
+            currentTimeSec: Math.round(currentTime),
+            watchedSec: Math.round(totalWatchTime)
+        }
+    });
+}
+
+function handleVideoEnded(currentTime, duration, videoTitle) {
+    if (videoStartTime) {
+        const sessionTime = Math.round((Date.now() - videoStartTime) / 1000);
+        totalWatchTime += sessionTime;
+        videoStartTime = null;
+    }
+    
+    console.log('Video completed:', currentVideoId, 'Total watch time:', totalWatchTime);
+    
+    queueEvent({
+        inquiryId: INQUIRY_ID,
+        sessionId: SESSION_ID,
+        eventType: 'youtube_video_complete',
+        currentSection: currentSectionId || 'discover_video',
+        timestamp: nowISO(),
+        data: {
+            videoId: currentVideoId,
+            videoTitle: videoTitle,
+            currentTimeSec: Math.round(currentTime),
+            watchedSec: Math.round(totalWatchTime),
+            completionRate: duration > 0 ? Math.round((currentTime / duration) * 100) : 100
+        }
+    });
+}
+
+// Progress tracking every 5 seconds during playback
+setInterval(() => {
+    if (ytPlayer && videoStartTime && currentVideoId) {
+        try {
+            const currentTime = ytPlayer.getCurrentTime();
+            const duration = ytPlayer.getDuration();
+            
+            if (currentTime && duration) {
+                const progress = Math.round((currentTime / duration) * 100);
+                
+                // Track milestone progress (25%, 50%, 75%)
+                if (progress >= 25 && !window.videoProgress25) {
+                    window.videoProgress25 = true;
+                    trackVideoProgress(25, currentTime, duration);
+                } else if (progress >= 50 && !window.videoProgress50) {
+                    window.videoProgress50 = true;
+                    trackVideoProgress(50, currentTime, duration);
+                } else if (progress >= 75 && !window.videoProgress75) {
+                    window.videoProgress75 = true;
+                    trackVideoProgress(75, currentTime, duration);
+                }
+            }
+        } catch (error) {
+            console.warn('Progress tracking error:', error);
+        }
+    }
+}, 5000);
+
+function trackVideoProgress(milestone, currentTime, duration) {
+    const videoData = ytPlayer.getVideoData();
+    const videoTitle = videoData ? videoData.title : 'Unknown Video';
+    
+    console.log(`Video ${milestone}% milestone reached:`, currentVideoId);
+    
+    queueEvent({
+        inquiryId: INQUIRY_ID,
+        sessionId: SESSION_ID,
+        eventType: 'youtube_video_progress',
+        currentSection: currentSectionId || 'discover_video',
+        timestamp: nowISO(),
+        data: {
+            videoId: currentVideoId,
+            videoTitle: videoTitle,
+            milestone: `${milestone}%`,
+            currentTimeSec: Math.round(currentTime),
+            duration: Math.round(duration),
+            watchedSec: Math.round(totalWatchTime)
+        }
+    });
+}
+
+// Reset video tracking when modal closes
+function resetVideoTracking() {
+    currentVideoId = null;
+    videoStartTime = null;
+    totalWatchTime = 0;
+    ytPlayer = null;
+    
+    // Reset progress flags
+    window.videoProgress25 = false;
+    window.videoProgress50 = false;
+    window.videoProgress75 = false;
+}
+
 
 // Add this NEW function after the existing trackVideoState function
 function onPlayerStateChange(event) {
