@@ -2086,20 +2086,20 @@
                     const videoTitle = videoElement?.getAttribute('data-video-title');
                     
                     trackEvent('video_click', {
-                        ...clickData,
+                        .....clickData,
                         videoId: videoId,
                         videoTitle: videoTitle,
                         clickType: 'video_play'
                     });
                 } else if (target.closest('.cta-button') || target.closest('a[href*="open-events"]')) {
                     trackEvent('conversion_click', {
-                        ...clickData,
+                        .....clickData,
                         conversionType: 'open_morning',
                         clickType: 'cta'
                     });
                 } else if (target.closest('.photo-card')) {
                     trackEvent('photo_click', {
-                        ...clickData,
+                        .....clickData,
                         clickType: 'photo_modal'
                     });
                 } else if (target.closest('.entry-card-header')) {
@@ -2107,14 +2107,14 @@
                     const entryType = entryCard?.className.match(/entry-(\w+)/)?.[1];
                     
                     trackEvent('entry_point_expand', {
-                        ...clickData,
+                        .....clickData,
                         entryType: entryType,
                         clickType: 'expand_section'
                     });
                 } else if (target.tagName === 'A' || target.closest('a')) {
                     const link = target.closest('a');
                     trackEvent('link_click', {
-                        ...clickData,
+                        .....clickData,
                         href: link.href,
                         isExternal: !link.href.includes(window.location.hostname),
                         clickType: 'navigation'
@@ -2658,29 +2658,33 @@ function setupFallbackVideoTracking(videoId) {
 }
 
         // Add logging to see if events are actually being sent
-function sendTrackingData(payload) {
-    console.log('Sending tracking data:', payload.event_type);
-    const payloadString = JSON.stringify(payload);
-    
-    // Try sendBeacon first
+        function sendTrackingData(payload) {
+  const evt = payload.eventType || payload.event_type;
+  console.log('Sending tracking data:', evt);
+
+  const json = JSON.stringify(payload);
+  const blob = new Blob([json], { type: 'application/json' });
+
+  let sent = false;
+  try {
     if (navigator.sendBeacon) {
-        const sent = navigator.sendBeacon('/api/track-engagement', payloadString);
-        console.log('Beacon sent:', sent);
-        if (sent) return;
+      sent = navigator.sendBeacon('/api/track-engagement', blob);
+      console.log('Beacon sent:', sent);
     }
-    
-    // Fallback to fetch with logging
-    fetch('/api/track-engagement', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: payloadString,
-        keepalive: true
-    }).then(response => {
-        console.log('Fetch response:', response.status);
-    }).catch(error => {
-        console.error('Tracking error:', error);
-    });
+  } catch (e) {
+    console.warn('sendBeacon failed:', e);
+  }
+  if (sent) return;
+
+  fetch('/api/track-engagement', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: json,
+    keepalive: true
+  }).then(r => console.log('Fetch response:', r.status))
+    .catch(err => console.error('Tracking error:', err));
 }
+
 
         // Personalization functions (preserved from original)
         function initializeProspectus(data) {
