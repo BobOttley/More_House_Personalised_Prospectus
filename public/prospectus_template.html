@@ -845,6 +845,7 @@
             width: 100%;
             height: 100%;
             border: none;
+            pointer-events: auto; /* Ensure iframe can receive events */
         }
 
         .video-modal-footer {
@@ -2104,86 +2105,268 @@
 
         // Comprehensive video tracking system
         function setupVideoTracking() {
-            // Load YouTube API if not already loaded
-            if (!window.YT) {
-                const tag = document.createElement('script');
-                tag.src = 'https://www.youtube.com/iframe_api';
-                const firstScriptTag = document.getElementsByTagName('script')[0];
-                firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
-            }
-            
-            // YouTube API ready callback
-            window.onYouTubeIframeAPIReady = function() {
-                ytAPIReady = true;
-                console.log('YouTube API ready');
-            };
+           // Only load API when actually needed
+           console.log('Video tracking setup - API will load on first video play');
         }
 
         // Enhanced video functions with comprehensive tracking
-        function openVideo(videoId, title, description) {
-            const modal = document.getElementById('videoModal');
-            const iframe = document.getElementById('videoPlayer');
-            const modalTitle = document.getElementById('videoModalTitle');
-            const modalDesc = document.getElementById('videoModalDescription');
-            const personalMessage = document.getElementById('videoPersonalMessage');
-            const section = getCurrentSection();
+        // Enhanced video functions with fixed YouTube integration
+function openVideo(videoId, title, description) {
+    const modal = document.getElementById('videoModal');
+    const iframe = document.getElementById('videoPlayer');
+    const modalTitle = document.getElementById('videoModalTitle');
+    const modalDesc = document.getElementById('videoModalDescription');
+    const personalMessage = document.getElementById('videoPersonalMessage');
+    const section = getCurrentSection();
 
-            // Set modal content
-            modalTitle.textContent = title;
-            modalDesc.textContent = description;
+    // Set modal content
+    modalTitle.textContent = title;
+    modalDesc.textContent = description;
 
-            if (prospectusData && prospectusData.firstName) {
-                personalMessage.textContent = `Specially selected for ${prospectusData.firstName}'s interests`;
-                personalMessage.style.display = 'block';
-            } else {
-                personalMessage.style.display = 'none';
-            }
+    if (prospectusData && prospectusData.firstName) {
+        personalMessage.textContent = `Specially selected for ${prospectusData.firstName}'s interests`;
+        personalMessage.style.display = 'block';
+    } else {
+        personalMessage.style.display = 'none';
+    }
 
-            // Configure iframe with proper YouTube API parameters
-            const origin = encodeURIComponent(window.location.origin);
-            iframe.src = `https://www.youtube.com/embed/${videoId}?enablejsapi=1&origin=${origin}&rel=0&playsinline=1&autoplay=1`;
+    // Clear any existing iframe content first
+    iframe.src = 'about:blank';
+    
+    // Show modal
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
 
-            // Show modal
-            modal.classList.add('active');
-            document.body.style.overflow = 'hidden';
+    // Configure iframe with proper YouTube parameters
+    // Use window.location.origin directly (don't encode it)
+    const currentOrigin = window.location.origin;
+    const youtubeUrl = `https://www.youtube.com/embed/${videoId}?` +
+        `enablejsapi=1&` +
+        `origin=${currentOrigin}&` +
+        `rel=0&` +
+        `playsinline=1&` +
+        `autoplay=1&` +
+        `modestbranding=1&` +
+        `fs=1`;
 
-            // Initialize video state tracking
-            const videoState = {
-                videoId: videoId,
-                title: title,
-                section: section,
-                startTime: Date.now(),
-                totalWatchTime: 0,
-                pauseCount: 0,
-                seekCount: 0,
-                bufferCount: 0,
-                progressEvents: new Set(),
-                lastCurrentTime: 0,
-                isPlaying: false,
-                hasStarted: false,
-                hasCompleted: false
-            };
-            
-            videoStates.set(videoId, videoState);
-
-            // Track video modal open
-            trackEvent('video_modal_open', {
-                videoId: videoId,
-                videoTitle: title,
-                section: section,
-                timestamp: new Date().toISOString()
-            });
-
-            // Initialize YouTube player when ready
-            if (ytAPIReady && window.YT && window.YT.Player) {
-                setTimeout(() => {
-                    initializeYouTubePlayer(videoId);
-                }, 1000);
-            } else {
-                // Fallback tracking without API
-                setupFallbackVideoTracking(videoId);
-            }
+    // Set the iframe source after a brief delay to ensure modal is ready
+    setTimeout(() => {
+        try {
+            iframe.src = youtubeUrl;
+            console.log('YouTube video loaded:', youtubeUrl);
+        } catch (error) {
+            console.error('Error loading YouTube video:', error);
+            // Fallback: load without API
+            iframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0`;
         }
+    }, 100);
+
+    // Initialize video state tracking
+    const videoState = {
+        videoId: videoId,
+        title: title,
+        section: section,
+        startTime: Date.now(),
+        totalWatchTime: 0,
+        pauseCount: 0,
+        seekCount: 0,
+        bufferCount: 0,
+        progressEvents: new Set(),
+        lastCurrentTime: 0,
+        isPlaying: false,
+        hasStarted: false,
+        hasCompleted: false
+    };
+    
+    videoStates.set(videoId, videoState);
+
+    // Track video modal open
+    trackEvent('video_modal_open', {
+        videoId: videoId,
+        videoTitle: title,
+        section: section,
+        timestamp: new Date().toISOString()
+    });
+
+    // Initialize YouTube player when ready (with error handling)
+    if (window.YT && window.YT.Player) {
+        setTimeout(() => {
+            initializeYouTubePlayerSafe(videoId);
+        }, 1500); // Increased delay
+    } else {
+        // Load YouTube API and initialize when ready
+        loadYouTubeAPIWithCallback(() => {
+            setTimeout(() => {
+                initializeYouTubePlayerSafe(videoId);
+            }, 1000);
+        });
+    }
+}
+
+// Safe YouTube player initialization with comprehensive error handling
+function initializeYouTubePlayerSafe(videoId) {
+    const iframe = document.getElementById('videoPlayer');
+    if (!iframe || iframe.src === 'about:blank') {
+        console.log('Iframe not ready for player initialization');
+        return;
+    }
+
+    try {
+        // Check if YouTube API is actually available
+        if (!window.YT || !window.YT.Player) {
+            console.log('YouTube API not available, using fallback tracking');
+            setupFallbackVideoTracking(videoId);
+            return;
+        }
+
+        // Only create player if one doesn't already exist for this video
+        if (videoPlayers.has(videoId)) {
+            console.log('Player already exists for:', videoId);
+            return;
+        }
+
+        const player = new YT.Player('videoPlayer', {
+            events: {
+                onReady: (event) => {
+                    console.log('YouTube player ready for:', videoId);
+                    onPlayerReady(event, videoId);
+                },
+                onStateChange: (event) => onPlayerStateChange(event, videoId),
+                onError: (event) => {
+                    console.error('YouTube player error:', event.data);
+                    onPlayerError(event, videoId);
+                }
+            }
+        });
+        
+        videoPlayers.set(videoId, player);
+        console.log('YouTube player initialized successfully for:', videoId);
+        
+    } catch (error) {
+        console.error('Failed to initialize YouTube player:', error);
+        setupFallbackVideoTracking(videoId);
+    }
+}
+
+// Enhanced YouTube API loading with callback
+function loadYouTubeAPIWithCallback(callback) {
+    // Don't load if already loading or loaded
+    if (window.YT || document.querySelector('script[src*="iframe_api"]')) {
+        if (callback) callback();
+        return;
+    }
+
+    // Set up the callback for when API loads
+    window.onYouTubeIframeAPIReady = function() {
+        ytAPIReady = true;
+        console.log('YouTube API loaded and ready');
+        if (callback) callback();
+    };
+
+    // Load the API script
+    const tag = document.createElement('script');
+    tag.src = 'https://www.youtube.com/iframe_api';
+    tag.onerror = function() {
+        console.error('Failed to load YouTube API');
+        if (callback) callback(); // Still call callback for fallback
+    };
+    
+    const firstScriptTag = document.getElementsByTagName('script')[0];
+    firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+}
+
+// Enhanced close video function
+function closeVideo() {
+    const modal = document.getElementById('videoModal');
+    const iframe = document.getElementById('videoPlayer');
+    const section = getCurrentSection();
+    
+    // Track which video was being watched
+    const currentVideoId = getCurrentVideoId();
+    if (currentVideoId && videoStates.has(currentVideoId)) {
+        const state = videoStates.get(currentVideoId);
+        const watchTime = Date.now() - state.startTime;
+        
+        trackEvent('video_modal_close', {
+            videoId: currentVideoId,
+            videoTitle: state.title,
+            section: section,
+            totalWatchTime: Math.round(state.totalWatchTime / 1000),
+            sessionLength: Math.round(watchTime / 1000),
+            hasStarted: state.hasStarted,
+            hasCompleted: state.hasCompleted
+        });
+        
+        // Clean up intervals
+        if (state.progressInterval) {
+            clearInterval(state.progressInterval);
+            state.progressInterval = null;
+        }
+    }
+    
+    // Stop video by clearing src (this stops the postMessage errors)
+    iframe.src = 'about:blank';
+    
+    // Close modal
+    modal.classList.remove('active');
+    document.body.style.overflow = 'auto';
+    
+    // Clean up players after a delay to ensure iframe is cleared
+    setTimeout(() => {
+        if (videoPlayers.size > 0) {
+            videoPlayers.forEach((player, id) => {
+                try {
+                    if (player && typeof player.destroy === 'function') {
+                        player.destroy();
+                    }
+                } catch (e) {
+                    console.log('Error destroying player:', e);
+                }
+            });
+            videoPlayers.clear();
+        }
+    }, 100);
+}
+
+// Enhanced fallback tracking that doesn't rely on YouTube API
+function setupFallbackVideoTracking(videoId) {
+    const state = videoStates.get(videoId);
+    if (!state) return;
+    
+    console.log('Using fallback video tracking for:', videoId);
+    
+    // Track that video started (fallback)
+    setTimeout(() => {
+        trackEvent('video_play_fallback', {
+            videoId: videoId,
+            videoTitle: state.title,
+            section: state.section,
+            trackingMethod: 'fallback',
+            note: 'YouTube API not available - using basic tracking'
+        });
+    }, 2000);
+    
+    // Track progress milestones at intervals (estimated)
+    const milestones = [
+        { time: 10000, progress: 25 },
+        { time: 20000, progress: 50 },
+        { time: 30000, progress: 75 }
+    ];
+    
+    milestones.forEach(milestone => {
+        setTimeout(() => {
+            if (document.getElementById('videoModal').classList.contains('active')) {
+                trackEvent('video_progress_fallback', {
+                    videoId: videoId,
+                    videoTitle: state.title,
+                    section: state.section,
+                    progress: milestone.progress,
+                    trackingMethod: 'fallback'
+                });
+            }
+        }, milestone.time);
+    });
+}
 
         function closeVideo() {
             const modal = document.getElementById('videoModal');
