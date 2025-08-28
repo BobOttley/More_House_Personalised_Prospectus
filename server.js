@@ -683,7 +683,11 @@ async function updateEngagementMetrics(m) {
 
 async function insertVideoTrackingRow(dbClient, payload) {
   try {
-    console.log('Video tracking insert attempt:', JSON.stringify(payload, null, 2));
+    console.log('🎬 Video tracking insert:', {
+      videoId: payload.videoId,
+      watchedSec: payload.watchedSec,
+      eventType: payload.eventType
+    });
     
     const q = `
       INSERT INTO video_engagement_tracking (
@@ -706,18 +710,55 @@ async function insertVideoTrackingRow(dbClient, payload) {
       new Date(payload.timestamp || Date.now())
     ];
     
-    console.log('Video tracking SQL values:', vals);
-    
     const result = await dbClient.query(q, vals);
-    console.log('✅ Video tracking inserted successfully');
+    console.log('✅ Video tracking inserted:', payload.videoId, payload.watchedSec + 's');
     return result;
   } catch (e) {
     console.error('❌ Video tracking insert failed:', e.message);
-    console.error('Payload was:', payload);
   }
 }
 
 // Enhanced trackEngagementEvent function to handle video events
+// Add this to your server.js - REPLACE the existing insertVideoTrackingRow function
+
+async function insertVideoTrackingRow(dbClient, payload) {
+  try {
+    console.log('🎬 Video tracking insert:', {
+      videoId: payload.videoId,
+      watchedSec: payload.watchedSec,
+      eventType: payload.eventType
+    });
+    
+    const q = `
+      INSERT INTO video_engagement_tracking (
+        inquiry_id, session_id, section_label, event_type,
+        video_id, video_title, current_time_sec, watched_sec,
+        page_url, timestamp
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+    `;
+    
+    const vals = [
+      payload.inquiryId || null,
+      payload.sessionId || null,
+      payload.currentSection || 'discover_video',
+      payload.eventType || 'video_event',
+      payload.videoId || null,
+      payload.videoTitle || 'Unknown Video',
+      Math.round(payload.currentTimeSec || 0),
+      Math.round(payload.watchedSec || 0),
+      payload.url || null,
+      new Date(payload.timestamp || Date.now())
+    ];
+    
+    const result = await dbClient.query(q, vals);
+    console.log('✅ Video tracking inserted:', payload.videoId, payload.watchedSec + 's');
+    return result;
+  } catch (e) {
+    console.error('❌ Video tracking insert failed:', e.message);
+  }
+}
+
+// REPLACE your trackEngagementEvent function with this enhanced version
 async function trackEngagementEvent(ev) {
   if (!db) return null;
   
@@ -727,8 +768,6 @@ async function trackEngagementEvent(ev) {
     const sessionId = ev.sessionId || ev.session_id || null;
     const currentSection = ev.currentSection || ev.section || ev?.eventData?.currentSection || null;
     const tsISO = ev.timestamp || new Date().toISOString();
-    const pageUrl = ev.url || null;
-    const deviceInfo = ev.deviceInfo || ev?.eventData?.deviceInfo || {};
     const ed = Object.assign({}, ev.eventData || ev.data || {});
     
     // Extract video data
@@ -736,38 +775,26 @@ async function trackEngagementEvent(ev) {
     const videoTitle = ed.videoTitle || ed.video_title || null;
     const currentTimeSec = parseFloat(ed.currentTimeSec || ed.current_time_sec || 0);
     const watchedSec = parseFloat(ed.watchedSec || ed.watched_sec || 0);
-    const milestone = ed.milestone || null;
-    const completionRate = ed.completionRate || 0;
     
-    console.log(`📝 TRACKING EVENT: ${eventType} | VideoID: ${videoId} | WatchTime: ${watchedSec}s`);
+    console.log(`📝 EVENT: ${eventType} | Video: ${videoId} | Watch: ${watchedSec}s`);
     
     // Always insert raw tracking event
-    const rawEventData = {
-      ...ed,
-      currentSection: currentSection,
-      deviceInfo,
-      sessionTimeOnPage: 0
-    };
-    
     await db.query(`
       INSERT INTO tracking_events (
-        inquiry_id, event_type, event_data, page_url,
-        user_agent, ip_address, session_id, timestamp
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+        inquiry_id, event_type, event_data, page_url, session_id, timestamp
+      ) VALUES ($1,$2,$3,$4,$5,$6)
     `, [
       inquiryId,
       eventType,
-      JSON.stringify(rawEventData),
-      pageUrl,
-      deviceInfo.userAgent || ev.userAgent || null,
-      ev.ip || null,
+      JSON.stringify(ed),
+      ev.url || null,
       sessionId,
       new Date(tsISO)
-    ]).catch(e => console.warn('Raw tracking_events insert failed:', e.message));
+    ]).catch(e => console.warn('Raw event insert failed:', e.message));
     
     // Handle video events specially
     if (eventType.includes('youtube_video_') && videoId) {
-      console.log(`🎬 Processing video event: ${eventType} for video ${videoId}`);
+      console.log(`🎬 Processing video event: ${eventType} for ${videoId}`);
       
       await insertVideoTrackingRow(db, {
         inquiryId,
@@ -778,28 +805,14 @@ async function trackEngagementEvent(ev) {
         videoTitle,
         currentTimeSec,
         watchedSec,
-        milestone,
-        completionRate,
-        url: pageUrl,
+        url: ev.url,
         timestamp: tsISO
-      });
-      
-      // Update video summary in video_engagement_tracking
-      await updateVideoEngagementSummary(db, {
-        inquiryId,
-        sessionId,
-        videoId,
-        videoTitle,
-        eventType,
-        watchedSec,
-        currentTimeSec,
-        completionRate
       });
     }
     
     return { ok: true };
   } catch (e) {
-    console.error('❌ trackEngagementEvent failed:', e.message, e.stack);
+    console.error('❌ trackEngagementEvent failed:', e.message);
     return null;
   }
 }
