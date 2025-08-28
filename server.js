@@ -990,6 +990,52 @@ app.get('/api/analytics/inquiries', async (req, res) => {
  }
 });
 
+// Add this endpoint to your server to fix existing records
+app.post('/api/fix-existing-slugs', async (req, res) => {
+  if (!db) return res.json({ error: 'No database' });
+  
+  try {
+    const result = await db.query(`
+      SELECT id, first_name, family_surname, prospectus_filename 
+      FROM inquiries 
+      WHERE prospectus_generated = true AND (slug IS NULL OR slug = '')
+    `);
+    
+    let updated = 0;
+    for (const row of result.rows) {
+      const inquiry = {
+        id: row.id,
+        firstName: row.first_name,
+        familySurname: row.family_surname
+      };
+      
+      const slug = makeSlug(inquiry);
+      const prettyPath = `/${slug}`;
+      
+      // Update database
+      await db.query(
+        'UPDATE inquiries SET slug = $1 WHERE id = $2',
+        [slug, row.id]
+      );
+      
+      // Update slug index
+      slugIndex[slug] = `/prospectuses/${row.prospectus_filename}`;
+      updated++;
+    }
+    
+    await saveSlugIndex();
+    
+    res.json({ 
+      success: true, 
+      updated: updated,
+      message: `Fixed ${updated} existing prospectus URLs` 
+    });
+  } catch (error) {
+    console.error('Fix slugs error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Generate AI engagement summary using ChatGPT
 app.post('/api/ai/engagement-summary/:inquiryId', async (req, res) => {
   try {
@@ -1347,7 +1393,7 @@ process.on('SIGINT', async () => {
 process.on('SIGTERM', async () => { 
  console.log('\nShutting down gracefully...');
  if (db) {
-   await db.end();
+   await Fdb.end();
    console.log('Database connection closed.');
  }
  process.exit(0); 
