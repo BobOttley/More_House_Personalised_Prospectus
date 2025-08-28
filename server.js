@@ -876,6 +876,7 @@ document.addEventListener('DOMContentLoaded', function(){
     return {
       filename,
       prettyUrl: prettyPath,
+      slug: slug,
       fullPath: absPath
     };
 
