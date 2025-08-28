@@ -2214,7 +2214,7 @@ function openVideo(videoId, title, description) {
     videoTitle: title,
     section,
     timestamp: new Date().toISOString()
-  }))
+  })
 
   // Initialise the YT player only AFTER the iframe has a real src
   const initPlayer = () => setTimeout(() => initializeYouTubePlayerSafe(videoId), 800);
