@@ -1863,6 +1863,7 @@
                 <p class="personal-message" id="videoPersonalMessage"></p>
             </div>
 
+            
             <div class="video-iframe-container">
                 <iframe
                     id="videoPlayer"
@@ -1871,6 +1872,28 @@
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                     allowfullscreen>
                 </iframe>
+                <script>
+                    (function () {
+                      var iframe = document.getElementById('videoPlayer');
+                      if (!iframe) return;
+                    
+                      // Try to get a default ID from meta, fallback to YouTube demo video
+                      var meta = document.querySelector('meta[name="default-video-id"]');
+                      var id = (meta && meta.content) || 'M7lc1UVf-VE';
+                    
+                      var wanted = 'https://www.youtube.com/embed/' + encodeURIComponent(id) +
+                                   '?enablejsapi=1&origin=' + encodeURIComponent(location.origin) +
+                                   '&playsinline=1';
+                    
+                      var cur = iframe.getAttribute('src') || '';
+                      if (!cur || cur.startsWith('about:') ||
+                          cur.indexOf('enablejsapi=1') === -1 ||
+                          cur.indexOf('origin=') === -1) {
+                        iframe.setAttribute('src', wanted);
+                        console.log('YouTube iframe src initialised:', wanted);
+                      }
+                    })();
+                    </script>
             </div>
 
             <div class="video-modal-footer">
