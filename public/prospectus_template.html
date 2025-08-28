@@ -2136,13 +2136,12 @@
 // Enhanced video functions with fixed YouTube integration
 function openVideo(videoId, title, description) {
   const modal = document.getElementById('videoModal');
-  const iframe = document.getElementById('videoPlayer');
   const modalTitle = document.getElementById('videoModalTitle');
   const modalDesc = document.getElementById('videoModalDescription');
   const personalMessage = document.getElementById('videoPersonalMessage');
   const section = getCurrentSection();
 
-  // 1) Set modal text
+  // Set modal text
   modalTitle.textContent = title;
   modalDesc.textContent = description;
   if (prospectusData && prospectusData.firstName) {
@@ -2152,33 +2151,55 @@ function openVideo(videoId, title, description) {
     personalMessage.style.display = 'none';
   }
 
-  // 2) Show modal (DO NOT set iframe to about:blank)
+  // Show modal
   modal.classList.add('active');
   document.body.style.overflow = 'hidden';
 
-  // 3) Build the YouTube URL with correct origin + API flags
-  const origin = window.location.origin; // e.g. https://more-house-personalised-prospectus.onrender.com
+  // Build the proper YT URL
+  const origin = window.location.origin;
   const ytUrl = `https://www.youtube.com/embed/${videoId}?enablejsapi=1&origin=${origin}&rel=0&playsinline=1&autoplay=1&modestbranding=1&fs=1`;
 
-  // 4) Point iframe at the correct URL (after a tiny delay so modal has rendered)
+  // Ensure the iframe exists (recreate if a previous close removed it)
+  const container = document.querySelector('.video-iframe-container');
+  let iframe = document.getElementById('videoPlayer');
+  if (!iframe && container) {
+    iframe = document.createElement('iframe');
+    iframe.id = 'videoPlayer';
+    iframe.setAttribute('frameborder', '0');
+    iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture');
+    iframe.setAttribute('allowfullscreen', '');
+    container.appendChild(iframe);
+  }
+
+  // Now point the iframe to the YT URL (after a short delay to ensure modal layout is complete)
   setTimeout(() => {
     try {
-      if (iframe.src !== ytUrl) {
-        iframe.src = ytUrl;
-        console.log('YouTube video loaded:', ytUrl);
+      const el = document.getElementById('videoPlayer'); // re-select in case DOM changed
+      if (!el) {
+        console.warn('videoPlayer iframe missing; recreating');
+        if (container) {
+          const fresh = document.createElement('iframe');
+          fresh.id = 'videoPlayer';
+          fresh.setAttribute('frameborder', '0');
+          fresh.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture');
+          fresh.setAttribute('allowfullscreen', '');
+          container.appendChild(fresh);
+          fresh.src = ytUrl;
+        }
+        return;
       }
+      if (el.src !== ytUrl) el.src = ytUrl;
+      console.log('YouTube video loaded:', ytUrl);
     } catch (err) {
       console.error('Error loading YouTube video:', err);
-      // Fallback without API (rare)
-      iframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0`;
+      const el = document.getElementById('videoPlayer');
+      if (el) el.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0`;
     }
   }, 100);
 
-  // 5) Prepare per-video tracking state (unchanged)
+  // Prepare per-video tracking state
   const videoState = {
-    videoId,
-    title,
-    section,
+    videoId, title, section,
     startTime: Date.now(),
     totalWatchTime: 0,
     pauseCount: 0,
@@ -2192,7 +2213,7 @@ function openVideo(videoId, title, description) {
   };
   videoStates.set(videoId, videoState);
 
-  // 6) Track modal open (unchanged)
+  // Track modal open
   trackEvent('video_modal_open', {
     videoId,
     videoTitle: title,
@@ -2200,10 +2221,8 @@ function openVideo(videoId, title, description) {
     timestamp: new Date().toISOString()
   });
 
-  // 7) Initialise the YT player only AFTER the iframe has a real src
-  //    (we give it a short delay to be safe)
+  // Initialise the YT player only AFTER the iframe has a real src
   const initPlayer = () => setTimeout(() => initializeYouTubePlayerSafe(videoId), 800);
-
   if (window.YT && window.YT.Player) {
     initPlayer();
   } else {
@@ -2211,12 +2230,13 @@ function openVideo(videoId, title, description) {
   }
 }
 
+
 // Safe YouTube player initialization with comprehensive error handling
 function initializeYouTubePlayerSafe(videoId) {
     const iframe = document.getElementById('videoPlayer');
-    if (!iframe || iframe.src === 'about:blank') {
-        console.log('Iframe not ready for player initialization');
-        return;
+    if (!iframe || !iframe.src || iframe.src.startsWith('about:')) {
+      console.log('Iframe not ready for player initialization');
+      return;
     }
 
     try {
