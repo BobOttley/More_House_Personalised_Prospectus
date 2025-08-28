@@ -459,7 +459,7 @@ async function generateProspectus(inquiry) {
 
    // Add meta tags for tracking (used by template)
    const meta = `
-<meta name="inquiry-id" content="${inquiry.id}">
+<meta name="inquiry-id" content="${inquiry.id}" name="inquiry-id">
 <meta name="generated-date" content="${new Date().toISOString()}">
 <meta name="student-name" content="${inquiry.firstName} ${inquiry.familySurname}">
 <meta name="entry-year" content="${inquiry.entryYear}">
@@ -1225,6 +1225,78 @@ app.get('/', (req, res) => {
    <li>Dashboard: Active</li>
  </ul>
 </body></html>`);
+});
+
+// Video metrics endpoint (missing)
+app.get('/api/analytics/video-metrics', async (req, res) => {
+  try {
+    if (!db) {
+      return res.json([]);
+    }
+    
+    const result = await db.query(`
+      SELECT 
+        inquiry_id,
+        event_data->>'videoId' as video_id,
+        event_data->>'videoTitle' as video_title,
+        SUM(COALESCE((event_data->>'totalWatchTime')::int, 0)) as total_watch_time,
+        MAX(COALESCE((event_data->>'completionRate')::int, 0)) as completion_rate
+      FROM tracking_events 
+      WHERE event_type IN ('video_complete', 'video_progress')
+      GROUP BY inquiry_id, video_id, video_title
+      ORDER BY total_watch_time DESC
+      LIMIT 50
+    `);
+    
+    res.json(result.rows || []);
+  } catch (error) {
+    console.error('Video metrics error:', error);
+    res.status(500).json({ error: 'Failed to get video metrics' });
+  }
+});
+
+// Section data endpoint (missing)
+app.get('/api/section-data/:inquiryId', async (req, res) => {
+  try {
+    const inquiryId = req.params.inquiryId;
+    
+    if (!db) {
+      return res.json({
+        inquiryId,
+        sections: [],
+        totalTime: 0
+      });
+    }
+    
+    const result = await db.query(`
+      SELECT 
+        COALESCE(event_data->>'currentSection', event_data->>'section', 'unknown') as section,
+        SUM(COALESCE((event_data->>'timeSpent')::int, 0)) as dwell_seconds,
+        MAX(COALESCE((event_data->>'scrollPercentage')::int, 0)) as max_scroll_pct,
+        COUNT(*) as interactions
+      FROM tracking_events 
+      WHERE inquiry_id = $1 AND event_type = 'section_exit'
+      GROUP BY section
+      ORDER BY dwell_seconds DESC
+    `, [inquiryId]);
+    
+    const sections = result.rows || [];
+    const totalTime = sections.reduce((sum, row) => sum + (row.dwell_seconds || 0), 0);
+    
+    res.json({
+      inquiryId,
+      sections,
+      totalTime
+    });
+  } catch (error) {
+    console.error('Section data error:', error);
+    res.status(500).json({ 
+      error: 'Failed to get section data',
+      inquiryId: req.params.inquiryId,
+      sections: [],
+      totalTime: 0
+    });
+  }
 });
 
 // 404 handler
