@@ -1054,6 +1054,7 @@ Slug Generation: WORKING
   });
 }
 
+
 process.on('SIGINT', async () => {
   console.log('\nShutting down gracefully…');
   if (db) { await db.end(); console.log('Database connection closed.'); }
