@@ -2085,36 +2085,31 @@
                     const videoId = videoElement?.getAttribute('data-video-id');
                     const videoTitle = videoElement?.getAttribute('data-video-title');
                     
-                    trackEvent('video_click', {
-                        .......clickData,
+                    trackEvent('video_click', Object.assign({}, clickData, {
                         videoId: videoId,
                         videoTitle: videoTitle,
                         clickType: 'video_play'
                     });
                 } else if (target.closest('.cta-button') || target.closest('a[href*="open-events"]')) {
-                    trackEvent('conversion_click', {
-                        .......clickData,
+                    trackEvent('conversion_click', Object.assign({}, clickData, {
                         conversionType: 'open_morning',
                         clickType: 'cta'
                     });
                 } else if (target.closest('.photo-card')) {
-                    trackEvent('photo_click', {
-                        .......clickData,
+                    trackEvent('photo_click', Object.assign({}, clickData, {
                         clickType: 'photo_modal'
                     });
                 } else if (target.closest('.entry-card-header')) {
                     const entryCard = target.closest('.entry-card');
                     const entryType = entryCard?.className.match(/entry-(\w+)/)?.[1];
                     
-                    trackEvent('entry_point_expand', {
-                        .......clickData,
+                    trackEvent('entry_point_expand', Object.assign({}, clickData, {
                         entryType: entryType,
                         clickType: 'expand_section'
                     });
                 } else if (target.tagName === 'A' || target.closest('a')) {
                     const link = target.closest('a');
-                    trackEvent('link_click', {
-                        .......clickData,
+                    trackEvent('link_click', Object.assign({}, clickData, {
                         href: link.href,
                         isExternal: !link.href.includes(window.location.hostname),
                         clickType: 'navigation'
