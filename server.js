@@ -844,7 +844,7 @@ document.addEventListener('DOMContentLoaded', function(){
     // Verify the injection worked
     const savedContent = await fs.readFile(absPath, 'utf8');
     const hasEmbeddedTracking = savedContent.includes('Enhanced SMART Analytics initialised');
-    const hasInquiryId = savedContent.includes(\`const INQUIRY_ID = '\${inquiry.id}';\`);
+    const hasInquiryId = savedContent.includes(`const INQUIRY_ID = '${inquiry.id}';`);
     const hasPersonalization = savedContent.includes('initializeProspectus');
 
     console.log(\`📄 Prospectus saved: \${filename}\`);
