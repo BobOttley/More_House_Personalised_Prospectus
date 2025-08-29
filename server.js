@@ -36,14 +36,12 @@ let db = null;
 
 async function initializeDatabase() {
   try {
-    db = new Client({
+    if (!process.env.DATABASE_URL) {
+      throw new Error('DATABASE_URL not set');
+    }
+    db = new (require('pg').Client)({
       connectionString: process.env.DATABASE_URL,
-      host: process.env.DB_HOST,
-      port: process.env.DB_PORT ? Number(process.env.DB_PORT) : undefined,
-      database: process.env.DB_NAME,
-      user: process.env.DB_USER,
-      password: process.env.DB_PASSWORD,
-      ssl: process.env.DB_SSL ? { rejectUnauthorized: false } : undefined
+      ssl: { require: true, rejectUnauthorized: false } // Render/Neon/PG on cloud usually require this
     });
     await db.connect();
     console.log('✅ PostgreSQL connected');
@@ -54,6 +52,7 @@ async function initializeDatabase() {
     return false;
   }
 }
+
 
 // ===== Utilities =====
 function generateInquiryId() {
