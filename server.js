@@ -415,72 +415,52 @@ async function generateProspectus(inquiry) {
     const relPath = `/prospectuses/${filename}`;
     const absPath = path.join(__dirname, 'prospectuses', filename);
     
+    // Add meta tags for tracking
     const meta = `
 <meta name="inquiry-id" content="${inquiry.id}">
 <meta name="generated-date" content="${new Date().toISOString()}">
 <meta name="student-name" content="${inquiry.firstName} ${inquiry.familySurname}">
 <meta name="entry-year" content="${inquiry.entryYear}">
-<meta name="age-group" content="${inquiry.ageGroup}">
-<meta name="tracking-enabled" content="true">`;
+<meta name="age-group" content="${inquiry.ageGroup}">`;
     
     html = html.replace('</head>', `${meta}\n</head>`);
     
+    // Update page title
     const title = `${inquiry.firstName} ${inquiry.familySurname} - More House School Prospectus ${inquiry.entryYear}`;
     html = html.replace(/<title>.*?<\/title>/, `<title>${title}</title>`);
     
-    const personalizeBoot = `<script>
-document.addEventListener('DOMContentLoaded', function(){
-  try {
-    const userData = ${JSON.stringify(inquiry)};
-    console.log('Initializing prospectus with data:', userData);
-    if (typeof initializeProspectus === 'function') {
-      initializeProspectus(userData);
-      console.log('Prospectus personalized successfully');
-    } else {
-      console.error('initializeProspectus function not found');
-    }
-  } catch (error) {
-    console.error('Failed to initialize prospectus:', error);
-  }
-});
+    // CRITICAL: Replace the OLD tracking script in template with NEW simple tracking
+    const newTrackingScript = `
+<!-- Simple Tracking Script -->
+<script>
+// Set inquiry ID for tracking
+window.MORE_HOUSE_INQUIRY_ID = '${inquiry.id}';
+console.log('Prospectus tracking initialized for:', '${inquiry.id}');
+</script>
+<script>
+${await fs.readFile(path.join(__dirname, 'public', 'tracking.js'), 'utf8')}
 </script>`;
     
-    const trackingInject = `<!-- More House Analytics Tracking -->
-<script>
-window.MORE_HOUSE_INQUIRY_ID='${inquiry.id}';
-console.log('Inquiry ID set for tracking:', window.MORE_HOUSE_INQUIRY_ID);
-</script>
-<script src="/tracking.js?v=5.0.0" defer></script>`;
-    
+    // Find the body closing tag and inject BEFORE it
     const bodyCloseIndex = html.lastIndexOf('</body>');
     if (bodyCloseIndex === -1) {
       throw new Error('Template missing </body> tag');
     }
     
-    const allScripts = personalizeBoot + '\n' + trackingInject + '\n';
-    const finalHtml = html.slice(0, bodyCloseIndex) + allScripts + html.slice(bodyCloseIndex);
+    html = html.slice(0, bodyCloseIndex) + newTrackingScript + '\n' + html.slice(bodyCloseIndex);
     
-    await fs.writeFile(absPath, finalHtml, 'utf8');
+    // Write the final HTML file
+    await fs.writeFile(absPath, html, 'utf8');
     
+    // Create pretty URL slug
     const slug = makeSlug(inquiry);
     const prettyPath = `/${slug}`;
     slugIndex[slug] = relPath;
     await saveSlugIndex();
     
-    const savedContent = await fs.readFile(absPath, 'utf8');
-    const hasTrackingJs = /<script\s+src="\/tracking\.js(\?v=[^"]*)?"[^>]*><\/script>/.test(savedContent);
-    const hasInquiryId = savedContent.includes(`window.MORE_HOUSE_INQUIRY_ID='${inquiry.id}'`);
-    const hasPersonalization = savedContent.includes('initializeProspectus');
-    
-    console.log(`Prospectus saved: ${filename}`);
-    console.log(`Pretty URL: ${prettyPath}`);
-    console.log(`Tracking script: ${hasTrackingJs ? 'VERIFIED' : 'MISSING'}`);
-    console.log(`Inquiry ID: ${hasInquiryId ? 'VERIFIED' : 'MISSING'}`);
-    console.log(`Personalization: ${hasPersonalization ? 'VERIFIED' : 'MISSING'}`);
-    
-    if (!hasTrackingJs || !hasInquiryId) {
-      console.error('CRITICAL: Tracking script injection FAILED!');
-    }
+    console.log(`✅ Prospectus generated: ${filename}`);
+    console.log(`🔗 Pretty URL: ${prettyPath}`);
+    console.log(`📊 Tracking ID: ${inquiry.id}`);
     
     return {
       filename,
@@ -491,7 +471,7 @@ console.log('Inquiry ID set for tracking:', window.MORE_HOUSE_INQUIRY_ID);
     };
   } catch (e) {
     console.error('Prospectus generation failed:', e.message);
-    throw new Error(`prospectus_template.html error: ${e.message}`);
+    throw new Error(`Prospectus generation error: ${e.message}`);
   }
 }
 
@@ -1430,65 +1410,64 @@ app.post(["/api/track","/api/tracking"], (req,res) => res.redirect(307, "/api/tr
 
 app.post('/api/track-engagement', async (req, res) => {
   try {
-    const { events = [], sessionInfo } = req.body || {};
-    const clientIP = req.ip || req.connection?.remoteAddress;
+    const { events = [], sessionInfo } = req.body;
     
-    console.log(`Tracking: ${events.length} events from ${sessionInfo?.inquiryId || 'unknown'}`);
-    
-    for (const e of (events.length ? events : [req.body])) {
-      const { inquiryId, sessionId, eventType, timestamp, data = {}, url, currentSection } = e;
-      if (!inquiryId || !sessionId || !eventType) continue;
-      
-      await trackEngagementEvent({
-        inquiryId, 
-        sessionId, 
-        eventType,
-        timestamp: timestamp || new Date().toISOString(),
-        eventData: data, 
-        url, 
-        currentSection,
-        deviceInfo: data.deviceInfo,
-        ip: clientIP,
-        sessionInfo: sessionInfo
-      });
+    if (!events || events.length === 0) {
+      return res.json({ success: true, message: 'No events to process' });
     }
+
+    console.log(`📍 Received ${events.length} events from ${sessionInfo?.inquiryId || 'unknown'}`);
     
-    if (sessionInfo?.inquiryId) {
-      await updateEngagementMetrics({
-        inquiryId: sessionInfo.inquiryId,
-        sessionId: sessionInfo.sessionId,
-        timeOnPage: sessionInfo.timeOnPage,
-        maxScrollDepth: sessionInfo.maxScrollDepth,
-        clickCount: sessionInfo.clickCount,
-        deviceInfo: sessionInfo.deviceInfo,
-        prospectusFilename: 'unknown'
-      });
+    // Process each event
+    for (const event of events) {
+      const { inquiryId, sessionId, eventType, data = {}, timestamp } = event;
       
-      if (sessionInfo.timeOnPage && db) {
-        const totalSeconds = Math.round(sessionInfo.timeOnPage);
-        const totalMs = totalSeconds * 1000;
-        
-        console.log(`Updating inquiry ${sessionInfo.inquiryId} with ${totalMs}ms dwell time`);
-        
-        await db.query(`
-          UPDATE inquiries 
-          SET dwell_ms = GREATEST(COALESCE(dwell_ms, 0), $2),
-              updated_at = CURRENT_TIMESTAMP
-          WHERE id = $1
-        `, [sessionInfo.inquiryId, totalMs]);
-        
-        console.log(`Successfully updated dwell_ms for inquiry ${sessionInfo.inquiryId}`);
+      if (!inquiryId || !eventType) {
+        console.warn('❌ Invalid event:', { inquiryId, eventType });
+        continue;
+      }
+      
+      // Store in database if available
+      if (db) {
+        try {
+          await db.query(`
+            INSERT INTO tracking_events (
+              inquiry_id, session_id, event_type, event_data, 
+              page_url, timestamp, user_agent, ip_address
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          `, [
+            inquiryId,
+            sessionId || null,
+            eventType,
+            JSON.stringify(data),
+            req.headers.referer || null,
+            new Date(timestamp),
+            req.headers['user-agent'] || null,
+            req.ip || null
+          ]);
+        } catch (dbError) {
+          console.warn('DB insert failed:', dbError.message);
+        }
+      }
+
+      // Update inquiry metrics for important events
+      if (eventType === 'heartbeat' || eventType === 'page_unload') {
+        await updateInquiryMetrics(inquiryId, sessionInfo, data);
       }
     }
     
     res.json({ 
       success: true, 
-      message: `Tracked ${(events.length || 1)} event(s)`,
-      eventsProcessed: events.length || 1
+      processed: events.length,
+      inquiry: sessionInfo?.inquiryId
     });
-  } catch (e) {
-    console.error('track-engagement error:', e);
-    res.status(500).json({ success: false, error: e.message });
+    
+  } catch (error) {
+    console.error('❌ Track engagement error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
   }
 });
 
@@ -2980,6 +2959,32 @@ app.get('/api/check-summary/:inquiryId', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+// Add this function to your server.js file
+
+async function updateInquiryMetrics(inquiryId, sessionInfo, data) {
+  if (!db || !sessionInfo) return;
+  
+  try {
+    const timeOnPage = Math.round((sessionInfo.timeOnPage || 0) / 1000); // Convert to seconds
+    const maxScroll = sessionInfo.maxScrollDepth || 0;
+    const clicks = sessionInfo.clickCount || 0;
+    
+    await db.query(`
+      UPDATE inquiries 
+      SET 
+        dwell_ms = GREATEST(COALESCE(dwell_ms, 0), $2),
+        return_visits = GREATEST(COALESCE(return_visits, 1), 1),
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = $1
+    `, [inquiryId, timeOnPage * 1000]); // Store as milliseconds
+    
+    console.log(`Updated metrics for ${inquiryId}: ${timeOnPage}s, ${maxScroll}% scroll, ${clicks} clicks`);
+    
+  } catch (error) {
+    console.warn('Failed to update inquiry metrics:', error.message);
+  }
+}
 
 // Admin endpoints
 app.get('/api/inquiries', async (_req, res) => {
