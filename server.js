@@ -440,6 +440,48 @@ console.log('Prospectus tracking initialized for:', '${inquiry.id}');
 <script>
 ${await fs.readFile(path.join(__dirname, 'public', 'tracking.js'), 'utf8')}
 </script>`;
+// Inject personalisation payload + initialise the page
+const personalizationBootstrap = `
+<script>
+  // Make the inquiry data available to the prospectus template
+  window.PROSPECTUS_DATA = ${JSON.stringify({
+    id: inquiry.id,
+    firstName: inquiry.firstName,
+    familySurname: inquiry.familySurname,
+    parentEmail: inquiry.parentEmail,
+    ageGroup: inquiry.ageGroup,
+    entryYear: inquiry.entryYear,
+    sciences: !!inquiry.sciences,
+    mathematics: !!inquiry.mathematics,
+    english: !!inquiry.english,
+    languages: !!inquiry.languages,
+    humanities: !!inquiry.humanities,
+    business: !!inquiry.business,
+    drama: !!inquiry.drama,
+    music: !!inquiry.music,
+    art: !!inquiry.art,
+    creative_writing: !!inquiry.creative_writing,
+    sport: !!inquiry.sport,
+    leadership: !!inquiry.leadership,
+    community_service: !!inquiry.community_service,
+    outdoor_education: !!inquiry.outdoor_education,
+    academic_excellence: !!inquiry.academic_excellence,
+    pastoral_care: !!inquiry.pastoral_care,
+    university_preparation: !!inquiry.university_preparation,
+    personal_development: !!inquiry.personal_development,
+    career_guidance: !!inquiry.career_guidance,
+    extracurricular_opportunities: !!inquiry.extracurricular_opportunities
+  })};
+
+  // Call the template's initialiser when available
+  (function startPersonalisation(){
+    if (typeof window.initializeProspectus === 'function') {
+      window.initializeProspectus(window.PROSPECTUS_DATA);
+    } else {
+      setTimeout(startPersonalisation, 50);
+    }
+  })();
+</script>`;
     
     // Find the body closing tag and inject BEFORE it
     const bodyCloseIndex = html.lastIndexOf('</body>');
@@ -447,7 +489,12 @@ ${await fs.readFile(path.join(__dirname, 'public', 'tracking.js'), 'utf8')}
       throw new Error('Template missing </body> tag');
     }
     
-    html = html.slice(0, bodyCloseIndex) + newTrackingScript + '\n' + html.slice(bodyCloseIndex);
+    html = html.slice(0, bodyCloseIndex)
+      + newTrackingScript
+      + personalizationBootstrap
+      + '\n'
+      + html.slice(bodyCloseIndex);
+
     
     // Write the final HTML file
     await fs.writeFile(absPath, html, 'utf8');
@@ -1265,6 +1312,7 @@ app.post(['/webhook', '/api/inquiry'], async (req, res) => {
       isp: location.isp,
       ...data
     };
+    
     
     await saveInquiryJson(record);
     
