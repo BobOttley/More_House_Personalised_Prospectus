@@ -246,20 +246,20 @@ document.addEventListener('DOMContentLoaded', function() {
 
   return { filename, path: outPath, url: `/prospectuses/${filename}`, generatedAt: new Date().toISOString() };
 }
+// Update inquiry status after prospectus generation — resilient to missing JSON
 
-// NOTE: fixed — no async in Array.find predicate
-async function updateInquiryStatus(inquiryId, prospectusInfo) {
+async function updateInquiryStatus(inquiryId, prospectusInfo, fallbackInquiry) {
+  let updated = null;
+
+  // 1) Try to update JSON file if present
   try {
     const files = await fs.readdir('data');
-    let updated = null;
-
     for (const file of files) {
       if (!file.startsWith('inquiry-') || !file.endsWith('.json')) continue;
       const fp = path.join('data', file);
       const content = await fs.readFile(fp, 'utf8');
       let inquiry;
       try { inquiry = JSON.parse(content); } catch { continue; }
-
       if (inquiry.id === inquiryId) {
         inquiry.prospectusGenerated = true;
         inquiry.prospectusFilename = prospectusInfo.filename;
@@ -271,31 +271,92 @@ async function updateInquiryStatus(inquiryId, prospectusInfo) {
         break;
       }
     }
+  } catch (e) {
+    console.warn('JSON status update pass failed:', e.message);
+  }
 
-    if (!updated) throw new Error(`Inquiry ${inquiryId} not found`);
+  // 2) If no JSON was found, reconstruct one (from DB or fallback) and save it
+  if (!updated) {
+    let base = null;
 
+    // 2a) DB lookup
     if (db) {
       try {
-        await db.query(
-          `UPDATE inquiries 
-             SET status='prospectus_generated',
-                 prospectus_generated=true,
-                 prospectus_filename=$2,
-                 prospectus_url=$3,
-                 prospectus_generated_at=$4,
-                 updated_at=CURRENT_TIMESTAMP
-           WHERE id=$1`,
-          [inquiryId, prospectusInfo.filename, prospectusInfo.url, new Date(prospectusInfo.generatedAt)]
-        );
-      } catch (e) { console.warn('⚠️ Failed to update database:', e.message); }
+        const { rows } = await db.query('SELECT * FROM inquiries WHERE id=$1 LIMIT 1', [inquiryId]);
+        if (rows && rows[0]) {
+          const r = rows[0];
+          base = {
+            id: r.id,
+            firstName: r.first_name,
+            familySurname: r.family_surname,
+            parentEmail: r.parent_email,
+            ageGroup: r.age_group,
+            entryYear: r.entry_year,
+            receivedAt: r.received_at,
+            status: r.status || 'prospectus_generated'
+          };
+        }
+      } catch (e) {
+        console.warn('DB lookup in updateInquiryStatus failed:', e.message);
+      }
     }
 
-    return updated;
-  } catch (error) {
-    console.error('❌ Error updating inquiry status:', error.message);
-    throw error;
+    // 2b) Fallback from in-memory inquiry passed by the caller (generate route)
+    if (!base && fallbackInquiry) {
+      base = {
+        id: fallbackInquiry.id,
+        firstName: fallbackInquiry.firstName,
+        familySurname: fallbackInquiry.familySurname,
+        parentEmail: fallbackInquiry.parentEmail,
+        ageGroup: fallbackInquiry.ageGroup,
+        entryYear: fallbackInquiry.entryYear,
+        receivedAt: fallbackInquiry.receivedAt || new Date().toISOString(),
+        status: 'prospectus_generated'
+      };
+    }
+
+    // 2c) If we have enough to write a JSON record, write a fresh file
+    if (base) {
+      base.prospectusGenerated = true;
+      base.prospectusFilename = prospectusInfo.filename;
+      base.prospectusUrl = prospectusInfo.url;
+      base.prospectusGeneratedAt = prospectusInfo.generatedAt;
+      base.status = 'prospectus_generated';
+
+      const freshFile = `inquiry-${new Date().toISOString()}.json`;
+      try {
+        await fs.writeFile(path.join('data', freshFile), JSON.stringify(base, null, 2));
+        updated = base;
+        console.log(`🆕 Created JSON record for ${inquiryId}: ${freshFile}`);
+      } catch (e) {
+        console.warn('Failed to write reconstructed JSON:', e.message);
+      }
+    }
   }
+
+  // 3) Always try to update the DB (best effort)
+  if (db) {
+    try {
+      await db.query(
+        `UPDATE inquiries
+           SET status='prospectus_generated',
+               prospectus_generated=true,
+               prospectus_filename=$2,
+               prospectus_url=$3,
+               prospectus_generated_at=$4,
+               updated_at=CURRENT_TIMESTAMP
+         WHERE id=$1`,
+        [inquiryId, prospectusInfo.filename, prospectusInfo.url, new Date(prospectusInfo.generatedAt)]
+      );
+    } catch (e) {
+      console.warn('⚠️ Failed to update DB in updateInquiryStatus:', e.message);
+    }
+  }
+
+  // 4) Return whatever we managed to assemble (don’t throw just for missing JSON)
+  return updated || { id: inquiryId, status: 'prospectus_generated', prospectusUrl: prospectusInfo.url };
 }
+
 
 // =============== Webhook (create inquiry + generate prospectus) ===============
 app.post('/webhook', async (req, res) => {
@@ -323,7 +384,7 @@ app.post('/webhook', async (req, res) => {
     });
 
     const prospectus = await generateProspectus(inquiry);
-    await updateInquiryStatus(inquiry.id, prospectus);
+    await updateInquiryStatus(inquiry.id, prospectus, inquiry);
 
     res.json({
       success: true,
@@ -427,40 +488,76 @@ app.get('/api/analytics/stats', async (req, res) => {
 });
 
 app.get('/api/analytics/inquiries', async (req, res) => {
-  if (!db) return res.json([]);
+  // 1) Try DB
+  if (db) {
+    try {
+      const q = `
+        SELECT 
+          i.*,
+          em.time_on_page,
+          em.scroll_depth,
+          em.clicks_on_links AS click_count,
+          em.total_visits,
+          em.last_visit
+        FROM inquiries i
+        LEFT JOIN LATERAL (
+          SELECT * FROM engagement_metrics em
+          WHERE em.inquiry_id = i.id
+          ORDER BY last_visit DESC NULLS LAST
+          LIMIT 1
+        ) em ON true
+        ORDER BY i.received_at DESC
+        LIMIT 50
+      `;
+      const r = await db.query(q);
+      if (r.rows.length > 0) {
+        const out = r.rows.map(row => ({
+          ...row,
+          engagement: row.time_on_page ? {
+            timeOnPage: Number(row.time_on_page),
+            scrollDepth: Number(row.scroll_depth || 0),
+            clickCount: Number(row.click_count || 0),
+            totalVisits: Number(row.total_visits || 0)
+          } : null
+        }));
+        return res.json(out);
+      }
+    } catch (e) {
+      console.warn('DB inquiries failed, falling back to JSON:', e.message);
+    }
+  }
+
+  // 2) JSON fallback (shape: snake_case for dashboard)
   try {
-    const q = `
-      SELECT i.*,
-             COALESCE(em.time_on_page,0) AS time_on_page,
-             COALESCE(em.scroll_depth,0) AS scroll_depth,
-             COALESCE(em.clicks_on_links,0) AS click_count,
-             COALESCE(em.total_visits,0) AS total_visits,
-             em.last_visit
-      FROM inquiries i
-      LEFT JOIN LATERAL (
-        SELECT * FROM engagement_metrics em
-        WHERE em.inquiry_id = i.id
-        ORDER BY last_visit DESC NULLS LAST
-        LIMIT 1
-      ) em ON true
-      ORDER BY i.received_at DESC
-      LIMIT 50
-    `;
-    const r = await db.query(q);
-    const out = r.rows.map(row => ({
-      ...row,
-      engagement: row.time_on_page ? {
-        timeOnPage: Number(row.time_on_page),
-        scrollDepth: Number(row.scroll_depth),
-        clickCount: Number(row.click_count),
-        totalVisits: Number(row.total_visits)
-      } : null
-    }));
-    res.json(out);
-  } catch {
-    res.status(500).json({ error: 'Failed to get inquiries' });
+    const files = await fs.readdir('data');
+    const out = [];
+    for (const f of files) {
+      if (!f.startsWith('inquiry-') || !f.endsWith('.json')) continue;
+      const obj = JSON.parse(await fs.readFile(path.join('data', f), 'utf8'));
+      out.push({
+        id: obj.id,
+        first_name: obj.firstName,
+        family_surname: obj.familySurname,
+        parent_email: obj.parentEmail,
+        age_group: obj.ageGroup,
+        entry_year: obj.entryYear,
+        status: obj.status,
+        received_at: obj.receivedAt,
+        prospectus_filename: obj.prospectusFilename || null,
+        prospectus_url: obj.prospectusUrl || null,
+        // minimal engagement placeholders the dashboard tolerates:
+        dwell_ms: obj.dwell_ms || 0,
+        return_visits: obj.return_visits || 1
+      });
+    }
+    out.sort((a, b) => new Date(b.received_at) - new Date(a.received_at));
+    return res.json(out);
+  } catch (e) {
+    console.error('JSON fallback failed:', e.message);
+    return res.json([]); // dashboard expects an array
   }
 });
+
 
 app.get('/api/analytics/activity', async (req, res) => {
   if (!db) return res.json([]);
@@ -676,7 +773,7 @@ app.post('/api/generate-prospectus/:inquiryId', async (req, res) => {
   try {
     let inquiry = null;
 
-    // DB first (dashboard often reads from DB)
+    // DB first
     if (db) {
       try {
         const { rows } = await db.query('SELECT * FROM inquiries WHERE id = $1 LIMIT 1', [inquiryId]);
@@ -693,8 +790,8 @@ app.post('/api/generate-prospectus/:inquiryId', async (req, res) => {
             status: r.status
           };
         }
-      } catch (dbErr) {
-        console.warn('DB lookup failed (generate):', dbErr.message);
+      } catch (e) {
+        console.warn('DB lookup failed (generate):', e.message);
       }
     }
 
@@ -708,7 +805,9 @@ app.post('/api/generate-prospectus/:inquiryId', async (req, res) => {
       }
     }
 
-    if (!inquiry) return res.status(404).json({ success: false, error: 'Inquiry not found' });
+    if (!inquiry) {
+      return res.status(404).json({ success: false, error: 'Inquiry not found' });
+    }
 
     const prospectus = await generateProspectus(inquiry);
     await updateInquiryStatus(inquiry.id, prospectus);
@@ -727,6 +826,7 @@ app.post('/api/generate-prospectus/:inquiryId', async (req, res) => {
     res.status(500).json({ success: false, error: 'Failed to generate prospectus', message: e.message });
   }
 });
+
 
 // =============== AI Analysis routes ===============
 async function fetchFamilyEngagement(inquiryId) {

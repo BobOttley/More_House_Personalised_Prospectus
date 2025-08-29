@@ -1272,12 +1272,14 @@
                                     ${family.firstName} ${family.familySurname} Family
                                 </div>
                                 <div class="family-meta">
-                                    <span>Entry ${family.entryYear || 'TBC'}</span>
-                                    <span>${formatDwellTime(family.dwellMs)}</span>
-                                    <span>${family.returnVisits} visits</span>
-                                    ${family.hasAIAnalysis ? '<span style="color: var(--award-gold); font-weight: 600;">AI</span>' : ''}
-                                    <span>${formatTimeAgo(new Date(family.receivedAt))}</span>
+                                  <span>Entry ${family.entryYear || 'TBC'}</span>
+                                  <span>${formatDwellTime(family.dwellMs)}</span>
+                                  <span>${family.returnVisits} visits</span>
+                                  <span>ID: ${family.id}</span>  <!-- 👈 always show the customer ID -->
+                                  ${family.hasAIAnalysis ? '<span style="color: var(--award-gold); font-weight: 600;">AI</span>' : ''}
+                                  <span>${formatTimeAgo(new Date(family.receivedAt))}</span>
                                 </div>
+
                             </div>
                             <div class="family-score">
                                 <div class="score-badge ${family.temperature}">
