@@ -1171,6 +1171,67 @@
 
 </head>
 <body>
+
+        <!-- Language Switcher -->
+        <div id="lang-switcher" data-no-translate
+             style="position:fixed; top:16px; right:16px; z-index:9999;
+                    font:14px/1.2 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+                    background:#fff; padding:4px 8px; border-radius:4px; box-shadow:0 2px 6px rgba(0,0,0,.1);">
+          <label for="prospectus-lang" style="margin-right:6px;">Language:</label>
+          <select id="prospectus-lang" aria-label="Select language">
+            <option value="en">English</option>
+            <option value="zh">中文 (Chinese)</option>
+            <option value="ar">العربية (Arabic)</option>
+            <option value="ru">Русский (Russian)</option>
+            <option value="fr">Français (French)</option>
+            <option value="es">Español (Spanish)</option>
+            <option value="de">Deutsch (German)</option>
+            <option value="it">Italiano (Italian)</option>
+          </select>
+        </div>
+      
+        <script>
+        (function () {
+          const sel = document.getElementById('prospectus-lang');
+          const params = new URLSearchParams(window.location.search);
+          const KEY = 'penai_prospectus_lang';
+          const current = (params.get('lang') || localStorage.getItem(KEY) || 'en').toLowerCase();
+      
+          if ([...sel.options].some(o => o.value === current)) sel.value = current;
+      
+          sel.addEventListener('change', function () {
+            localStorage.setItem(KEY, this.value);
+            const url = new URL(window.location.href);
+            url.searchParams.set('lang', this.value);
+            window.location.href = url.toString();
+          });
+        })();
+        </script>
+        <script>
+        (function () {
+          const params = new URLSearchParams(window.location.search);
+          const lang = params.get('lang');
+          if (!lang) return; // nothing to do if no ?lang
+        
+          document.addEventListener('click', function (ev) {
+            const a = ev.target.closest('a');
+            if (!a) return;
+        
+            const href = a.getAttribute('href') || '';
+            // skip external links (http/https) and anchor-only (#)
+            if (!href || /^https?:\/\//i.test(href) || href.startsWith('#')) return;
+        
+            try {
+              const u = new URL(href, window.location.href);
+              u.searchParams.set('lang', lang);
+              a.setAttribute('href', u.toString());
+            } catch (_) {
+              // ignore invalid URLs
+            }
+          }, true);
+        })();
+        </script>
+            
     <!-- Cover Page -->
     <section class="cover-page" data-track-section="cover_page">
         <div class="cover-content">
@@ -1179,8 +1240,8 @@
                      alt="More House School Logo" 
                      style="width: 160px; height: 160px; display: block; margin: 0 auto;">
             </div>
-            <h1 class="cover-title">MORE HOUSE SCHOOL</h1>
-            <p class="cover-subtitle">Knightsbridge</p>
+            <h1 class="cover-title" data-no-translate>MORE HOUSE SCHOOL</h1>
+            <p class="cover-subtitle" data-no-translate>Knightsbridge</p>
             <p style="margin-top: 2rem; font-size: 1.1rem; color: var(--morehouse-navy);">
                 An Independent Day School for Girls<br>
                 Ages 9-18 • Established 1953
@@ -1260,16 +1321,20 @@
     <!-- Welcome Content -->
     <section class="page" data-track-section="about_more_house">
         <div class="page-content">
-            <h1 style="text-align: center; margin-bottom: 2rem;">More House <span style="color: var(--morehouse-deep-pink);">School</span></h1>
+            <h1 style="text-align: center; margin-bottom: 2rem;">
+                <span data-no-translate>More House</span>
+                <span style="color: var(--morehouse-deep-pink);" data-no-translate>School</span>
+              </h1>
+              
             
             <div class="quote">
                 "Pastorally among the best we have seen and the reason many parents choose this school over others."
-                <div class="quote-author">— The Good Schools Guide</div>
+                <div class="quote-author" data-no-translate>— The Good Schools Guide</div>
             </div>
 
             <div class="quote" style="background: var(--morehouse-light-grey); border-left: 4px solid var(--morehouse-navy);">
                 "Working its socks off to get the girls the best education."
-                <div class="quote-author">— More House Parent</div>
+                <div class="quote-author" data-no-translate>— More House Parent</div>
             </div>
 
             <p class="large-text" style="text-align: center; max-width: 800px; margin: 2rem auto;" id="welcomePersonalization">
