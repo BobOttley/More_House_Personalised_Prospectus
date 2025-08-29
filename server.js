@@ -153,95 +153,95 @@ app.post('/api/track-engagement', async (req, res) => {
   }
 });
 
-
 async function generateProspectus(inquiry) {
- console.log(`Generating prospectus for ${inquiry.firstName} ${inquiry.familySurname}`);
- const templatePath = path.join(__dirname, 'public', 'prospectus_template.html');
+  console.log(`Generating prospectus for ${inquiry.firstName} ${inquiry.familySurname}`);
+  const templatePath = path.join(__dirname, 'public', 'prospectus_template.html');
+  
+  try {
+    let html = await fs.readFile(templatePath, 'utf8');
+    
+    const filename = generateFilename(inquiry);
+    const relPath = `/prospectuses/${filename}`;
+    const absPath = path.join(__dirname, 'prospectuses', filename);
  
- try {
-   let html = await fs.readFile(templatePath, 'utf8');
-   
-   const filename = generateFilename(inquiry);
-   const relPath = `/prospectuses/${filename}`;
-   const absPath = path.join(__dirname, 'prospectuses', filename);
-
-   const meta = `
-<meta name="inquiry-id" content="${inquiry.id}">
-<meta name="generated-date" content="${new Date().toISOString()}">
-<meta name="student-name" content="${inquiry.firstName} ${inquiry.familySurname}">
-<meta name="entry-year" content="${inquiry.entryYear}">
-<meta name="age-group" content="${inquiry.ageGroup}">
-<meta name="tracking-enabled" content="true">`;
-
-   html = html.replace('</head>', `${meta}\n</head>`);
-
-   const title = `${inquiry.firstName} ${inquiry.familySurname} - More House School Prospectus ${inquiry.entryYear}`;
-   html = html.replace(/<title>.*?<\/title>/, `<title>${title}</title>`);
-
-   const personalizeBoot = `<script>
-document.addEventListener('DOMContentLoaded', function(){
- try {
-   const userData = ${JSON.stringify(inquiry)};
-   console.log('Initializing prospectus with data:', userData);
-   if (typeof initializeProspectus === 'function') {
-     initializeProspectus(userData);
-     console.log('Prospectus personalized successfully');
-   } else {
-     console.error('initializeProspectus function not found');
-   }
- } catch (error) {
-   console.error('Failed to initialize prospectus:', error);
+    const meta = `
+ <meta name="inquiry-id" content="${inquiry.id}">
+ <meta name="generated-date" content="${new Date().toISOString()}">
+ <meta name="student-name" content="${inquiry.firstName} ${inquiry.familySurname}">
+ <meta name="entry-year" content="${inquiry.entryYear}">
+ <meta name="age-group" content="${inquiry.ageGroup}">
+ <meta name="tracking-enabled" content="true">`;
+ 
+    html = html.replace('</head>', `${meta}\n</head>`);
+ 
+    const title = `${inquiry.firstName} ${inquiry.familySurname} - More House School Prospectus ${inquiry.entryYear}`;
+    html = html.replace(/<title>.*?<\/title>/, `<title>${title}</title>`);
+ 
+    const personalizeBoot = `<script>
+ document.addEventListener('DOMContentLoaded', function(){
+  try {
+    const userData = ${JSON.stringify(inquiry)};
+    console.log('Initializing prospectus with data:', userData);
+    if (typeof initializeProspectus === 'function') {
+      initializeProspectus(userData);
+      console.log('Prospectus personalized successfully');
+    } else {
+      console.error('initializeProspectus function not found');
+    }
+  } catch (error) {
+    console.error('Failed to initialize prospectus:', error);
+  }
+ });
+ </script>`;
+ 
+    const trackingInject = `<!-- More House Analytics Tracking -->
+ <script>
+ window.MORE_HOUSE_INQUIRY_ID='${inquiry.id}';
+ console.log('Inquiry ID set for tracking:', window.MORE_HOUSE_INQUIRY_ID);
+ </script>`;
+ 
+    const bodyCloseIndex = html.lastIndexOf('</body>');
+    if (bodyCloseIndex === -1) {
+      throw new Error('Template missing </body> tag');
+    }
+    
+    const allScripts = personalizeBoot + '\n' + trackingInject + '\n';
+    const finalHtml = html.slice(0, bodyCloseIndex) + allScripts + html.slice(bodyCloseIndex);
+ 
+    await fs.writeFile(absPath, finalHtml, 'utf8');
+ 
+    const slug = makeSlug(inquiry);
+    const prettyPath = `/${slug}`;
+    slugIndex[slug] = relPath;
+    await saveSlugIndex();
+ 
+    const savedContent = await fs.readFile(absPath, 'utf8');
+    const hasInquiryId = savedContent.includes(`window.MORE_HOUSE_INQUIRY_ID='${inquiry.id}'`);
+    const hasPersonalization = savedContent.includes('initializeProspectus');
+    const hasBuiltInTracking = savedContent.includes('trackEngagementEvent') || savedContent.includes('track-engagement');
+ 
+    console.log(`Prospectus saved: ${filename}`);
+    console.log(`Pretty URL: ${prettyPath}`);
+    console.log(`Inquiry ID: ${hasInquiryId ? 'VERIFIED' : 'MISSING'}`);
+    console.log(`Personalization: ${hasPersonalization ? 'VERIFIED' : 'MISSING'}`);
+    console.log(`Built-in tracking: ${hasBuiltInTracking ? 'VERIFIED' : 'MISSING'}`);
+ 
+    if (!hasInquiryId) {
+      console.error('CRITICAL: Inquiry ID injection FAILED!');
+    }
+ 
+    return {
+      filename,
+      url: relPath,
+      slug,
+      prettyPath,
+      generatedAt: new Date().toISOString()
+    };
+  } catch (e) {
+    console.error('Prospectus generation failed:', e.message);
+    throw new Error(`prospectus_template.html error: ${e.message}`);
+  }
  }
-});
-
-const trackingInject = `<!-- More House Analytics Tracking -->
-<script>
-window.MORE_HOUSE_INQUIRY_ID='${inquiry.id}';
-console.log('Inquiry ID set for tracking:', window.MORE_HOUSE_INQUIRY_ID);
-</script>`;
-
-   const bodyCloseIndex = html.lastIndexOf('</body>');
-   if (bodyCloseIndex === -1) {
-     throw new Error('Template missing </body> tag');
-   }
-   
-   const allScripts = personalizeBoot + '\n' + trackingInject + '\n';
-   const finalHtml = html.slice(0, bodyCloseIndex) + allScripts + html.slice(bodyCloseIndex);
-
-   await fs.writeFile(absPath, finalHtml, 'utf8');
-
-   const slug = makeSlug(inquiry);
-   const prettyPath = `/${slug}`;
-   slugIndex[slug] = relPath;
-   await saveSlugIndex();
-
-   const savedContent = await fs.readFile(absPath, 'utf8');
-   const hasInquiryId = savedContent.includes(`window.MORE_HOUSE_INQUIRY_ID='${inquiry.id}'`);
-   const hasPersonalization = savedContent.includes('initializeProspectus');
-   const hasBuiltInTracking = savedContent.includes('trackEngagementEvent') || savedContent.includes('track-engagement');
-
-   console.log(`Prospectus saved: ${filename}`);
-   console.log(`Pretty URL: ${prettyPath}`);
-   console.log(`Inquiry ID: ${hasInquiryId ? 'VERIFIED' : 'MISSING'}`);
-   console.log(`Personalization: ${hasPersonalization ? 'VERIFIED' : 'MISSING'}`);
-   console.log(`Built-in tracking: ${hasBuiltInTracking ? 'VERIFIED' : 'MISSING'}`);
-
-   if (!hasInquiryId) {
-     console.error('CRITICAL: Inquiry ID injection FAILED!');
-   }
-
-   return {
-     filename,
-     url: relPath,
-     slug,
-     prettyPath,
-     generatedAt: new Date().toISOString()
-   };
- } catch (e) {
-   console.error('Prospectus generation failed:', e.message);
-   throw new Error(`prospectus_template.html error: ${e.message}`);
- }
-}
 
 async function updateInquiryStatus(inquiryId, pInfo) {
  const files = await fs.readdir(path.join(__dirname, 'data'));
