@@ -5,6 +5,7 @@
 // ✅ Injects Option B tracking config into generated prospectuses
 // ✅ Fixes async bug in updateInquiryStatus (no await in Array.find predicate)
 // ✅ British spelling
+// ✅ Added: getExistingProspectus(), GET /api/prospectus/:inquiryId, idempotent POST /api/generate-prospectus/:inquiryId
 
 require('dotenv').config();
 
@@ -246,8 +247,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
   return { filename, path: outPath, url: `/prospectuses/${filename}`, generatedAt: new Date().toISOString() };
 }
-// Update inquiry status after prospectus generation — resilient to missing JSON
 
+// Update inquiry status after prospectus generation — resilient to missing JSON
 async function updateInquiryStatus(inquiryId, prospectusInfo, fallbackInquiry) {
   let updated = null;
 
@@ -357,6 +358,65 @@ async function updateInquiryStatus(inquiryId, prospectusInfo, fallbackInquiry) {
   return updated || { id: inquiryId, status: 'prospectus_generated', prospectusUrl: prospectusInfo.url };
 }
 
+/* =====================  NEW: find existing prospectus helper  ===================== */
+/* Find an existing prospectus for an inquiry (DB first, then JSON), return { filename, url } or null */
+async function getExistingProspectus(inquiryId) {
+  // DB first
+  if (db) {
+    try {
+      const { rows } = await db.query(
+        'SELECT prospectus_filename, prospectus_url FROM inquiries WHERE id=$1 LIMIT 1',
+        [inquiryId]
+      );
+      if (rows && rows[0]) {
+        let filename = rows[0].prospectus_filename || null;
+        let url = rows[0].prospectus_url || null;
+
+        // Normalise: if we only have a URL, derive filename
+        if (!filename && url && url.includes('/prospectuses/')) {
+          filename = decodeURIComponent(url.split('/prospectuses/')[1]);
+        }
+        // Normalise: if we only have a filename, build URL
+        if (!url && filename) {
+          url = `/prospectuses/${filename}`;
+        }
+
+        if (filename) {
+          try {
+            await fs.access(path.join(__dirname, 'prospectuses', filename));
+            return { filename, url };
+          } catch {
+            // file missing on disk -> treat as not found
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('getExistingProspectus DB error:', e.message);
+    }
+  }
+
+  // JSON fallback
+  try {
+    const files = await fs.readdir('data');
+    for (const f of files) {
+      if (!f.startsWith('inquiry-') || !f.endsWith('.json')) continue;
+      const obj = JSON.parse(await fs.readFile(path.join('data', f), 'utf8'));
+      if (obj.id === inquiryId && obj.prospectusFilename) {
+        const filename = obj.prospectusFilename;
+        try {
+          await fs.access(path.join(__dirname, 'prospectuses', filename));
+          return { filename, url: `/prospectuses/${filename}` };
+        } catch {
+          // file missing on disk -> treat as not found
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('getExistingProspectus JSON error:', e.message);
+  }
+
+  return null;
+}
 
 // =============== Webhook (create inquiry + generate prospectus) ===============
 app.post('/webhook', async (req, res) => {
@@ -388,7 +448,7 @@ app.post('/webhook', async (req, res) => {
 
     const absoluteUrl = `${req.protocol}://${req.get('host')}${prospectus.url}`;
     console.log('📄 Prospectus URL:', absoluteUrl);
-  
+
     res.json({
       success: true,
       inquiryId: inquiry.id,
@@ -562,7 +622,6 @@ app.get('/api/analytics/inquiries', async (req, res) => {
   }
 });
 
-
 app.get('/api/analytics/activity', async (req, res) => {
   if (!db) return res.json([]);
   try {
@@ -632,7 +691,7 @@ app.get('/api/section-data/:inquiryId', async (req, res) => {
       )
       SELECT section_id,
              SUM(dur_ms) AS total_ms,
-             MAX(max_scroll) AS max_scroll_pct,
+             MAX(max_scroll_pct) AS max_scroll_pct,
              COUNT(DISTINCT session_id) AS sessions
       FROM secs
       GROUP BY section_id
@@ -771,13 +830,55 @@ app.get('/api/inquiries/:id', async (req, res) => {
   }
 });
 
-// Robust (DB or JSON) generate route used by the dashboard button
+/* =====================  NEW: open an existing prospectus without generating  ===================== */
+// Open an existing prospectus (no generation). 404 if it truly doesn't exist.
+app.get('/api/prospectus/:inquiryId', async (req, res) => {
+  const { inquiryId } = req.params;
+  try {
+    const existing = await getExistingProspectus(inquiryId);
+    if (!existing) return res.status(404).json({ success: false, error: 'Prospectus not found' });
+
+    const absoluteUrl = `${req.protocol}://${req.get('host')}${existing.url}`;
+    console.log('📄 Prospectus URL (existing):', absoluteUrl);
+
+    return res.json({
+      success: true,
+      inquiryId,
+      prospectus: {
+        filename: existing.filename,
+        url: absoluteUrl
+      }
+    });
+  } catch (e) {
+    console.error('prospectus-open error:', e);
+    res.status(500).json({ success: false, error: 'Failed to retrieve prospectus' });
+  }
+});
+
+/* =====================  UPDATED: idempotent generate-prospectus  ===================== */
+// Generate (or open if it already exists) a prospectus for a specific inquiry
 app.post('/api/generate-prospectus/:inquiryId', async (req, res) => {
   const { inquiryId } = req.params;
   try {
+    // 0) If it already exists, just return it (NO regeneration)
+    const existing = await getExistingProspectus(inquiryId);
+    if (existing) {
+      const absoluteUrl = `${req.protocol}://${req.get('host')}${existing.url}`;
+      console.log('📄 Prospectus URL (existing):', absoluteUrl);
+      return res.json({
+        success: true,
+        inquiryId,
+        prospectus: {
+          filename: existing.filename,
+          url: absoluteUrl,
+          generatedAt: null
+        }
+      });
+    }
+
+    // 1) Load inquiry (DB first, then JSON)
     let inquiry = null;
 
-    // DB first
     if (db) {
       try {
         const { rows } = await db.query('SELECT * FROM inquiries WHERE id = $1 LIMIT 1', [inquiryId]);
@@ -794,12 +895,11 @@ app.post('/api/generate-prospectus/:inquiryId', async (req, res) => {
             status: r.status
           };
         }
-      } catch (e) {
-        console.warn('DB lookup failed (generate):', e.message);
+      } catch (dbErr) {
+        console.warn('DB lookup failed (generate):', dbErr.message);
       }
     }
 
-    // JSON fallback
     if (!inquiry) {
       const files = await fs.readdir('data');
       for (const f of files) {
@@ -813,11 +913,15 @@ app.post('/api/generate-prospectus/:inquiryId', async (req, res) => {
       return res.status(404).json({ success: false, error: 'Inquiry not found' });
     }
 
+    // 2) Generate because no existing file was found
     const prospectus = await generateProspectus(inquiry);
-    await updateInquiryStatus(inquiry.id, prospectus);
 
+    // IMPORTANT: pass inquiry as fallback so JSON/DB update can't fail if file missing
+    await updateInquiryStatus(inquiry.id, prospectus, inquiry);
+
+    // 3) Return absolute URL
     const absoluteUrl = `${req.protocol}://${req.get('host')}${prospectus.url}`;
-    console.log('📄 Prospectus URL:', absoluteUrl);
+    console.log('📄 Prospectus URL (generated):', absoluteUrl);
 
     res.json({
       success: true,
@@ -828,13 +932,11 @@ app.post('/api/generate-prospectus/:inquiryId', async (req, res) => {
         generatedAt: prospectus.generatedAt
       }
     });
-
   } catch (e) {
     console.error('generate-prospectus error:', e);
     res.status(500).json({ success: false, error: 'Failed to generate prospectus', message: e.message });
   }
 });
-
 
 // =============== AI Analysis routes ===============
 async function fetchFamilyEngagement(inquiryId) {
@@ -1044,7 +1146,7 @@ app.get('/health', (req, res) => {
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
     environment: process.env.NODE_ENV || 'development',
-    version: '3.2.0',
+    version: '3.3.0',
     features: {
       analytics: !!db,
       tracking: true,
@@ -1058,11 +1160,12 @@ app.get('/', (req, res) => {
   res.json({
     service: 'More House School Analytics System',
     status: 'running',
-    version: '3.2.0',
+    version: '3.3.0',
     endpoints: {
       webhook: 'POST /webhook',
       inquiries: 'GET /api/inquiries',
       inquiry: 'GET /api/inquiries/:id',
+      openProspectus: 'GET /api/prospectus/:inquiryId',
       generateProspectus: 'POST /api/generate-prospectus/:inquiryId',
       prospectuses: 'GET /prospectuses/{filename}',
       analytics: 'GET /api/analytics/*',
