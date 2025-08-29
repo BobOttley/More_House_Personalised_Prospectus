@@ -1647,31 +1647,41 @@
         }
 
         async function generateProspectusFor(inquiryId) {
-            try {
-                console.log(`Generating prospectus for inquiry ${inquiryId}...`);
-                
-                const response = await fetch(`/api/generate-prospectus/${inquiryId}`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                });
-                
-                if (response.ok) {
-                    const result = await response.json();
-                    console.log('Prospectus generated:', result);
-                    
-                    await loadDashboardData();
-                    
-                    alert(`Prospectus generated successfully!\n\nYou can now access it from the family card.`);
-                } else {
-                    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-                    throw new Error(`Generation failed: ${errorData.error || response.statusText}`);
-                }
-            } catch (error) {
-                console.error('Prospectus generation error:', error);
-                alert(`Failed to generate prospectus: ${error.message}`);
+          try {
+            console.log(`Generating prospectus for inquiry ${inquiryId}.`);
+
+            // Open a placeholder tab immediately to avoid popup blockers
+            const newTab = window.open('about:blank', '_blank');
+
+            const response = await fetch(`/api/generate-prospectus/${inquiryId}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' }
+            });
+
+            if (!response.ok) {
+              const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+              throw new Error(`Generation failed: ${errorData.error || response.statusText}`);
             }
+
+            const result = await response.json();
+            console.log('Prospectus generated:', result);
+
+            // If server returned a proper absolute URL, navigate the placeholder tab
+            const url = result?.prospectus?.url;
+            if (url) {
+              newTab.location = url;
+            } else {
+              newTab.close();
+              alert('Prospectus generated, but no URL returned from the server.');
+            }
+
+            // Refresh cards so the new link appears in the family card
+            await loadDashboardData();
+
+          } catch (error) {
+            console.error('Prospectus generation error:', error);
+            alert(`Failed to generate prospectus: ${error.message}`);
+          }
         }
 
         async function copyToClipboard(text) {

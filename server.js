@@ -386,15 +386,19 @@ app.post('/webhook', async (req, res) => {
     const prospectus = await generateProspectus(inquiry);
     await updateInquiryStatus(inquiry.id, prospectus, inquiry);
 
+    const absoluteUrl = `${req.protocol}://${req.get('host')}${prospectus.url}`;
+    console.log('📄 Prospectus URL:', absoluteUrl);
+  
     res.json({
       success: true,
       inquiryId: inquiry.id,
       prospectus: {
         filename: prospectus.filename,
-        url: `http://localhost:${PORT}${prospectus.url}`,
+        url: absoluteUrl,
         generatedAt: prospectus.generatedAt
       }
     });
+
   } catch (e) {
     console.error('WEBHOOK error:', e);
     res.status(500).json({ success: false, error: 'Internal error', message: e.message });
@@ -812,15 +816,19 @@ app.post('/api/generate-prospectus/:inquiryId', async (req, res) => {
     const prospectus = await generateProspectus(inquiry);
     await updateInquiryStatus(inquiry.id, prospectus);
 
+    const absoluteUrl = `${req.protocol}://${req.get('host')}${prospectus.url}`;
+    console.log('📄 Prospectus URL:', absoluteUrl);
+
     res.json({
       success: true,
       inquiryId: inquiry.id,
       prospectus: {
         filename: prospectus.filename,
-        url: `http://localhost:${PORT}${prospectus.url}`,
+        url: absoluteUrl,
         generatedAt: prospectus.generatedAt
       }
     });
+
   } catch (e) {
     console.error('generate-prospectus error:', e);
     res.status(500).json({ success: false, error: 'Failed to generate prospectus', message: e.message });
