@@ -167,6 +167,182 @@ def diag():
     masked = (DEEPL_API_KEY[:4] + "…" + DEEPL_API_KEY[-4:]) if DEEPL_API_KEY else "MISSING"
     return f"key={masked}<br>lang={lang}<br>sample_in={sample}<br>sample_out={out}"
 
-if __name__ == "__main__":
-    app.run(debug=True)
+#!/usr/bin/env python3
+"""
+PEN.ai Prospectus Translator
+──────────────────────────────────────────────
+• Serves personalised HTML prospectuses
+• On-the-fly translation via DeepL (if DEEPL_API_KEY is set)
+• Supported languages: en, zh, ar, ru, fr, es, de, it
+• Preserves branding & tracking; won’t translate <script>/<style> or data-protect blocks
+• Adds dir="rtl" for Arabic
+• Fast per-file/per-language caching with file mtime awareness
+──────────────────────────────────────────────
+"""
+
+import os
+import time
+import hashlib
+from functools import lru_cache
+from flask import Flask, request, send_from_directory, abort, Response
+from bs4 import BeautifulSoup, NavigableString, Comment
+from dotenv import load_dotenv
+
+from language_engine import translate_text, normalise_lang, should_skip_text
+
+print("✅ Flask server starting …")
+load_dotenv()
+
+app = Flask(__name__)
+
+# Adjust to your folder structure
+PUBLIC_DIR = os.path.join(os.path.dirname(__file__), "public")
+
+SUPPORTED_LANGS = {"en", "zh", "ar", "ru", "fr", "es", "de", "it"}
+RTL_LANGS = {"ar"}
+
+# Tags whose inner text we may translate (we still skip protected spans etc.)
+TRANSLATABLE_TAGS = {
+    "p", "h1", "h2", "h3", "h4", "h5", "h6",
+    "li", "span", "strong", "em", "small", "blockquote", "figcaption",
+    "button", "label", "a", "td", "th", "caption", "summary", "details",
+    "dd", "dt", "div"  # div is allowed but we only touch direct text nodes, not HTML
+}
+
+# Attributes we translate when present
+TRANSLATABLE_ATTRS = {"title", "alt", "aria-label", "placeholder"}
+
+# Simple brand tokens you do NOT want translated
+BRAND_TOKENS = {
+    "PEN.ai", "PEN", "Cognitive College", "More House", "More House", "PEN Reply"
+}
+
+def _file_mtime(path: str) -> float:
+    try:
+        return os.path.getmtime(path)
+    except FileNotFoundError:
+        return 0.0
+
+def _cache_key(path: str, lang: str) -> str:
+    m = f"{os.path.abspath(path)}::{_file_mtime(path)}::{lang}"
+    return hashlib.sha256(m.encode("utf-8")).hexdigest()
+
+@lru_cache(maxsize=256)
+def _get_translated_html_cached(abs_path: str, lang: str, cache_marker: str) -> str:
+    """Cache by absolute path + language + mtime marker (passed in as cache_marker)."""
+    with open(abs_path, "r", encoding="utf-8") as f:
+        html = f.read()
+    if lang == "en":
+        return html  # no-op for English
+
+    soup = BeautifulSoup(html, "html.parser")
+
+    # Respect explicit opt-out: anything with data-protect or data-no-translate
+    def node_protected(el) -> bool:
+        return el and (el.has_attr("data-protect") or el.has_attr("data-no-translate"))
+
+    # Set dir="rtl" for Arabic
+    if lang in RTL_LANGS:
+        if soup.html:
+            soup.html["dir"] = "rtl"
+    else:
+        if soup.html and "dir" in soup.html.attrs:
+            del soup.html["dir"]
+
+    # Walk text nodes inside allowed tags only, skipping scripts/styles/comments
+    for tag in soup.find_all(True):
+        if tag.name in ("script", "style"):
+            continue
+        if node_protected(tag):
+            continue
+
+        if tag.name in TRANSLATABLE_TAGS:
+            # Translate attributes first
+            for attr in TRANSLATABLE_ATTRS:
+                if tag.has_attr(attr):
+                    original = tag.get(attr, "")
+                    if original and not should_skip_text(original, BRAND_TOKENS):
+                        tag[attr] = translate_text(original, lang, BRAND_TOKENS)
+
+            # Now translate direct text nodes
+            new_children = []
+            for child in tag.children:
+                if isinstance(child, NavigableString) and not isinstance(child, Comment):
+                    txt = str(child)
+                    if should_skip_text(txt, BRAND_TOKENS):
+                        new_children.append(child)
+                    else:
+                        new_children.append(translate_text(txt, lang, BRAND_TOKENS))
+                else:
+                    new_children.append(child)
+            tag.contents = new_children
+
+    # Ensure we reflect the selected language in <html lang="">
+    if soup.html:
+        soup.html["lang"] = lang
+
+    # Preserve meta markers (handy for tracking)
+    head = soup.head or soup.new_tag("head")
+    if not soup.head:
+        soup.html.insert(0, head)
+
+    meta_lang = soup.new_tag("meta")
+    meta_lang.attrs["name"] = "penai-lang"
+    meta_lang.attrs["content"] = lang
+    head.append(meta_lang)
+
+    return str(soup)
+
+@app.after_request
+def add_common_headers(resp: Response):
+    # Helps CDNs separate per-language caches
+    resp.headers["Vary"] = "Accept-Language, Cookie"
+    # Cache translated HTML for a short while at edge
+    resp.headers.setdefault("Cache-Control", "public, max-age=60")
+    return resp
+
+@app.route("/")
+def root_index():
+    # Serve a tiny index so Render health checks don’t 404
+    return "PEN.ai Prospectus Translator is live.", 200
+
+@app.route("/<path:slug>")
+def serve_prospectus(slug: str):
+    """
+    Serve any pre-rendered prospectus HTML out of /public by slug, with optional ?lang=xx.
+    Example: /the-price-family-601243?lang=ru
+    """
+    lang = normalise_lang(request.args.get("lang", "en"))
+    if lang not in SUPPORTED_LANGS:
+        lang = "en"
+
+    # Only serve .html files from /public; if no .html, append it.
+    safe_slug = slug
+    if ".." in safe_slug or safe_slug.startswith("/"):
+        abort(404)
+
+    if not safe_slug.endswith(".html"):
+        safe_slug += ".html"
+
+    abs_path = os.path.join(PUBLIC_DIR, safe_slug)
+    if not os.path.isfile(abs_path):
+        # Fall back to static send if present (for assets)
+        try:
+            return send_from_directory(PUBLIC_DIR, slug)
+        except Exception:
+            abort(404)
+
+    # Cache key includes file mtime so a new deploy invalidates automatically
+    cache_marker = _cache_key(abs_path, lang)
+
+    try:
+        html = _get_translated_html_cached(abs_path, lang, cache_marker)
+    except Exception as e:
+        # Never hard-fail the page; serve original and surface the error in server logs
+        print(f"[Translator] ERROR rendering {slug} lang={lang}: {e}")
+        with open(abs_path, "r", encoding="utf-8") as f:
+            html = f.read()
+
+    # Always text/html; ensure UTF-8
+    return Response(html, mimetype="text/html; charset=utf-8")
 
