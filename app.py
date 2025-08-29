@@ -11,7 +11,6 @@ PEN.ai Prospectus Translator
 ──────────────────────────────────────────────
 """
 
-import re
 import os
 from functools import lru_cache
 from flask import Flask, request, send_from_directory
@@ -51,6 +50,8 @@ BRAND_TOKENS = [
 ]
 
 # Build regex map once
+import re
+
 _TOKEN_MAP = []
 for i, token in enumerate(BRAND_TOKENS):
     key = f"__BRAND_{i}__"
@@ -91,18 +92,17 @@ def _cached_translation(cache_key: str, lang: str, cleaned_html: str):
 # ── Routes ───────────────────────────────────────────────
 @app.route("/prospectus/<path:filename>")
 def serve_prospectus(filename):
-    # Example: /prospectus/Smith-Family-Anne-2025.html?lang=fr
     lang = (request.args.get("lang") or "en").lower()
-    if lang not in SUPPORTED_LANGS:
-        lang = "en"
-
-    abs_dir = os.path.join(os.getcwd(), "prospectuses")
+    abs_dir = os.path.join(os.getcwd(), "public")  # <-- public folder
     abs_path = os.path.join(abs_dir, filename)
+
+    print(f"[route] /prospectus -> file={filename} lang={lang} dir={abs_dir}")
+
     if not os.path.exists(abs_path):
+        print(f"[route] NOT FOUND: {abs_path}")
         return "Prospectus not found", 404
 
     if lang == "en":
-        # Just serve the original English file
         resp = send_from_directory(abs_dir, filename)
         resp.headers["X-Robots-Tag"] = "noindex, nofollow"
         return resp
@@ -120,11 +120,14 @@ def serve_prospectus(filename):
             if tag.name not in SAFE_CONTENT_TAGS:
                 tag.unwrap()
 
-        # protect brand terms
+        # protect brand tokens
         protected_html, placeholders = protect_brands(str(body))
 
-        # translate via DeepL (cached)
+        # translate (cached)
         translated_inner = _cached_translation(filename, lang, protected_html)
+        print(f"[route] translated first50={translated_inner[:50]!r}")
+
+        # restore protected content
         translated_inner = restore_brands(translated_inner, placeholders)
 
         # reinsert into original shell
@@ -135,10 +138,8 @@ def serve_prospectus(filename):
             for node in tmp.contents:
                 shell.body.append(node)
 
-        # set correct lang + dir
+        # set lang/dir + open links in new tab
         shell = set_html_lang_dir(shell, lang)
-
-        # make links open new tabs
         for a in shell.find_all("a"):
             a["target"] = "_blank"
 
@@ -150,7 +151,3 @@ def serve_prospectus(filename):
     except Exception as e:
         print(f"❌ prospectus translation failed: {e}")
         return "Error translating prospectus", 500
-
-# ── Run locally ──────────────────────────────────────────
-if __name__ == "__main__":
-    app.run(debug=True)
