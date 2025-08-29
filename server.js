@@ -256,41 +256,70 @@ document.addEventListener('DOMContentLoaded', function() {
   return { filename, path: outPath, url: `/prospectuses/${filename}`, generatedAt: new Date().toISOString() };
 }
 
+// Update inquiry status after prospectus generation (fixed: no async in Array.find)
 async function updateInquiryStatus(inquiryId, prospectusInfo) {
-  // update JSON file
-  const files = await fs.readdir('data');
-  const target = files.find(f => f.startsWith('inquiry-') && f.endsWith('.json') && (await fs.readFile(path.join('data', f), 'utf8')).includes(inquiryId));
-  for (const f of files) {
-    const fp = path.join('data', f);
-    const txt = await fs.readFile(fp, 'utf8');
-    const obj = JSON.parse(txt);
-    if (obj.id === inquiryId) {
-      obj.prospectusGenerated = true;
-      obj.prospectusFilename = prospectusInfo.filename;
-      obj.prospectusUrl = prospectusInfo.url;
-      obj.prospectusGeneratedAt = prospectusInfo.generatedAt;
-      obj.status = 'prospectus_generated';
-      await fs.writeFile(fp, JSON.stringify(obj, null, 2));
-      break;
+  try {
+    const files = await fs.readdir('data');
+
+    let updated = null;
+
+    for (const file of files) {
+      if (!file.startsWith('inquiry-') || !file.endsWith('.json')) continue;
+
+      const filepath = path.join('data', file);
+      const content = await fs.readFile(filepath, 'utf8');
+
+      let inquiry;
+      try {
+        inquiry = JSON.parse(content);
+      } catch {
+        continue; // skip malformed files
+      }
+
+      if (inquiry.id === inquiryId) {
+        inquiry.prospectusGenerated = true;
+        inquiry.prospectusFilename = prospectusInfo.filename;
+        inquiry.prospectusUrl = prospectusInfo.url;
+        inquiry.prospectusGeneratedAt = prospectusInfo.generatedAt;
+        inquiry.status = 'prospectus_generated';
+
+        await fs.writeFile(filepath, JSON.stringify(inquiry, null, 2));
+        updated = inquiry;
+        break;
+      }
     }
-  }
-  // update DB (best effort)
-  if (db) {
-    try {
-      await db.query(
-        `UPDATE inquiries
-         SET status='prospectus_generated',
-             prospectus_generated=true,
-             prospectus_filename=$2,
-             prospectus_url=$3,
-             prospectus_generated_at=$4,
-             updated_at=CURRENT_TIMESTAMP
-         WHERE id=$1`,
-        [inquiryId, prospectusInfo.filename, prospectusInfo.url, new Date(prospectusInfo.generatedAt)]
-      );
-    } catch (e) { console.warn('DB update inquiry fail:', e.message); }
+
+    if (!updated) {
+      throw new Error(`Inquiry ${inquiryId} not found`);
+    }
+
+    // Best-effort DB update
+    if (db) {
+      try {
+        await db.query(
+          `UPDATE inquiries 
+             SET status = 'prospectus_generated',
+                 prospectus_generated = true,
+                 prospectus_filename = $2,
+                 prospectus_url = $3,
+                 prospectus_generated_at = $4,
+                 updated_at = CURRENT_TIMESTAMP
+           WHERE id = $1`,
+          [inquiryId, prospectusInfo.filename, prospectusInfo.url, new Date(prospectusInfo.generatedAt)]
+        );
+      } catch (dbErr) {
+        console.warn('⚠️ Failed to update database:', dbErr.message);
+      }
+    }
+
+    return updated;
+
+  } catch (error) {
+    console.error('❌ Error updating inquiry status:', error.message);
+    throw error;
   }
 }
+
 
 // ===== Webhook: receive form, save, generate prospectus =====
 app.post('/webhook', async (req, res) => {
