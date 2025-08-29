@@ -90,6 +90,7 @@ def _cached_translation(cache_key: str, lang: str, cleaned_html: str):
     return translate(cleaned_html, lang)
 
 # ── Routes ───────────────────────────────────────────────
+
 @app.route("/prospectus/<path:filename>")
 def serve_prospectus(filename):
     lang = (request.args.get("lang") or "en").lower()
@@ -112,7 +113,7 @@ def serve_prospectus(filename):
         soup = BeautifulSoup(raw_html, "html.parser")
 
         # strip runtime-only nodes
-        for tag in soup(["script","style","noscript","iframe","canvas"]):
+        for tag in soup(["script", "style", "noscript", "iframe", "canvas"]):
             tag.decompose()
 
         body = soup.body or soup
@@ -123,9 +124,13 @@ def serve_prospectus(filename):
         # protect brand tokens
         protected_html, placeholders = protect_brands(str(body))
 
+        # debug: what we're sending to DeepL
+        print(f"[route] cleaned_html bytes={len(protected_html)} lang={lang}")
+        print(f"[route] cleaned_html first200={protected_html[:200]!r}")
+
         # translate (cached)
         translated_inner = _cached_translation(filename, lang, protected_html)
-        print(f"[route] translated first50={translated_inner[:50]!r}")
+        print(f"[route] translated first200={translated_inner[:200]!r}")
 
         # restore protected content
         translated_inner = restore_brands(translated_inner, placeholders)
@@ -151,3 +156,17 @@ def serve_prospectus(filename):
     except Exception as e:
         print(f"❌ prospectus translation failed: {e}")
         return "Error translating prospectus", 500
+
+@app.route("/_diag")
+def diag():
+    # Simple health-check: confirms the key is loaded and translation works
+    from language_engine import translate, DEEPL_API_KEY
+    lang = (request.args.get("lang") or "fr").lower()
+    sample = "<p>Hello from Knightsbridge</p>"
+    out = translate(sample, lang)
+    masked = (DEEPL_API_KEY[:4] + "…" + DEEPL_API_KEY[-4:]) if DEEPL_API_KEY else "MISSING"
+    return f"key={masked}<br>lang={lang}<br>sample_in={sample}<br>sample_out={out}"
+
+if __name__ == "__main__":
+    app.run(debug=True)
+
