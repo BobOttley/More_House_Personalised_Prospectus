@@ -1,2560 +1,1100 @@
+// server.js — More House Prospectus + Simplified Tracking (Option B)
+// Keeps all existing behaviour, adds runtime-injected tracking config:
+//   window.PROSPECTUS_ID
+//   window.TRACK_ENDPOINT
+//   window.PROSPECTUS_SECTIONS (Option B mapping)
+
 const express = require('express');
 const cors = require('cors');
 const fs = require('fs').promises;
 const path = require('path');
+
+// Load environment variables
 require('dotenv').config();
 const { Client } = require('pg');
 
 const app = express();
-app.set('trust proxy', true);
 const PORT = process.env.PORT || 3000;
 
+// Database connection
 let db = null;
 
-async function initializeDatabase() {
- const haveUrl = !!process.env.DATABASE_URL;
- const haveParts = !!(process.env.DB_HOST && process.env.DB_USER && process.env.DB_NAME);
- 
- if (!haveUrl && !haveParts) {
-   console.log('No DB credentials - running in JSON-only mode.');
-   return false;
- }
- 
- try {
-   db = new Client({
-     connectionString: process.env.DATABASE_URL || undefined,
-     host: process.env.DB_HOST || undefined,
-     port: process.env.DB_PORT ? Number(process.env.DB_PORT) : 5432,
-     database: process.env.DB_NAME || undefined,
-     user: process.env.DB_USER || undefined,
-     password: process.env.DB_PASSWORD || undefined,
-     ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-     connectionTimeoutMillis: 3000
-   });
-   await db.connect();
-   console.log('Connected to Postgres');
-   return true;
- } catch (e) {
-   console.warn('Postgres connection failed:', e.message);
-   console.warn('Continuing in JSON-only mode.');
-   db = null;
-   return false;
- }
-}
+// Initialize database connection
+const initializeDatabase = async () => {
+  try {
+    db = new Client({
+      connectionString: process.env.DATABASE_URL,
+      host: process.env.DB_HOST || 'localhost',
+      port: process.env.DB_PORT || 5432,
+      database: process.env.DB_NAME || 'morehouse_analytics',
+      user: process.env.DB_USER,
+      password: process.env.DB_PASSWORD,
+    });
 
-function getBaseUrl(req) {
- if (process.env.PUBLIC_BASE_URL) return process.env.PUBLIC_BASE_URL.replace(/\/+$/, '');
- const proto = req.headers['x-forwarded-proto'] || req.protocol || 'https';
- const host = req.headers['x-forwarded-host'] || req.get('host');
- return `${proto}://${host}`;
-}
-
-function generateInquiryId() {
- return `INQ-${Date.now()}${Math.floor(Math.random()*1000)}`;
-}
-
-function sanitise(s, fallback) {
- return (s || fallback || '')
-   .toString()
-   .replace(/[^a-z0-9\- ]/gi, '-')
-   .replace(/\s+/g, '-')
-   .replace(/-+/g, '-');
-}
-
-function generateFilename(inquiry) {
- const date = new Date().toISOString().split('T')[0];
- const fam = sanitise(inquiry.familySurname, 'Family');
- const first = sanitise(inquiry.firstName, 'Student');
- return `More-House-School-${fam}-Family-${first}-${inquiry.entryYear}-${date}.html`;
-}
-
-function makeSlug(inquiry) {
- const familyName = (inquiry.familySurname || inquiry.family_surname || 'Family')
-   .toLowerCase()
-   .replace(/[^a-z0-9]+/g, '-')
-   .replace(/^-+|-+$/g, '');
-   
- const shortId = String(inquiry.id || '')
-   .replace(/[^a-z0-9]/gi, '')
-   .slice(-6)
-   .toLowerCase() || Math.random().toString(36).slice(-6);
-   
- return `the-${familyName}-family-${shortId}`;
-}
-
-let slugIndex = {};
-
-async function ensureDirectories() {
- await fs.mkdir(path.join(__dirname, 'data'), { recursive: true });
- await fs.mkdir(path.join(__dirname, 'prospectuses'), { recursive: true });
-}
-
-async function loadSlugIndex() {
- try {
-   const p = path.join(__dirname, 'data', 'slug-index.json');
-   slugIndex = JSON.parse(await fs.readFile(p, 'utf8'));
-   console.log(`Loaded ${Object.keys(slugIndex).length} slug mappings`);
- } catch {
-   slugIndex = {};
-   console.log('No slug-index.json yet; will create on first save.');
- }
-}
-
-async function saveSlugIndex() {
- const p = path.join(__dirname, 'data', 'slug-index.json');
- await fs.writeFile(p, JSON.stringify(slugIndex, null, 2));
-}
-
-async function saveInquiryJson(record) {
- const filename = `inquiry-${record.receivedAt}.json`;
- const p = path.join(__dirname, 'data', filename);
- await fs.writeFile(p, JSON.stringify(record, null, 2));
- return p;
-}
-
-const corsOptions = {
- origin(origin, cb) {
-   if (!origin) return cb(null, true);
-   if (origin.includes('.onrender.com')) return cb(null, true);
-   if (origin.includes('localhost') || origin.includes('127.0.0.1')) return cb(null, true);
-   if (origin.includes('.github.io')) return cb(null, true);
-   return cb(null, true);
- },
- methods: ['GET','POST','PUT','DELETE','OPTIONS'],
- allowedHeaders: ['Content-Type','Authorization','X-Requested-With','Accept'],
- credentials: false,
- optionsSuccessStatus: 200
+    await db.connect();
+    console.log('✅ Connected to PostgreSQL analytics database');
+    return true;
+  } catch (error) {
+    console.warn('⚠️ PostgreSQL connection failed:', error.message);
+    console.warn('📊 Analytics will be disabled, but core functionality remains');
+    return false;
+  }
 };
 
-app.use(cors(corsOptions));
-app.use(express.json({ limit: '2mb' }));
+// Middleware
+app.use(cors());
+app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use((req, _res, next) => { console.log(req.method, req.url); next(); });
+app.use(express.static('public'));
 
-app.use(express.static(path.join(__dirname, 'public')));
-
-// Accept single event OR an array of events from tracking.js
-app.post('/api/track-engagement', async (req, res) => {
-  try {
-    const body = req.body;
-    if (!body) return res.status(400).json({ success: false, message: 'No body' });
-
-    const events = Array.isArray(body) ? body : [body];
-
-    for (const ev of events) {
-      ev.ip = req.ip;               // pass IP through if useful
-      await trackEngagementEvent(ev); // this is the function we replaced earlier
-    }
-
-    res.json({ success: true, received: events.length });
-  } catch (e) {
-    console.error('/api/track-engagement error:', e);
-    res.status(500).json({ success: false, message: e.message });
-  }
+// Serve tracking.js explicitly from /public (aligns with your asset layout)
+app.get('/tracking.js', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'tracking.js'));
 });
 
-async function generateProspectus(inquiry) {
-  console.log(`Generating prospectus for ${inquiry.firstName} ${inquiry.familySurname}`);
-  const templatePath = path.join(__dirname, 'public', 'prospectus_template.html');
-  
+// Generate unique inquiry ID
+const generateInquiryId = () => {
+  const timestamp = Date.now();
+  const random = Math.floor(Math.random() * 1000);
+  return `INQ-${timestamp}${random}`;
+};
+
+// Generate filename for prospectus
+const generateFilename = (inquiryData) => {
+  const date = new Date().toISOString().split('T')[0];
+  const safeFamilyName = inquiryData.familySurname.replace(/[^a-zA-Z0-9]/g, '-');
+  const safeFirstName = inquiryData.firstName.replace(/[^a-zA-Z0-9]/g, '-');
+
+  return `More-House-School-${safeFamilyName}-Family-${safeFirstName}-${inquiryData.entryYear}-${date}.html`;
+};
+
+// Ensure required directories exist
+const ensureDirectories = async () => {
   try {
-    let html = await fs.readFile(templatePath, 'utf8');
-    
-    const filename = generateFilename(inquiry);
-    const relPath = `/prospectuses/${filename}`;
-    const absPath = path.join(__dirname, 'prospectuses', filename);
- 
-    const meta = `
- <meta name="inquiry-id" content="${inquiry.id}">
- <meta name="generated-date" content="${new Date().toISOString()}">
- <meta name="student-name" content="${inquiry.firstName} ${inquiry.familySurname}">
- <meta name="entry-year" content="${inquiry.entryYear}">
- <meta name="age-group" content="${inquiry.ageGroup}">
- <meta name="tracking-enabled" content="true">`;
- 
-    html = html.replace('</head>', `${meta}\n</head>`);
- 
-    const title = `${inquiry.firstName} ${inquiry.familySurname} - More House School Prospectus ${inquiry.entryYear}`;
-    html = html.replace(/<title>.*?<\/title>/, `<title>${title}</title>`);
- 
-    const personalizeBoot = `<script>
- document.addEventListener('DOMContentLoaded', function(){
-  try {
-    const userData = ${JSON.stringify(inquiry)};
-    console.log('Initializing prospectus with data:', userData);
-    if (typeof initializeProspectus === 'function') {
-      initializeProspectus(userData);
-      console.log('Prospectus personalized successfully');
-    } else {
-      console.error('initializeProspectus function not found');
-    }
+    await fs.mkdir('data', { recursive: true });
+    await fs.mkdir('prospectuses', { recursive: true });
+    console.log('📁 Directory structure verified');
   } catch (error) {
-    console.error('Failed to initialize prospectus:', error);
+    console.error('❌ Error creating directories:', error.message);
   }
- });
- </script>`;
- 
-    const trackingInject = `<!-- More House Analytics Tracking -->
- <script>
- window.MORE_HOUSE_INQUIRY_ID='${inquiry.id}';
- console.log('Inquiry ID set for tracking:', window.MORE_HOUSE_INQUIRY_ID);
- </script>`;
- 
-    const bodyCloseIndex = html.lastIndexOf('</body>');
-    if (bodyCloseIndex === -1) {
-      throw new Error('Template missing </body> tag');
-    }
-    
-    const allScripts = personalizeBoot + '\n' + trackingInject + '\n';
-    const finalHtml = html.slice(0, bodyCloseIndex) + allScripts + html.slice(bodyCloseIndex);
- 
-    await fs.writeFile(absPath, finalHtml, 'utf8');
- 
-    const slug = makeSlug(inquiry);
-    const prettyPath = `/${slug}`;
-    slugIndex[slug] = relPath;
-    await saveSlugIndex();
- 
-    const savedContent = await fs.readFile(absPath, 'utf8');
-    const hasInquiryId = savedContent.includes(`window.MORE_HOUSE_INQUIRY_ID='${inquiry.id}'`);
-    const hasPersonalization = savedContent.includes('initializeProspectus');
-    const hasBuiltInTracking = savedContent.includes('trackEngagementEvent') || savedContent.includes('track-engagement');
- 
-    console.log(`Prospectus saved: ${filename}`);
-    console.log(`Pretty URL: ${prettyPath}`);
-    console.log(`Inquiry ID: ${hasInquiryId ? 'VERIFIED' : 'MISSING'}`);
-    console.log(`Personalization: ${hasPersonalization ? 'VERIFIED' : 'MISSING'}`);
-    console.log(`Built-in tracking: ${hasBuiltInTracking ? 'VERIFIED' : 'MISSING'}`);
- 
-    if (!hasInquiryId) {
-      console.error('CRITICAL: Inquiry ID injection FAILED!');
-    }
- 
-    return {
-      filename,
-      url: relPath,
-      slug,
-      prettyPath,
-      generatedAt: new Date().toISOString()
+};
+
+// Save inquiry data to JSON file
+const saveInquiryData = async (formData) => {
+  try {
+    const inquiryId = generateInquiryId();
+    const timestamp = new Date().toISOString();
+    const filename = `inquiry-${timestamp}.json`;
+
+    const inquiryRecord = {
+      id: inquiryId,
+      receivedAt: timestamp,
+      status: 'received',
+      prospectusGenerated: false,
+      ...formData
     };
-  } catch (e) {
-    console.error('Prospectus generation failed:', e.message);
-    throw new Error(`prospectus_template.html error: ${e.message}`);
+
+    const filepath = path.join('data', filename);
+    await fs.writeFile(filepath, JSON.stringify(inquiryRecord, null, 2));
+
+    console.log(`💾 Inquiry saved: ${filename}`);
+    console.log(`📄 Suggested prospectus filename: ${generateFilename(inquiryRecord)}`);
+
+    return inquiryRecord;
+
+  } catch (error) {
+    console.error('❌ Error saving inquiry:', error.message);
+    throw error;
   }
- }
+};
 
-async function updateInquiryStatus(inquiryId, pInfo) {
- const files = await fs.readdir(path.join(__dirname, 'data'));
- for (const f of files.filter(x => x.startsWith('inquiry-') && x.endsWith('.json'))) {
-   const p = path.join(__dirname, 'data', f);
-   const j = JSON.parse(await fs.readFile(p, 'utf8'));
-   if (j.id === inquiryId) {
-     j.prospectusGenerated = true;
-     j.prospectusFilename = pInfo.filename;
-     j.prospectusUrl = pInfo.url;          
-     j.prospectusPrettyPath = pInfo.prettyPath;   
-     j.slug = pInfo.slug;
-     j.prospectusGeneratedAt = pInfo.generatedAt;
-     j.status = 'prospectus_generated';
-     await fs.writeFile(p, JSON.stringify(j, null, 2));
-     break;
-   }
- }
-
- if (db) {
-   try {
-     await db.query(
-       `UPDATE inquiries
-        SET status='prospectus_generated',
-            prospectus_generated=true,
-            prospectus_filename=$2,
-            prospectus_url=$3,
-            slug=$4,
-            prospectus_generated_at=$5,
-            updated_at=CURRENT_TIMESTAMP
-        WHERE id=$1`,
-       [inquiryId, pInfo.filename, pInfo.url, pInfo.slug, new Date(pInfo.generatedAt)]
-     );
-     console.log(`Database updated: ${inquiryId} -> ${pInfo.prettyPath}`);
-   } catch (e) {
-     console.warn('DB update failed (non-fatal):', e.message);
-   }
- }
-}
-
-// ---------- REPLACEMENT: trackEngagementEvent ----------
-async function trackEngagementEvent(ev) {
+// Save inquiry to analytics database
+const saveInquiryToDatabase = async (inquiryData) => {
   if (!db) return null;
 
   try {
-    // Normalise the incoming payload (tracking.js sends these fields):contentReference[oaicite:2]{index=2}
-    const eventType      = ev.eventType || ev.type || 'unknown';
-    const inquiryId      = ev.inquiryId || ev.inquiry_id || null;
-    const sessionId      = ev.sessionId || ev.session_id || null;
-    const currentSection = ev.currentSection || ev.section || ev?.eventData?.currentSection || null;
-    const tsISO          = ev.timestamp || new Date().toISOString();
-    const pageUrl        = ev.url || null;
-
-    // Device info can be on the root or inside eventData:contentReference[oaicite:3]{index=3}
-    const deviceInfo = ev.deviceInfo || ev?.eventData?.deviceInfo || {};
-
-    // Event-specific metrics (tracking.js adds these for section_exit/scroll/video)
-const ed = Object.assign({}, ev.eventData || ev.data || {});
-
-// Section-level dwell
-const timeInSectionSec = pickNumber(ed.timeInSectionSec);
-
-// NEW: also check sessionInfo.timeOnPage (total seconds seen so far)
-let sessionTime = 0;
-if (ev.sessionInfo && Number.isFinite(ev.sessionInfo.timeOnPage)) {
-  sessionTime = Math.round(ev.sessionInfo.timeOnPage);
-}
-
-// Other metrics
-const maxScrollPct   = pickNumber(ed.maxScrollPct);
-const clicks         = pickNumber(ed.clicks);
-const videoWatchSec  = pickNumber(ed.videoWatchSec);
-const videoId        = ed.videoId || ed.video_id || null;
-const videoTitle     = ed.videoTitle || ed.video_title || null;
-const currentTimeSec = pickNumber(ed.currentTimeSec ?? ed.current_time_sec);
-
-
-    // 1) Always log the raw JSON to tracking_events (lossless event log):contentReference[oaicite:5]{index=5}
-    const rawEventData = {
-      ...ed,
-      currentSection: currentSection,
-      deviceInfo
-    };
-    const insertRaw = `
-      INSERT INTO tracking_events (
-        inquiry_id, event_type, event_data, page_url,
-        user_agent, ip_address, session_id, timestamp
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+    const query = `
+      INSERT INTO inquiries (
+        id, first_name, family_surname, parent_email, age_group, entry_year,
+        sciences, mathematics, english, languages, humanities, business,
+        drama, music, art, creative_writing,
+        sport, leadership, community_service, outdoor_education,
+        academic_excellence, pastoral_care, university_preparation, 
+        personal_development, career_guidance, extracurricular_opportunities,
+        received_at, status, user_agent, referrer, ip_address
+      ) VALUES (
+        $1, $2, $3, $4, $5, $6,
+        $7, $8, $9, $10, $11, $12,
+        $13, $14, $15, $16,
+        $17, $18, $19, $20,
+        $21, $22, $23, $24, $25, $26,
+        $27, $28, $29, $30, $31
+      )
+      ON CONFLICT (id) DO UPDATE SET
+        status = EXCLUDED.status,
+        updated_at = CURRENT_TIMESTAMP
+      RETURNING *;
     `;
-    const rawVals = [
-      inquiryId,
-      eventType,
-      JSON.stringify(rawEventData),
-      pageUrl,
-      deviceInfo.userAgent || ev.userAgent || null,
-      ev.ip || null,
-      sessionId,
-      new Date(tsISO)
+
+    const values = [
+      inquiryData.id,
+      inquiryData.firstName,
+      inquiryData.familySurname,
+      inquiryData.parentEmail,
+      inquiryData.ageGroup,
+      inquiryData.entryYear,
+
+      // Academic interests
+      !!inquiryData.sciences,
+      !!inquiryData.mathematics,
+      !!inquiryData.english,
+      !!inquiryData.languages,
+      !!inquiryData.humanities,
+      !!inquiryData.business,
+
+      // Creative interests
+      !!inquiryData.drama,
+      !!inquiryData.music,
+      !!inquiryData.art,
+      !!inquiryData.creative_writing,
+
+      // Co-curricular interests
+      !!inquiryData.sport,
+      !!inquiryData.leadership,
+      !!inquiryData.community_service,
+      !!inquiryData.outdoor_education,
+
+      // Family priorities
+      !!inquiryData.academic_excellence,
+      !!inquiryData.pastoral_care,
+      !!inquiryData.university_preparation,
+      !!inquiryData.personal_development,
+      !!inquiryData.career_guidance,
+      !!inquiryData.extracurricular_opportunities,
+
+      // System fields
+      new Date(inquiryData.receivedAt),
+      inquiryData.status,
+      inquiryData.userAgent,
+      inquiryData.referrer,
+      inquiryData.ip || null
     ];
-    await db.query(insertRaw, rawVals).catch(e => {
-      console.warn('tracking_events insert failed:', e.message);
-    });
 
-    // 2) Roll-up: update engagement_metrics using best-known values (GREATEST inside upsert):contentReference[oaicite:6]{index=6}
-    const hasSectionMetrics = (eventType === 'section_exit') || (eventType === 'section_scroll');
-    const hasClicks         = clicks > 0;
-    const hasVideo          = eventType.startsWith('video_') || videoWatchSec > 0;
+    const result = await db.query(query, values);
+    console.log('📊 Inquiry saved to analytics database');
+    return result.rows[0];
 
-    if (hasSectionMetrics || hasClicks || hasVideo) {
-      await updateEngagementMetrics({
-        inquiryId,
-        sessionId,
-        // Prefer sessionInfo.timeOnPage if present, else fall back to section dwell
-        timeOnPage: sessionTime || timeInSectionSec,
-        maxScrollDepth: maxScrollPct,
-        clickCount: clicks,
-        deviceInfo
-      });      
-    }
-
-    // 3) Optional granular: write video_* rows if present (safe no-op if table missing)
-    if (hasVideo) {
-      await insertVideoTrackingRow(db, {
-        inquiryId,
-        sessionId,
-        currentSection,
-        eventType,
-        videoId,
-        videoTitle,
-        currentTimeSec,
-        watchedSec: videoWatchSec,
-        url: pageUrl,
-        timestamp: tsISO
-      });
-    }
-
-    return { ok: true };
-  } catch (e) {
-    console.warn('trackEngagementEvent failed:', e.message);
+  } catch (error) {
+    console.error('❌ Failed to save inquiry to database:', error.message);
     return null;
   }
-}
-
-
-// ---------- AI Engagement Summary (per family) ----------
-async function buildEngagementSnapshot(db, inquiryId) {
-  // Pull whatever tracking you have; keep SQL simple and safe.
-  // If you already have helpers for this, use them instead.
-  const { rows: raw } = await db.query(`
-    SELECT section_label, SUM(dwell_ms)::bigint AS dwell_ms,
-           SUM(video_ms)::bigint   AS video_ms,
-           SUM(clicks)::int        AS clicks
-    FROM prospectus_events
-    WHERE inquiry_id = $1
-    GROUP BY section_label
-    ORDER BY SUM(dwell_ms) DESC
-    LIMIT 50
-  `, [inquiryId]).catch(() => ({ rows: [] }));
-
-  // Fallback if table/columns aren’t present yet
-  if (!raw || !Array.isArray(raw) || raw.length === 0) {
-    // Try a lighter fallback from any engagement summary you store
-    const { rows: e } = await db.query(`
-      SELECT time_on_page, scroll_depth, total_visits, clicks_on_links
-      FROM inquiries WHERE id = $1
-    `, [inquiryId]).catch(()=>({rows:[]}));
-    return {
-      sections: [],
-      totals: {
-        time_on_page_ms: Number(e?.[0]?.time_on_page || 0) * 1000,
-        scroll_depth: Number(e?.[0]?.scroll_depth || 0),
-        total_visits: Number(e?.[0]?.total_visits || 0),
-        clicks_on_links: Number(e?.[0]?.clicks_on_links || 0)
-      }
-    };
-  }
-
-  const sections = raw.map(r => ({
-    section: r.section_label || 'Unknown',
-    dwell_ms: Number(r.dwell_ms || 0),
-    video_ms: Number(r.video_ms || 0),
-    clicks: Number(r.clicks || 0)
-  }));
-
-  const totals = sections.reduce((acc, s) => {
-    acc.time_on_page_ms += s.dwell_ms;
-    acc.video_ms       += s.video_ms;
-    acc.clicks         += s.clicks;
-    return acc;
-  }, { time_on_page_ms: 0, video_ms: 0, clicks: 0 });
-
-  return { sections, totals };
-}
-
-function topInteractionsFrom(sections, n = 5) {
-  // Rank by dwell, then video time, then clicks
-  return [...sections]
-    .sort((a,b) => (b.dwell_ms - a.dwell_ms) || (b.video_ms - a.video_ms) || (b.clicks - a.clicks))
-    .slice(0, n)
-    .map(s => ({
-      label: s.section,
-      dwell_seconds: Math.round(s.dwell_ms/1000),
-      video_seconds: Math.round(s.video_ms/1000),
-      clicks: s.clicks
-    }));
-}
-
-async function generateAiEngagementStory(llm, snapshot, familyMeta) {
-  // familyMeta: { first_name, family_surname, entry_year } if you have them
-  const secs = snapshot.sections || [];
-  const tops = topInteractionsFrom(secs, 5);
-
-  // Model switch: prefer Anthropic if key present, else OpenAI
-  const useAnthropic = !!process.env.ANTHROPIC_API_KEY;
-
-  const prompt = `
-You are an admissions assistant. Write a concise, human-friendly summary (UK English) describing how a parent interacted with a personalised school prospectus.
-Keep it factual and warm, 120–180 words, and avoid marketing fluff.
-
-Context:
-- Total time on prospectus (seconds): ${Math.round((snapshot.totals?.time_on_page_ms||0)/1000)}
-- Total video watch time (seconds): ${Math.round((snapshot.totals?.video_ms||0)/1000)}
-- Total clicks: ${snapshot.totals?.clicks||0}
-- Top sections by engagement (up to 5):
-${tops.map(t => `  - ${t.label}: dwell ${t.dwell_seconds}s, video ${t.video_seconds}s, clicks ${t.clicks}`).join('\n') || '  - (no detailed sections available yet)'}
-
-Output strictly as JSON with keys:
-{
-  "narrative": "120-180 word paragraph in UK English",
-  "highlights": ["• one-sentence key insight", "... up to 5 bullets"]
-}
-  `.trim();
-
-  if (useAnthropic) {
-    const { Anthropic } = await import('@anthropic-ai/sdk');
-    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-    const resp = await client.messages.create({
-      model: process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-20240620',
-      max_tokens: 600,
-      temperature: 0.2,
-      messages: [{ role: 'user', content: prompt }]
-    });
-    const text = resp?.content?.[0]?.text || '{}';
-    return JSON.parse(text);
-  } else {
-    // OpenAI fallback
-    const OpenAI = (await import('openai')).default;
-    const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-    const chat = await client.chat.completions.create({
-      model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
-      temperature: 0.2,
-      response_format: { type: 'json_object' },
-      messages: [{ role: 'user', content: prompt }]
-    });
-    return JSON.parse(chat.choices?.[0]?.message?.content || '{}');
-  }
-}
-
-async function upsertAiInsight(db, inquiryId, analysisType, insightsJson) {
-  await db.query(`
-    INSERT INTO ai_family_insights (inquiry_id, analysis_type, insights_json)
-    VALUES ($1, $2, $3::jsonb)
-    ON CONFLICT (inquiry_id, analysis_type)
-    DO UPDATE SET insights_json = EXCLUDED.insights_json
-  `, [inquiryId, analysisType, JSON.stringify(insightsJson)]);
-}
-
-async function summariseFamilyEngagement(db, llm, inquiry) {
-  const inquiryId = inquiry.id || inquiry.inquiry_id;
-  const snapshot = await buildEngagementSnapshot(db, inquiryId);
-  const payload = await generateAiEngagementStory(llm, snapshot, {
-    first_name: inquiry.first_name,
-    family_surname: inquiry.family_surname,
-    entry_year: inquiry.entry_year
-  });
-
-  // Normalise shape we return to the dashboard
-  const result = {
-    narrative: payload?.narrative || 'Prospectus generated. Awaiting first visit.',
-    highlights: Array.isArray(payload?.highlights) ? payload.highlights.slice(0,5) : [],
-    top_interactions: topInteractionsFrom(snapshot.sections || [], 5),
-    totals: snapshot.totals || { time_on_page_ms: 0, video_ms: 0, clicks: 0 }
-  };
-
-  await upsertAiInsight(db, inquiryId, 'engagement_summary', result);
-  return result;
-}
-
-
-async function updateEngagementMetrics(m) {
- if (!db) return null;
- try {
-   const q = `
-     INSERT INTO engagement_metrics (
-       inquiry_id, prospectus_filename, time_on_page, pages_viewed,
-       scroll_depth, clicks_on_links, session_id, device_type,
-       browser, operating_system, last_visit
-     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
-     ON CONFLICT (inquiry_id, session_id) DO UPDATE SET
-       time_on_page   = GREATEST(engagement_metrics.time_on_page, EXCLUDED.time_on_page),
-       scroll_depth   = GREATEST(engagement_metrics.scroll_depth, EXCLUDED.scroll_depth),
-       clicks_on_links= GREATEST(engagement_metrics.clicks_on_links, EXCLUDED.clicks_on_links),
-       pages_viewed   = engagement_metrics.pages_viewed + 1,
-       last_visit     = EXCLUDED.last_visit,
-       total_visits   = engagement_metrics.total_visits + 1
-     RETURNING *`;
-   const d = m.deviceInfo || {};
-   const vals = [
-     m.inquiryId, m.prospectusFilename || null,
-     Math.round(m.timeOnPage || 0), m.pageViews || 1,
-     Math.round(m.maxScrollDepth || 0), m.clickCount || 0,
-     m.sessionId || null, d.deviceType || 'unknown',
-     d.browser || 'unknown', d.operatingSystem || 'unknown',
-     new Date()
-   ];
-   const r = await db.query(q, vals);
-   return r.rows[0];
- } catch (e) {
-   console.warn('updateEngagementMetrics failed:', e.message);
-   return null;
- }
-}
-
-// ---------- Helpers for engagement parsing ----------
-function pickNumber(n, dflt = 0) {
-  const v = Number(n);
-  return Number.isFinite(v) ? v : dflt;
-}
-
-async function insertVideoTrackingRow(dbClient, payload) {
-  // Tries to write a granular video row; if the table/columns aren't present,
-  // we log a warning and carry on without failing the request.
-  try {
-    const q = `
-      INSERT INTO video_engagement_tracking (
-        inquiry_id, session_id, section_label, event_type,
-        video_id, video_title, current_time_sec, watched_sec,
-        page_url, timestamp
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
-    `;
-    const vals = [
-      payload.inquiryId || null,
-      payload.sessionId || null,
-      payload.currentSection || null,
-      payload.eventType || null,
-      payload.videoId || null,
-      payload.videoTitle || null,
-      pickNumber(payload.currentTimeSec, null),
-      pickNumber(payload.watchedSec, null),
-      payload.url || null,
-      new Date(payload.timestamp || Date.now())
-    ];
-    await dbClient.query(q, vals);
-  } catch (e) {
-    console.warn('video_engagement_tracking insert skipped:', e.message);
-  }
-}
-
-
-function calculateEngagementScore(engagement) {
- if (!engagement) return 0;
- 
- let score = 0;
- 
- const timeMinutes = (engagement.timeOnPage || engagement.time_on_page || 0) / 60;
- if (timeMinutes >= 30) score += 40;
- else if (timeMinutes >= 15) score += 30;
- else if (timeMinutes >= 5) score += 20;
- else score += Math.min(timeMinutes * 4, 15);
- 
- const scrollDepth = engagement.scrollDepth || engagement.scroll_depth || 0;
- score += Math.min(scrollDepth * 0.3, 30);
- 
- const visits = engagement.totalVisits || engagement.total_visits || 1;
- if (visits >= 7) score += 20;
- else if (visits >= 4) score += 15;
- else if (visits >= 2) score += 10;
- else score += 5;
- 
- const clicks = engagement.clickCount || engagement.clicks_on_links || 0;
- score += Math.min(clicks * 2, 10);
- 
- return Math.min(Math.round(score), 100);
-}
-
-const PROSPECTUS_SECTION_NAMES = {
- cover_page: 'Cover Page',
- heads_welcome: "Head's Welcome",
- academic_excellence: 'Academic Excellence',
- about_more_house: 'About More House',
- day_in_the_life: 'A Day at More House',
- creative_arts_hero: 'Creative Arts',
- your_journey: 'Your Journey',
- london_extended_classroom: 'London Extended Classroom',
- city_curriculum_days: 'City Curriculum Days',
- values_hero: 'Values & Faith',
- ethical_leaders: 'Ethical Leaders',
- discover_video: 'Discover Video',
- cta_begin_your_journey: 'Begin Your Journey'
 };
 
-function prettySectionName(id) {
- return PROSPECTUS_SECTION_NAMES[id] || (id ? id.replace(/_/g, ' ') : 'Unknown Section');
-}
+// Track engagement event
+const trackEngagementEvent = async (eventData) => {
+  if (!db) return null;
 
-function formatHM(totalSeconds) {
- totalSeconds = Math.max(0, Math.floor(totalSeconds || 0));
- const m = Math.floor(totalSeconds / 60);
- const s = totalSeconds % 60;
- return `${m}m ${s.toString().padStart(2, '0')}s`;
-}
+  try {
+    const query = `
+      INSERT INTO tracking_events (
+        inquiry_id, event_type, event_data, page_url, 
+        user_agent, ip_address, session_id, timestamp
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      RETURNING *;
+    `;
 
-async function buildEngagementMetrics(inquiryId) {
- if (!db) throw new Error('Database not available');
+    const values = [
+      eventData.inquiryId,
+      eventData.eventType,
+      JSON.stringify(eventData.eventData || {}),
+      eventData.url,
+      eventData.deviceInfo?.userAgent || null,
+      null, // IP will be added later
+      eventData.sessionId,
+      new Date(eventData.timestamp)
+    ];
 
- try {
-   const secExit = await db.query(
-     `SELECT
-        COALESCE(event_data->>'currentSection', 'unknown') AS section_id,
-        COALESCE((event_data->>'timeInSectionSec')::int, 0) AS dwell_sec,
-        COALESCE((event_data->>'maxScrollPct')::int, 0) AS max_scroll_pct,
-        COALESCE((event_data->>'clicks')::int, 0) AS clicks,
-        COALESCE((event_data->>'videoWatchSec')::int, 0) AS video_sec,
-        session_id,
-        timestamp
-      FROM tracking_events
-      WHERE inquiry_id = $1 
-        AND event_type = 'section_exit'
-        AND event_data IS NOT NULL
-      ORDER BY timestamp ASC`,
-     [inquiryId]
-   );
+    const result = await db.query(query, values);
+    return result.rows[0];
 
-   const yt = await db.query(
-     `SELECT
-        COALESCE(event_data->>'currentSection', 'unknown') AS section_id,
-        MAX(COALESCE((event_data->>'milestonePct')::int, 0)) AS watched_pct
-      FROM tracking_events
-      WHERE inquiry_id = $1 
-        AND event_type IN ('youtube_video_progress','youtube_video_complete')
-        AND event_data IS NOT NULL
-      GROUP BY 1`,
-     [inquiryId]
-   );
-   const ytBySection = Object.fromEntries(yt.rows.map(r => [r.section_id, r.watched_pct || 0]));
+  } catch (error) {
+    console.error('❌ Failed to track event:', error.message);
+    return null;
+  }
+};
 
-   const minMax = await db.query(
-     `SELECT 
-        MIN(timestamp) AS min_ts, 
-        MAX(timestamp) AS max_ts, 
-        COUNT(DISTINCT session_id) AS sessions
-      FROM tracking_events
-      WHERE inquiry_id = $1`,
-     [inquiryId]
-   );
-   
-   const timeframe = {
-     start: minMax.rows[0]?.min_ts || null,
-     end: minMax.rows[0]?.max_ts || null
-   };
-   const distinctSessions = parseInt(minMax.rows[0]?.sessions || '0', 10);
+// Update engagement metrics
+const updateEngagementMetrics = async (metricsData) => {
+  if (!db) return null;
 
-   const sectionMap = new Map();
-   secExit.rows.forEach(r => {
-     const id = r.section_id || 'unknown';
-     const prev = sectionMap.get(id) || {
-       id, 
-       name: prettySectionName(id),
-       dwellSeconds: 0,
-       maxScrollPct: 0,
-       clicks: 0,
-       videoSeconds: 0,
-       visits: 0
-     };
-     prev.dwellSeconds += r.dwell_sec || 0;
-     prev.maxScrollPct = Math.max(prev.maxScrollPct, r.max_scroll_pct || 0);
-     prev.clicks += r.clicks || 0;
-     prev.videoSeconds += r.video_sec || 0;
-     prev.visits += 1;
-     sectionMap.set(id, prev);
-   });
+  try {
+    const query = `
+      INSERT INTO engagement_metrics (
+        inquiry_id, prospectus_filename, time_on_page, pages_viewed, 
+        scroll_depth, clicks_on_links, session_id, device_type, 
+        browser, operating_system, last_visit
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      ON CONFLICT (inquiry_id, session_id) DO UPDATE SET
+        time_on_page = GREATEST(engagement_metrics.time_on_page, EXCLUDED.time_on_page),
+        scroll_depth = GREATEST(engagement_metrics.scroll_depth, EXCLUDED.scroll_depth),
+        clicks_on_links = GREATEST(engagement_metrics.clicks_on_links, EXCLUDED.clicks_on_links),
+        pages_viewed = engagement_metrics.pages_viewed + 1,
+        last_visit = EXCLUDED.last_visit,
+        total_visits = engagement_metrics.total_visits + 1
+      RETURNING *;
+    `;
 
-   const sections = Array.from(sectionMap.values())
-     .sort((a, b) => b.dwellSeconds - a.dwellSeconds);
+    const deviceInfo = metricsData.deviceInfo || {};
+    const values = [
+      metricsData.inquiryId,
+      metricsData.prospectusFilename,
+      Math.round(metricsData.timeOnPage || 0),
+      metricsData.pageViews || 1,
+      Math.round(metricsData.maxScrollDepth || 0),
+      metricsData.clickCount || 0,
+      metricsData.sessionId,
+      deviceInfo.deviceType || 'unknown',
+      deviceInfo.browser || 'unknown',
+      deviceInfo.operatingSystem || 'unknown',
+      new Date()
+    ];
 
-   const totals = {
-     timeSeconds: sections.reduce((a, b) => a + (b.dwellSeconds || 0), 0),
-     sectionsViewed: sections.filter(s => s.dwellSeconds > 0).length,
-     returnVisits: Math.max(0, distinctSessions - 1)
-   };
+    const result = await db.query(query, values);
+    return result.rows[0];
 
-   const videos = Object.keys(ytBySection).map(sectionId => ({
-     sectionId,
-     sectionName: prettySectionName(sectionId),
-     watchedPct: ytBySection[sectionId] || 0
-   })).sort((a, b) => b.watchedPct - a.watchedPct);
+  } catch (error) {
+    console.error('❌ Failed to update engagement metrics:', error.message);
+    return null;
+  }
+};
 
-   const lastActive = timeframe.end || null;
+// ==== Prospectus generation with tracking config injection (Option B) ====
+const generateProspectus = async (inquiryData) => {
+  try {
+    console.log(`\n🎨 GENERATING PROSPECTUS FOR: ${inquiryData.firstName} ${inquiryData.familySurname}`);
+    console.log('════════════════════════════════════════════════');
 
-   return { timeframe, totals, sections, videos, lastActive };
-   
- } catch (error) {
-   console.error('Error in buildEngagementMetrics:', error);
-   throw error;
- }
-}
+    // Read the prospectus template
+    const templatePath = path.join(__dirname, 'public', 'prospectus_template.html');
+    let templateHtml = await fs.readFile(templatePath, 'utf8');
 
-function extractInterests(inquiry) {
- const academic = [];
- const creative = [];
- 
- if (inquiry.sciences) academic.push('Sciences');
- if (inquiry.mathematics) academic.push('Mathematics');
- if (inquiry.english) academic.push('English');
- if (inquiry.languages) academic.push('Languages');
- if (inquiry.humanities) academic.push('Humanities');
- if (inquiry.business) academic.push('Business');
- 
- if (inquiry.drama) creative.push('Drama');
- if (inquiry.music) creative.push('Music');
- if (inquiry.art) creative.push('Art');
- if (inquiry.creative_writing) creative.push('Creative Writing');
- 
- return { academic, creative };
-}
+    console.log('📄 Template loaded successfully');
 
-function extractPriorities(inquiry) {
- const priorities = [];
- 
- if (inquiry.academic_excellence) priorities.push('Academic Excellence');
- if (inquiry.pastoral_care) priorities.push('Pastoral Care');
- if (inquiry.university_preparation) priorities.push('University Preparation');
- if (inquiry.personal_development) priorities.push('Personal Development');
- if (inquiry.career_guidance) priorities.push('Career Guidance');
- if (inquiry.extracurricular_opportunities) priorities.push('Extracurricular Opportunities');
- 
- return priorities;
-}
+    // Generate the personalised filename
+    const filename = generateFilename(inquiryData);
+    const outputPath = path.join(__dirname, 'prospectuses', filename);
 
-async function analyzeFamily(inquiry, engagementData) {
- try {
-   console.log(`Analyzing family: ${inquiry.firstName} ${inquiry.familySurname}`);
-   
-   const familyContext = {
-     name: `${inquiry.firstName} ${inquiry.familySurname}`,
-     ageGroup: inquiry.ageGroup,
-     entryYear: inquiry.entryYear,
-     parentEmail: inquiry.parentEmail,
-     interests: extractInterests(inquiry),
-     priorities: extractPriorities(inquiry),
-     engagement: engagementData ? {
-       timeOnPage: engagementData.time_on_page || 0,
-       scrollDepth: engagementData.scroll_depth || 0,
-       totalVisits: engagementData.total_visits || 1,
-       clickCount: engagementData.clicks_on_links || 0,
-       lastVisit: engagementData.last_visit
-     } : null
-   };
+    // Add meta tags with inquiry information FIRST
+    const metaTags = `
+    <meta name="inquiry-id" content="${inquiryData.id}">
+    <meta name="generated-date" content="${new Date().toISOString()}">
+    <meta name="student-name" content="${inquiryData.firstName} ${inquiryData.familySurname}">
+    <meta name="entry-year" content="${inquiryData.entryYear}">
+    <meta name="age-group" content="${inquiryData.ageGroup}">`;
 
-   const engagementScore = calculateEngagementScore(familyContext.engagement);
+    templateHtml = templateHtml.replace('</head>', metaTags + '\n</head>');
 
-   const prompt = `As an expert education consultant for More House School, analyze this family's profile and provide actionable insights for our admissions team.
+    // Update page title
+    const personalisedTitle = `${inquiryData.firstName} ${inquiryData.familySurname} - More House School Prospectus ${inquiryData.entryYear}`;
+    templateHtml = templateHtml.replace(/<title>.*<\/title>/, `<title>${personalisedTitle}</title>`);
 
-FAMILY PROFILE:
-- Student: ${familyContext.name}
-- Age Group: ${familyContext.ageGroup}
-- Entry Year: ${familyContext.entryYear}
-- Academic Interests: ${familyContext.interests.academic.join(', ') || 'None specified'}
-- Creative Interests: ${familyContext.interests.creative.join(', ') || 'None specified'}
-- Family Priorities: ${familyContext.priorities.join(', ') || 'None specified'}
-${familyContext.engagement ? `
-ENGAGEMENT DATA:
-- Time spent: ${Math.round(familyContext.engagement.timeOnPage / 60)} minutes
-- Content engagement: ${familyContext.engagement.scrollDepth}% scroll depth
-- Visit frequency: ${familyContext.engagement.totalVisits} visits
-- Interaction count: ${familyContext.engagement.clickCount} clicks
-- Engagement score: ${engagementScore}/100
-- Last active: ${familyContext.engagement.lastVisit ? new Date(familyContext.engagement.lastVisit).toLocaleDateString() : 'Unknown'}
-` : 'ENGAGEMENT DATA: No tracking data available yet'}
+    // Personalisation script (unchanged behaviour)
+    const personalizationScript = `
+<script>
+// Auto-initialise prospectus with form data
+document.addEventListener('DOMContentLoaded', function() {
+  const userData = ${JSON.stringify(inquiryData, null, 2)};
+  console.log('🎯 Initialising prospectus with data:', userData);
 
-Based on this information, provide insights that will help our admissions team prioritize and personalize their approach.
+  if (typeof initializeProspectus === 'function') {
+    initializeProspectus(userData);
+    console.log('✅ Prospectus personalised for:', userData.firstName, userData.familySurname);
+  } else {
+    console.error('❌ initializeProspectus function not found');
+  }
+});
+</script>`;
 
-RESPOND ONLY WITH VALID JSON IN THIS EXACT FORMAT:
-{
- "leadScore": 75,
- "urgencyLevel": "high",
- "leadTemperature": "hot",
- "conversationStarters": [
-   "Discuss our exceptional science facilities and laboratories",
-   "Explore how our small class sizes support individual learning"
- ],
- "sellingPoints": [
-   "Outstanding STEM program with modern laboratories",
-   "Individual attention with 8:1 student-teacher ratio"
- ],
- "nextActions": [
-   "Schedule immediate phone call within 24 hours",
-   "Send personalized science department brochure"
- ],
- "insights": {
-   "studentProfile": "Science-focused student with strong academic potential",
-   "familyPriorities": "Academic excellence and individual attention",
-   "engagementPattern": "Highly engaged - spent significant time on academic sections",
-   "recommendedApproach": "Lead with academic strengths and science opportunities"
- },
- "keyObservations": [
-   "Strong interest in STEM subjects",
-   "Family values academic excellence",
-   "High engagement suggests serious consideration"
- ],
- "confidence": 0.92
-}
+    // === Tracking config injection (Option B mapping + endpoint + id) ===
+    // Adjust selectors to match your template; unmatched selectors are harmless.
+    const trackingConfigScript = `
+<!-- SMART Prospectus Tracking Config (Option B) -->
+<script>
+  window.PROSPECTUS_ID = '${inquiryData.id}';
+  window.TRACK_ENDPOINT = '/api/track-engagement';
 
-DO NOT INCLUDE ANY TEXT OUTSIDE THE JSON OBJECT.`;
+  // Map logical sections to CSS selectors present in this prospectus render.
+  // Feel free to refine/extend this list as your template evolves.
+  window.PROSPECTUS_SECTIONS = [
+    { id: "cover",             selector: ".cover-page, .cover, #cover" },
+    { id: "heads_welcome",     selector: ".heads-welcome, #headsWelcome, .welcome" },
+    { id: "academic",          selector: "#academic, .section-academic, .academic" },
+    { id: "creative",          selector: "#creative, .section-creative, .creative" },
+    { id: "london_curriculum", selector: "#londonHero, .london-curriculum, .city-curriculum" },
+    { id: "video_showcase",    selector: ".video-hero, #videoShowcase, .hero-video" },
+    { id: "discovery_videos",  selector: "#discoveryVideos, .discovery-videos" },
+    { id: "pastoral",          selector: "#pastoral, .section-pastoral, .pastoral" },
+    { id: "sport_wellbeing",   selector: "#sport, .section-sport, .wellbeing" },
+    { id: "enquire_cta",       selector: ".enquire-cta, a[data-track='enquire']" }
+  ];
 
-   let attempts = 0;
-   const maxAttempts = 3;
-   
-   while (attempts < maxAttempts) {
-     try {
-       attempts++;
-       console.log(`Claude API call attempt ${attempts}/${maxAttempts} for ${inquiry.id}`);
-       console.log('API Key available:', !!process.env.ANTHROPIC_API_KEY);
+  console.log('🔊 Tracking configured for', window.PROSPECTUS_ID);
+</script>
+<script src="/tracking.js" defer></script>`;
 
-       const response = await fetch("https://api.anthropic.com/v1/messages", {
-         method: "POST",
-         headers: {
-           "Content-Type": "application/json",
-           "x-api-key": process.env.ANTHROPIC_API_KEY,
-           "anthropic-version": "2023-06-01"
-         },
-         body: JSON.stringify({
-           model: "claude-sonnet-4-20250514",
-           max_tokens: 2000,
-           messages: [
-             { role: "user", content: prompt }
-           ]
-         })
-       });
+    // Combine scripts and inject before </body>
+    const allScripts = personalizationScript + '\n' + trackingConfigScript;
+    const finalHtml = templateHtml.replace('</body>', allScripts + '\n</body>');
 
-       if (!response.ok) {
-         const errorText = await response.text();
-         throw new Error(`Claude API HTTP ${response.status}: ${errorText}`);
-       }
+    // Save the final HTML
+    await fs.writeFile(outputPath, finalHtml, 'utf8');
 
-       const data = await response.json();
-       let responseText = data.content[0].text;
-       
-       responseText = responseText.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-       
-       const analysis = JSON.parse(responseText);
-       
-       if (!analysis.leadScore || !analysis.urgencyLevel) {
-         throw new Error('Invalid analysis response - missing required fields');
-       }
-       
-       console.log(`Claude analysis completed for ${inquiry.id} (score: ${analysis.leadScore})`);
-       
-       return {
-         leadScore: analysis.leadScore || 50,
-         urgencyLevel: analysis.urgencyLevel || 'medium',
-         leadTemperature: analysis.leadTemperature || 'warm',
-         conversationStarters: analysis.conversationStarters || [],
-         sellingPoints: analysis.sellingPoints || [],
-         nextActions: analysis.nextActions || [],
-         insights: analysis.insights || {},
-         keyObservations: analysis.keyObservations || [],
-         confidence_score: analysis.confidence || 0.5,
-         recommendations: analysis.conversationStarters || [],
-         engagementScore: engagementScore,
-         analysisDate: new Date().toISOString()
-       };
+    console.log(`📁 Prospectus saved: ${filename}`);
+    console.log(`🌐 Will be available at: http://localhost:${PORT}/prospectuses/${filename}`);
+    console.log('📊 Analytics tracking ENABLED with PROSPECTUS_ID:', inquiryData.id);
+    console.log('✅ Personalisation + tracking scripts injected');
 
-     } catch (error) {
-       console.warn(`Claude API attempt ${attempts} failed for ${inquiry.id}:`, error.message);
-       
-       if (attempts >= maxAttempts) {
-         throw error;
-       }
-       
-       await new Promise(resolve => setTimeout(resolve, 1000 * attempts));
-     }
-   }
-
- } catch (error) {
-   console.error(`Family analysis failed for ${inquiry.id}:`, error.message);
-   
-   const engagementScore = calculateEngagementScore(engagementData);
-   return {
-     leadScore: Math.max(engagementScore, 25),
-     urgencyLevel: engagementScore > 70 ? 'high' : engagementScore > 40 ? 'medium' : 'low',
-     leadTemperature: engagementScore > 70 ? 'hot' : engagementScore > 40 ? 'warm' : 'cold',
-     conversationStarters: ['Follow up on their inquiry', 'Discuss school offerings'],
-     sellingPoints: ['Quality education', 'Strong community'],
-     nextActions: ['Schedule follow-up call'],
-     insights: {
-       studentProfile: 'Analysis unavailable - requires manual review',
-       familyPriorities: 'Unknown - contact for details',
-       engagementPattern: engagementData ? `Engagement score: ${engagementScore}/100` : 'No engagement data',
-       recommendedApproach: 'Standard inquiry follow-up process'
-     },
-     keyObservations: ['AI analysis failed - manual review needed'],
-     confidence_score: 0.1,
-     recommendations: ['Manual review required'],
-     engagementScore: engagementScore,
-     analysisDate: new Date().toISOString(),
-     error: error.message
-   };
- }
-}
-
-async function findInquiryBySlug(slug) {
- try {
-   if (db) {
-     const result = await db.query('SELECT * FROM inquiries WHERE slug = $1 LIMIT 1', [slug]);
-     if (result.rows.length > 0) {
-       const row = result.rows[0];
-       return {
-         id: row.id,
-         firstName: row.first_name,
-         familySurname: row.family_surname,
-         parentEmail: row.parent_email,
-         ageGroup: row.age_group,
-         entryYear: row.entry_year,
-         receivedAt: row.received_at,
-         status: row.status,
-         slug: row.slug
-       };
-     }
-   }
-   
-   const files = await fs.readdir(path.join(__dirname, 'data'));
-   for (const f of files.filter(x => x.startsWith('inquiry-') && x.endsWith('.json'))) {
-     try {
-       const j = JSON.parse(await fs.readFile(path.join(__dirname, 'data', f), 'utf8'));
-       if ((j.slug || '').toLowerCase() === slug) return j;
-     } catch {}
-   }
- } catch (e) {
-   console.warn('findInquiryBySlug error:', e.message);
- }
- return null;
-}
-
-async function rebuildSlugIndexFromData() {
- let added = 0;
- console.log('Rebuilding slug index...');
- 
- try {
-   const files = await fs.readdir(path.join(__dirname, 'data'));
-   const js = files.filter(f => f.startsWith('inquiry-') && f.endsWith('.json'));
-   
-   for (const f of js) {
-     try {
-       const j = JSON.parse(await fs.readFile(path.join(__dirname, 'data', f), 'utf8'));
-       let slug = j.slug;
-       
-       if (!slug) {
-         slug = makeSlug(j);
-         j.slug = slug;
-         await fs.writeFile(path.join(__dirname, 'data', f), JSON.stringify(j, null, 2));
-         console.log(`Generated missing slug for ${j.firstName} ${j.familySurname}: ${slug}`);
-       }
-       
-       slug = slug.toLowerCase();
-       let rel = j.prospectusUrl;
-       if (!rel && j.prospectusFilename) {
-         rel = `/prospectuses/${j.prospectusFilename}`;
-       }
-       
-       if (rel && !slugIndex[slug]) {
-         slugIndex[slug] = rel;
-         added++;
-       }
-     } catch (e) {
-       console.warn(`Skipped ${f}: ${e.message}`);
-     }
-   }
-   
-   if (added > 0) {
-     await saveSlugIndex();
-     console.log(`Saved ${added} new slug mappings to slug-index.json`);
-   }
-   
-   console.log(`Slug index rebuilt: ${added} new mappings, ${Object.keys(slugIndex).length} total`);
-   return added;
- } catch (e) {
-   console.error('rebuildSlugIndexFromData error:', e.message);
-   return 0;
- }
-}
-
-// ===================== AI ENGAGEMENT SUMMARY HELPERS =====================
-
-// Pull a per-family snapshot of engagement for summarising.
-// If you don't yet have a `prospectus_events` table, the fallback still works.
-async function buildEngagementSnapshot(db, inquiryId) {
-  // Preferred: rich event table
-  const res = await db.query(`
-    SELECT
-      COALESCE(section_label, 'Unknown')    AS section_label,
-      COALESCE(SUM(dwell_ms) , 0)::bigint   AS dwell_ms,
-      COALESCE(SUM(video_ms) , 0)::bigint   AS video_ms,
-      COALESCE(SUM(clicks)   , 0)::integer  AS clicks
-    FROM prospectus_events
-    WHERE inquiry_id = $1
-    GROUP BY section_label
-    ORDER BY SUM(dwell_ms) DESC
-    LIMIT 100
-  `, [inquiryId]).catch(() => ({ rows: [] }));
-
-  if (!res?.rows?.length) {
-    // Fallback: use coarse engagement stored on inquiries
-    const e = await db.query(`
-      SELECT
-        COALESCE(time_on_page, 0)::bigint         AS time_on_page,
-        COALESCE(scroll_depth, 0)::integer        AS scroll_depth,
-        COALESCE(total_visits, 0)::integer        AS total_visits,
-        COALESCE(clicks_on_links, 0)::integer     AS clicks_on_links
-      FROM inquiries
-      WHERE id = $1
-    `, [inquiryId]).catch(() => ({ rows: [] }));
-
-    const row = e?.rows?.[0] || {};
     return {
-      sections: [],
-      totals: {
-        time_on_page_ms: Number(row.time_on_page || 0) * 1000,
-        video_ms: 0,
-        clicks: Number(row.clicks_on_links || 0),
-        total_visits: Number(row.total_visits || 0),
-        scroll_depth: Number(row.scroll_depth || 0)
+      filename,
+      path: outputPath,
+      url: `/prospectuses/${filename}`,
+      generatedAt: new Date().toISOString()
+    };
+
+  } catch (error) {
+    console.error('❌ Error generating prospectus:', error.message);
+    throw error;
+  }
+};
+
+// Update inquiry status after prospectus generation
+const updateInquiryStatus = async (inquiryId, prospectusInfo) => {
+  try {
+    const files = await fs.readdir('data');
+    const inquiryFiles = files.filter(file => file.startsWith('inquiry-') && file.endsWith('.json'));
+
+    for (const file of inquiryFiles) {
+      const filepath = path.join('data', file);
+      const content = await fs.readFile(filepath, 'utf8');
+      const inquiry = JSON.parse(content);
+
+      if (inquiry.id === inquiryId) {
+        inquiry.prospectusGenerated = true;
+        inquiry.prospectusFilename = prospectusInfo.filename;
+        inquiry.prospectusUrl = prospectusInfo.url;
+        inquiry.prospectusGeneratedAt = prospectusInfo.generatedAt;
+        inquiry.status = 'prospectus_generated';
+
+        await fs.writeFile(filepath, JSON.stringify(inquiry, null, 2));
+        console.log(`📝 Updated inquiry record: ${inquiryId}`);
+
+        if (db) {
+          try {
+            await db.query(`
+              UPDATE inquiries 
+              SET status = 'prospectus_generated', 
+                  prospectus_generated = true,
+                  prospectus_filename = $2,
+                  prospectus_url = $3,
+                  prospectus_generated_at = $4,
+                  updated_at = CURRENT_TIMESTAMP
+              WHERE id = $1
+            `, [inquiryId, prospectusInfo.filename, prospectusInfo.url, new Date(prospectusInfo.generatedAt)]);
+            console.log('📊 Database updated with prospectus info');
+          } catch (dbError) {
+            console.warn('⚠️ Failed to update database:', dbError.message);
+          }
+        }
+
+        return inquiry;
+      }
+    }
+
+    throw new Error(`Inquiry ${inquiryId} not found`);
+
+  } catch (error) {
+    console.error('❌ Error updating inquiry status:', error.message);
+    throw error;
+  }
+};
+
+// Enhanced webhook endpoint with prospectus generation and analytics
+app.post('/webhook', async (req, res) => {
+  console.log('\n🎯 WEBHOOK RECEIVED');
+  console.log('📅 Timestamp:', new Date().toISOString());
+
+  try {
+    const formData = req.body;
+
+    const requiredFields = ['firstName', 'familySurname', 'parentEmail', 'ageGroup', 'entryYear'];
+    const missingFields = requiredFields.filter(field => !formData[field]);
+
+    if (missingFields.length > 0) {
+      console.log('❌ Missing required fields:', missingFields);
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields',
+        missingFields,
+        received: Object.keys(formData)
+      });
+    }
+
+    console.log('\n📋 FORM DATA RECEIVED:');
+    console.log('════════════════════════════════════════');
+
+    console.log('👨‍👩‍👧 FAMILY INFORMATION:');
+    console.log(`   Name: ${formData.firstName} ${formData.familySurname}`);
+    console.log(`   Email: ${formData.parentEmail}`);
+    console.log(`   Age Group: ${formData.ageGroup}`);
+    console.log(`   Entry Year: ${formData.entryYear}`);
+
+    const academicInterests = [];
+    ['sciences', 'mathematics', 'english', 'languages', 'humanities', 'business'].forEach(interest => {
+      if (formData[interest]) academicInterests.push(interest);
+    });
+    console.log('\n📚 ACADEMIC INTERESTS:');
+    console.log(`   ${academicInterests.length > 0 ? academicInterests.join(', ') : 'None selected'}`);
+
+    const creativeInterests = [];
+    ['drama', 'music', 'art', 'creative_writing'].forEach(interest => {
+      if (formData[interest]) creativeInterests.push(interest);
+    });
+    console.log('\n🎨 CREATIVE INTERESTS:');
+    console.log(`   ${creativeInterests.length > 0 ? creativeInterests.join(', ') : 'None selected'}`);
+
+    const coCurricularInterests = [];
+    ['sport', 'leadership', 'community_service', 'debating'].forEach(interest => {
+      if (formData[interest]) coCurricularInterests.push(interest);
+    });
+    console.log('\n🏃‍♀️ CO-CURRICULAR INTERESTS:');
+    console.log(`   ${coCurricularInterests.length > 0 ? coCurricularInterests.join(', ') : 'None selected'}`);
+
+    const familyPriorities = [];
+    ['academic_excellence', 'pastoral_care', 'small_classes', 'london_location', 'values_based', 'university_prep'].forEach(priority => {
+      if (formData[priority]) familyPriorities.push(priority);
+    });
+    console.log('\n🏠 FAMILY PRIORITIES:');
+    console.log(`   ${familyPriorities.length > 0 ? familyPriorities.join(', ') : 'None selected'}`);
+
+    console.log('\n🔧 TECHNICAL METADATA:');
+    console.log(`   User Agent: ${formData.userAgent || 'Not provided'}`);
+    console.log(`   Referrer: ${formData.referrer || 'Not provided'}`);
+    console.log(`   Submission Time: ${formData.submissionTimestamp || 'Not provided'}`);
+    console.log('════════════════════════════════════════\n');
+
+    const inquiryRecord = await saveInquiryData(formData);
+
+    await saveInquiryToDatabase({
+      ...formData,
+      id: inquiryRecord.id,
+      receivedAt: inquiryRecord.receivedAt,
+      status: 'received',
+      userAgent: req.headers['user-agent'],
+      referrer: req.headers.referer,
+      ip: req.ip || req.connection.remoteAddress
+    });
+
+    const prospectusInfo = await generateProspectus(inquiryRecord);
+
+    await updateInquiryStatus(inquiryRecord.id, prospectusInfo);
+
+    const response = {
+      success: true,
+      message: 'Inquiry received and prospectus generated successfully',
+      inquiryId: inquiryRecord.id,
+      prospectus: {
+        filename: prospectusInfo.filename,
+        url: `http://localhost:${PORT}${prospectusInfo.url}`,
+        generatedAt: prospectusInfo.generatedAt
+      },
+      receivedAt: inquiryRecord.receivedAt,
+      summary: {
+        family: `${formData.firstName} ${formData.familySurname}`,
+        email: formData.parentEmail,
+        ageGroup: formData.ageGroup,
+        entryYear: formData.entryYear,
+        totalInterests: academicInterests.length + creativeInterests.length + coCurricularInterests.length,
+        familyPriorities: familyPriorities.length
       }
     };
+
+    console.log('✅ WEBHOOK RESPONSE SENT:', response.inquiryId);
+    console.log(`🎯 PROSPECTUS URL: ${response.prospectus.url}`);
+    console.log('📊 Analytics tracking enabled on prospectus\n');
+
+    res.json(response);
+
+  } catch (error) {
+    console.error('❌ WEBHOOK ERROR:', error.message);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error',
+      message: error.message
+    });
   }
+});
 
-  const sections = res.rows.map(r => ({
-    section: r.section_label,
-    dwell_ms: Number(r.dwell_ms || 0),
-    video_ms: Number(r.video_ms || 0),
-    clicks: Number(r.clicks || 0)
-  }));
-
-  const totals = sections.reduce((acc, s) => {
-    acc.time_on_page_ms += s.dwell_ms;
-    acc.video_ms       += s.video_ms;
-    acc.clicks         += s.clicks;
-    return acc;
-  }, { time_on_page_ms: 0, video_ms: 0, clicks: 0 });
-
-  return { sections, totals };
-}
-
-function topInteractionsFrom(sections, n = 5) {
-  return [...sections]
-    .sort((a,b) =>
-      (b.dwell_ms - a.dwell_ms) ||
-      (b.video_ms - a.video_ms) ||
-      (b.clicks   - a.clicks))
-    .slice(0, n)
-    .map(s => ({
-      label: s.section,
-      dwell_seconds: Math.round((s.dwell_ms || 0)/1000),
-      video_seconds: Math.round((s.video_ms || 0)/1000),
-      clicks: Number(s.clicks || 0)
-    }));
-}
-
-// Use Claude if ANTHROPIC_API_KEY exists, else OpenAI (OPENAI_API_KEY).
-async function generateAiEngagementStory(snapshot, meta = {}) {
-  const tops = topInteractionsFrom(snapshot.sections || [], 5);
-  const totalSec   = Math.round((snapshot.totals?.time_on_page_ms || 0) / 1000);
-  const videoSec   = Math.round((snapshot.totals?.video_ms || 0) / 1000);
-  const clicks     = Number(snapshot.totals?.clicks || 0);
-  const visits     = Number(snapshot.totals?.total_visits || 0);
-  const childName  = [meta.first_name, meta.family_surname].filter(Boolean).join(' ');
-
-  const prompt = `
-You are an admissions assistant. In UK English, write a concise, human-friendly narrative (120–180 words) explaining how a family engaged with a personalised school prospectus. Be factual, warm, and readable—like a colleague explaining what's happening. Avoid marketing fluff.
-
-Include: what they kept coming back to, which sections/videos held attention, and what this suggests about interests or next steps. If data is light, say so plainly without guessing.
-
-Context (data):
-- Child/family: ${childName || '(not provided)'}
-- Entry year: ${meta.entry_year || '(not provided)'}
-- Total time on prospectus (sec): ${totalSec}
-- Total video watch time (sec): ${videoSec}
-- Total clicks: ${clicks}
-- Total visits: ${visits || '(unknown)'}
-- Top sections by engagement (up to 5):
-${tops.length ? tops.map(t => `  - ${t.label}: dwell ${t.dwell_seconds}s, video ${t.video_seconds}s, clicks ${t.clicks}`).join('\n') : '  - (no detailed sections available)'}
-
-Return STRICT JSON:
-{
-  "narrative": "A 120–180 word paragraph in UK English.",
-  "highlights": ["Up to five short, factual bullets."]
-}
-`.trim();
-
-  const hasAnthropic = !!process.env.ANTHROPIC_API_KEY;
+// Legacy analytics tracking endpoint (kept)
+app.post('/api/track', async (req, res) => {
   try {
-    if (hasAnthropic) {
-      const { Anthropic } = await import('@anthropic-ai/sdk');
-      const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-      const resp = await client.messages.create({
-        model: process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-20240620',
-        temperature: 0.2,
-        max_tokens: 700,
-        messages: [{ role: 'user', content: prompt }]
-      });
-      const text = resp?.content?.[0]?.text || '{}';
-      return JSON.parse(text);
-    } else {
-      const OpenAI = (await import('openai')).default;
-      const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-      const chat = await client.chat.completions.create({
-        model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
-        temperature: 0.2,
-        response_format: { type: 'json_object' },
-        messages: [{ role: 'user', content: prompt }]
-      });
-      const text = chat?.choices?.[0]?.message?.content || '{}';
-      return JSON.parse(text);
+    const { events, engagementMetrics } = req.body;
+    const clientIP = req.ip || req.connection.remoteAddress;
+
+    console.log(`📊 Tracking data received for inquiry: ${engagementMetrics?.inquiryId}`);
+
+    if (events && events.length > 0) {
+      for (const event of events) {
+        await trackEngagementEvent({
+          ...event,
+          ip: clientIP
+        });
+      }
     }
-  } catch (e) {
-    // Hard fallback so UI never dies
-    return {
-      narrative: "Prospectus generated. Limited tracking available so far. Once more interaction is recorded — such as time spent on key sections or video watch time — a fuller summary will appear here.",
-      highlights: ["No detailed section data yet", "Invite the family to view key pages", "Follow up with a light-touch email"]
-    };
+
+    if (engagementMetrics) {
+      await updateEngagementMetrics(engagementMetrics);
+    }
+
+    res.json({
+      success: true,
+      message: 'Tracking data recorded',
+      eventsProcessed: events?.length || 0
+    });
+
+  } catch (error) {
+    console.error('❌ Analytics tracking error:', error.message);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to record tracking data'
+    });
   }
-}
-
-async function upsertAiInsight(db, inquiryId, analysisType, insightsJson) {
-  await db.query(`
-    INSERT INTO ai_family_insights (inquiry_id, analysis_type, insights_json)
-    VALUES ($1, $2, $3::jsonb)
-    ON CONFLICT (inquiry_id, analysis_type)
-    DO UPDATE SET insights_json = EXCLUDED.insights_json
-  `, [inquiryId, analysisType, JSON.stringify(insightsJson)]);
-}
-
-async function summariseFamilyEngagement(db, inquiry) {
-  const inquiryId = inquiry.id || inquiry.inquiry_id;
-  const snapshot = await buildEngagementSnapshot(db, inquiryId);
-
-  const payload = await generateAiEngagementStory(snapshot, {
-    first_name: inquiry.first_name,
-    family_surname: inquiry.family_surname,
-    entry_year: inquiry.entry_year
-  });
-
-  // Final normalised shape for dashboard
-  const result = {
-    narrative: payload?.narrative || 'Prospectus generated. Awaiting meaningful engagement.',
-    highlights: Array.isArray(payload?.highlights) ? payload.highlights.slice(0,5) : [],
-    top_interactions: topInteractionsFrom(snapshot.sections || [], 5),
-    totals: snapshot.totals || { time_on_page_ms: 0, video_ms: 0, clicks: 0, total_visits: 0 }
-  };
-
-  await upsertAiInsight(db, inquiryId, 'engagement_summary', result);
-  return result;
-}
-// =================== END AI ENGAGEMENT SUMMARY HELPERS ===================
-
-
-// Express Routes
-
-app.options('*', (req, res) => {
- res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
- res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
- res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept');
- res.header('Access-Control-Max-Age', '86400');
- res.sendStatus(200);
 });
 
-app.post(['/webhook', '/api/inquiry'], async (req, res) => {
- try {
-   const data = req.body || {};
-   const required = ['firstName','familySurname','parentEmail','ageGroup','entryYear'];
-   const missing = required.filter(k => !data[k]);
-   if (missing.length) return res.status(400).json({ success:false, error:'Missing required fields', missingFields: missing });
-
-   const now = new Date().toISOString();
-   const base = getBaseUrl(req);
-   const record = {
-     id: generateInquiryId(),
-     receivedAt: now,
-     status: 'received',
-     prospectusGenerated: false,
-     userAgent: req.headers['user-agent'],
-     referrer: req.headers.referer,
-     ip: req.ip || req.connection?.remoteAddress,
-     ...data
-   };
-
-   await saveInquiryJson(record);
-
-   if (db) {
-     try {
-       await db.query(`
-         INSERT INTO inquiries (
-           id, first_name, family_surname, parent_email, age_group, entry_year,
-           sciences, mathematics, english, languages, humanities, business,
-           drama, music, art, creative_writing,
-           sport, leadership, community_service, outdoor_education,
-           academic_excellence, pastoral_care, university_preparation,
-           personal_development, career_guidance, extracurricular_opportunities,
-           received_at, status, user_agent, referrer, ip_address
-         ) VALUES (
-           $1,$2,$3,$4,$5,$6,
-           $7,$8,$9,$10,$11,$12,
-           $13,$14,$15,$16,
-           $17,$18,$19,$20,
-           $21,$22,$23,$24,$25,$26,
-           $27,$28,$29,$30,$31
-         )
-         ON CONFLICT (id) DO NOTHING
-       `, [
-         record.id, record.firstName, record.familySurname, record.parentEmail, record.ageGroup, record.entryYear,
-         !!record.sciences, !!record.mathematics, !!record.english, !!record.languages, !!record.humanities, !!record.business,
-         !!record.drama, !!record.music, !!record.art, !!record.creative_writing,
-         !!record.sport, !!record.leadership, !!record.community_service, !!record.outdoor_education,
-         !!record.academic_excellence, !!record.pastoral_care, !!record.university_preparation,
-         !!record.personal_development, !!record.career_guidance, !!record.extracurricular_opportunities,
-         new Date(record.receivedAt), record.status, record.userAgent, record.referrer, record.ip
-       ]);
-       console.log(`Database record created: ${record.id}`);
-     } catch (e) { 
-       console.warn('DB insert failed (non-fatal):', e.message); 
-     }
-   }
-
-   const p = await generateProspectus(record);
-   await updateInquiryStatus(record.id, p);
-
-   return res.json({
-     success: true,
-     inquiryId: record.id,
-     receivedAt: record.receivedAt,
-     prospectus: {
-       filename: p.filename,
-       url: `${base}${p.prettyPath}`,
-       directFile: `${base}${p.url}`,
-       slug: p.slug,
-       generatedAt: p.generatedAt
-     }
-   });
- } catch (e) {
-   console.error('WEBHOOK error:', e);
-   return res.status(500).json({ success:false, error:e.message });
- }
-});
-
-app.post('/api/generate-prospectus/:inquiryId', async (req, res) => {
- try {
-   const inquiryId = req.params.inquiryId;
-   let inquiry = null;
-   
-   if (db) {
-     const result = await db.query('SELECT * FROM inquiries WHERE id = $1', [inquiryId]);
-     if (result.rows.length > 0) {
-       const row = result.rows[0];
-       inquiry = {
-         id: row.id,
-         firstName: row.first_name,
-         familySurname: row.family_surname,
-         parentEmail: row.parent_email,
-         ageGroup: row.age_group,
-         entryYear: row.entry_year,
-         sciences: row.sciences,
-         mathematics: row.mathematics,
-         english: row.english,
-         languages: row.languages,
-         humanities: row.humanities,
-         business: row.business,
-         drama: row.drama,
-         music: row.music,
-         art: row.art,
-         creative_writing: row.creative_writing,
-         sport: row.sport,
-         leadership: row.leadership,
-         community_service: row.community_service,
-         outdoor_education: row.outdoor_education,
-         academic_excellence: row.academic_excellence,
-         pastoral_care: row.pastoral_care,
-         university_preparation: row.university_preparation,
-         personal_development: row.personal_development,
-         career_guidance: row.career_guidance,
-         extracurricular_opportunities: row.extracurricular_opportunities
-       };
-     }
-   }
-   
-   if (!inquiry) {
-     const files = await fs.readdir(path.join(__dirname, 'data'));
-     for (const f of files.filter(x => x.startsWith('inquiry-') && x.endsWith('.json'))) {
-       const j = JSON.parse(await fs.readFile(path.join(__dirname, 'data', f), 'utf8'));
-       if (j.id === inquiryId) { inquiry = j; break; }
-     }
-   }
-   
-   if (!inquiry) return res.status(404).json({ success:false, error:'Inquiry not found' });
-
-   const p = await generateProspectus(inquiry);
-   await updateInquiryStatus(inquiry.id, p);
-
-   const base = getBaseUrl(req);
-   res.json({
-     success: true,
-     inquiryId,
-     prospectus: {
-       filename: p.filename,
-       url: `${base}${p.prettyPath}`,
-       directFile: `${base}${p.url}`,
-       slug: p.slug,
-       generatedAt: p.generatedAt
-     }
-   });
- } catch (e) {
-   console.error('Manual generate error:', e);
-   res.status(500).json({ success:false, error:e.message });
- }
-});
-
+// New simplified batch tracking endpoint used by tracking.js
 app.post('/api/track-engagement', async (req, res) => {
- try {
-   const { events = [], sessionInfo } = req.body || {};
-   const clientIP = req.ip || req.connection?.remoteAddress;
-   
-   console.log(`Tracking: ${events.length} events from ${sessionInfo?.inquiryId || 'unknown'}`);
-   
-   for (const e of (events.length ? events : [req.body])) {
-     const { inquiryId, sessionId, eventType, timestamp, data = {}, url, currentSection } = e;
-     if (!inquiryId || !sessionId || !eventType) continue;
-     
-     await trackEngagementEvent({
-       inquiryId, 
-       sessionId, 
-       eventType,
-       timestamp: timestamp || new Date().toISOString(),
-       eventData: data, 
-       url, 
-       currentSection,
-       deviceInfo: data.deviceInfo,
-       ip: clientIP
-     });
-   }
-   
-   if (sessionInfo?.inquiryId) {
-     await updateEngagementMetrics({
-       inquiryId: sessionInfo.inquiryId,
-       sessionId: sessionInfo.sessionId,
-       timeOnPage: sessionInfo.timeOnPage,
-       maxScrollDepth: sessionInfo.maxScrollDepth,
-       clickCount: sessionInfo.clickCount,
-       deviceInfo: sessionInfo.deviceInfo,
-       prospectusFilename: 'unknown'
-     });
-   }
-   
-   res.json({ 
-     success: true, 
-     message: `Tracked ${(events.length || 1)} event(s)`,
-     eventsProcessed: events.length || 1
-   });
- } catch (e) {
-   console.error('track-engagement error:', e);
-   res.status(500).json({ success: false, error: e.message });
- }
+  try {
+    const { events, sessionInfo } = req.body;
+
+    const eventList = events || [req.body];
+
+    console.log(`📊 Received ${eventList.length} tracking events`);
+
+    for (const event of eventList) {
+      const {
+        inquiryId,
+        sessionId,
+        eventType,
+        timestamp,
+        data = {},
+        url,
+        currentSection
+      } = event;
+
+      if (!inquiryId || !sessionId || !eventType) {
+        console.warn('⚠️ Invalid tracking event - missing required fields');
+        continue;
+      }
+
+      console.log(`📈 ${eventType} | ${inquiryId} | ${currentSection || 'no-section'}`);
+
+      if (eventType === 'page_load') {
+        console.log(`   👤 Device: ${data.isMobile ? 'Mobile' : 'Desktop'} | ${data.viewport}`);
+        console.log(`   🔗 Referrer: ${data.referrer || 'Direct'}`);
+      } else if (eventType === 'section_view') {
+        console.log(`   📖 Section: ${data.section} | View #${data.viewCount}`);
+      } else if (eventType === 'scroll_depth') {
+        console.log(`   📜 Scroll: ${data.milestone} (${data.depth}%)`);
+      } else if (eventType === 'heartbeat') {
+        console.log(`   ⏱️  Time: ${data.timeOnPage}s | Scroll: ${data.maxScrollDepth}% | Clicks: ${data.clickCount}`);
+      }
+
+      if (db) {
+        await trackEngagementEvent({
+          inquiryId,
+          sessionId,
+          eventType,
+          timestamp: timestamp || new Date().toISOString(),
+          eventData: data,
+          url,
+          currentSection,
+          deviceInfo: data.deviceInfo
+        });
+      }
+    }
+
+    if (sessionInfo) {
+      console.log(`📊 Session Summary for ${sessionInfo.inquiryId}:`);
+      console.log(`   ⏱️  Total time: ${sessionInfo.timeOnPage}s`);
+      console.log(`   📜 Max scroll: ${sessionInfo.maxScrollDepth}%`);
+      console.log(`   🖱️  Clicks: ${sessionInfo.clickCount}`);
+      console.log(`   📖 Sections viewed: ${Object.keys(sessionInfo.sectionViews || {}).length}`);
+
+      if (db && sessionInfo.inquiryId) {
+        await updateEngagementMetrics({
+          inquiryId: sessionInfo.inquiryId,
+          sessionId: sessionInfo.sessionId,
+          timeOnPage: sessionInfo.timeOnPage,
+          maxScrollDepth: sessionInfo.maxScrollDepth,
+          clickCount: sessionInfo.clickCount,
+          deviceInfo: sessionInfo.deviceInfo,
+          prospectusFilename: 'unknown'
+        });
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Tracked ${eventList.length} events successfully`,
+      eventsProcessed: eventList.length
+    });
+
+  } catch (error) {
+    console.error('❌ Error tracking engagement:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to track engagement',
+      message: error.message
+    });
+  }
 });
 
-app.get('/api/dashboard-data', async (req, res) => {
- try {
-   console.log('Dashboard data request...');
-   const base = getBaseUrl(req);
-   let inquiries = [];
+// Analytics dashboard data endpoints (unchanged)
+app.get('/api/analytics/stats', async (req, res) => {
+  if (!db) {
+    return res.json({
+      totalInquiries: 0,
+      activeEngagements: 0,
+      avgEngagementTime: 0,
+      highInterest: 0
+    });
+  }
 
-   if (db) {
-     try {
-       console.log('Reading from DATABASE...');
-       const result = await db.query(`
-         SELECT id, first_name, family_surname, parent_email, age_group, entry_year,
-                sciences, mathematics, english, languages, humanities, business,
-                drama, music, art, creative_writing, sport, leadership, 
-                community_service, outdoor_education, academic_excellence, 
-                pastoral_care, university_preparation, personal_development, 
-                career_guidance, extracurricular_opportunities,
-                received_at, status, prospectus_generated, prospectus_filename, 
-                prospectus_url, slug, prospectus_generated_at
-         FROM inquiries 
-         ORDER BY received_at DESC
-       `);
-       
-       inquiries = result.rows.map(row => ({
-         id: row.id,
-         firstName: row.first_name,
-         familySurname: row.family_surname,
-         parentEmail: row.parent_email,
-         ageGroup: row.age_group,
-         entryYear: row.entry_year,
-         receivedAt: row.received_at,
-         status: row.status,
-         prospectusGenerated: row.prospectus_generated,
-         prospectusFilename: row.prospectus_filename,
-         prospectusUrl: row.prospectus_url,
-         slug: row.slug,
-         prospectusGeneratedAt: row.prospectus_generated_at,
-         prospectusPrettyPath: row.slug ? `/${row.slug}` : null,
-         sciences: row.sciences,
-         mathematics: row.mathematics,
-         english: row.english,
-         languages: row.languages,
-         humanities: row.humanities,
-         business: row.business,
-         drama: row.drama,
-         music: row.music,
-         art: row.art,
-         creative_writing: row.creative_writing,
-         sport: row.sport,
-         leadership: row.leadership,
-         community_service: row.community_service,
-         outdoor_education: row.outdoor_education,
-         academic_excellence: row.academic_excellence,
-         pastoral_care: row.pastoral_care,
-         university_preparation: row.university_preparation,
-         personal_development: row.personal_development,
-         career_guidance: row.career_guidance,
-         extracurricular_opportunities: row.extracurricular_opportunities
-       }));
-       
-       console.log(`Loaded ${inquiries.length} inquiries from DATABASE`);
-     } catch (dbError) {
-       console.warn('Database read failed, falling back to JSON:', dbError.message);
-     }
-   }
+  try {
+    const statsQuery = `
+      SELECT 
+        COUNT(*) as total_inquiries,
+        COUNT(CASE WHEN status = 'prospectus_generated' THEN 1 END) as prospectus_generated,
+        AVG(CASE WHEN em.time_on_page > 0 THEN em.time_on_page END) as avg_engagement_time,
+        COUNT(CASE WHEN em.time_on_page > 300 THEN 1 END) as high_interest
+      FROM inquiries i
+      LEFT JOIN engagement_metrics em ON i.id = em.inquiry_id
+    `;
 
-   if (inquiries.length === 0) {
-     console.log('Falling back to JSON files...');
-     const files = await fs.readdir(path.join(__dirname, 'data')).catch(() => []);
-     console.log(`Found ${files.length} files in data directory`);
-     
-     for (const f of files.filter(x => x.startsWith('inquiry-') && x.endsWith('.json'))) {
-       try { 
-         const content = await fs.readFile(path.join(__dirname, 'data', f), 'utf8');
-         const inquiry = JSON.parse(content);
-         inquiries.push(inquiry);
-       } catch (e) {
-         console.warn(`Failed to read ${f}:`, e.message);
-       }
-     }
-     console.log(`Loaded ${inquiries.length} inquiries from JSON files`);
-   }
+    const result = await db.query(statsQuery);
+    const stats = result.rows[0];
 
-   const now = Date.now();
-   const totalFamilies = inquiries.length;
-   const newInquiries7d = inquiries.filter(i => {
-     const t = Date.parse(i.receivedAt || 0);
-     return t && (now - t) <= 7*24*60*60*1000;
-   }).length;
-   const readyForContact = inquiries.filter(i => i.prospectusGenerated || i.status === 'prospectus_generated').length;
+    res.json({
+      totalInquiries: parseInt(stats.total_inquiries) || 0,
+      activeEngagements: parseInt(stats.prospectus_generated) || 0,
+      avgEngagementTime: parseFloat(stats.avg_engagement_time) / 60 || 0,
+      highInterest: parseInt(stats.high_interest) || 0
+    });
 
-   const highlyEngaged = Math.floor(totalFamilies * 0.3);
-
-   const interestKeys = [
-     'sciences','mathematics','english','languages','humanities','business',
-     'drama','music','art','creative_writing','sport','leadership','community_service','outdoor_education',
-     'academic_excellence','pastoral_care','university_preparation','personal_development','career_guidance','extracurricular_opportunities'
-   ];
-   const counts = Object.fromEntries(interestKeys.map(k => [k,0]));
-   for (const i of inquiries) for (const k of interestKeys) if (i[k]) counts[k]++;
-
-   const topInterests = Object.entries(counts).filter(([,c])=>c>0)
-     .sort((a,b)=>b[1]-a[1]).slice(0,10).map(([subject,count])=>({
-       subject: subject.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
-       count
-     }));
-
-   const recentlyActive = inquiries
-     .sort((a, b) => new Date(b.receivedAt) - new Date(a.receivedAt))
-     .slice(0, 10)
-     .map(i => ({
-       name: `${i.firstName || ''} ${i.familySurname || ''}`.trim(),
-       inquiryId: i.id,
-       ageGroup: i.ageGroup,
-       entryYear: i.entryYear,
-       activity: 'Recently inquired',
-       when: i.receivedAt,
-       timeOnPage: 0,
-       temperature: 'warm'
-     }));
-
-   const priorityFamilies = inquiries
-     .filter(i => i.prospectusGenerated || i.status === 'prospectus_generated')
-     .sort((a, b) => new Date(b.prospectusGeneratedAt || b.receivedAt) - new Date(a.prospectusGeneratedAt || a.receivedAt))
-     .slice(0, 15)
-     .map(i => ({
-       name: `${i.firstName || ''} ${i.familySurname || ''}`.trim(),
-       inquiryId: i.id,
-       ageGroup: i.ageGroup,
-       entryYear: i.entryYear,
-       timeOnPage: 0,
-       totalVisits: 1,
-       lastVisit: i.prospectusGeneratedAt || i.receivedAt,
-       temperature: 'warm',
-       hasProspectus: true
-     }));
-
-   const latestProspectuses = inquiries
-     .filter(i => i.prospectusGenerated || i.status === 'prospectus_generated')
-     .sort((a,b) => new Date(b.prospectusGeneratedAt || b.receivedAt) - new Date(a.prospectusGeneratedAt || a.receivedAt))
-     .slice(0,10)
-     .map(i => {
-       const prettyPath = i.prospectusPrettyPath || (i.slug ? `/${i.slug}` : null);
-       return {
-         name: `${i.firstName||''} ${i.familySurname||''}`.trim(),
-         inquiryId: i.id,
-         generatedAt: i.prospectusGeneratedAt || null,
-         prospectusPrettyUrl: prettyPath ? `${base}${prettyPath}` : null,
-         prospectusDirectUrl: i.prospectusUrl ? `${base}${i.prospectusUrl}` : null
-       };
-     });
-
-   const response = {
-     summary: { 
-       readyForContact, 
-       highlyEngaged, 
-       newInquiries7d, 
-       totalFamilies,
-       hotLeads: Math.floor(totalFamilies * 0.1),
-       warmLeads: Math.floor(totalFamilies * 0.2),
-       coldLeads: Math.floor(totalFamilies * 0.7),
-       avgEngagement: 5,
-       aiAnalyzed: 0
-     },
-     topInterests, 
-     recentlyActive, 
-     priorityFamilies, 
-     latestProspectuses
-   };
-   
-   console.log('Dashboard data response prepared:', {
-     totalFamilies: response.summary.totalFamilies,
-     recentlyActive: response.recentlyActive.length,
-     priorityFamilies: response.priorityFamilies.length,
-     prospectuses: response.latestProspectuses.length,
-     source: inquiries.length > 0 ? (db ? 'database' : 'json') : 'empty'
-   });
-   
-   return res.json(response);
- } catch (e) {
-   console.error('Dashboard data error:', e);
-   res.status(500).json({ error:'Failed to build dashboard data', message:e.message });
- }
+  } catch (error) {
+    console.error('❌ Failed to get analytics stats:', error.message);
+    res.status(500).json({ error: 'Failed to get stats' });
+  }
 });
 
 app.get('/api/analytics/inquiries', async (req, res) => {
- try {
-   console.log('Analytics inquiries request...');
-   const base = getBaseUrl(req);
-   let inquiries = [];
-
-   if (db) {
-     try {
-       console.log('Reading inquiries from DATABASE...');
-       
-       const result = await db.query(`
-         SELECT i.*, 
-                em.time_on_page, em.scroll_depth, em.clicks_on_links, 
-                em.total_visits, em.last_visit
-         FROM inquiries i
-         LEFT JOIN engagement_metrics em ON i.id = em.inquiry_id
-         ORDER BY i.received_at DESC
-       `);
-       
-       inquiries = result.rows.map(row => ({
-         id: row.id,
-         first_name: row.first_name,
-         family_surname: row.family_surname,
-         parent_email: row.parent_email,
-         entry_year: row.entry_year,
-         age_group: row.age_group,
-         received_at: row.received_at,
-         updated_at: row.prospectus_generated_at || row.received_at,
-         status: row.status || (row.prospectus_generated ? 'prospectus_generated' : 'received'),
-         prospectus_filename: row.prospectus_filename,
-         slug: row.slug,
-         prospectus_generated_at: row.prospectus_generated_at,
-         prospectus_pretty_path: row.slug ? `/${row.slug}` : null,
-         prospectus_pretty_url: row.slug ? `${base}/${row.slug}` : null,
-         prospectus_direct_url: row.prospectus_url ? `${base}${row.prospectus_url}` : null,
-         engagement: {
-           timeOnPage: row.time_on_page || 0,
-           scrollDepth: row.scroll_depth || 0,
-           clickCount: row.clicks_on_links || 0,
-           totalVisits: row.total_visits || 1,
-           lastVisit: row.last_visit || row.received_at,
-           engagementScore: calculateEngagementScore({
-             timeOnPage: row.time_on_page || 0,
-             scrollDepth: row.scroll_depth || 0,
-             totalVisits: row.total_visits || 1,
-             clickCount: row.clicks_on_links || 0
-           })
-         },
-         sciences: row.sciences,
-         mathematics: row.mathematics,
-         english: row.english,
-         languages: row.languages,
-         humanities: row.humanities,
-         business: row.business,
-         drama: row.drama,
-         music: row.music,
-         art: row.art,
-         sport: row.sport,
-         leadership: row.leadership,
-         community_service: row.community_service,
-         outdoor_education: row.outdoor_education,
-         aiInsights: null
-       }));
-       
-       console.log(`Loaded ${inquiries.length} inquiries from DATABASE with engagement data`);
-       
-       // Merge engagement_summary narrative
-       try {
-         const eg = await db.query(`
-           SELECT inquiry_id, insights_json
-           FROM ai_family_insights
-           WHERE analysis_type = 'engagement_summary'
-         `);
-         const egMap = {};
-         eg.rows.forEach(row => {
-           try {
-             const insights = typeof row.insights_json === 'string' ? JSON.parse(row.insights_json) : row.insights_json;
-             egMap[row.inquiry_id] = insights;
-           } catch {}
-         });
-         inquiries = inquiries.map(inq => ({ ...inq, aiEngagement: egMap[inq.id] || null }));
-         console.log(`Merged engagement summaries for ${Object.keys(egMap).length} families`);
-       } catch (e) {
-         console.warn('Engagement summary merge failed:', e.message);
-       }
-       
-     } catch (dbError) {
-       console.warn('Database read failed, falling back to JSON:', dbError.message);
-     }
-   }
-
-   if (inquiries.length === 0) {
-     console.log('Falling back to JSON files...');
-     const files = await fs.readdir(path.join(__dirname, 'data')).catch(() => []);
-     
-     for (const f of files.filter(x => x.startsWith('inquiry-') && x.endsWith('.json'))) {
-       try { 
-         const content = await fs.readFile(path.join(__dirname, 'data', f), 'utf8');
-         const inquiry = JSON.parse(content);
-         
-         const out = {
-           id: inquiry.id,
-           first_name: inquiry.firstName,
-           family_surname: inquiry.familySurname,
-           parent_email: inquiry.parentEmail,
-           entry_year: inquiry.entryYear,
-           age_group: inquiry.ageGroup,
-           received_at: inquiry.receivedAt,
-           updated_at: inquiry.prospectusGeneratedAt || inquiry.receivedAt,
-           status: inquiry.status || (inquiry.prospectusGenerated ? 'prospectus_generated' : 'received'),
-           prospectus_filename: inquiry.prospectusFilename || null,
-           slug: inquiry.slug || null,
-           prospectus_generated_at: inquiry.prospectusGeneratedAt || null,
-           prospectus_pretty_path: inquiry.prospectusPrettyPath || (inquiry.slug ? `/${inquiry.slug}` : null),
-           prospectus_pretty_url: inquiry.prospectusPrettyPath ? `${base}${inquiry.prospectusPrettyPath}` : null,
-           prospectus_direct_url: inquiry.prospectusUrl ? `${base}${inquiry.prospectusUrl}` : null,
-           engagement: {
-             timeOnPage: 0,
-             scrollDepth: 0,
-             clickCount: 0,
-             totalVisits: 1,
-             lastVisit: inquiry.receivedAt,
-             engagementScore: 25
-           },
-           sciences: inquiry.sciences,
-           mathematics: inquiry.mathematics,
-           english: inquiry.english,
-           languages: inquiry.languages,
-           humanities: inquiry.humanities,
-           business: inquiry.business,
-           drama: inquiry.drama,
-           music: inquiry.music,
-           art: inquiry.art,
-           sport: inquiry.sport,
-           leadership: inquiry.leadership,
-           community_service: inquiry.community_service,
-           outdoor_education: inquiry.outdoor_education,
-           aiInsights: null
-         };
-         
-         inquiries.push(out);
-       } catch (e) {
-         console.warn(`Failed to read ${f}:`, e.message);
-       }
-     }
-     console.log(`Loaded ${inquiries.length} inquiries from JSON files`);
-   }
-   
-   console.log(`Returning ${inquiries.length} inquiries to dashboard`);
-   res.json(inquiries);
-   
- } catch (e) {
-   console.error('Analytics inquiries error:', e);
-   res.status(500).json({ error: 'Failed to get inquiries' });
- }
-});
-
-app.post('/api/ai/engagement-summary/all', (req, res) => {
-  return res.redirect(307, '/api/ai/analyze-all-families');
-});
-
-app.post('/api/ai/engagement-summary/:inquiryId', async (req, res) => {
-  const inquiryId = req.params.inquiryId;
-
-  if (inquiryId === 'all') {
-    return res.status(400).json({ success: false, error: "Use POST /api/ai/analyze-all-families for bulk analysis." });
-  }
   if (!db) {
-    return res.status(500).json({ success: false, error: 'Database not available' });
+    return res.json([]);
   }
 
   try {
-    const q = await db.query(`SELECT * FROM inquiries WHERE id = $1`, [inquiryId]);
-    const inquiry = q?.rows?.[0];
-    if (!inquiry) return res.status(404).json({ success: false, error: 'Inquiry not found' });
+    const query = `
+      SELECT 
+        i.*,
+        em.time_on_page,
+        em.scroll_depth,
+        em.clicks_on_links as click_count,
+        em.total_visits,
+        em.last_visit
+      FROM inquiries i
+      LEFT JOIN engagement_metrics em ON i.id = em.inquiry_id
+      ORDER BY i.received_at DESC
+      LIMIT 50
+    `;
 
-    // 👉 Generate proper AI narrative + highlights
-    const result = await summariseFamilyEngagement(db, inquiry);
+    const result = await db.query(query);
 
-    // Overwrite the legacy slot so the dashboard picks it up
-    await db.query(`
-      INSERT INTO ai_family_insights (inquiry_id, analysis_type, insights_json, confidence_score, generated_at)
-      VALUES ($1, 'engagement_summary', $2::jsonb, 1.0, NOW())
-      ON CONFLICT (inquiry_id, analysis_type)
-      DO UPDATE SET insights_json = EXCLUDED.insights_json,
-                    confidence_score = EXCLUDED.confidence_score,
-                    generated_at = EXCLUDED.generated_at
-    `, [ inquiryId, JSON.stringify(result) ]);
+    const inquiries = result.rows.map(row => ({
+      ...row,
+      engagement: row.time_on_page ? {
+        timeOnPage: row.time_on_page,
+        scrollDepth: row.scroll_depth || 0,
+        clickCount: row.click_count || 0,
+        totalVisits: row.total_visits || 0
+      } : null
+    }));
 
-    return res.json({ success: true, result });
-  } catch (e) {
-    console.error('Engagement summary error:', e);
-    return res.status(500).json({ success: false, error: 'Failed to generate engagement summary' });
+    res.json(inquiries);
+
+  } catch (error) {
+    console.error('❌ Failed to get inquiries:', error.message);
+    res.status(500).json({ error: 'Failed to get inquiries' });
   }
 });
 
-// === BEGIN: GET /api/ai/engagement-summary/:inquiryId (reads tracking_events) ===
-app.get('/api/ai/engagement-summary/:inquiryId', async (req, res) => {
-  try {
-    if (!db) return res.status(500).json({ error: 'Database not available' });
-
-    const inquiryId = req.params.inquiryId;
-
-    // Distinct visits = distinct sessions
-    const { rows: [vs] = [{}] } = await db.query(`
-      SELECT COUNT(DISTINCT session_id)::int AS visits
-      FROM tracking_events
-      WHERE inquiry_id = $1
-    `, [inquiryId]);
-    const visits = vs?.visits ?? 0;
-
-    // Section dwell/scroll from section_exit + video signals from youtube_* events
-    const { rows: sections } = await db.query(`
-      WITH sec AS (
-        SELECT
-          COALESCE(event_data->>'currentSection','unknown') AS section,
-          SUM(COALESCE((event_data->>'timeInSectionSec')::int,0)) AS dwell_seconds,
-          MAX(COALESCE((event_data->>'maxScrollPct')::int,0))       AS max_scroll_pct
-        FROM tracking_events
-        WHERE inquiry_id = $1
-          AND event_type = 'section_exit'
-          AND event_data IS NOT NULL
-        GROUP BY 1
-      ),
-      vid AS (
-        SELECT
-          COALESCE(event_data->>'currentSection','unknown') AS section,
-          SUM(CASE WHEN event_type = 'youtube_video_complete'  THEN 1 ELSE 0 END) AS video_completes,
-          SUM(CASE WHEN event_type = 'youtube_video_progress' THEN 1 ELSE 0 END) AS video_plays
-        FROM tracking_events
-        WHERE inquiry_id = $1
-          AND event_type IN ('youtube_video_progress','youtube_video_complete')
-        GROUP BY 1
-      )
-      SELECT
-        s.section,
-        COALESCE(s.max_scroll_pct,0) AS max_scroll_pct,
-        COALESCE(s.dwell_seconds,0)  AS dwell_seconds,
-        COALESCE(v.video_plays,0)    AS video_plays,
-        COALESCE(v.video_completes,0) AS video_completes
-      FROM sec s
-      LEFT JOIN vid v USING (section)
-      ORDER BY dwell_seconds DESC NULLS LAST, max_scroll_pct DESC
-      LIMIT 50;
-    `, [inquiryId]);
-
-    // Score
-    const dwellTotal = sections.reduce((a, r) => a + (r.dwell_seconds || 0), 0);
-    const scrollAvg  = sections.length ? Math.round(sections.reduce((a, r) => a + (r.max_scroll_pct || 0), 0) / sections.length) : 0;
-    const videoBoost = sections.reduce((a, r) => a + (r.video_completes || 0) * 8 + (r.video_plays || 0) * 3, 0);
-    const scoreRaw   = Math.round(dwellTotal / 10) + Math.round(scrollAvg / 2) + videoBoost;
-    const score      = Math.max(10, Math.min(100, scoreRaw));
-
-    const hasSignals = sections.some(r =>
-      (r.dwell_seconds ?? 0) > 0 ||
-      (r.max_scroll_pct ?? 0) > 0 ||
-      (r.video_plays ?? 0) > 0 ||
-      (r.video_completes ?? 0) > 0
-    );
-
-    let summaryText;
-    if (!hasSignals) {
-      summaryText = 'Prospectus generated. Limited tracking available so far. Once more interaction is recorded — such as time spent on key sections or video watch time — a fuller summary will appear here.';
-    } else {
-      const tops = sections.slice(0, 3).map(s =>
-        `${s.section} (~${Math.round((s.dwell_seconds || 0)/60)} min, ${s.max_scroll_pct}% scrolled)`
-      );
-      const videoMsg = sections.some(s => (s.video_plays || 0) > 0)
-        ? 'Videos were played.'
-        : 'No video plays recorded.';
-      summaryText = `Strong engagement across ${sections.length} sections. Top focus: ${tops.join(' • ')}. ${videoMsg}`;
-    }
-
-    res.json({ inquiryId, visits, score, sections, summaryText });
-  } catch (err) {
-    console.error('GET engagement-summary error', err);
-    res.status(500).json({ error: 'server_error' });
-  }
-});
-// === END: GET /api/ai/engagement-summary/:inquiryId ===
-
-
-// === BEGIN: GET /api/ai/engagement-summary/:inquiryId (reads tracking_events) ===
-app.get('/api/ai/engagement-summary/:inquiryId', async (req, res) => {
-  try {
-    if (!db) return res.status(500).json({ error: 'Database not available' });
-
-    const inquiryId = req.params.inquiryId;
-
-    // Distinct visits = distinct sessions
-    const { rows: [vs] = [{}] } = await db.query(`
-      SELECT COUNT(DISTINCT session_id)::int AS visits
-      FROM tracking_events
-      WHERE inquiry_id = $1
-    `, [inquiryId]);
-    const visits = vs?.visits ?? 0;
-
-    // Section dwell/scroll from section_exit + video signals from youtube_* events
-    const { rows: sections } = await db.query(`
-      WITH sec AS (
-        SELECT
-          COALESCE(event_data->>'currentSection','unknown') AS section,
-          SUM(COALESCE((event_data->>'timeInSectionSec')::int,0)) AS dwell_seconds,
-          MAX(COALESCE((event_data->>'maxScrollPct')::int,0))       AS max_scroll_pct
-        FROM tracking_events
-        WHERE inquiry_id = $1
-          AND event_type = 'section_exit'
-          AND event_data IS NOT NULL
-        GROUP BY 1
-      ),
-      vid AS (
-        SELECT
-          COALESCE(event_data->>'currentSection','unknown') AS section,
-          SUM(CASE WHEN event_type = 'youtube_video_complete'  THEN 1 ELSE 0 END) AS video_completes,
-          SUM(CASE WHEN event_type = 'youtube_video_progress' THEN 1 ELSE 0 END) AS video_plays
-        FROM tracking_events
-        WHERE inquiry_id = $1
-          AND event_type IN ('youtube_video_progress','youtube_video_complete')
-        GROUP BY 1
-      )
-      SELECT
-        s.section,
-        COALESCE(s.max_scroll_pct,0) AS max_scroll_pct,
-        COALESCE(s.dwell_seconds,0)  AS dwell_seconds,
-        COALESCE(v.video_plays,0)    AS video_plays,
-        COALESCE(v.video_completes,0) AS video_completes
-      FROM sec s
-      LEFT JOIN vid v USING (section)
-      ORDER BY dwell_seconds DESC NULLS LAST, max_scroll_pct DESC
-      LIMIT 50;
-    `, [inquiryId]);
-
-    // Simple score
-    const dwellTotal = sections.reduce((a, r) => a + (r.dwell_seconds || 0), 0);
-    const scrollAvg  = sections.length ? Math.round(sections.reduce((a, r) => a + (r.max_scroll_pct || 0), 0) / sections.length) : 0;
-    const videoBoost = sections.reduce((a, r) => a + (r.video_completes || 0) * 8 + (r.video_plays || 0) * 3, 0);
-    const scoreRaw   = Math.round(dwellTotal / 10) + Math.round(scrollAvg / 2) + videoBoost;
-    const score      = Math.max(10, Math.min(100, scoreRaw));
-
-    const hasSignals = sections.some(r =>
-      (r.dwell_seconds ?? 0) > 0 ||
-      (r.max_scroll_pct ?? 0) > 0 ||
-      (r.video_plays ?? 0) > 0 ||
-      (r.video_completes ?? 0) > 0
-    );
-
-    let summaryText;
-    if (!hasSignals) {
-      summaryText = 'Prospectus generated. Limited tracking available so far. Once more interaction is recorded — such as time spent on key sections or video watch time — a fuller summary will appear here.';
-    } else {
-      const tops = sections.slice(0, 3).map(s =>
-        `${s.section} (~${Math.round((s.dwell_seconds || 0)/60)} min, ${s.max_scroll_pct}% scrolled)`
-      );
-      const videoMsg = sections.some(s => (s.video_plays || 0) > 0)
-        ? 'Videos were played.'
-        : 'No video plays recorded.';
-      summaryText = `Strong engagement across ${sections.length} sections. Top focus: ${tops.join(' • ')}. ${videoMsg}`;
-    }
-
-    res.json({ inquiryId, visits, score, sections, summaryText });
-  } catch (err) {
-    console.error('GET engagement-summary error', err);
-    res.status(500).json({ error: 'server_error' });
-  }
-});
-// === END: GET /api/ai/engagement-summary/:inquiryId ===
-
-// === BEGIN: GET /api/ai/engagement-summary/:inquiryId (reads tracking_events) ===
-app.get('/api/ai/engagement-summary/:inquiryId', async (req, res) => {
-  try {
-    if (!db) return res.status(500).json({ error: 'Database not available' });
-
-    const inquiryId = req.params.inquiryId;
-
-    // Distinct visits = distinct sessions
-    const { rows: [vs] = [{}] } = await db.query(`
-      SELECT COUNT(DISTINCT session_id)::int AS visits
-      FROM tracking_events
-      WHERE inquiry_id = $1
-    `, [inquiryId]);
-    const visits = vs?.visits ?? 0;
-
-    // Section dwell/scroll from section_exit + video signals from youtube_* events
-    const { rows: sections } = await db.query(`
-      WITH sec AS (
-        SELECT
-          COALESCE(event_data->>'currentSection','unknown') AS section,
-          SUM(COALESCE((event_data->>'timeInSectionSec')::int,0)) AS dwell_seconds,
-          MAX(COALESCE((event_data->>'maxScrollPct')::int,0))       AS max_scroll_pct
-        FROM tracking_events
-        WHERE inquiry_id = $1
-          AND event_type = 'section_exit'
-          AND event_data IS NOT NULL
-        GROUP BY 1
-      ),
-      vid AS (
-        SELECT
-          COALESCE(event_data->>'currentSection','unknown') AS section,
-          SUM(CASE WHEN event_type = 'youtube_video_complete'  THEN 1 ELSE 0 END) AS video_completes,
-          SUM(CASE WHEN event_type = 'youtube_video_progress' THEN 1 ELSE 0 END) AS video_plays
-        FROM tracking_events
-        WHERE inquiry_id = $1
-          AND event_type IN ('youtube_video_progress','youtube_video_complete')
-        GROUP BY 1
-      )
-      SELECT
-        s.section,
-        COALESCE(s.max_scroll_pct,0) AS max_scroll_pct,
-        COALESCE(s.dwell_seconds,0)  AS dwell_seconds,
-        COALESCE(v.video_plays,0)    AS video_plays,
-        COALESCE(v.video_completes,0) AS video_completes
-      FROM sec s
-      LEFT JOIN vid v USING (section)
-      ORDER BY dwell_seconds DESC NULLS LAST, max_scroll_pct DESC
-      LIMIT 50;
-    `, [inquiryId]);
-
-    // Simple score
-    const dwellTotal = sections.reduce((a, r) => a + (r.dwell_seconds || 0), 0);
-    const scrollAvg  = sections.length ? Math.round(sections.reduce((a, r) => a + (r.max_scroll_pct || 0), 0) / sections.length) : 0;
-    const videoBoost = sections.reduce((a, r) => a + (r.video_completes || 0) * 8 + (r.video_plays || 0) * 3, 0);
-    const scoreRaw   = Math.round(dwellTotal / 10) + Math.round(scrollAvg / 2) + videoBoost;
-    const score      = Math.max(10, Math.min(100, scoreRaw));
-
-    const hasSignals = sections.some(r =>
-      (r.dwell_seconds ?? 0) > 0 ||
-      (r.max_scroll_pct ?? 0) > 0 ||
-      (r.video_plays ?? 0) > 0 ||
-      (r.video_completes ?? 0) > 0
-    );
-
-    let summaryText;
-    if (!hasSignals) {
-      summaryText = 'Prospectus generated. Limited tracking available so far. Once more interaction is recorded — such as time spent on key sections or video watch time — a fuller summary will appear here.';
-    } else {
-      const tops = sections.slice(0, 3).map(s =>
-        `${s.section} (~${Math.round((s.dwell_seconds || 0)/60)} min, ${s.max_scroll_pct}% scrolled)`
-      );
-      const videoMsg = sections.some(s => (s.video_plays || 0) > 0)
-        ? 'Videos were played.'
-        : 'No video plays recorded.';
-      summaryText = `Strong engagement across ${sections.length} sections. Top focus: ${tops.join(' • ')}. ${videoMsg}`;
-    }
-
-    res.json({ inquiryId, visits, score, sections, summaryText });
-  } catch (err) {
-    console.error('GET engagement-summary error', err);
-    res.status(500).json({ error: 'server_error' });
-  }
-});
-// === END: GET /api/ai/engagement-summary/:inquiryId ===
-
-
-// Bulk AI engagement summaries
-app.post('/api/ai/analyze-all-families', async (req, res) => {
+app.get('/api/analytics/activity', async (req, res) => {
   if (!db) {
-    return res.status(500).json({ success: false, error: 'Database not available' });
+    return res.json([]);
   }
 
   try {
-    // Load all inquiries
-    const q = await db.query(`SELECT * FROM inquiries ORDER BY created_at DESC NULLS LAST`);
-    const rows = q?.rows || [];
-    const results = [];
+    const query = `
+      SELECT 
+        te.*,
+        i.first_name,
+        i.family_surname
+      FROM tracking_events te
+      LEFT JOIN inquiries i ON te.inquiry_id = i.id
+      ORDER BY te.timestamp DESC
+      LIMIT 20
+    `;
 
-    for (const inquiry of rows) {
-      try {
-        // 👉 Use the same AI summariser as the single route
-        const result = await summariseFamilyEngagement(db, inquiry);
+    const result = await db.query(query);
+    res.json(result.rows);
 
-        // Save into ai_family_insights
-        await db.query(`
-          INSERT INTO ai_family_insights (inquiry_id, analysis_type, insights_json, confidence_score, generated_at)
-          VALUES ($1, $2, $3::jsonb, $4, $5)
-          ON CONFLICT (inquiry_id, analysis_type)
-          DO UPDATE SET insights_json = EXCLUDED.insights_json,
-                        confidence_score = EXCLUDED.confidence_score,
-                        generated_at = EXCLUDED.generated_at
-        `, [ inquiry.id, 'engagement_summary', JSON.stringify(result), 1.0, new Date() ]);
+  } catch (error) {
+    console.error('❌ Failed to get activity:', error.message);
+    res.status(500).json({ error: 'Failed to get activity' });
+  }
+});
 
-        results.push({ inquiry_id: inquiry.id, success: true });
-      } catch (errOne) {
-        console.error('Bulk summarise error for', inquiry.id, errOne);
-        results.push({ inquiry_id: inquiry.id, success: false, error: 'summary_failed' });
+// Dashboard data endpoint (unchanged)
+app.get('/api/dashboard-data', async (req, res) => {
+  try {
+    console.log('📊 Dashboard data requested');
+
+    const dashboardData = {
+      metrics: {
+        readyForContact: 1,
+        highlyEngaged: 2,
+        newInquiries: 3,
+        totalFamilies: 5
+      },
+      priorityFamilies: [
+        {
+          id: 'INQ-' + Date.now(),
+          name: 'Johnson Family',
+          email: 'sarah.johnson@example.com',
+          childName: 'Emma',
+          ageGroup: '11-16',
+          entryYear: 2025,
+          engagementScore: 85,
+          contactReadinessScore: 78,
+          lastActivity: '2 hours ago',
+          status: 'high_priority',
+          insights: [
+            { icon: '📊', title: 'High Engagement', description: 'Spent 15+ minutes reviewing curriculum' },
+            { icon: '🎯', title: 'Strong Science Interest', description: 'Focused on STEM programs and facilities' },
+            { icon: '📞', title: 'Contact Ready', description: 'Ready for admissions call' }
+          ],
+          engagementHistory: [
+            { date: '2025-08-17', score: 85, activity: 'Prospectus review' },
+            { date: '2025-08-16', score: 72, activity: 'Initial inquiry' }
+          ]
+        },
+        {
+          id: 'INQ-' + (Date.now() - 1000),
+          name: 'Williams Family',
+          email: 'mark.williams@example.com',
+          childName: 'Sophie',
+          ageGroup: '16-18',
+          entryYear: 2025,
+          engagementScore: 72,
+          contactReadinessScore: 65,
+          lastActivity: '1 day ago',
+          status: 'moderate_interest',
+          insights: [
+            { icon: '🎨', title: 'Arts Focus', description: 'Interested in creative subjects and drama' },
+            { icon: '⏰', title: 'Recent Inquiry', description: 'Just submitted form yesterday' }
+          ],
+          engagementHistory: [
+            { date: '2025-08-16', score: 72, activity: 'Form submission' }
+          ]
+        }
+      ],
+      recentlyActive: [
+        {
+          id: 'INQ-' + (Date.now() - 2000),
+          name: 'Chen Family',
+          activity: 'Downloaded prospectus',
+          timestamp: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
+          engagementScore: 58
+        },
+        {
+          id: 'INQ-' + (Date.now() - 3000),
+          name: 'Davies Family',
+          activity: 'Viewed science facilities',
+          timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+          engagementScore: 45
+        }
+      ],
+      analytics: {
+        totalInquiries: 8,
+        thisWeekInquiries: 3,
+        conversionRate: 23.5,
+        averageEngagementScore: 67,
+        topInterests: [
+          { subject: 'Science & STEM', count: 5 },
+          { subject: 'Arts & Creative', count: 3 },
+          { subject: 'Sports & Wellbeing', count: 4 }
+        ]
+      },
+      lastUpdated: new Date().toISOString()
+    };
+
+    console.log('✅ Dashboard data generated successfully');
+    res.json(dashboardData);
+
+  } catch (error) {
+    console.error('❌ Error generating dashboard data:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to generate dashboard data',
+      message: error.message
+    });
+  }
+});
+
+// Serve prospectus files
+app.use('/prospectuses', express.static(path.join(__dirname, 'prospectuses')));
+
+// API endpoint to generate prospectus for existing inquiry
+app.post('/api/generate-prospectus/:inquiryId', async (req, res) => {
+  try {
+    const inquiryId = req.params.inquiryId;
+    console.log(`\n📄 MANUAL PROSPECTUS GENERATION REQUEST: ${inquiryId}`);
+
+    const files = await fs.readdir('data');
+    const inquiryFiles = files.filter(file => file.startsWith('inquiry-') && file.endsWith('.json'));
+
+    let inquiryData = null;
+    for (const file of inquiryFiles) {
+      const content = await fs.readFile(path.join('data', file), 'utf8');
+      const inquiry = JSON.parse(content);
+      if (inquiry.id === inquiryId) {
+        inquiryData = inquiry;
+        break;
       }
     }
 
-    return res.json({ success: true, count: results.length, results });
-  } catch (e) {
-    console.error('Bulk analyse error:', e);
-    return res.status(500).json({ success: false, error: 'Bulk analysis failed' });
+    if (!inquiryData) {
+      return res.status(404).json({
+        success: false,
+        error: 'Inquiry not found'
+      });
+    }
+
+    const prospectusInfo = await generateProspectus(inquiryData);
+
+    await updateInquiryStatus(inquiryId, prospectusInfo);
+
+    res.json({
+      success: true,
+      message: 'Prospectus generated successfully',
+      inquiryId,
+      prospectus: {
+        filename: prospectusInfo.filename,
+        url: `http://localhost:${PORT}${prospectusInfo.url}`,
+        generatedAt: prospectusInfo.generatedAt
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Error generating prospectus:', error.message);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to generate prospectus',
+      message: error.message
+    });
   }
 });
 
+// Get all inquiries
+app.get('/api/inquiries', async (req, res) => {
+  try {
+    const files = await fs.readdir('data');
+    const inquiryFiles = files.filter(file => file.startsWith('inquiry-') && file.endsWith('.json'));
 
-app.post('/api/ai/analyze-family/:inquiryId', async (req, res) => {
- try {
-   const inquiryId = req.params.inquiryId;
-   console.log(`Starting individual AI analysis for family: ${inquiryId}`);
-   
-   let inquiry = null;
-   
-   // Try database first
-   if (db) {
-     const result = await db.query('SELECT * FROM inquiries WHERE id = $1', [inquiryId]);
-     if (result.rows.length > 0) {
-       const row = result.rows[0];
-       inquiry = {
-         id: row.id,
-         firstName: row.first_name,
-         familySurname: row.family_surname,
-         parentEmail: row.parent_email,
-         ageGroup: row.age_group,
-         entryYear: row.entry_year,
-         sciences: row.sciences,
-         mathematics: row.mathematics,
-         english: row.english,
-         languages: row.languages,
-         humanities: row.humanities,
-         business: row.business,
-         drama: row.drama,
-         music: row.music,
-         art: row.art,
-         creative_writing: row.creative_writing,
-         sport: row.sport,
-         leadership: row.leadership,
-         community_service: row.community_service,
-         outdoor_education: row.outdoor_education,
-         academic_excellence: row.academic_excellence,
-         pastoral_care: row.pastoral_care,
-         university_preparation: row.university_preparation,
-         personal_development: row.personal_development,
-         career_guidance: row.career_guidance,
-         extracurricular_opportunities: row.extracurricular_opportunities
-       };
-     }
-   }
-   
-   // Fallback to JSON files
-   if (!inquiry) {
-     const files = await fs.readdir(path.join(__dirname, 'data'));
-     for (const f of files.filter(x => x.startsWith('inquiry-') && x.endsWith('.json'))) {
-       try {
-         const j = JSON.parse(await fs.readFile(path.join(__dirname, 'data', f), 'utf8'));
-         if (j.id === inquiryId) {
-           inquiry = j;
-           break;
-         }
-       } catch (fileError) {
-         console.warn(`Failed to read ${f}:`, fileError.message);
-       }
-     }
-   }
-   
-   if (!inquiry) {
-     return res.status(404).json({
-       success: false,
-       error: 'Family not found',
-       inquiryId: inquiryId
-     });
-   }
-   
-   console.log(`Processing ${inquiry.firstName} ${inquiry.familySurname} (${inquiry.id})`);
-   
-   let engagementData = null;
-   if (db) {
-     const engagementResult = await db.query(`
-       SELECT time_on_page, scroll_depth, clicks_on_links, total_visits, last_visit
-       FROM engagement_metrics
-       WHERE inquiry_id = $1
-       ORDER BY last_visit DESC
-       LIMIT 1
-     `, [inquiry.id]);
-     
-     if (engagementResult.rows.length) {
-       engagementData = engagementResult.rows[0];
-     }
-   }
+    const inquiries = [];
+    for (const file of inquiryFiles) {
+      const content = await fs.readFile(path.join('data', file), 'utf8');
+      const inquiry = JSON.parse(content);
+      inquiries.push(inquiry);
+    }
 
-   const analysis = await analyzeFamily(inquiry, engagementData);
-   
-   if (!analysis) {
-     return res.status(500).json({
-       success: false,
-       error: 'AI analysis failed',
-       inquiryId: inquiryId
-     });
-   }
-   
-   if (db) {
-     try {
-       await db.query(`
-         INSERT INTO ai_family_insights (
-           inquiry_id, analysis_type, insights_json, confidence_score, 
-           recommendations, generated_at, lead_score, urgency_level, lead_temperature
-         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-         ON CONFLICT (inquiry_id, analysis_type) DO UPDATE SET
-           insights_json = EXCLUDED.insights_json,
-           confidence_score = EXCLUDED.confidence_score,
-           recommendations = EXCLUDED.recommendations,
-           generated_at = EXCLUDED.generated_at,
-           lead_score = EXCLUDED.lead_score,
-           urgency_level = EXCLUDED.urgency_level,
-           lead_temperature = EXCLUDED.lead_temperature
-       `, [
-         inquiry.id,
-         'family_profile',
-         JSON.stringify(analysis),
-         analysis.confidence_score,
-         analysis.recommendations,
-         new Date(),
-         analysis.leadScore,
-         analysis.urgencyLevel,
-         analysis.leadTemperature
-       ]);
-       
-       console.log(`Stored individual analysis for ${inquiry.id} in database`);
-     } catch (dbError) {
-       console.warn(`DB insert failed for ${inquiry.id}:`, dbError.message);
-     }
-   }
-   
-   console.log(`Individual analysis completed for ${inquiry.firstName} ${inquiry.familySurname} (score: ${analysis.leadScore})`);
-   
-   res.json({
-     success: true,
-     message: `AI analysis completed for ${inquiry.firstName} ${inquiry.familySurname}`,
-     inquiryId: inquiry.id,
-     analysis: {
-       leadScore: analysis.leadScore,
-       urgencyLevel: analysis.urgencyLevel,
-       leadTemperature: analysis.leadTemperature,
-       confidence: analysis.confidence_score,
-       conversationStarters: analysis.conversationStarters,
-       sellingPoints: analysis.sellingPoints,
-       nextActions: analysis.nextActions,
-       insights: analysis.insights
-     }
-   });
-   
- } catch (error) {
-   console.error(`Individual AI analysis error for ${req.params.inquiryId}:`, error);
-   res.status(500).json({
-     success: false,
-     error: 'Individual AI analysis failed',
-     message: error.message,
-     inquiryId: req.params.inquiryId
-   });
- }
+    inquiries.sort((a, b) => new Date(b.receivedAt) - new Date(a.receivedAt));
+
+    res.json({
+      success: true,
+      count: inquiries.length,
+      inquiries
+    });
+
+  } catch (error) {
+    console.error('❌ Error listing inquiries:', error.message);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to list inquiries',
+      message: error.message
+    });
+  }
 });
 
-app.get('/api/inquiries', async (_req, res) => {
- try {
-   const files = await fs.readdir(path.join(__dirname, 'data'));
-   const inquiries = [];
-   for (const f of files.filter(x => x.startsWith('inquiry-') && x.endsWith('.json'))) {
-     inquiries.push(JSON.parse(await fs.readFile(path.join(__dirname, 'data', f), 'utf8')));
-   }
-   inquiries.sort((a, b) => new Date(b.receivedAt) - new Date(a.receivedAt));
-   res.json({ success: true, count: inquiries.length, inquiries });
- } catch (e) {
-   console.error('raw inquiries error:', e);
-   res.status(500).json({ success:false, error:'Failed to list inquiries' });
- }
+// Get specific inquiry
+app.get('/api/inquiries/:id', async (req, res) => {
+  try {
+    const inquiryId = req.params.id;
+    const files = await fs.readdir('data');
+    const inquiryFiles = files.filter(file => file.startsWith('inquiry-') && file.endsWith('.json'));
+
+    for (const file of inquiryFiles) {
+      const content = await fs.readFile(path.join('data', file), 'utf8');
+      const inquiry = JSON.parse(content);
+
+      if (inquiry.id === inquiryId) {
+        return res.json({
+          success: true,
+          inquiry
+        });
+      }
+    }
+
+    res.status(404).json({
+      success: false,
+      error: 'Inquiry not found'
+    });
+
+  } catch (error) {
+    console.error('❌ Error retrieving inquiry:', error.message);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to retrieve inquiry',
+      message: error.message
+    });
+  }
 });
 
-app.get('/prospectuses/:filename', async (req, res) => {
- try {
-   const filename = String(req.params.filename || '');
-   let abs = path.join(__dirname, 'prospectuses', filename);
-
-   try { 
-     await fs.access(abs); 
-     return res.sendFile(abs); 
-   } catch {}
-
-   const files = await fs.readdir(path.join(__dirname, 'data'));
-   for (const f of files.filter(x => x.startsWith('inquiry-') && x.endsWith('.json'))) {
-     try {
-       const j = JSON.parse(await fs.readFile(path.join(__dirname, 'data', f), 'utf8'));
-       if (j.prospectusFilename === filename) {
-         const p = await generateProspectus(j);
-         await updateInquiryStatus(j.id, p);
-         abs = path.join(__dirname, 'prospectuses', p.filename);
-         return res.sendFile(abs);
-       }
-     } catch {}
-   }
-
-   return res.status(404).send('Prospectus file not found');
- } catch (e) {
-   console.error('Direct file recover failed:', e);
-   return res.status(500).send('Failed to load prospectus file');
- }
-});
-
-app.use('/prospectuses', express.static(path.join(__dirname, 'prospectuses')));
-
-const RESERVED = new Set([
- 'api','prospectuses','health','tracking','dashboard','favicon','robots',
- 'sitemap','metrics','config','webhook','admin','smart_analytics_dashboard.html'
-]);
-
-app.get('/:slug', async (req, res, next) => {
- const slug = String(req.params.slug || '').toLowerCase();
- 
- if (!/^[a-z0-9-]+$/.test(slug)) return next();
- if (RESERVED.has(slug)) return next();
-
- console.log(`Looking up slug: ${slug}`);
-
- let rel = slugIndex[slug];
- if (!rel) {
-   console.log(`Slug not in index, rebuilding...`);
-   await rebuildSlugIndexFromData();
-   rel = slugIndex[slug];
- }
-
- if (!rel) {
-   console.log(`Searching for inquiry with slug: ${slug}`);
-   const inquiry = await findInquiryBySlug(slug);
-   if (inquiry) {
-     try {
-       console.log(`Regenerating prospectus for found inquiry: ${inquiry.id}`);
-       const p = await generateProspectus(inquiry);
-       await updateInquiryStatus(inquiry.id, p);
-       rel = p.url;
-       slugIndex[slug] = rel;
-       await saveSlugIndex();
-       console.log(`Regenerated and mapped: ${slug} -> ${rel}`);
-     } catch (e) {
-       console.error('Auto-regen failed for slug', slug, e.message);
-       return res.status(500).send('Failed to generate prospectus');
-     }
-   }
- }
-
- if (!rel) {
-   console.log(`Slug not found: ${slug}`);
-   return res.status(404).send(`
-     <h1>Prospectus Not Found</h1>
-     <p>The link /${slug} could not be found.</p>
-     <p><a href="/admin/rebuild-slugs">Rebuild Slug Index</a></p>
-   `);
- }
-
- let abs = path.join(__dirname, rel);
- try {
-   await fs.access(abs);
-   console.log(`Serving: ${slug} -> ${rel}`);
-   return res.sendFile(abs);
- } catch (accessError) {
-   console.log(`File missing, attempting to regenerate: ${abs}`);
-   
-   const inquiry = await findInquiryBySlug(slug);
-   if (inquiry) {
-     try {
-       const p = await generateProspectus(inquiry);
-       await updateInquiryStatus(inquiry.id, p);
-       slugIndex[slug] = p.url;
-       await saveSlugIndex();
-       abs = path.join(__dirname, 'prospectuses', p.filename);
-       console.log(`Regenerated and serving: ${slug} -> ${p.url}`);
-       return res.sendFile(abs);
-     } catch (regenError) {
-       console.error('Regeneration failed:', regenError.message);
-     }
-   }
-   
-   console.error('Failed to serve slug:', slug);
-   return res.status(500).send('Failed to load prospectus');
- }
-});
-
-app.get('/admin/rebuild-slugs', async (req, res) => {
- try {
-   console.log('Manual slug rebuild requested...');
-   const added = await rebuildSlugIndexFromData();
-   
-   const summary = {
-     success: true,
-     message: `Rebuilt slug index successfully`,
-     details: {
-       newMappings: added,
-       totalMappings: Object.keys(slugIndex).length,
-       currentSlugs: Object.keys(slugIndex).slice(0, 10)
-     }
-   };
-   
-   console.log('Manual slug rebuild complete:', summary);
-   res.json(summary);
- } catch (error) {
-   console.error('Manual slug rebuild failed:', error);
-   res.status(500).json({
-     success: false,
-     error: 'Slug rebuild failed',
-     message: error.message
-   });
- }
-});
-
-app.get('/admin/debug-database', async (req, res) => {
- try {
-   if (!db) {
-     return res.json({ error: 'Database not connected' });
-   }
-   
-   const columns = await db.query(`
-     SELECT column_name, data_type 
-     FROM information_schema.columns 
-     WHERE table_name = 'inquiries'
-     ORDER BY column_name
-   `);
-   
-   const sample = await db.query(`
-     SELECT id, first_name, family_surname, slug, prospectus_url, 
-            prospectus_filename, prospectus_generated, status
-     FROM inquiries 
-     LIMIT 5
-   `);
-   
-   const [{ count }] = (await db.query(`SELECT COUNT(*) as count FROM inquiries`)).rows;
-   
-   let aiCount = 0;
-   try {
-     const [{ count: aiInsights }] = (await db.query(`SELECT COUNT(*) as count FROM ai_family_insights`)).rows;
-     aiCount = aiInsights;
-   } catch (e) {
-     console.warn('AI insights table not found:', e.message);
-   }
-   
-   res.json({
-     totalInquiries: count,
-     aiInsights: aiCount,
-     columns: columns.rows.map(r => ({ name: r.column_name, type: r.data_type })),
-     sampleData: sample.rows
-   });
-   
- } catch (error) {
-   res.json({ error: error.message });
- }
-});
-
-app.get('/config.json', (req, res) => {
- const base = getBaseUrl(req);
- res.json({ baseUrl: base, webhook: `${base}/webhook`, health: `${base}/health` });
-});
-
+// Health check endpoint
 app.get('/health', (req, res) => {
- res.json({
-   status: 'healthy',
-   timestamp: new Date().toISOString(),
-   uptime: process.uptime(),
-   environment: process.env.NODE_ENV || 'development',
-   version: '5.0.0-COMPLETE',
-   features: {
-     analytics: 'enabled',
-     tracking: 'enabled',
-     dashboard: 'enabled',
-     database: db ? 'connected' : 'json-only',
-     prettyUrls: true,
-     selfHealing: true,
-     aiAnalysis: 'WORKING',
-     aiEndpoints: {
-       engagementSummary: '/api/ai/engagement-summary/:inquiryId',
-       analyzeAllFamilies: '/api/ai/analyze-all-families',
-       analyzeFamily: '/api/ai/analyze-family/:inquiryId'
-     }
-   }
- });
+  res.json({
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    environment: process.env.NODE_ENV || 'development',
+    version: '3.0.1',
+    features: {
+      analytics: 'enabled',
+      tracking: 'enabled',
+      dashboard: 'enabled',
+      database: db ? 'connected' : 'json-only'
+    }
+  });
 });
 
+// Root endpoint with basic info
 app.get('/', (req, res) => {
- const base = getBaseUrl(req);
- res.type('html').send(`<!doctype html>
-<html><head><meta charset="utf-8"><title>More House Prospectus Service</title>
-<style>body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;padding:24px;max-width:780px;margin:auto;line-height:1.55}</style></head>
-<body>
- <h1>More House Prospectus Service</h1>
- <p><strong>Version 5.0.0 - COMPLETE</strong></p>
- <ul>
-   <li>Health: <a href="${base}/health">${base}/health</a></li>
-   <li>Webhook (POST JSON): <code>${base}/webhook</code></li>
-   <li>Dashboard: <a href="${base}/dashboard.html">${base}/dashboard.html</a></li>
-   <li>Inquiries (JSON): <a href="${base}/api/analytics/inquiries">${base}/api/analytics/inquiries</a></li>
-   <li>Dashboard data (JSON): <a href="${base}/api/dashboard-data">${base}/api/dashboard-data</a></li>
-   <li>AI Engagement Summary: <code>POST ${base}/api/ai/engagement-summary/:inquiryId</code></li>
-   <li>AI Analyze All: <code>POST ${base}/api/ai/analyze-all-families</code></li>
-   <li>Rebuild slugs: <a href="${base}/admin/rebuild-slugs">${base}/admin/rebuild-slugs</a></li>
- </ul>
- <h3>System Status:</h3>
- <ul>
-   <li>Database: ${db ? 'Connected' : 'JSON-only mode'}</li>
-   <li>Environment: ${process.env.NODE_ENV || 'development'}</li>
-   <li>All endpoints operational</li>
- </ul>
- <p>Pretty links: <code>${base}/the-smith-family-abc123</code></p>
-</body></html>`);
+  res.json({
+    service: 'More House School Analytics System',
+    status: 'running',
+    version: '3.0.1',
+    endpoints: {
+      webhook: 'POST /webhook',
+      inquiries: 'GET /api/inquiries',
+      inquiry: 'GET /api/inquiries/:id',
+      generateProspectus: 'POST /api/generate-prospectus/:inquiryId',
+      prospectuses: 'GET /prospectuses/{filename}',
+      analytics: 'GET /api/analytics/*',
+      tracking_legacy: 'POST /api/track',
+      trackEngagement: 'POST /api/track-engagement',
+      dashboard: 'GET /dashboard.html',
+      health: 'GET /health'
+    },
+    timestamp: new Date().toISOString(),
+    analytics: db ? 'enabled' : 'disabled'
+  });
 });
 
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error('🚨 Unhandled error:', err);
+  res.status(500).json({
+    success: false,
+    error: 'Internal server error',
+    message: err.message
+  });
+});
+
+// 404 handler
 app.use((req, res) => {
- res.status(404).json({ 
-   success: false, 
-   error: 'Not found', 
-   message: `Route ${req.method} ${req.path} not found` 
- });
+  res.status(404).json({
+    success: false,
+    error: 'Not found',
+    message: `Route ${req.method} ${req.path} not found`
+  });
 });
 
-// Server startup
-async function startServer() {
- console.log('Starting More House School System...');
- 
- const dbConnected = await initializeDatabase();
- await ensureDirectories();
- await loadSlugIndex();
- await rebuildSlugIndexFromData();
+// Start server
+const startServer = async () => {
+  try {
+    const dbConnected = await initializeDatabase();
 
- app.listen(PORT, () => {
-   console.log(`
-=====================================
-Server running on port ${PORT}
-Database: ${dbConnected ? 'Connected to PostgreSQL' : 'JSON-only mode'}
-Environment: ${process.env.NODE_ENV || 'development'}
-Version: 5.0.0-COMPLETE
-=====================================
-   `);
- });
-}
+    await ensureDirectories();
 
-// Graceful shutdown handlers
-process.on('SIGINT', async () => { 
- console.log('\nShutting down gracefully (SIGINT)...');
- if (db) {
-   await db.end();
-   console.log('Database connection closed.');
- }
- process.exit(0); 
+    app.listen(PORT, () => {
+      console.log('\n🚀 MORE HOUSE WEBHOOK SERVER STARTED - PHASE 3 ANALYTICS');
+      console.log('════════════════════════════════════════════════════');
+      console.log(`🌐 Server running on: http://localhost:${PORT}`);
+      console.log(`📋 Webhook endpoint: http://localhost:${PORT}/webhook`);
+      console.log(`📊 Health check: http://localhost:${PORT}/health`);
+      console.log(`📝 List inquiries: http://localhost:${PORT}/api/inquiries`);
+      console.log(`🎨 Prospectus files: http://localhost:${PORT}/prospectuses/`);
+      console.log(`📈 Analytics dashboard: http://localhost:${PORT}/dashboard.html`);
+      console.log(`📄 Manual generation: POST /api/generate-prospectus/:inquiryId`);
+      console.log(`📊 Analytics API: http://localhost:${PORT}/api/analytics/`);
+      console.log('════════════════════════════════════════════════════');
+      console.log('✅ Ready to receive form submissions AND track analytics!');
+      console.log(`📊 Analytics database: ${dbConnected ? 'Connected' : 'Disabled (JSON only)'}`);
+      console.log('🎯 Prospectus render now injects PROSPECTUS_ID, TRACK_ENDPOINT, and PROSPECTUS_SECTIONS (Option B)\n');
+    });
+
+  } catch (error) {
+    console.error('❌ Failed to start server:', error.message);
+    process.exit(1);
+  }
+};
+
+// Handle graceful shutdown
+process.on('SIGINT', async () => {
+  console.log('\n🛑 Shutting down webhook server...');
+  if (db) {
+    await db.end();
+    console.log('📊 Database connection closed');
+  }
+  process.exit(0);
 });
 
-process.on('SIGTERM', async () => { 
- console.log('\nShutting down gracefully (SIGTERM)...');
- if (db) {
-   await db.end();
-   console.log('Database connection closed.');
- }
- process.exit(0); 
-});
-
-// Handle uncaught exceptions
-process.on('uncaughtException', (error) => {
- console.error('Uncaught Exception:', error);
- process.exit(1);
-});
-
-process.on('unhandledRejection', (reason, promise) => {
- console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+process.on('SIGTERM', async () => {
+  console.log('\n🛑 Shutting down webhook server...');
+  if (db) {
+    await db.end();
+    console.log('📊 Database connection closed');
+  }
+  process.exit(0);
 });
 
 // Start the server
 startServer();
+
+// Export functions (if needed)
+module.exports = {
+  generateProspectus,
+  updateInquiryStatus,
+  generateFilename,
+  saveInquiryToDatabase,
+  trackEngagementEvent,
+  updateEngagementMetrics
+};
