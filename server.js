@@ -128,8 +128,6 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 app.use(express.json({ limit: '2mb' }));
-app.post(["/api/track","/api/tracking"], (req,res)=> res.redirect(307, "/api/track-engagement"));
-app.post(['/api/track','/api/tracking'], (req,res)=> res.redirect(307, '/api/track-engagement'));
 app.use(express.urlencoded({ extended: true }));
 app.use((req, _res, next) => { console.log(req.method, req.url); next(); });
 
@@ -195,14 +193,12 @@ document.addEventListener('DOMContentLoaded', function(){
    console.error('Failed to initialize prospectus:', error);
  }
 });
-</script>`;
 
-   const trackingInject = `<!-- More House Analytics Tracking -->
+const trackingInject = `<!-- More House Analytics Tracking -->
 <script>
 window.MORE_HOUSE_INQUIRY_ID='${inquiry.id}';
 console.log('Inquiry ID set for tracking:', window.MORE_HOUSE_INQUIRY_ID);
-</script>
-<script src="/tracking.js"></script>`;
+</script>`;
 
    const bodyCloseIndex = html.lastIndexOf('</body>');
    if (bodyCloseIndex === -1) {
@@ -220,18 +216,18 @@ console.log('Inquiry ID set for tracking:', window.MORE_HOUSE_INQUIRY_ID);
    await saveSlugIndex();
 
    const savedContent = await fs.readFile(absPath, 'utf8');
-   const hasTrackingJs = savedContent.includes('<script src="/tracking.js"></script>');
    const hasInquiryId = savedContent.includes(`window.MORE_HOUSE_INQUIRY_ID='${inquiry.id}'`);
    const hasPersonalization = savedContent.includes('initializeProspectus');
+   const hasBuiltInTracking = savedContent.includes('trackEngagementEvent') || savedContent.includes('track-engagement');
 
    console.log(`Prospectus saved: ${filename}`);
    console.log(`Pretty URL: ${prettyPath}`);
-   console.log(`Tracking script: ${hasTrackingJs ? 'VERIFIED' : 'MISSING'}`);
    console.log(`Inquiry ID: ${hasInquiryId ? 'VERIFIED' : 'MISSING'}`);
    console.log(`Personalization: ${hasPersonalization ? 'VERIFIED' : 'MISSING'}`);
+   console.log(`Built-in tracking: ${hasBuiltInTracking ? 'VERIFIED' : 'MISSING'}`);
 
-   if (!hasTrackingJs || !hasInquiryId) {
-     console.error('CRITICAL: Tracking script injection FAILED!');
+   if (!hasInquiryId) {
+     console.error('CRITICAL: Inquiry ID injection FAILED!');
    }
 
    return {
