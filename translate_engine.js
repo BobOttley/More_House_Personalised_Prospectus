@@ -9,53 +9,18 @@ const RTL = new Set(['ar']);
 const DEEPL_API_KEY = (process.env.DEEPL_API_KEY || '').trim();
 const DEEPL_URL = DEEPL_API_KEY ? 'https://api-free.deepl.com/v2/translate' : null;
 
-const BRAND_TOKENS = new Set([
-  "Bath", "More House", "St Andrews", "Durham", "Exeter", "Warwick", 
-  "Bristol", "Edinburgh", "Cambridge", "RADA", "King's College London", 
-  "Imperial College London", "University College London", "London School of Economics", 
-  "Central Saint Martins", "22-24 Pont Street", "Knightsbridge", "London SW1X 0AA",
-  "Tel: 020 7235 2855", "Email: registrar@morehouse.org.uk", "registrar@morehouse.org.uk"
-]);
-
 function normaliseLang(s){ 
   if(!s) return 'en'; 
   return LANG_MAP.get(String(s).trim().toLowerCase()) || 'en'; 
 }
 
-function isRtl(lang){ return RTL.has(normaliseLang(lang)); }
-
-const TOKEN_RE = BRAND_TOKENS.size > 0
-  ? new RegExp(Array.from(BRAND_TOKENS).sort((a,b) => b.length - a.length).map(t => t.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).join('|'), 'g')
-  : null;
-
-function protectBrands(s) {
-  if (!s || !TOKEN_RE) return { text: s, bag: [] };
-  
-  const bag = [];
-  const text = s.replace(TOKEN_RE, match => {
-    const i = bag.length;
-    bag.push(match);
-    return `__PENBRAND_${i}__`;
-  });
-  
-  return { text, bag };
-}
-
-function restoreBrands(s, bag) {
-  if (!bag || bag.length === 0) return s;
-  
-  let result = s;
-  bag.forEach((val, i) => {
-    result = result.replace(new RegExp(`__PENBRAND_${i}__`, 'g'), val);
-  });
-  
-  return result;
+function isRtl(lang){ 
+  return RTL.has(normaliseLang(lang)); 
 }
 
 function shouldSkipText(text) {
   if (!text || !text.trim()) return true;
   if (text.trim().length <= 1) return true;
-  // Fixed regex - removed \d from character class and used \w instead
   if (/^[\W_]+$/u.test(text)) return true;
   if (/^\s*[0-9\.\,\:\-\+\(\)%\s]+\s*$/.test(text)) return true;
   return false;
@@ -70,7 +35,7 @@ async function deeplBatch(texts, lang) {
   params.set('target_lang', lang.toUpperCase());
   
   try {
-    const r = await fetch(DEEPL_URL, { 
+    const response = await fetch(DEEPL_URL, { 
       method: 'POST', 
       headers: { 
         'Authorization': `DeepL-Auth-Key ${DEEPL_API_KEY}`, 
@@ -79,8 +44,8 @@ async function deeplBatch(texts, lang) {
       body: params 
     });
     
-    if (!r.ok) return texts;
-    const data = await r.json();
+    if (!response.ok) return texts;
+    const data = await response.json();
     return texts.map((_, i) => data.translations?.[i]?.text || texts[i]);
   } catch {
     return texts;
@@ -95,7 +60,6 @@ async function translateHtmlFragment(html, lang) {
   const out = [];
   const jobs = [];
   const jobsIdx = [];
-  const brandBags = [];
 
   let inScript = false, inStyle = false;
 
@@ -114,20 +78,14 @@ async function translateHtmlFragment(html, lang) {
       continue;
     }
 
-    const { text: protectedText, bag } = protectBrands(p);
-    
     jobsIdx.push(out.length);
-    brandBags.push(bag);
-    jobs.push(protectedText);
+    jobs.push(p);
     out.push('');
   }
 
   if (jobs.length) {
     const translated = await deeplBatch(jobs, lang);
-    translated.forEach((s, i) => {
-      const restored = restoreBrands(s, brandBags[i]);
-      out[jobsIdx[i]] = restored;
-    });
+    translated.forEach((s, i) => out[jobsIdx[i]] = s);
   }
 
   let html2 = out.join('');
@@ -145,7 +103,9 @@ async function translateHtmlFragment(html, lang) {
     }
   }
 
-  return html2.replace(/<\/head>/i, `<meta name="penai-lang" content="${lang}"></head>`);
+  html2 = html2.replace(/<\/head>/i, `<meta name="penai-lang" content="${lang}"></head>`);
+  
+  return html2;
 }
 
 module.exports = { translateHtmlFragment, normaliseLang, SUPPORTED };
