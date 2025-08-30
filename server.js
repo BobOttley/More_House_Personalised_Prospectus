@@ -3321,6 +3321,37 @@ app.get('/:slug', async (req, res, next) => {
     try {
       await fs.access(abs);
       console.log(`Serving: ${slug} -> ${rel}`);
+      
+      // Check if it's an HTML file that needs translation
+      if (abs.toLowerCase().endsWith('.html')) {
+        const raw = await fs.readFile(abs, 'utf8');
+        let lang = normaliseLang(req.query.lang || 'en');
+        if (!SUPPORTED.has(lang)) lang = 'en';
+        const translateOff = (req.query.translate || '').toLowerCase() === 'off';
+        
+        if (translateOff || lang === 'en') {
+          console.log('Serving original HTML');
+          res.setHeader('Content-Type', 'text/html; charset=utf-8');
+          return res.status(200).send(raw);
+        }
+        
+        console.log(`Translating slug ${slug} to ${lang}`);
+        console.log('DeepL API key present:', !!process.env.DEEPL_API_KEY);
+        
+        const translated = await translateHtmlFragment(raw, lang);
+        
+        console.log('Translation complete for slug');
+        console.log('Original length:', raw.length);
+        console.log('Translated length:', translated.length);
+        console.log('Content changed:', raw !== translated);
+        
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.setHeader('Cache-Control', 'public, max-age=60');
+        res.setHeader('Vary', 'Accept-Language');
+        res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+        return res.status(200).send(translated);
+      }
+      
       return res.sendFile(abs);
     } catch (accessError) {
       console.log(`File missing, attempting to regenerate: ${abs}`);
@@ -3333,6 +3364,27 @@ app.get('/:slug', async (req, res, next) => {
           await saveSlugIndex();
           abs = path.join(__dirname, 'prospectuses', p.filename);
           console.log(`Regenerated and serving: ${slug} -> ${p.url}`);
+          
+          // Apply translation to regenerated file if needed
+          if (abs.toLowerCase().endsWith('.html')) {
+            const raw = await fs.readFile(abs, 'utf8');
+            let lang = normaliseLang(req.query.lang || 'en');
+            if (!SUPPORTED.has(lang)) lang = 'en';
+            const translateOff = (req.query.translate || '').toLowerCase() === 'off';
+            
+            if (translateOff || lang === 'en') {
+              res.setHeader('Content-Type', 'text/html; charset=utf-8');
+              return res.status(200).send(raw);
+            }
+            
+            const translated = await translateHtmlFragment(raw, lang);
+            res.setHeader('Content-Type', 'text/html; charset=utf-8');
+            res.setHeader('Cache-Control', 'public, max-age=60');
+            res.setHeader('Vary', 'Accept-Language');
+            res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+            return res.status(200).send(translated);
+          }
+          
           return res.sendFile(abs);
         }
       } catch (regenError) {
