@@ -1274,23 +1274,36 @@ app.use((req, _res, next) => { console.log(req.method, req.url); next(); });
 app.use(express.static(path.join(__dirname, 'public')));
 
 // --- Translation-aware prospectus routes ---
+// --- Translation-aware prospectus routes ---
 app.get('/health', (req, res) => res.json({ ok: true }));
 
-app.get('/prospectus/*', async (req, res) => {
+// Catch root-level prospectus files, /prospectus/*, and /prospectuses/*
+app.get(['/:file', '/prospectus/*', '/prospectuses/*'], async (req, res) => {
   try {
-    const tail = req.params[0];
+    // work out the filename
+    let tail;
+    if (req.params.file) {
+      tail = req.params.file; // e.g. "the-ottley-woodd-family-468413"
+    } else {
+      tail = req.params[0];   // e.g. "prospectus_template.html"
+    }
+
+    // append .html if missing
+    if (!tail.endsWith('.html')) tail = tail + '.html';
+
     const baseDir = path.resolve(__dirname);
     const publicPath = path.join(baseDir, 'public', tail);
     const rootPath   = path.join(baseDir, tail);
+
     let absPath = null;
     try { await fs.access(publicPath); absPath = publicPath; } catch {}
     if (!absPath) { try { await fs.access(rootPath); absPath = rootPath; } catch {} }
     if (!absPath) return res.status(404).send('Prospectus not found');
 
-    // For HTML, translate; otherwise, stream the file
     if (!absPath.toLowerCase().match(/\.(html?|htm)$/)) {
       return res.sendFile(absPath);
     }
+
     const raw = await fs.readFile(absPath, 'utf8');
     let lang = normaliseLang(req.query.lang || 'n/a');
     if (!SUPPORTED.has(lang)) lang = 'en';
@@ -1307,15 +1320,6 @@ app.get('/prospectus/*', async (req, res) => {
     return res.status(500).send('Server error');
   }
 });
-
-// Keep old plural path working
-app.get('/prospectuses/*', (req, res) => {
-  req.url = req.url.replace(/^\/prospectuses\//, '/prospectus/');
-  return app._router.handle(req, res, () => {});
-});
-
-
-app.use('/prospectuses', express.static(path.join(__dirname, 'prospectuses')));
 
 // ===================== API ROUTES =====================
 
@@ -1354,6 +1358,7 @@ app.post(['/webhook', '/api/inquiry'], async (req, res) => {
       longitude: location.longitude,
       timezone: location.timezone,
       isp: location.isp,
+      ...data
     };
     
     
