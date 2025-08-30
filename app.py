@@ -164,6 +164,16 @@ def _translate_response(resp):
             resp.set_data("<!doctype html><title>Error</title><body>Temporary translation error.</body>")
     return resp
 
+# --- add below your existing routes in app.py ---
+
+@app.get("/health")
+def health():
+    return {"ok": True}, 200
+
+# Alias to support existing links that use /prospectuses/...
+@app.route("/prospectuses/<path:filename>")
+def serve_prospectuses(filename):
+    return serve_prospectus(filename)  # reuse the existing handler
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Entrypoint
