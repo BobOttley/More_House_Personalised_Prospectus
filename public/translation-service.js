@@ -1,84 +1,94 @@
-window.TranslationService = (function() {
+// public/translation-service.js
+// Lightweight page translator: walks all text nodes and batches calls to /api/translate-batch.
+// NOTE: translates EVERYTHING except <script>/<style>. Ignores data-no-translate for now.
+(function () {
     'use strict';
-    
-    const cache = new Map();
+  
     const BATCH_SIZE = 50;
-    
+  
     async function translateBatch(texts, targetLang) {
-        if (!texts.length || targetLang === 'en') return texts;
-        
-        try {
-            const response = await fetch('/api/translate-batch', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ texts, lang: targetLang })
-            });
-            
-            if (!response.ok) throw new Error('Translation failed');
-            const data = await response.json();
-            return data.translations || texts;
-        } catch (error) {
-            console.error('Translation error:', error);
-            return texts;
-        }
+      if (!texts.length || !targetLang || targetLang === 'en') return texts;
+      try {
+        const res = await fetch('/api/translate-batch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ texts, lang: targetLang })
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        return Array.isArray(data.translations) ? data.translations : texts;
+      } catch (err) {
+        console.error('Translation batch failed:', err);
+        return texts;
+      }
     }
-    
+  
+    // Collect ALL text nodes (except inside SCRIPT/STYLE). We do NOT skip branding right now.
+    function collectTextNodes(root) {
+      const out = [];
+      const walker = document.createTreeWalker(
+        root,
+        NodeFilter.SHOW_TEXT,
+        {
+          acceptNode(node) {
+            const p = node.parentElement;
+            if (!p) return NodeFilter.FILTER_REJECT;
+            const tag = p.tagName;
+            if (tag === 'SCRIPT' || tag === 'STYLE') return NodeFilter.FILTER_REJECT;
+  
+            const val = node.nodeValue;
+            if (!val) return NodeFilter.FILTER_REJECT;
+  
+            const trimmed = val.trim();
+            if (!trimmed) return NodeFilter.FILTER_REJECT;
+  
+            return NodeFilter.FILTER_ACCEPT;
+          }
+        }
+      );
+      let n;
+      while ((n = walker.nextNode())) out.push(n);
+      return out;
+    }
+  
     async function translatePage(targetLang) {
-        if (targetLang === 'en') return;
-        
-        document.body.style.opacity = '0.7';
-        
-        const textNodes = [];
-        const walker = document.createTreeWalker(
-            document.body,
-            NodeFilter.SHOW_TEXT,
-            {
-                acceptNode: function(node) {
-                    const parent = node.parentElement;
-                    if (parent && (
-                        parent.tagName === 'SCRIPT' ||
-                        parent.tagName === 'STYLE' ||
-                        parent.hasAttribute('data-no-translate')
-                    )) {
-                        return NodeFilter.FILTER_REJECT;
-                    }
-                    
-                    if (node.nodeValue && node.nodeValue.trim()) {
-                        return NodeFilter.FILTER_ACCEPT;
-                    }
-                    return NodeFilter.FILTER_REJECT;
-                }
-            }
-        );
-        
-        let node;
-        while (node = walker.nextNode()) {
-            textNodes.push(node);
+      if (!targetLang || targetLang === 'en') return;
+  
+      document.body.style.opacity = '0.7';
+  
+      // 1) Grab text nodes
+      const textNodes = collectTextNodes(document.body);
+  
+      // 2) Build unique list to reduce token cost
+      const originals = textNodes.map(n => n.nodeValue.trim());
+      const uniqueTexts = Array.from(new Set(originals));
+  
+      // 3) Translate in batches
+      const translationMap = new Map();
+      for (let i = 0; i < uniqueTexts.length; i += BATCH_SIZE) {
+        const batch = uniqueTexts.slice(i, i + BATCH_SIZE);
+        const translated = await translateBatch(batch, targetLang);
+        for (let j = 0; j < batch.length; j++) {
+          translationMap.set(batch[j], translated[j]);
         }
-        
-        const uniqueTexts = [...new Set(textNodes.map(n => n.nodeValue.trim()))];
-        
-        for (let i = 0; i < uniqueTexts.length; i += BATCH_SIZE) {
-            const batch = uniqueTexts.slice(i, i + BATCH_SIZE);
-            const translations = await translateBatch(batch, targetLang);
-            
-            const translationMap = new Map();
-            batch.forEach((text, index) => {
-                translationMap.set(text, translations[index]);
-            });
-            
-            textNodes.forEach(node => {
-                const originalText = node.nodeValue.trim();
-                if (translationMap.has(originalText)) {
-                    node.nodeValue = translationMap.get(originalText);
-                }
-            });
+      }
+  
+      // 4) Apply back to DOM
+      for (const node of textNodes) {
+        const t = node.nodeValue.trim();
+        if (translationMap.has(t)) {
+          node.nodeValue = translationMap.get(t);
         }
-        
-        document.documentElement.lang = targetLang;
-        document.documentElement.dir = targetLang === 'ar' ? 'rtl' : 'ltr';
-        document.body.style.opacity = '1';
+      }
+  
+      // 5) Set page language + direction
+      document.documentElement.lang = targetLang;
+      document.documentElement.dir = (targetLang === 'ar' ? 'rtl' : 'ltr');
+  
+      document.body.style.opacity = '1';
     }
-    
-    return { translatePage };
+  
+    // Expose a tiny API
+    window.TranslationService = { translatePage };
   })();
+  
