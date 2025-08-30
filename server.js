@@ -1273,30 +1273,23 @@ app.use(express.urlencoded({ extended: true }));
 app.use((req, _res, next) => { console.log(req.method, req.url); next(); });
 app.use(express.static(path.join(__dirname, 'public')));
 
-// --- Translation-aware prospectus routes ---
+// Translation-aware prospectus routes - CORRECTED VERSION
 app.get('/health', (req, res) => res.json({ ok: true }));
 
-app.get(['/:file', '/prospectus/*', '/prospectuses/*'], async (req, res) => {
+// Only handle explicit prospectus paths, not general slugs
+app.get(['/prospectus/*', '/prospectuses/*'], async (req, res) => {
   try {
-    let tail;
-    if (req.params.file) {
-      tail = req.params.file; // e.g. "the-ottley-woodd-family-468413"
-    } else {
-      tail = req.params[0];   // e.g. "prospectus_template.html"
-    }
-
-    // append .html if missing
-    if (!tail.endsWith('.html')) tail = tail + '.html';
-
+    let tail = req.params[0]; // Get the path after /prospectus/ or /prospectuses/
+    
     const baseDir = path.resolve(__dirname);
     const publicPath = path.join(baseDir, 'public', tail);
-    const rootPath   = path.join(baseDir, tail);
-    const prosPath   = path.join(baseDir, 'prospectuses', tail);  // 👈 add check in /prospectuses
+    const rootPath = path.join(baseDir, tail);
+    const prosPath = path.join(baseDir, 'prospectuses', tail);
 
     let absPath = null;
     try { await fs.access(publicPath); absPath = publicPath; } catch {}
     if (!absPath) { try { await fs.access(rootPath); absPath = rootPath; } catch {} }
-    if (!absPath) { try { await fs.access(prosPath); absPath = prosPath; } catch {} } // 👈 now covers your working folder
+    if (!absPath) { try { await fs.access(prosPath); absPath = prosPath; } catch {} }
     if (!absPath) return res.status(404).send('Prospectus not found');
 
     // For HTML, translate; otherwise stream file
@@ -1305,7 +1298,7 @@ app.get(['/:file', '/prospectus/*', '/prospectuses/*'], async (req, res) => {
     }
 
     const raw = await fs.readFile(absPath, 'utf8');
-    let lang = normaliseLang(req.query.lang || 'n/a');
+    let lang = normaliseLang(req.query.lang || 'en');
     if (!SUPPORTED.has(lang)) lang = 'en';
     const translateOff = (req.query.translate || '').toLowerCase() === 'off';
     const out = (translateOff || lang === 'en') ? raw : await translateHtmlFragment(raw, lang);
@@ -1320,7 +1313,6 @@ app.get(['/:file', '/prospectus/*', '/prospectuses/*'], async (req, res) => {
     return res.status(500).send('Server error');
   }
 });
-
 
 // ===================== API ROUTES =====================
 
