@@ -26,9 +26,14 @@ function protect(list, re, tag){
 }
 function restore(s, bag, tag){
   if(!bag?.length) return s;
-  let out=s; bag.forEach((v,i)=>{ out = out.split(`__PEN_${tag}_${i}__`).join(v); });
+  let out = s;
+  bag.forEach((v, i) => {
+    const token = `__PEN_${tag}_${i}__`;
+    out = out.replace(new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), v);
+  });
   return out;
 }
+
 function protectBrands(s){ return TOKEN_RE ? protect(s, TOKEN_RE, 'BRAND') : {text:s, bag:[]}; }
 function restoreBrands(s,bag){ return restore(s,bag,'BRAND'); }
 function protectBrackets(s){ return protect(s, BRACK_RE, 'BRACK'); }
