@@ -1496,18 +1496,22 @@ app.post('/api/generate-prospectus/:inquiryId', async (req, res) => {
 // Add this endpoint to your existing server.js Translation 
 // ===== Translation endpoint (DeepL) =====
 
+// Client → server relay for full-document translation via DeepL
 app.post('/api/translate-html', async (req, res) => {
   try {
     const { html, lang } = req.body || {};
     if (!html || typeof html !== 'string') return res.status(400).json({ error: 'Missing html' });
     if (!lang) return res.status(400).json({ error: 'Missing lang' });
-    const translated = await translateFullHtml(html, lang); // you already have this helper
-    return res.json({ html: translated, lang });
+
+    // Reuse your existing DeepL helper:
+    const out = await translateFullHtml(html, String(lang)); // tag_handling=html; ignore script/style
+    return res.json({ html: out, lang: String(lang) });
   } catch (e) {
     console.error('translate-html error:', e.message);
     return res.status(500).json({ error: 'Translate failed' });
   }
 });
+
 
 
 // === DeepL batch translation (logs + fallback) ===
@@ -3326,6 +3330,7 @@ app.get('/prospectuses/:filename', async (req, res) => {
 });
 
 // Slug-based routing
+// Slug-based routing — always serve original English HTML; no server-side translation
 const RESERVED = new Set([
   'api','prospectuses','health','tracking','dashboard','favicon','robots',
   'sitemap','metrics','config','webhook','admin','smart_analytics_dashboard.html'
@@ -3333,39 +3338,23 @@ const RESERVED = new Set([
 
 app.get('/:slug', async (req, res, next) => {
   const slug = String(req.params.slug || '').toLowerCase();
-  
+
+  // Not a pretty slug → let other routes handle
   if (!/^[a-z0-9-]+$/.test(slug)) return next();
   if (RESERVED.has(slug)) return next();
-  
+
   try {
     console.log(`Looking up slug: ${slug}`);
     let rel = slugIndex[slug];
-    
+
+    // If no mapping, try rebuild-from-data quickly
     if (!rel) {
-      console.log(`Slug not in index, rebuilding...`);
+      console.log(`Slug ${slug} not in index; attempting data rebuild`);
       await rebuildSlugIndexFromData();
       rel = slugIndex[slug];
     }
-    
-    if (!rel) {
-      console.log(`Searching for inquiry with slug: ${slug}`);
-      const inquiry = await findInquiryBySlug(slug);
-      if (inquiry) {
-        try {
-          console.log(`Regenerating prospectus for found inquiry: ${inquiry.id}`);
-          const p = await generateProspectus(inquiry);
-          await updateInquiryStatus(inquiry.id, p);
-          rel = p.url;
-          slugIndex[slug] = rel;
-          await saveSlugIndex();
-          console.log(`Regenerated and mapped: ${slug} -> ${rel}`);
-        } catch (e) {
-          console.error('Auto-regen failed for slug', slug, e.message);
-          return res.status(500).send('Failed to generate prospectus');
-        }
-      }
-    }
-    
+
+    // If still no mapping → 404
     if (!rel) {
       console.log(`Slug not found: ${slug}`);
       return res.status(404).send(`
@@ -3374,75 +3363,60 @@ app.get('/:slug', async (req, res, next) => {
         <p><a href="/admin/rebuild-slugs">Rebuild Slug Index</a></p>
       `);
     }
-    
+
+    // Try to serve the mapped file directly
     let abs = path.join(__dirname, rel);
     try {
       await fs.access(abs);
       console.log(`Serving: ${slug} -> ${rel}`);
-      
-      // Check if it's an HTML file that needs translation
+
       if (abs.toLowerCase().endsWith('.html')) {
         const raw = await fs.readFile(abs, 'utf8');
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.setHeader('Cache-Control', 'public, max-age=60');
         return res.status(200).send(raw);
       }
-      
-
-        const translated = await translateFullHtml(raw, lang);
-
-        console.log('Translation complete for slug');
-        console.log('Original length:', raw.length);
-        console.log('Translated length:', translated.length);
-        console.log('Content changed:', raw !== translated);
-
-        res.setHeader('Content-Type', 'text/html; charset=utf-8');
-        res.setHeader('Cache-Control', 'public, max-age=60');
-        res.setHeader('Vary', 'Accept-Language');
-        res.setHeader('X-Robots-Tag', 'noindex, nofollow');
-        return res.status(200).send(translated);
-      }
-      
+      // Non-HTML (e.g., image) — just stream it
       return res.sendFile(abs);
+
     } catch (accessError) {
+      // File missing: try to regenerate from inquiry JSON/DB
       console.log(`File missing, attempting to regenerate: ${abs}`);
       try {
         const inquiry = await findInquiryBySlug(slug);
-        if (inquiry) {
-          const p = await generateProspectus(inquiry);
-          await updateInquiryStatus(inquiry.id, p);
-          slugIndex[slug] = p.url;
-          await saveSlugIndex();
-          abs = path.join(__dirname, 'prospectuses', p.filename);
-          console.log(`Regenerated and serving: ${slug} -> ${p.url}`);
-          
-          // Apply translation to regenerated file if needed
-          if (abs.toLowerCase().endsWith('.html')) {
-            const raw = await fs.readFile(abs, 'utf8');
-            res.setHeader('Content-Type', 'text/html; charset=utf-8');
-            return res.status(200).send(raw);
-          }
-          
-            res.setHeader('Content-Type', 'text/html; charset=utf-8');
-            res.setHeader('Cache-Control', 'public, max-age=60');
-            res.setHeader('Vary', 'Accept-Language');
-            res.setHeader('X-Robots-Tag', 'noindex, nofollow');
-            return res.status(200).send(translated);
-          }
-          
-          return res.sendFile(abs);
+        if (!inquiry) {
+          console.error('No inquiry found for slug:', slug);
+          return res.status(404).send('Prospectus file not found');
         }
+
+        const p = await generateProspectus(inquiry);
+        await updateInquiryStatus(inquiry.id, p);
+        slugIndex[slug] = p.url;
+        await saveSlugIndex();
+
+        abs = path.join(__dirname, 'prospectuses', p.filename);
+        console.log(`Regenerated and serving: ${slug} -> ${p.url}`);
+
+        if (abs.toLowerCase().endsWith('.html')) {
+          const raw = await fs.readFile(abs, 'utf8');
+          res.setHeader('Content-Type', 'text/html; charset=utf-8');
+          res.setHeader('Cache-Control', 'public, max-age=60');
+          return res.status(200).send(raw);
+        }
+        return res.sendFile(abs);
+
       } catch (regenError) {
         console.error('Regeneration failed:', regenError.message);
+        return res.status(500).send('Failed to load prospectus');
       }
     }
-    
-    console.error('Failed to serve slug:', slug);
-    return res.status(500).send('Failed to load prospectus');
+
   } catch (e) {
     console.error('Slug routing error:', e);
     return next();
   }
 });
+
 
 // Family snapshot endpoint
 app.get('/api/family/:inquiryId', async (req, res) => {
