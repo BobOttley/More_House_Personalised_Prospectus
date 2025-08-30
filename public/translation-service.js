@@ -10,6 +10,12 @@
     const RETRY_DELAY_MS = 400;    // Backoff between retries
     const RUN_FLAG_KEY = '__penai_translate_inflight';
   
+    // Near the very top:
+console.log('[Translator] v2.1 loaded');  // <-- ADD THIS
+
+// Inside translatePage(), right after we compute uniqueTrimmed:
+console.log('[Translator] Will send', uniqueTrimmed.length, 'strings to /api/translate-batch for', targetLang);  // <-- ADD THIS
+
     /**
      * Debug helper
      */

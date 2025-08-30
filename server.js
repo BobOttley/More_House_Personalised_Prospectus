@@ -1464,6 +1464,7 @@ app.post('/api/generate-prospectus/:inquiryId', async (req, res) => {
 });
 // Add this endpoint to your existing server.js Translation 
 // ===== Translation endpoint (DeepL) =====
+// === DeepL batch translation (logs + fallback) ===
 app.post('/api/translate-batch', async (req, res) => {
   try {
     const { texts, lang } = req.body || {};
@@ -1479,57 +1480,55 @@ app.post('/api/translate-batch', async (req, res) => {
       return res.status(500).json({ error: 'DEEPL not configured (DEEPL_API_KEY missing)' });
     }
 
-    // 1) Try your existing helper first
     let translations = null;
+
+    // 1) Preferred: your existing helper if present
     try {
       if (typeof deeplBatch === 'function') {
         translations = await deeplBatch(texts, lang);
       }
-    } catch (e) {
-      console.warn('[translate-batch] deeplBatch() failed, falling back to direct DeepL call:', e.message);
+    } catch (err) {
+      console.warn('[translate-batch] deeplBatch() failed, will fall back:', err.message || err);
     }
 
-    // 2) Fallback: call DeepL REST API directly if needed
+    // 2) Fallback: direct DeepL REST (guarantees usage)
     if (!translations || !Array.isArray(translations) || translations.length !== texts.length) {
-      // Node 18+ has global fetch; if not, install node-fetch.
       const params = new URLSearchParams();
       params.set('target_lang', (lang || 'EN').toUpperCase());
-      // Add each text as its own field to preserve alignment
       for (const t of texts) params.append('text', t);
 
-      const resp = await fetch(
-        (process.env.DEEPL_ENDPOINT || 'https://api-free.deepl.com/v2/translate'),
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `DeepL-Auth-Key ${key}`,
-            'Content-Type': 'application/x-www-form-urlencoded'
-          },
-          body: params
-        }
-      );
+      const endpoint = process.env.DEEPL_ENDPOINT || 'https://api-free.deepl.com/v2/translate';
+      const resp = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Authorization': `DeepL-Auth-Key ${key}`,
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: params
+      });
 
       if (!resp.ok) {
-        const body = await resp.text();
+        const body = await resp.text().catch(() => '');
         console.error('[translate-batch] DeepL HTTP', resp.status, body);
         return res.status(502).json({ error: `DeepL HTTP ${resp.status}`, detail: body });
       }
 
       const data = await resp.json();
       if (!data || !Array.isArray(data.translations)) {
-        console.error('[translate-batch] Unexpected DeepL response', data);
+        console.error('[translate-batch] Unexpected DeepL payload', data);
         return res.status(502).json({ error: 'DeepL: unexpected response', detail: data });
       }
       translations = data.translations.map(t => t.text);
     }
 
-    // 3) Return aligned translations
     return res.json({ translations });
   } catch (error) {
     console.error('[translate-batch] Fatal error:', error);
     return res.status(500).json({ error: 'Translation failed' });
   }
 });
+
+
 
 // Tracking endpoints
 app.post(["/api/track","/api/tracking"], (req,res) => res.redirect(307, "/api/track-engagement"));
@@ -1831,6 +1830,11 @@ app.get('/api/dashboard-data', async (req, res) => {
     res.status(500).json({ error: 'Failed to build dashboard data', message: e.message });
   }
 });
+
+app.get('/health/translate', (req, res) => {
+  res.json({ deepl_key_present: !!process.env.DEEPL_API_KEY });
+});
+
 
 app.get('/api/analytics/inquiries', async (req, res) => {
   try {
