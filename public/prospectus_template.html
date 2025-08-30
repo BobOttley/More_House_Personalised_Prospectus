@@ -2925,5 +2925,26 @@ ${extracurricularPersonalization ? `<p>${extracurricularPersonalization}</p>` : 
             } catch(_) {}
         })();
     </script>
+    
+    <!-- Load translation service -->
+    <script src="/translation-service.js"></script>
+
+    <!-- Update language switcher -->
+    <script>
+    (function () {
+        const sel = document.getElementById('prospectus-lang');
+        
+        sel.addEventListener('change', async function () {
+            const newLang = this.value;
+            localStorage.setItem('penai_prospectus_lang', newLang);
+            
+            await TranslationService.translatePage(newLang);
+            
+            const url = new URL(window.location.href);
+            url.searchParams.set('lang', newLang);
+            window.history.pushState({}, '', url);
+        });
+    })();
+    </script>
 </body>
 </html>
