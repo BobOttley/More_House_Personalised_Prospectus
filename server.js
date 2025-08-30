@@ -1274,13 +1274,10 @@ app.use((req, _res, next) => { console.log(req.method, req.url); next(); });
 app.use(express.static(path.join(__dirname, 'public')));
 
 // --- Translation-aware prospectus routes ---
-// --- Translation-aware prospectus routes ---
 app.get('/health', (req, res) => res.json({ ok: true }));
 
-// Catch root-level prospectus files, /prospectus/*, and /prospectuses/*
 app.get(['/:file', '/prospectus/*', '/prospectuses/*'], async (req, res) => {
   try {
-    // work out the filename
     let tail;
     if (req.params.file) {
       tail = req.params.file; // e.g. "the-ottley-woodd-family-468413"
@@ -1294,12 +1291,15 @@ app.get(['/:file', '/prospectus/*', '/prospectuses/*'], async (req, res) => {
     const baseDir = path.resolve(__dirname);
     const publicPath = path.join(baseDir, 'public', tail);
     const rootPath   = path.join(baseDir, tail);
+    const prosPath   = path.join(baseDir, 'prospectuses', tail);  // 👈 add check in /prospectuses
 
     let absPath = null;
     try { await fs.access(publicPath); absPath = publicPath; } catch {}
     if (!absPath) { try { await fs.access(rootPath); absPath = rootPath; } catch {} }
+    if (!absPath) { try { await fs.access(prosPath); absPath = prosPath; } catch {} } // 👈 now covers your working folder
     if (!absPath) return res.status(404).send('Prospectus not found');
 
+    // For HTML, translate; otherwise stream file
     if (!absPath.toLowerCase().match(/\.(html?|htm)$/)) {
       return res.sendFile(absPath);
     }
@@ -1320,6 +1320,7 @@ app.get(['/:file', '/prospectus/*', '/prospectuses/*'], async (req, res) => {
     return res.status(500).send('Server error');
   }
 });
+
 
 // ===================== API ROUTES =====================
 
