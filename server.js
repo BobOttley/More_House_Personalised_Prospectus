@@ -1463,26 +1463,74 @@ app.post('/api/generate-prospectus/:inquiryId', async (req, res) => {
   }
 });
 // Add this endpoint to your existing server.js Translation 
+// ===== Translation endpoint (DeepL) =====
 app.post('/api/translate-batch', async (req, res) => {
   try {
-      const { texts, lang } = req.body;
-      
-      if (!texts || !Array.isArray(texts) || !lang) {
-          return res.status(400).json({ error: 'Invalid request' });
+    const { texts, lang } = req.body || {};
+    if (!Array.isArray(texts) || !texts.length || !lang) {
+      return res.status(400).json({ error: 'Invalid request: texts[] and lang are required.' });
+    }
+
+    console.log(`[translate-batch] lang=${lang} count=${texts.length}`);
+
+    const key = process.env.DEEPL_API_KEY;
+    if (!key) {
+      console.error('[translate-batch] Missing DEEPL_API_KEY');
+      return res.status(500).json({ error: 'DEEPL not configured (DEEPL_API_KEY missing)' });
+    }
+
+    // 1) Try your existing helper first
+    let translations = null;
+    try {
+      if (typeof deeplBatch === 'function') {
+        translations = await deeplBatch(texts, lang);
       }
-      
-      // Call your existing deeplBatch function from translate_engine.js
-      const translations = await deeplBatch(texts, lang);
-      
-      res.json({ translations });
+    } catch (e) {
+      console.warn('[translate-batch] deeplBatch() failed, falling back to direct DeepL call:', e.message);
+    }
+
+    // 2) Fallback: call DeepL REST API directly if needed
+    if (!translations || !Array.isArray(translations) || translations.length !== texts.length) {
+      // Node 18+ has global fetch; if not, install node-fetch.
+      const params = new URLSearchParams();
+      params.set('target_lang', (lang || 'EN').toUpperCase());
+      // Add each text as its own field to preserve alignment
+      for (const t of texts) params.append('text', t);
+
+      const resp = await fetch(
+        (process.env.DEEPL_ENDPOINT || 'https://api-free.deepl.com/v2/translate'),
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `DeepL-Auth-Key ${key}`,
+            'Content-Type': 'application/x-www-form-urlencoded'
+          },
+          body: params
+        }
+      );
+
+      if (!resp.ok) {
+        const body = await resp.text();
+        console.error('[translate-batch] DeepL HTTP', resp.status, body);
+        return res.status(502).json({ error: `DeepL HTTP ${resp.status}`, detail: body });
+      }
+
+      const data = await resp.json();
+      if (!data || !Array.isArray(data.translations)) {
+        console.error('[translate-batch] Unexpected DeepL response', data);
+        return res.status(502).json({ error: 'DeepL: unexpected response', detail: data });
+      }
+      translations = data.translations.map(t => t.text);
+    }
+
+    // 3) Return aligned translations
+    return res.json({ translations });
   } catch (error) {
-      console.error('Translation error:', error);
-      res.status(500).json({ 
-          error: 'Translation failed',
-          translations: texts
-      });
+    console.error('[translate-batch] Fatal error:', error);
+    return res.status(500).json({ error: 'Translation failed' });
   }
 });
+
 // Tracking endpoints
 app.post(["/api/track","/api/tracking"], (req,res) => res.redirect(307, "/api/track-engagement"));
 
