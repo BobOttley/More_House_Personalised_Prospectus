@@ -8,11 +8,16 @@ const { Client } = require('pg');
 const OpenAI = require("openai");
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const { translateHtmlFragment, normaliseLang, SUPPORTED } = require('./translate_engine');
+const { deeplBatch } = require('./translate_engine');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 let db = null;
 let slugIndex = {};
+
+
+console.log('DeepL API key present:', !!process.env.DEEPL_API_KEY);
+
 
 // ===== GEO/IP helpers =====================================
 app.set("trust proxy", true);
@@ -1276,72 +1281,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Translation-aware prospectus routes - CORRECTED VERSION
 app.get('/health', (req, res) => res.json({ ok: true }));
 
-// Only handle explicit prospectus paths, not general slugs
-app.get(['/prospectus/*', '/prospectuses/*'], async (req, res) => {
-  try {
-    let tail = req.params[0];
-    
-    const baseDir = path.resolve(__dirname);
-    const publicPath = path.join(baseDir, 'public', tail);
-    const rootPath = path.join(baseDir, tail);
-    const prosPath = path.join(baseDir, 'prospectuses', tail);
 
-    let absPath = null;
-    try { await fs.access(publicPath); absPath = publicPath; } catch {}
-    if (!absPath) { try { await fs.access(rootPath); absPath = rootPath; } catch {} }
-    if (!absPath) { try { await fs.access(prosPath); absPath = prosPath; } catch {} }
-    if (!absPath) return res.status(404).send('Prospectus not found');
-
-    if (!absPath.toLowerCase().match(/\.(html?|htm)$/)) {
-      return res.sendFile(absPath);
-    }
-
-    const raw = await fs.readFile(absPath, 'utf8');
-    
-    // DEBUG LOGGING
-    console.log('=== TRANSLATION DEBUG ===');
-    console.log('Raw query params:', req.query);
-    console.log('Raw lang param:', req.query.lang);
-    
-    let lang = normaliseLang(req.query.lang || 'en');
-    console.log('Normalized lang:', lang);
-    console.log('SUPPORTED check:', SUPPORTED.has(lang));
-    console.log('Available languages:', Array.from(SUPPORTED));
-    
-    if (!SUPPORTED.has(lang)) lang = 'en';
-    const translateOff = (req.query.translate || '').toLowerCase() === 'off';
-    
-    console.log('Final lang:', lang);
-    console.log('Translate off:', translateOff);
-    console.log('Will translate:', lang !== 'en' && !translateOff);
-    
-    if (translateOff || lang === 'en') {
-      console.log('Serving original HTML');
-      res.setHeader('Content-Type', 'text/html; charset=utf-8');
-      return res.status(200).send(raw);
-    }
-    
-    console.log('Calling translateHtmlFragment...');
-    console.log('DeepL API key present:', !!process.env.DEEPL_API_KEY);
-    
-    const out = await translateHtmlFragment(raw, lang);
-    
-    console.log('Translation complete');
-    console.log('Original length:', raw.length);
-    console.log('Translated length:', out.length);
-    console.log('Content changed:', raw !== out);
-    console.log('=== END DEBUG ===');
-
-    res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    res.setHeader('Cache-Control', 'public, max-age=60');
-    res.setHeader('Vary', 'Accept-Language');
-    res.setHeader('X-Robots-Tag', 'noindex, nofollow');
-    return res.status(200).send(out);
-  } catch (err) {
-    console.error('Prospectus route error:', err);
-    return res.status(500).send('Server error');
-  }
-});
 
 // ===================== API ROUTES =====================
 
@@ -1522,7 +1462,27 @@ app.post('/api/generate-prospectus/:inquiryId', async (req, res) => {
     res.status(500).json({ success: false, error: e.message });
   }
 });
-
+// Add this endpoint to your existing server.js Translation 
+app.post('/api/translate-batch', async (req, res) => {
+  try {
+      const { texts, lang } = req.body;
+      
+      if (!texts || !Array.isArray(texts) || !lang) {
+          return res.status(400).json({ error: 'Invalid request' });
+      }
+      
+      // Call your existing deeplBatch function from translate_engine.js
+      const translations = await deeplBatch(texts, lang);
+      
+      res.json({ translations });
+  } catch (error) {
+      console.error('Translation error:', error);
+      res.status(500).json({ 
+          error: 'Translation failed',
+          translations: texts
+      });
+  }
+});
 // Tracking endpoints
 app.post(["/api/track","/api/tracking"], (req,res) => res.redirect(307, "/api/track-engagement"));
 
