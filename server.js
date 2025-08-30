@@ -84,6 +84,37 @@ app.use((req, _res, next) => {
   next();
 });
 
+// Translate full HTML with DeepL (preserves markup, skips script/style)
+async function translateFullHtml(html, lang) {
+  const key = process.env.DEEPL_API_KEY;
+  if (!key) throw new Error('DEEPL_API_KEY missing');
+
+  const endpoint = process.env.DEEPL_ENDPOINT || 'https://api-free.deepl.com/v2/translate';
+  const params = new URLSearchParams();
+  params.set('target_lang', lang.toUpperCase());
+  params.set('tag_handling', 'html');
+  params.set('ignore_tags', 'script,style');
+  params.append('text', html);
+
+  const resp = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'Authorization': `DeepL-Auth-Key ${key}`,
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body: params
+  });
+
+  if (!resp.ok) {
+    const body = await resp.text();
+    throw new Error(`DeepL HTTP ${resp.status}: ${body}`);
+  }
+
+  const data = await resp.json();
+  return data.translations[0].text;
+}
+
+
 // ===================== DATABASE INITIALIZATION =====================
 async function initializeDatabase() {
   const haveUrl = !!process.env.DATABASE_URL;
@@ -3349,14 +3380,14 @@ app.get('/:slug', async (req, res, next) => {
         
         console.log(`Translating slug ${slug} to ${lang}`);
         console.log('DeepL API key present:', !!process.env.DEEPL_API_KEY);
-        
-        const translated = await translateHtmlFragment(raw, lang);
-        
+
+        const translated = await translateFullHtml(raw, lang);
+
         console.log('Translation complete for slug');
         console.log('Original length:', raw.length);
         console.log('Translated length:', translated.length);
         console.log('Content changed:', raw !== translated);
-        
+
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
         res.setHeader('Cache-Control', 'public, max-age=60');
         res.setHeader('Vary', 'Accept-Language');
