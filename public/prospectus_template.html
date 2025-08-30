@@ -1195,7 +1195,8 @@
           const KEY = 'penai_prospectus_lang';
           const current = (params.get('lang') || localStorage.getItem(KEY) || 'en').toLowerCase();
       
-          if ([...sel.options].some(o => o.value === current)) sel.value = current;
+          if (Array.from(sel.options).some(o => o.value === current)) sel.value = current;
+
       
           sel.addEventListener('change', function () {
             localStorage.setItem(KEY, this.value);
