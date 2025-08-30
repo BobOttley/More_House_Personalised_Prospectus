@@ -9,9 +9,8 @@ const RTL = new Set(['ar']);
 const DEEPL_API_KEY = (process.env.DEEPL_API_KEY || '').trim();
 const DEEPL_URL = DEEPL_API_KEY ? 'https://api-free.deepl.com/v2/translate' : null;
 
-// Updated brand tokens to match your Python version
 const BRAND_TOKENS = new Set([
-  "Bath", "More House", "St Andrews", "Durham", "Bath", "Exeter", "Warwick", 
+  "Bath", "More House", "St Andrews", "Durham", "Exeter", "Warwick", 
   "Bristol", "Edinburgh", "Cambridge", "RADA", "King's College London", 
   "Imperial College London", "University College London", "London School of Economics", 
   "Central Saint Martins", "22-24 Pont Street", "Knightsbridge", "London SW1X 0AA",
@@ -28,7 +27,7 @@ function isRtl(lang){
   return RTL.has(normaliseLang(lang)); 
 }
 
-// Create regex from brand tokens (sorted by length, longest first)
+// Create regex from brand tokens
 const TOKEN_RE = BRAND_TOKENS.size > 0
   ? new RegExp(Array.from(BRAND_TOKENS).sort((a,b) => b.length - a.length).map(t => t.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).join('|'), 'g')
   : null;
@@ -42,7 +41,8 @@ function protectBrands(s) {
   const text = s.replace(TOKEN_RE, match => {
     const i = bag.length;
     bag.push(match);
-    return `__PENBRAND_${i}__`;
+    // Use numeric tokens that DeepL won't translate
+    return `【${i}】`;
   });
   
   return { text, bag };
@@ -53,7 +53,8 @@ function restoreBrands(s, bag) {
   
   let result = s;
   bag.forEach((val, i) => {
-    result = result.replace(new RegExp(`__PENBRAND_${i}__`, 'g'), val);
+    // Match both original and any variants DeepL might create
+    result = result.replace(new RegExp(`【${i}】`, 'g'), val);
   });
   
   return result;
@@ -66,7 +67,7 @@ function protectBrackets(s) {
   const text = s.replace(BRACK_RE, match => {
     const i = bag.length;
     bag.push(match);
-    return `__PENPROT_${i}__`;
+    return `『${i}』`;
   });
   
   return { text, bag };
@@ -77,7 +78,7 @@ function restoreBrackets(s, bag) {
   
   let result = s;
   bag.forEach((val, i) => {
-    result = result.replace(new RegExp(`__PENPROT_${i}__`, 'g'), val);
+    result = result.replace(new RegExp(`『${i}』`, 'g'), val);
   });
   
   return result;
@@ -95,6 +96,8 @@ async function deeplBatch(texts, lang) {
   lang = normaliseLang(lang);
   if (!texts || texts.length === 0) return texts;
   if (!DEEPL_API_KEY || !DEEPL_URL || lang === 'en') return texts;
+  
+  console.log('DeepL input:', texts.slice(0, 2));
   
   try {
     const params = new URLSearchParams();
@@ -117,10 +120,13 @@ async function deeplBatch(texts, lang) {
     
     const data = await response.json();
     const translations = data.translations || [];
-    
-    return texts.map((originalText, i) => {
+    const results = texts.map((originalText, i) => {
       return translations[i]?.text || originalText;
     });
+    
+    console.log('DeepL output:', results.slice(0, 2));
+    
+    return results;
   } catch (error) {
     console.warn('DeepL translation failed:', error.message);
     return texts;
@@ -131,7 +137,6 @@ async function translateHtmlFragment(html, lang) {
   lang = normaliseLang(lang);
   if (lang === 'en' || !html || !html.trim()) return html;
 
-  // Split into alternating [text, <tag>, text, <tag>...]
   const parts = html.split(/(<[^>]+>)/g);
   const out = [];
   const jobs = [];
@@ -147,7 +152,6 @@ async function translateHtmlFragment(html, lang) {
 
   for (const p of parts) {
     if (p.startsWith('<')) {
-      // Track script/style context
       if (isOpening('script', p)) inScript = true;
       if (isClosing('script', p)) inScript = false;
       if (isOpening('style', p)) inStyle = true;
@@ -156,7 +160,6 @@ async function translateHtmlFragment(html, lang) {
       continue;
     }
 
-    // Text node
     if (inScript || inStyle) {
       out.push(p);
       continue;
@@ -173,10 +176,9 @@ async function translateHtmlFragment(html, lang) {
     jobsBrandBags.push(brandBag);
     jobsBrackBags.push(brackBag);
     jobs.push(s2);
-    out.push(''); // placeholder
+    out.push('');
   }
 
-  // Translate all queued text parts
   if (jobs.length > 0) {
     const translated = await deeplBatch(jobs, lang);
     translated.forEach((s, i) => {
@@ -188,9 +190,13 @@ async function translateHtmlFragment(html, lang) {
 
   let html2 = out.join('');
 
-  // Ensure <html lang=".."> (don't duplicate)
+  // Check for unrestored tokens
+  const unresto = html2.match(/【\d+】|『\d+』/g);
+  if (unresto) {
+    console.warn('Unrestored tokens found:', unresto);
+  }
+
   if (/<html\b/i.test(html2)) {
-    // Remove any existing lang attr then set the one we want
     html2 = html2.replace(/(<html\b[^>]*?)\s+lang="[^"]*"/i, '$1');
     html2 = html2.replace(/(<html\b)([^>]*?)>/i, `$1 lang="${lang}"$2>`);
     
@@ -201,12 +207,11 @@ async function translateHtmlFragment(html, lang) {
         html2 = html2.replace(/(<html\b)([^>]*?)>/i, '$1 dir="rtl"$2>');
       }
     } else {
-      // remove dir if present and not RTL
       html2 = html2.replace(/(<html\b[^>]*\b)dir="[^"]*"/i, '$1');
     }
   }
 
-  // Mark selected language (for debugging)
+  
   if (/<\/head>/i.test(html2)) {
     html2 = html2.replace(/<\/head>/i, `<meta name="penai-lang" content="${lang}"></head>`);
   }
