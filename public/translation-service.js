@@ -1,155 +1,109 @@
 // public/translation-service.js
-// PEN.ai – Robust client translation utilities.
-// - Full-page translate (skips <script>/<style>)
-// - Mop-up translate: only nodes that still look English
-// - MutationObserver: watches for dynamically inserted text and translates it
 (function () {
-    'use strict';
-  
-    const BATCH_SIZE = 60;
-    const MAX_RETRIES = 2;
-    const RETRY_DELAY_MS = 400;
-    const OBS_DEBOUNCE_MS = 250;
-    const RUN_FLAG_KEY = '__penai_translate_inflight';
-  
-    function log(...args) {
-      const DEBUG = true;
-      if (DEBUG) console.log('[Translator]', ...args);
+  'use strict';
+
+  const RELAY_URL = '/api/translate-html';
+  const RUN_FLAG = '__penai_translate_inflight';
+  const STORE_KEY = '__penai_original_html';
+  const LANG_KEY  = 'penai_prospectus_lang';
+  const SUPPORTED = ['en','zh','ar','ru','fr','es','de','it'];
+
+  function log(...a){ if (true) console.log('[PEN.translate]', ...a); }
+  function setLangAttrs(lang) {
+    document.documentElement.lang = lang || 'en';
+    document.documentElement.dir  = (lang === 'ar' ? 'rtl' : 'ltr');
+  }
+  function normaliseLang(x) {
+    if (!x) return 'en';
+    const lc = x.toLowerCase();
+    if (SUPPORTED.includes(lc)) return lc;
+    const base = lc.split('-')[0];
+    return SUPPORTED.includes(base) ? base : 'en';
+  }
+
+  function ensureOriginalSnapshot() {
+    if (!window[STORE_KEY]) {
+      window[STORE_KEY] = document.documentElement.outerHTML;
+      log('Original HTML snapshot captured (length:', window[STORE_KEY].length, ')');
     }
-    const delay = (ms) => new Promise(r => setTimeout(r, ms));
-  
-    // Heuristic: looks like English (Latin letters present) and not just numbers/punctuation
-    function looksEnglish(s) {
-      if (!s) return false;
-      const t = s.trim();
-      if (!t) return false;
-      if (!/[A-Za-z]/.test(t)) return false;
-      // Avoid tiny fragments like single letters
-      return t.replace(/[^A-Za-z]/g, '').length >= 2;
+    return window[STORE_KEY];
+  }
+
+  async function relayTranslateHtml({ html, lang }) {
+    const res = await fetch(RELAY_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ html, lang })
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(()=> '');
+      throw new Error(`Translate relay failed: HTTP ${res.status} ${body}`);
     }
-  
-    function collectTextNodes(root, predicate) {
-      const out = [];
-      const walker = document.createTreeWalker(
-        root,
-        NodeFilter.SHOW_TEXT,
-        {
-          acceptNode(node) {
-            const p = node.parentElement;
-            if (!p) return NodeFilter.FILTER_REJECT;
-            const tag = p.tagName;
-            if (tag === 'SCRIPT' || tag === 'STYLE') return NodeFilter.FILTER_REJECT;
-  
-            const val = node.nodeValue;
-            if (!val) return NodeFilter.FILTER_REJECT;
-            if (!val.trim()) return NodeFilter.FILTER_REJECT;
-  
-            if (predicate && !predicate(val)) return NodeFilter.FILTER_REJECT;
-            return NodeFilter.FILTER_ACCEPT;
-          }
-        }
-      );
-      let n;
-      while ((n = walker.nextNode())) out.push(n);
-      return out;
+    const data = await res.json();
+    if (!data || typeof data.html !== 'string') throw new Error('Translate relay returned no html');
+    return data;
+  }
+
+  function writeWholeDocument(html, lang) {
+    document.open();
+    document.write(html);
+    document.close();
+    try { setLangAttrs(lang); } catch(_){}
+  }
+
+  async function translateTo(targetLang) {
+    const lang = normaliseLang(targetLang);
+    if (lang === 'en') {
+      writeWholeDocument(ensureOriginalSnapshot(), 'en');
+      localStorage.setItem(LANG_KEY, 'en');
+      return;
     }
-  
-    async function translateBatch(texts, targetLang) {
-      if (!texts.length || !targetLang || targetLang === 'en') return texts;
-  
-      let attempt = 0;
-      while (attempt <= MAX_RETRIES) {
-        try {
-          const res = await fetch('/api/translate-batch', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ texts, lang: targetLang })
-          });
-          if (!res.ok) {
-            const body = await res.text().catch(() => '');
-            throw new Error(`HTTP ${res.status} ${body || ''}`.trim());
-          }
-          const data = await res.json();
-          if (!data || !Array.isArray(data.translations)) {
-            throw new Error('Unexpected response from /api/translate-batch');
-          }
-          return data.translations;
-        } catch (err) {
-          attempt += 1;
-          log(`Batch failed (attempt ${attempt}/${MAX_RETRIES + 1}):`, err && err.message ? err.message : err);
-          if (attempt > MAX_RETRIES) break;
-          await delay(RETRY_DELAY_MS * attempt);
-        }
-      }
-      return texts; // fail safe: no changes
+    if (window[RUN_FLAG]) { log('translateTo skipped (already running)'); return; }
+    window[RUN_FLAG] = true;
+
+    const prevOpacity = document.body && document.body.style.opacity;
+    try {
+      if (document.body) document.body.style.opacity = '0.7';
+
+      const originalHtml = ensureOriginalSnapshot();
+      log(`Translating full document to "${lang}" (length ${originalHtml.length})`);
+      const { html } = await relayTranslateHtml({ html: originalHtml, lang });
+      writeWholeDocument(html, lang);
+      localStorage.setItem(LANG_KEY, lang);
+      bindPicker(); // DOM replaced; re-bind picker
+    } catch (err) {
+      console.error('[PEN.translate] Fatal translation error:', err);
+      try { writeWholeDocument(ensureOriginalSnapshot(), 'en'); } catch(_){}
+    } finally {
+      if (document.body) document.body.style.opacity = prevOpacity || '1';
+      window[RUN_FLAG] = false;
     }
-  
-    // Full-page: translate every text node
-    async function translatePage(targetLang) {
-      if (!targetLang || targetLang === 'en') {
-        document.documentElement.lang = 'en';
-        document.documentElement.dir = 'ltr';
-        return;
-      }
-      if (window[RUN_FLAG_KEY]) {
-        log('translatePage skipped (already running)');
-        return;
-      }
-      window[RUN_FLAG_KEY] = true;
-  
-      try {
-        document.body.style.opacity = '0.7';
-  
-        const textNodes = collectTextNodes(document.body);
-        log('Found text nodes:', textNodes.length);
-  
-        const originals = textNodes.map(n => n.nodeValue);
-        const trimmed = originals.map(s => (s || '').trim());
-        const uniqueTrimmed = Array.from(new Set(trimmed.filter(Boolean)));
-        log(`Will send ${uniqueTrimmed.length} strings to /api/translate-batch for`, targetLang);
-  
-        const translationMap = new Map();
-        for (let i = 0; i < uniqueTrimmed.length; i += BATCH_SIZE) {
-          const batch = uniqueTrimmed.slice(i, i + BATCH_SIZE);
-          const translated = await translateBatch(batch, targetLang);
-          for (let j = 0; j < batch.length; j++) {
-            translationMap.set(batch[j], translated[j]);
-          }
-          log(`Batch ${Math.floor(i / BATCH_SIZE) + 1}: sent ${batch.length}, received ${translated.length}`);
-        }
-  
-        let applied = 0;
-        for (let idx = 0; idx < textNodes.length; idx++) {
-          const node = textNodes[idx];
-          const original = originals[idx] || '';
-          const lead = original.match(/^\s*/)[0];
-          const trail = original.match(/\s*$/)[0];
-          const key = trimmed[idx];
-          if (key && translationMap.has(key)) {
-            const translated = translationMap.get(key);
-            if (typeof translated === 'string') {
-              node.nodeValue = lead + translated + trail;
-              applied++;
-            }
-          }
-        }
-        log(`Applied translations to ${applied} / ${textNodes.length} nodes.`);
-  
-        document.documentElement.lang = targetLang;
-        document.documentElement.dir = (targetLang === 'ar' ? 'rtl' : 'ltr');
-      } catch (err) {
-        console.error('[Translator] Fatal translatePage error:', err);
-      } finally {
-        document.body.style.opacity = '1';
-        window[RUN_FLAG_KEY] = false;
-      }
+  }
+
+  function bindPicker() {
+    const sel = document.getElementById('prospectus-lang');
+    if (!sel) return;
+    const stored = normaliseLang(localStorage.getItem(LANG_KEY) || 'en');
+    if (sel.value !== stored) sel.value = stored;
+    sel.onchange = function () { translateTo(this.value); };
+  }
+
+  window.PEN = window.PEN || {};
+  window.PEN.translate = {
+    to: translateTo,
+    current: () => normaliseLang(localStorage.getItem(LANG_KEY) || document.documentElement.lang || 'en'),
+    init: function () {
+      ensureOriginalSnapshot();
+      bindPicker();
+      const urlLang = new URLSearchParams(location.search).get('lang');
+      const lang = normaliseLang(urlLang || localStorage.getItem(LANG_KEY) || 'en');
+      if (lang !== 'en') translateTo(lang); else setLangAttrs('en');
     }
-  
-    // Mop-up: translate only nodes that still look English (good after server-side translation)
-    async function translateOnlyEnglish(targetLang) {
-      if (!targetLang || targetLang === 'en') return;
-  
-      const nodes = collectTextNodes(document.body, looksEnglish);
-      if (!nodes.length) {
-        log('Mop-up: nothing that looks
-  
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => window.PEN.translate.init());
+  } else {
+    window.PEN.translate.init();
+  }
+})();

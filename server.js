@@ -1304,7 +1304,7 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-app.use(express.json({ limit: '2mb' }));
+app.use(express.json({ limit: '20mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use((req, _res, next) => { console.log(req.method, req.url); next(); });
 app.use(express.static(path.join(__dirname, 'public')));
@@ -1495,6 +1495,21 @@ app.post('/api/generate-prospectus/:inquiryId', async (req, res) => {
 });
 // Add this endpoint to your existing server.js Translation 
 // ===== Translation endpoint (DeepL) =====
+
+app.post('/api/translate-html', async (req, res) => {
+  try {
+    const { html, lang } = req.body || {};
+    if (!html || typeof html !== 'string') return res.status(400).json({ error: 'Missing html' });
+    if (!lang) return res.status(400).json({ error: 'Missing lang' });
+    const translated = await translateFullHtml(html, lang); // you already have this helper
+    return res.json({ html: translated, lang });
+  } catch (e) {
+    console.error('translate-html error:', e.message);
+    return res.status(500).json({ error: 'Translate failed' });
+  }
+});
+
+
 // === DeepL batch translation (logs + fallback) ===
 app.post('/api/translate-batch', async (req, res) => {
   try {
@@ -3368,18 +3383,10 @@ app.get('/:slug', async (req, res, next) => {
       // Check if it's an HTML file that needs translation
       if (abs.toLowerCase().endsWith('.html')) {
         const raw = await fs.readFile(abs, 'utf8');
-        let lang = normaliseLang(req.query.lang || 'en');
-        if (!SUPPORTED.has(lang)) lang = 'en';
-        const translateOff = (req.query.translate || '').toLowerCase() === 'off';
-        
-        if (translateOff || lang === 'en') {
-          console.log('Serving original HTML');
-          res.setHeader('Content-Type', 'text/html; charset=utf-8');
-          return res.status(200).send(raw);
-        }
-        
-        console.log(`Translating slug ${slug} to ${lang}`);
-        console.log('DeepL API key present:', !!process.env.DEEPL_API_KEY);
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        return res.status(200).send(raw);
+      }
+      
 
         const translated = await translateFullHtml(raw, lang);
 
@@ -3411,16 +3418,10 @@ app.get('/:slug', async (req, res, next) => {
           // Apply translation to regenerated file if needed
           if (abs.toLowerCase().endsWith('.html')) {
             const raw = await fs.readFile(abs, 'utf8');
-            let lang = normaliseLang(req.query.lang || 'en');
-            if (!SUPPORTED.has(lang)) lang = 'en';
-            const translateOff = (req.query.translate || '').toLowerCase() === 'off';
-            
-            if (translateOff || lang === 'en') {
-              res.setHeader('Content-Type', 'text/html; charset=utf-8');
-              return res.status(200).send(raw);
-            }
-            
-            const translated = await translateHtmlFragment(raw, lang);
+            res.setHeader('Content-Type', 'text/html; charset=utf-8');
+            return res.status(200).send(raw);
+          }
+          
             res.setHeader('Content-Type', 'text/html; charset=utf-8');
             res.setHeader('Cache-Control', 'public, max-age=60');
             res.setHeader('Vary', 'Accept-Language');
