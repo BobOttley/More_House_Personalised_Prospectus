@@ -7,6 +7,7 @@ require('dotenv').config();
 const { Client } = require('pg');
 const OpenAI = require("openai");
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const { translateHtmlFragment, normaliseLang, SUPPORTED } = require('./translate_engine');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -1271,6 +1272,49 @@ app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use((req, _res, next) => { console.log(req.method, req.url); next(); });
 app.use(express.static(path.join(__dirname, 'public')));
+
+// --- Translation-aware prospectus routes ---
+app.get('/health', (req, res) => res.json({ ok: true }));
+
+app.get('/prospectus/*', async (req, res) => {
+  try {
+    const tail = req.params[0];
+    const baseDir = path.resolve(__dirname);
+    const publicPath = path.join(baseDir, 'public', tail);
+    const rootPath   = path.join(baseDir, tail);
+    let absPath = null;
+    try { await fs.access(publicPath); absPath = publicPath; } catch {}
+    if (!absPath) { try { await fs.access(rootPath); absPath = rootPath; } catch {} }
+    if (!absPath) return res.status(404).send('Prospectus not found');
+
+    // For HTML, translate; otherwise, stream the file
+    if (!absPath.toLowerCase().match(/\.(html?|htm)$/)) {
+      return res.sendFile(absPath);
+    }
+    const raw = await fs.readFile(absPath, 'utf8');
+    let lang = normaliseLang(req.query.lang || 'n/a');
+    if (!SUPPORTED.has(lang)) lang = 'en';
+    const translateOff = (req.query.translate || '').toLowerCase() === 'off';
+    const out = (translateOff || lang === 'en') ? raw : await translateHtmlFragment(raw, lang);
+
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'public, max-age=60');
+    res.setHeader('Vary', 'Accept-Language');
+    res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+    return res.status(200).send(out);
+  } catch (err) {
+    console.error('Prospectus route error:', err);
+    return res.status(500).send('Server error');
+  }
+});
+
+// Keep old plural path working
+app.get('/prospectuses/*', (req, res) => {
+  req.url = req.url.replace(/^\/prospectuses\//, '/prospectus/');
+  return app._router.handle(req, res, () => {});
+});
+
+
 app.use('/prospectuses', express.static(path.join(__dirname, 'prospectuses')));
 
 // ===================== API ROUTES =====================
@@ -1310,7 +1354,6 @@ app.post(['/webhook', '/api/inquiry'], async (req, res) => {
       longitude: location.longitude,
       timezone: location.timezone,
       isp: location.isp,
-      ...data
     };
     
     
