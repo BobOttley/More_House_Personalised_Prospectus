@@ -1279,7 +1279,7 @@ app.get('/health', (req, res) => res.json({ ok: true }));
 // Only handle explicit prospectus paths, not general slugs
 app.get(['/prospectus/*', '/prospectuses/*'], async (req, res) => {
   try {
-    let tail = req.params[0]; // Get the path after /prospectus/ or /prospectuses/
+    let tail = req.params[0];
     
     const baseDir = path.resolve(__dirname);
     const publicPath = path.join(baseDir, 'public', tail);
@@ -1292,16 +1292,45 @@ app.get(['/prospectus/*', '/prospectuses/*'], async (req, res) => {
     if (!absPath) { try { await fs.access(prosPath); absPath = prosPath; } catch {} }
     if (!absPath) return res.status(404).send('Prospectus not found');
 
-    // For HTML, translate; otherwise stream file
     if (!absPath.toLowerCase().match(/\.(html?|htm)$/)) {
       return res.sendFile(absPath);
     }
 
     const raw = await fs.readFile(absPath, 'utf8');
+    
+    // DEBUG LOGGING
+    console.log('=== TRANSLATION DEBUG ===');
+    console.log('Raw query params:', req.query);
+    console.log('Raw lang param:', req.query.lang);
+    
     let lang = normaliseLang(req.query.lang || 'en');
+    console.log('Normalized lang:', lang);
+    console.log('SUPPORTED check:', SUPPORTED.has(lang));
+    console.log('Available languages:', Array.from(SUPPORTED));
+    
     if (!SUPPORTED.has(lang)) lang = 'en';
     const translateOff = (req.query.translate || '').toLowerCase() === 'off';
-    const out = (translateOff || lang === 'en') ? raw : await translateHtmlFragment(raw, lang);
+    
+    console.log('Final lang:', lang);
+    console.log('Translate off:', translateOff);
+    console.log('Will translate:', lang !== 'en' && !translateOff);
+    
+    if (translateOff || lang === 'en') {
+      console.log('Serving original HTML');
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      return res.status(200).send(raw);
+    }
+    
+    console.log('Calling translateHtmlFragment...');
+    console.log('DeepL API key present:', !!process.env.DEEPL_API_KEY);
+    
+    const out = await translateHtmlFragment(raw, lang);
+    
+    console.log('Translation complete');
+    console.log('Original length:', raw.length);
+    console.log('Translated length:', out.length);
+    console.log('Content changed:', raw !== out);
+    console.log('=== END DEBUG ===');
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Cache-Control', 'public, max-age=60');
