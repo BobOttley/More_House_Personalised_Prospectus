@@ -1,42 +1,34 @@
 // public/translation-service.js
-// PEN.ai – Full-page client translator.
-// Walks all text nodes (except <script>/<style>) and translates EVERYTHING via /api/translate-batch.
-// Includes batching, retries, whitespace preservation, RTL handling, and noisy debug logs.
+// PEN.ai – Robust client translation utilities.
+// - Full-page translate (skips <script>/<style>)
+// - Mop-up translate: only nodes that still look English
+// - MutationObserver: watches for dynamically inserted text and translates it
 (function () {
     'use strict';
   
-    const BATCH_SIZE = 60;         // Slightly larger batches
-    const MAX_RETRIES = 2;         // Per batch
-    const RETRY_DELAY_MS = 400;    // Backoff between retries
+    const BATCH_SIZE = 60;
+    const MAX_RETRIES = 2;
+    const RETRY_DELAY_MS = 400;
+    const OBS_DEBOUNCE_MS = 250;
     const RUN_FLAG_KEY = '__penai_translate_inflight';
   
-    // Near the very top:
-console.log('[Translator] v2.1 loaded');  // <-- ADD THIS
-
-// Inside translatePage(), right after we compute uniqueTrimmed:
-console.log('[Translator] Will send', uniqueTrimmed.length, 'strings to /api/translate-batch for', targetLang);  // <-- ADD THIS
-
-    /**
-     * Debug helper
-     */
     function log(...args) {
-      // Flip to false to silence logs
       const DEBUG = true;
       if (DEBUG) console.log('[Translator]', ...args);
     }
+    const delay = (ms) => new Promise(r => setTimeout(r, ms));
   
-    /**
-     * Sleep
-     */
-    function delay(ms) {
-      return new Promise(r => setTimeout(r, ms));
+    // Heuristic: looks like English (Latin letters present) and not just numbers/punctuation
+    function looksEnglish(s) {
+      if (!s) return false;
+      const t = s.trim();
+      if (!t) return false;
+      if (!/[A-Za-z]/.test(t)) return false;
+      // Avoid tiny fragments like single letters
+      return t.replace(/[^A-Za-z]/g, '').length >= 2;
     }
   
-    /**
-     * Collect ALL text nodes (except inside SCRIPT/STYLE).
-     * We do not honour data-no-translate right now — everything translates.
-     */
-    function collectTextNodes(root) {
+    function collectTextNodes(root, predicate) {
       const out = [];
       const walker = document.createTreeWalker(
         root,
@@ -45,16 +37,14 @@ console.log('[Translator] Will send', uniqueTrimmed.length, 'strings to /api/tra
           acceptNode(node) {
             const p = node.parentElement;
             if (!p) return NodeFilter.FILTER_REJECT;
-  
             const tag = p.tagName;
             if (tag === 'SCRIPT' || tag === 'STYLE') return NodeFilter.FILTER_REJECT;
   
             const val = node.nodeValue;
             if (!val) return NodeFilter.FILTER_REJECT;
-  
-            // Keep nodes with any non-whitespace characters
             if (!val.trim()) return NodeFilter.FILTER_REJECT;
   
+            if (predicate && !predicate(val)) return NodeFilter.FILTER_REJECT;
             return NodeFilter.FILTER_ACCEPT;
           }
         }
@@ -64,9 +54,6 @@ console.log('[Translator] Will send', uniqueTrimmed.length, 'strings to /api/tra
       return out;
     }
   
-    /**
-     * POST texts to server for DeepL translation. Returns an array of translated strings.
-     */
     async function translateBatch(texts, targetLang) {
       if (!texts.length || !targetLang || targetLang === 'en') return texts;
   
@@ -78,40 +65,32 @@ console.log('[Translator] Will send', uniqueTrimmed.length, 'strings to /api/tra
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ texts, lang: targetLang })
           });
-  
           if (!res.ok) {
             const body = await res.text().catch(() => '');
             throw new Error(`HTTP ${res.status} ${body || ''}`.trim());
           }
           const data = await res.json();
           if (!data || !Array.isArray(data.translations)) {
-            throw new Error('Unexpected response shape from /api/translate-batch');
+            throw new Error('Unexpected response from /api/translate-batch');
           }
           return data.translations;
         } catch (err) {
           attempt += 1;
           log(`Batch failed (attempt ${attempt}/${MAX_RETRIES + 1}):`, err && err.message ? err.message : err);
           if (attempt > MAX_RETRIES) break;
-          await delay(RETRY_DELAY_MS * attempt); // simple backoff
+          await delay(RETRY_DELAY_MS * attempt);
         }
       }
-      // On failure, return originals (no partial replacements)
-      return texts;
+      return texts; // fail safe: no changes
     }
   
-    /**
-     * Translate the entire page to targetLang.
-     * Idempotent-ish: guards against concurrent runs with a global flag.
-     */
+    // Full-page: translate every text node
     async function translatePage(targetLang) {
       if (!targetLang || targetLang === 'en') {
-        // Still set html attributes for consistency
         document.documentElement.lang = 'en';
         document.documentElement.dir = 'ltr';
         return;
       }
-  
-      // Prevent overlapping runs
       if (window[RUN_FLAG_KEY]) {
         log('translatePage skipped (already running)');
         return;
@@ -121,30 +100,24 @@ console.log('[Translator] Will send', uniqueTrimmed.length, 'strings to /api/tra
       try {
         document.body.style.opacity = '0.7';
   
-        // 1) Gather text nodes
         const textNodes = collectTextNodes(document.body);
         log('Found text nodes:', textNodes.length);
   
-        // 2) Build unique trimmed texts (map originals -> trimmed to preserve spaces later)
         const originals = textNodes.map(n => n.nodeValue);
         const trimmed = originals.map(s => (s || '').trim());
         const uniqueTrimmed = Array.from(new Set(trimmed.filter(Boolean)));
-  
         log(`Will send ${uniqueTrimmed.length} strings to /api/translate-batch for`, targetLang);
   
-        // 3) Translate in batches and build a map { trimmed -> translated }
         const translationMap = new Map();
         for (let i = 0; i < uniqueTrimmed.length; i += BATCH_SIZE) {
           const batch = uniqueTrimmed.slice(i, i + BATCH_SIZE);
           const translated = await translateBatch(batch, targetLang);
-          // If the server fell back to originals, lengths will match but text may be unchanged; we still map 1:1.
           for (let j = 0; j < batch.length; j++) {
             translationMap.set(batch[j], translated[j]);
           }
           log(`Batch ${Math.floor(i / BATCH_SIZE) + 1}: sent ${batch.length}, received ${translated.length}`);
         }
   
-        // 4) Apply to DOM, preserving leading/trailing whitespace for each node
         let applied = 0;
         for (let idx = 0; idx < textNodes.length; idx++) {
           const node = textNodes[idx];
@@ -152,22 +125,18 @@ console.log('[Translator] Will send', uniqueTrimmed.length, 'strings to /api/tra
           const lead = original.match(/^\s*/)[0];
           const trail = original.match(/\s*$/)[0];
           const key = trimmed[idx];
-  
           if (key && translationMap.has(key)) {
             const translated = translationMap.get(key);
-            // Fallback safety: avoid writing undefined
-            if (typeof translated === 'string' && translated.length >= 0) {
+            if (typeof translated === 'string') {
               node.nodeValue = lead + translated + trail;
               applied++;
             }
           }
         }
-        log(`Applied translations to ${applied} / ${textNodes.length} text nodes.`);
+        log(`Applied translations to ${applied} / ${textNodes.length} nodes.`);
   
-        // 5) Set page language + direction
         document.documentElement.lang = targetLang;
         document.documentElement.dir = (targetLang === 'ar' ? 'rtl' : 'ltr');
-  
       } catch (err) {
         console.error('[Translator] Fatal translatePage error:', err);
       } finally {
@@ -176,7 +145,11 @@ console.log('[Translator] Will send', uniqueTrimmed.length, 'strings to /api/tra
       }
     }
   
-    // Expose API
-    window.TranslationService = { translatePage };
-  })();
+    // Mop-up: translate only nodes that still look English (good after server-side translation)
+    async function translateOnlyEnglish(targetLang) {
+      if (!targetLang || targetLang === 'en') return;
+  
+      const nodes = collectTextNodes(document.body, looksEnglish);
+      if (!nodes.length) {
+        log('Mop-up: nothing that looks
   
