@@ -1,4 +1,6 @@
-/* public/tracking.js — Lean tracker (visit, sections with debounce, tiers with inferred dwell, video open/close) */
+/* public/tracking.js — Lean tracker with hysteresis + idle timeout
+   Tracks: visit start/end, section enter/exit, tier expand/exit (inferred), video open/close
+*/
 
 (function () {
   'use strict';
@@ -14,10 +16,12 @@
 
   // ===== Config =====
   const POST_URL = '/api/track-engagement';
-  const FLUSH_INTERVAL_MS = 4000;       // send small batches
-  const SECTION_VIS_RATIO = 0.5;        // dominant threshold
-  const SECTION_ENTER_STICKY_MS = 800;  // must stay dominant for this long to count as 'enter'
-  const MIN_SECTION_DWELL_SEC   = 2;    // clamp dwell to avoid 0s/1s
+  const FLUSH_INTERVAL_MS = 4000;        // send small batches
+  const SECTION_VIS_RATIO = 0.5;         // dominant threshold
+  const SECTION_ENTER_STICKY_MS = 1200;  // must stay dominant this long to count as 'enter'
+  const MIN_SECTION_DWELL_SEC   = 3;     // clamp dwell to avoid 0s/1s
+  const REENTER_COOLDOWN_MS     = 2000;  // ignore re-entry too soon after exit
+  const IDLE_TIMEOUT_MS         = 180000; // 3 minutes: split long idle periods
 
   // ===== State =====
   const queue = [];
@@ -30,9 +34,19 @@
   let candidateSection = null;
   let candidateSince   = 0;
 
-  // Tier dwell (expand-only; infer exit on next expand / leave section / unload)
+  // Cooldown: remember recent exits to prevent rapid re-entry spam
+  const lastExitAt = new Map(); // sectionKey -> ts
+
+  // Tier dwell (expand-only; infer exit on next expand / leave section / unload / idle)
   let activeTier = null;
   let activeTierEnterTs = null;
+
+  // Idle detection
+  let idleTimer = null;
+  const resetIdle = () => {
+    if (idleTimer) clearTimeout(idleTimer);
+    idleTimer = setTimeout(onIdleTimeout, IDLE_TIMEOUT_MS);
+  };
 
   // ===== Helpers =====
   const nowIso = () => new Date().toISOString();
@@ -67,7 +81,7 @@
       } else {
         await fetch(POST_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload });
       }
-    } catch (e) {
+    } catch {
       // Best-effort retry: put events back to the front of the queue
       batch.unshift(...queue);
       queue.length = 0;
@@ -82,30 +96,43 @@
       name: nameFor('tier', 'exit', activeTier),
       tier: activeTier,
       dwellSec,
-      reason // 'next_tier' | 'left_section' | 'unload'
+      reason // 'next_tier' | 'left_section' | 'unload' | 'idle_timeout'
     });
     activeTier = null;
     activeTierEnterTs = null;
   }
 
+  function endCurrentSection(reason) {
+    if (!currentSection || !lastSectionEnterTs) return;
+    const dwellSecRaw = Math.max(0, Math.round((Date.now() - lastSectionEnterTs) / 1000));
+    const dwellSec    = Math.max(MIN_SECTION_DWELL_SEC, dwellSecRaw);
+    lastExitAt.set(currentSection, Date.now());
+    track('section_exit', {
+      name: nameFor('section', 'exit', currentSection),
+      section: currentSection,
+      dwellSec,
+      reason // optional: 'left_section' | 'unload' | 'idle_timeout'
+    });
+    currentSection = null;
+    lastSectionEnterTs = null;
+  }
+
   function detectDominantSection() {
     const sections = document.querySelectorAll('section[data-track-section]');
     let bestKey = null, bestRatio = 0;
-
     for (const sec of sections) {
       const key = sec.getAttribute('data-track-section');
       const r = sec.getBoundingClientRect();
       const visible = Math.max(0, Math.min(r.bottom, window.innerHeight) - Math.max(r.top, 0));
       const ratio = r.height > 0 ? (visible / r.height) : 0;
-      if (ratio > SECTION_VIS_RATIO && ratio > bestRatio) {
-        bestRatio = ratio;
-        bestKey = key;
-      }
+      if (ratio > SECTION_VIS_RATIO && ratio > bestRatio) { bestRatio = ratio; bestKey = key; }
     }
     return bestKey;
   }
 
   function handleSectionChange() {
+    resetIdle();
+
     const next = detectDominantSection();
 
     // If we leave 'your_journey' whilst a tier is active, infer its end
@@ -123,28 +150,31 @@
       return; // not stable yet
     }
 
-    if (next && next !== currentSection) {
-      const ts = Date.now();
+    // Enforce re-entry cooldown to prevent oscillation spam
+    if (next && lastExitAt.has(next)) {
+      const sinceExit = Date.now() - (lastExitAt.get(next) || 0);
+      if (sinceExit < REENTER_COOLDOWN_MS) return; // ignore too-soon re-entry
+    }
 
-      // Exit old section (with min dwell clamp)
-      if (currentSection && lastSectionEnterTs) {
-        const dwellSecRaw = Math.max(0, Math.round((ts - lastSectionEnterTs) / 1000));
-        const dwellSec    = Math.max(MIN_SECTION_DWELL_SEC, dwellSecRaw);
-        track('section_exit', {
-          name: nameFor('section', 'exit', currentSection),
-          section: currentSection,
-          dwellSec
-        });
-      }
+    if (next && next !== currentSection) {
+      // Exit old section (with dwell clamp)
+      endCurrentSection('left_section');
 
       // Enter new section
       currentSection = next;
-      lastSectionEnterTs = ts;
+      lastSectionEnterTs = Date.now();
       track('section_enter', {
         name: nameFor('section', 'enter', currentSection),
         section: currentSection
       });
     }
+  }
+
+  function onIdleTimeout() {
+    // End any active tier + section due to idle
+    endActiveTier('idle_timeout');
+    endCurrentSection('idle_timeout');
+    scheduleFlush();
   }
 
   // ===== Visit start =====
@@ -155,9 +185,25 @@
   window.addEventListener('scroll', throttle(handleSectionChange, 250), { passive: true });
   window.addEventListener('resize', throttle(handleSectionChange, 250), { passive: true });
 
+  // Activity listeners to reset idle timer
+  ['mousemove','keydown','touchstart','wheel'].forEach(ev =>
+    window.addEventListener(ev, throttle(resetIdle, 500), { passive: true })
+  );
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+      flush(); // best-effort ship
+    } else {
+      resetIdle();
+      handleSectionChange();
+    }
+  });
+  resetIdle(); // start idle clock
+
   // ===== Tier cards (pre-senior / senior / sixth form) =====
   const originalToggle = window.toggleCard;
   window.toggleCard = function (cardId) {
+    resetIdle();
+
     const tier = cardId === 'preseniorCard' ? 'presenior'
                : cardId === 'seniorCard'     ? 'senior'
                : cardId === 'sixthformCard'  ? 'sixthform'
@@ -190,11 +236,13 @@
   const originalCloseVideo = window.closeVideo;
 
   window.openVideo = function (youtubeId, title) {
+    resetIdle();
     track('video_open', { name: nameFor('video', 'open', youtubeId), youtubeId, title });
     if (typeof originalOpenVideo === 'function') return originalOpenVideo(youtubeId, title);
   };
 
   window.closeVideo = function () {
+    resetIdle();
     // Try to infer current video ID from the modal iframe
     let youtubeId;
     try {
@@ -202,30 +250,16 @@
       const src = iframe?.getAttribute('src') || '';
       const m = src.match(/\/embed\/([A-Za-z0-9_\-]+)/);
       if (m) youtubeId = m[1];
-    } catch (_) {}
+    } catch {}
     track('video_close', { name: nameFor('video', 'close', youtubeId || 'unknown'), youtubeId });
     if (typeof originalCloseVideo === 'function') return originalCloseVideo();
   };
 
-  // ===== Flush on tab hide, and on unload close down cleanly =====
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') flush();
-  });
-
+  // ===== Flush on unload, and end state cleanly =====
   window.addEventListener('beforeunload', function () {
-    // Close any active tier dwell
+    // End any active tier/section with explicit unload reasons
     endActiveTier('unload');
-
-    // Final section exit if applicable (with min dwell clamp)
-    if (currentSection && lastSectionEnterTs) {
-      const dwellSecRaw = Math.max(0, Math.round((Date.now() - lastSectionEnterTs) / 1000));
-      const dwellSec    = Math.max(MIN_SECTION_DWELL_SEC, dwellSecRaw);
-      track('section_exit', {
-        name: nameFor('section', 'exit', currentSection),
-        section: currentSection,
-        dwellSec
-      });
-    }
+    endCurrentSection('unload');
 
     // Visit end
     track('page_unload', { name: nameFor('visit', 'end') });
