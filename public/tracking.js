@@ -1,5 +1,5 @@
-/* public/tracking.js — Lean tracker with hysteresis + idle timeout
-   Tracks: visit start/end, section enter/exit, tier expand/exit (inferred), video open/close
+/* public/tracking.js — Lean tracker with hysteresis + idle timeout + CTA tracking
+   Tracks: visit start/end, section enter/exit, tier expand/exit (inferred), video open/close, Open Morning clicks
 */
 
 (function () {
@@ -16,12 +16,12 @@
 
   // ===== Config =====
   const POST_URL = '/api/track-engagement';
-  const FLUSH_INTERVAL_MS = 4000;        // send small batches
-  const SECTION_VIS_RATIO = 0.5;         // dominant threshold
-  const SECTION_ENTER_STICKY_MS = 1200;  // must stay dominant this long to count as 'enter'
-  const MIN_SECTION_DWELL_SEC   = 3;     // clamp dwell to avoid 0s/1s
-  const REENTER_COOLDOWN_MS     = 2000;  // ignore re-entry too soon after exit
-  const IDLE_TIMEOUT_MS         = 180000; // 3 minutes: split long idle periods
+  const FLUSH_INTERVAL_MS = 4000;         // batching
+  const SECTION_VIS_RATIO = 0.5;          // dominant threshold
+  const SECTION_ENTER_STICKY_MS = 1200;   // must stay dominant to count as 'enter'
+  const MIN_SECTION_DWELL_SEC   = 3;      // clamp dwell to avoid 0s/1s
+  const REENTER_COOLDOWN_MS     = 2000;   // ignore re-entry too soon after exit
+  const IDLE_TIMEOUT_MS         = 180000; // 3 minutes splits long idle
 
   // ===== State =====
   const queue = [];
@@ -34,19 +34,16 @@
   let candidateSection = null;
   let candidateSince   = 0;
 
-  // Cooldown: remember recent exits to prevent rapid re-entry spam
+  // Cooldown: prevent oscillation spam
   const lastExitAt = new Map(); // sectionKey -> ts
 
-  // Tier dwell (expand-only; infer exit on next expand / leave section / unload / idle)
+  // Tier dwell (expand-only; inferred exit)
   let activeTier = null;
   let activeTierEnterTs = null;
 
   // Idle detection
   let idleTimer = null;
-  const resetIdle = () => {
-    if (idleTimer) clearTimeout(idleTimer);
-    idleTimer = setTimeout(onIdleTimeout, IDLE_TIMEOUT_MS);
-  };
+  const resetIdle = () => { if (idleTimer) clearTimeout(idleTimer); idleTimer = setTimeout(onIdleTimeout, IDLE_TIMEOUT_MS); };
 
   // ===== Helpers =====
   const nowIso = () => new Date().toISOString();
@@ -56,7 +53,7 @@
   function track(eventType, data = {}) {
     queue.push({
       inquiryId: INQUIRY_ID,
-      sessionId: SESSION_ID,
+      sessionId:  SESSION_ID,
       eventType,
       data: { ...data, name: data.name || eventType },
       timestamp: nowIso()
@@ -92,14 +89,8 @@
   function endActiveTier(reason) {
     if (!activeTier || !activeTierEnterTs) return;
     const dwellSec = Math.max(0, Math.round((Date.now() - activeTierEnterTs) / 1000));
-    track('tier_exit', {
-      name: nameFor('tier', 'exit', activeTier),
-      tier: activeTier,
-      dwellSec,
-      reason // 'next_tier' | 'left_section' | 'unload' | 'idle_timeout'
-    });
-    activeTier = null;
-    activeTierEnterTs = null;
+    track('tier_exit', { name: nameFor('tier','exit',activeTier), tier: activeTier, dwellSec, reason });
+    activeTier = null; activeTierEnterTs = null;
   }
 
   function endCurrentSection(reason) {
@@ -107,14 +98,8 @@
     const dwellSecRaw = Math.max(0, Math.round((Date.now() - lastSectionEnterTs) / 1000));
     const dwellSec    = Math.max(MIN_SECTION_DWELL_SEC, dwellSecRaw);
     lastExitAt.set(currentSection, Date.now());
-    track('section_exit', {
-      name: nameFor('section', 'exit', currentSection),
-      section: currentSection,
-      dwellSec,
-      reason // optional: 'left_section' | 'unload' | 'idle_timeout'
-    });
-    currentSection = null;
-    lastSectionEnterTs = null;
+    track('section_exit', { name: nameFor('section','exit',currentSection), section: currentSection, dwellSec, reason });
+    currentSection = null; lastSectionEnterTs = null;
   }
 
   function detectDominantSection() {
@@ -132,78 +117,57 @@
 
   function handleSectionChange() {
     resetIdle();
-
     const next = detectDominantSection();
 
     // If we leave 'your_journey' whilst a tier is active, infer its end
-    if (activeTier && next && next !== 'your_journey' && currentSection === 'your_journey') {
-      endActiveTier('left_section');
-    }
+    if (activeTier && next && next !== 'your_journey' && currentSection === 'your_journey') endActiveTier('left_section');
 
     // Debounce: require the new candidate to be dominant for a short period
-    if (next !== candidateSection) {
-      candidateSection = next;
-      candidateSince   = Date.now();
-      return; // wait for stability
-    }
-    if (next && next !== currentSection && (Date.now() - candidateSince) < SECTION_ENTER_STICKY_MS) {
-      return; // not stable yet
-    }
+    if (next !== candidateSection) { candidateSection = next; candidateSince = Date.now(); return; }
+    if (next && next !== currentSection && (Date.now() - candidateSince) < SECTION_ENTER_STICKY_MS) return;
 
     // Enforce re-entry cooldown to prevent oscillation spam
     if (next && lastExitAt.has(next)) {
       const sinceExit = Date.now() - (lastExitAt.get(next) || 0);
-      if (sinceExit < REENTER_COOLDOWN_MS) return; // ignore too-soon re-entry
+      if (sinceExit < REENTER_COOLDOWN_MS) return;
     }
 
     if (next && next !== currentSection) {
-      // Exit old section (with dwell clamp)
-      endCurrentSection('left_section');
-
-      // Enter new section
-      currentSection = next;
+      endCurrentSection('left_section');            // Exit old (clamped)
+      currentSection = next;                        // Enter new
       lastSectionEnterTs = Date.now();
-      track('section_enter', {
-        name: nameFor('section', 'enter', currentSection),
-        section: currentSection
-      });
+      track('section_enter', { name: nameFor('section','enter',currentSection), section: currentSection });
     }
   }
 
   function onIdleTimeout() {
-    // End any active tier + section due to idle
     endActiveTier('idle_timeout');
     endCurrentSection('idle_timeout');
     scheduleFlush();
   }
 
   // ===== Visit start =====
-  track('page_load', { name: nameFor('visit', 'start') });
+  track('page_load', { name: nameFor('visit','start') });
 
   // Initial detection + listeners
   window.addEventListener('load', handleSectionChange, { passive: true });
   window.addEventListener('scroll', throttle(handleSectionChange, 250), { passive: true });
   window.addEventListener('resize', throttle(handleSectionChange, 250), { passive: true });
 
-  // Activity listeners to reset idle timer
+  // Activity listeners reset idle timer
   ['mousemove','keydown','touchstart','wheel'].forEach(ev =>
     window.addEventListener(ev, throttle(resetIdle, 500), { passive: true })
   );
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') {
-      flush(); // best-effort ship
-    } else {
-      resetIdle();
-      handleSectionChange();
-    }
+    if (document.visibilityState === 'hidden') { flush(); }
+    else { resetIdle(); handleSectionChange(); }
   });
-  resetIdle(); // start idle clock
+  resetIdle();
 
   // ===== Tier cards (pre-senior / senior / sixth form) =====
   const originalToggle = window.toggleCard;
   window.toggleCard = function (cardId) {
     resetIdle();
-
     const tier = cardId === 'preseniorCard' ? 'presenior'
                : cardId === 'seniorCard'     ? 'senior'
                : cardId === 'sixthformCard'  ? 'sixthform'
@@ -211,39 +175,28 @@
 
     const el = document.getElementById(cardId);
     const wasExpanded = el?.classList.contains('expanded');
-
     if (typeof originalToggle === 'function') originalToggle(cardId);
-
     const isExpanded = el?.classList.contains('expanded');
 
-    // Expand only (ignore collapse)
     if (!wasExpanded && isExpanded) {
-      // End previous tier if switching
       if (activeTier && activeTier !== tier) endActiveTier('next_tier');
-
-      activeTier = tier;
-      activeTierEnterTs = Date.now();
-
-      track('tier_expand', {
-        name: nameFor('tier', 'expand', tier),
-        tier
-      });
+      activeTier = tier; activeTierEnterTs = Date.now();
+      track('tier_expand', { name: nameFor('tier','expand',tier), tier });
     }
   };
 
-  // ===== Video open/close (8 videos total; open/close only) =====
+  // ===== Video open/close =====
   const originalOpenVideo  = window.openVideo;
   const originalCloseVideo = window.closeVideo;
 
   window.openVideo = function (youtubeId, title) {
     resetIdle();
-    track('video_open', { name: nameFor('video', 'open', youtubeId), youtubeId, title });
+    track('video_open',  { name: nameFor('video','open', youtubeId), youtubeId, title });
     if (typeof originalOpenVideo === 'function') return originalOpenVideo(youtubeId, title);
   };
 
   window.closeVideo = function () {
     resetIdle();
-    // Try to infer current video ID from the modal iframe
     let youtubeId;
     try {
       const iframe = document.querySelector('#videoModal iframe');
@@ -251,20 +204,39 @@
       const m = src.match(/\/embed\/([A-Za-z0-9_\-]+)/);
       if (m) youtubeId = m[1];
     } catch {}
-    track('video_close', { name: nameFor('video', 'close', youtubeId || 'unknown'), youtubeId });
+    track('video_close', { name: nameFor('video','close', youtubeId || 'unknown'), youtubeId });
     if (typeof originalCloseVideo === 'function') return originalCloseVideo();
   };
 
+  // ===== Open Morning CTA clicks (two buttons anywhere on the page) =====
+  document.addEventListener('click', function(e){
+    const a = e.target.closest('a');
+    if (!a) return;
+    const href = a.getAttribute('href') || '';
+    const isOpenMorning =
+      a.classList?.contains('openmorning-btn') ||
+      /\/admissions\/our-open-events\/?$/i.test(href) ||
+      /\/admissions\/our-open-events\//i.test(href);
+
+    if (!isOpenMorning) return;
+
+    // Attach context: which section was dominant at click time
+    const sectionAtClick = currentSection || detectDominantSection();
+
+    track('cta_openmorning_click', {
+      name: nameFor('cta','openmorning_click'),
+      label: (a.textContent || '').trim(),
+      href,
+      section: sectionAtClick
+    });
+  }, { passive:true });
+
   // ===== Flush on unload, and end state cleanly =====
   window.addEventListener('beforeunload', function () {
-    // End any active tier/section with explicit unload reasons
     endActiveTier('unload');
     endCurrentSection('unload');
+    track('page_unload', { name: nameFor('visit','end') });
 
-    // Visit end
-    track('page_unload', { name: nameFor('visit', 'end') });
-
-    // Best-effort final send
     if (queue.length) {
       const payload = JSON.stringify({ events: queue, sessionInfo: { inquiryId: INQUIRY_ID, sessionId: SESSION_ID } });
       if (navigator.sendBeacon) navigator.sendBeacon(POST_URL, payload);
