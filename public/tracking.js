@@ -1,4 +1,4 @@
-/* public/tracking.js — Lean tracker (visit, sections, tiers, videos) */
+/* public/tracking.js — Lean tracker (visit, sections with debounce, tiers with inferred dwell, video open/close) */
 
 (function () {
   'use strict';
@@ -14,8 +14,10 @@
 
   // ===== Config =====
   const POST_URL = '/api/track-engagement';
-  const FLUSH_INTERVAL_MS = 4000;    // send small batches
-  const SECTION_VIS_RATIO = 0.5;     // dominant threshold
+  const FLUSH_INTERVAL_MS = 4000;       // send small batches
+  const SECTION_VIS_RATIO = 0.5;        // dominant threshold
+  const SECTION_ENTER_STICKY_MS = 800;  // must stay dominant for this long to count as 'enter'
+  const MIN_SECTION_DWELL_SEC   = 2;    // clamp dwell to avoid 0s/1s
 
   // ===== State =====
   const queue = [];
@@ -23,6 +25,10 @@
 
   let currentSection = null;
   let lastSectionEnterTs = null;
+
+  // Debounce state for section changes
+  let candidateSection = null;
+  let candidateSince   = 0;
 
   // Tier dwell (expand-only; infer exit on next expand / leave section / unload)
   let activeTier = null;
@@ -107,12 +113,23 @@
       endActiveTier('left_section');
     }
 
+    // Debounce: require the new candidate to be dominant for a short period
+    if (next !== candidateSection) {
+      candidateSection = next;
+      candidateSince   = Date.now();
+      return; // wait for stability
+    }
+    if (next && next !== currentSection && (Date.now() - candidateSince) < SECTION_ENTER_STICKY_MS) {
+      return; // not stable yet
+    }
+
     if (next && next !== currentSection) {
       const ts = Date.now();
 
-      // Exit old section
+      // Exit old section (with min dwell clamp)
       if (currentSection && lastSectionEnterTs) {
-        const dwellSec = Math.max(0, Math.round((ts - lastSectionEnterTs) / 1000));
+        const dwellSecRaw = Math.max(0, Math.round((ts - lastSectionEnterTs) / 1000));
+        const dwellSec    = Math.max(MIN_SECTION_DWELL_SEC, dwellSecRaw);
         track('section_exit', {
           name: nameFor('section', 'exit', currentSection),
           section: currentSection,
@@ -199,9 +216,10 @@
     // Close any active tier dwell
     endActiveTier('unload');
 
-    // Final section exit if applicable
+    // Final section exit if applicable (with min dwell clamp)
     if (currentSection && lastSectionEnterTs) {
-      const dwellSec = Math.max(0, Math.round((Date.now() - lastSectionEnterTs) / 1000));
+      const dwellSecRaw = Math.max(0, Math.round((Date.now() - lastSectionEnterTs) / 1000));
+      const dwellSec    = Math.max(MIN_SECTION_DWELL_SEC, dwellSecRaw);
       track('section_exit', {
         name: nameFor('section', 'exit', currentSection),
         section: currentSection,
