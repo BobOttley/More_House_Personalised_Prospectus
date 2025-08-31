@@ -1811,6 +1811,223 @@ app.get('/api/dashboard-data', async (req, res) => {
   }
 });
 
+// === Inquiry overview (family, contact, interests, entry years, basic counts) ===
+app.get('/api/inquiry/:inquiryId/overview', async (req, res) => {
+  const { inquiryId } = req.params;
+  if (!inquiryId) return res.status(400).json({ ok:false, error:'Missing inquiryId' });
+
+  try {
+    if (!db) return res.json({ ok:true, overview: null });
+
+    // 1) Pull core inquiry info (adjust field names if yours differ)
+    const iq = await db.query(`
+      SELECT
+        inquiry_id,
+        family_name,
+        child_name,
+        email,
+        age_group,
+        entry_year,
+        interests,          -- array or comma-separated (adjust as needed)
+        slug,
+        prospectus_url      -- if stored; else build from slug
+      FROM inquiries
+      WHERE inquiry_id = $1
+      LIMIT 1
+    `, [inquiryId]);
+
+    const base = iq.rows[0] || {
+      inquiry_id: inquiryId,
+      family_name: 'Unknown Family',
+      child_name: null,
+      email: null,
+      age_group: null,
+      entry_year: null,
+      interests: null,
+      slug: null,
+      prospectus_url: null
+    };
+
+    // 2) Engagement basics from tracking_events
+    const stats = await db.query(`
+      SELECT
+        COUNT(*) AS events,
+        COUNT(DISTINCT session_id) AS visits,
+        MIN(timestamp) AS first_seen,
+        MAX(timestamp) AS last_seen
+      FROM tracking_events
+      WHERE inquiry_id = $1
+    `, [inquiryId]);
+
+    // Optional: total dwell time across sections (sum of section_exit dwellSec)
+    const dwell = await db.query(`
+      SELECT COALESCE(SUM((event_data->>'dwellSec')::int),0) AS total_dwell_sec
+      FROM tracking_events
+      WHERE inquiry_id = $1 AND event_type = 'section_exit'
+    `, [inquiryId]);
+
+    res.json({
+      ok: true,
+      overview: {
+        inquiryId: base.inquiry_id,
+        familyName: base.family_name,
+        childName: base.child_name,
+        email: base.email,
+        ageGroup: base.age_group,
+        entryYear: base.entry_year,
+        interests: base.interests,
+        slug: base.slug,
+        prospectusUrl: base.prospectus_url,
+        visits: Number(stats.rows[0]?.visits || 0),
+        events: Number(stats.rows[0]?.events || 0),
+        firstSeen: stats.rows[0]?.first_seen || null,
+        lastSeen: stats.rows[0]?.last_seen || null,
+        totalDwellSec: Number(dwell.rows[0]?.total_dwell_sec || 0)
+      }
+    });
+  } catch (e) {
+    console.error('overview error:', e);
+    res.status(500).json({ ok:false, error: e.message });
+  }
+});
+
+// === Sessions list for an inquiry (start/end + event count) ===
+app.get('/api/visits/:inquiryId/sessions', async (req, res) => {
+  const { inquiryId } = req.params;
+  if (!inquiryId) return res.status(400).json({ ok:false, error:'Missing inquiryId' });
+
+  try {
+    if (!db) return res.json({ ok:true, sessions: [] });
+
+    const q = await db.query(`
+      SELECT session_id,
+             MIN(timestamp) AS start_ts,
+             MAX(timestamp) AS end_ts,
+             COUNT(*)       AS events
+      FROM tracking_events
+      WHERE inquiry_id = $1 AND session_id IS NOT NULL
+      GROUP BY session_id
+      ORDER BY start_ts DESC
+      LIMIT 50
+    `, [inquiryId]);
+
+    res.json({ ok:true, sessions: q.rows });
+  } catch (e) {
+    console.error('sessions list error:', e);
+    res.status(500).json({ ok:false, error: e.message });
+  }
+});
+
+// === Utility: summarise a set of events into a short narrative ===
+function summariseEvents(events) {
+  // Sections (by dwell)
+  const bySection = new Map();
+  const videos = [];
+  let openMorningClicks = 0;
+  const tiers = [];
+
+  for (const ev of events) {
+    if (ev.type === 'section_exit' && ev.section) {
+      const prev = bySection.get(ev.section) || 0;
+      if (Number.isFinite(ev.dwellSec)) bySection.set(ev.section, prev + Number(ev.dwellSec));
+    }
+    if (ev.type === 'video_open') {
+      videos.push({ id: ev.youtubeId, title: ev.title });
+    }
+    if (ev.type === 'cta_openmorning_click') {
+      openMorningClicks += 1;
+    }
+    if (ev.type === 'tier_exit') {
+      tiers.push({ tier: ev.tier, dwellSec: ev.dwellSec || 0 });
+    }
+  }
+
+  const topSections = [...bySection.entries()]
+    .sort((a,b)=>b[1]-a[1])
+    .slice(0,4)
+    .map(([k,v]) => `${k.replace(/_/g,' ')} (${Math.round(v/60)}m)`);
+
+  const tierBits = tiers
+    .sort((a,b)=>b.dwellSec-a.dwellSec)
+    .map(t => `${t.tier} (${Math.round((t.dwellSec||0)/60)}m)`)
+    .slice(0,3);
+
+  const videoBits = videos.map(v => v.title || v.id).slice(0,4);
+
+  const parts = [];
+  if (topSections.length) parts.push(`Most time in: ${topSections.join(', ')}.`);
+  if (tierBits.length) parts.push(`Looked at tiers: ${tierBits.join(', ')}.`);
+  if (videoBits.length) parts.push(`Watched/opened videos: ${videoBits.join(', ')}.`);
+  if (openMorningClicks) parts.push(`Clicked “Book an Open Morning” ${openMorningClicks} time${openMorningClicks>1?'s':''}.`);
+
+  return parts.join(' ');
+}
+
+// === Per-session AI-style summary (rule-based) ===
+app.get('/api/visits/:inquiryId/:sessionId/summary', async (req,res)=>{
+  const { inquiryId, sessionId } = req.params;
+  if (!inquiryId || !sessionId) return res.status(400).json({ ok:false, error: 'Missing params' });
+  try {
+    if (!db) return res.json({ ok:true, summary: '' });
+
+    const evs = await db.query(`
+      SELECT event_type, event_data, timestamp
+      FROM tracking_events
+      WHERE inquiry_id = $1 AND session_id = $2
+      ORDER BY timestamp ASC
+    `, [inquiryId, sessionId]);
+
+    const events = evs.rows.map(r => ({
+      type: r.event_type,
+      ts: r.timestamp,
+      section: r.event_data?.section ?? null,
+      dwellSec: r.event_data?.dwellSec ?? null,
+      tier: r.event_data?.tier ?? null,
+      youtubeId: r.event_data?.youtubeId ?? null,
+      title: r.event_data?.title ?? null
+    }));
+
+    const text = summariseEvents(events);
+    res.json({ ok:true, summary: text });
+  } catch (e) {
+    console.error('session summary error:', e);
+    res.status(500).json({ ok:false, error:e.message });
+  }
+});
+
+// === Overall AI-style summary across all sessions ===
+app.get('/api/inquiry/:inquiryId/summary', async (req,res)=>{
+  const { inquiryId } = req.params;
+  if (!inquiryId) return res.status(400).json({ ok:false, error:'Missing inquiryId' });
+  try {
+    if (!db) return res.json({ ok:true, summary: '' });
+
+    const evs = await db.query(`
+      SELECT event_type, event_data, timestamp
+      FROM tracking_events
+      WHERE inquiry_id = $1
+      ORDER BY timestamp ASC
+    `, [inquiryId]);
+
+    const events = evs.rows.map(r => ({
+      type: r.event_type,
+      ts: r.timestamp,
+      section: r.event_data?.section ?? null,
+      dwellSec: r.event_data?.dwellSec ?? null,
+      tier: r.event_data?.tier ?? null,
+      youtubeId: r.event_data?.youtubeId ?? null,
+      title: r.event_data?.title ?? null
+    }));
+
+    const text = summariseEvents(events);
+    res.json({ ok:true, summary: text });
+  } catch (e) {
+    console.error('overall summary error:', e);
+    res.status(500).json({ ok:false, error:e.message });
+  }
+});
+
+
 app.get('/api/analytics/inquiries', async (req, res) => {
   try {
     console.log('Analytics inquiries request...');
