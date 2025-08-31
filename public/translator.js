@@ -13,7 +13,7 @@
     'Knightsbridge'
   ];
 
-  // Any blocks you’ve marked with data-no-translate are excluded entirely
+  // Any blocks youâ€™ve marked with data-no-translate are excluded entirely
   const EXCLUDE_SELECTOR = '[data-no-translate]';
 
   // ---------------------- State & Utilities -----------------------
@@ -69,7 +69,7 @@
     return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 
-  // Replace tokens with <span class="notranslate" translate="no">…</span>
+  // Replace tokens with <span class="notranslate" translate="no">â€¦</span>
   function protectBrandTokens(html) {
     // Sort tokens longest-first so "More House School" wraps before "More House"
     const tokens = [...BRAND_TOKENS].sort((a, b) => b.length - a.length);
@@ -99,18 +99,15 @@
   
     return out;
   }
-  
-   
-  
 
   // Prepare HTML to send to DeepL:
   //  - remove excluded blocks (data-no-translate) and replace with placeholders
   //  - remove <script> and <style> tags (placeholders)
   //  - protect brand tokens
   function buildTranslatableHTML() {
-    // Work from the original, never from a previously translated DOM
+    // CRITICAL: Always work from original HTML, not current DOM
     const tmp = document.createElement('div');
-    tmp.innerHTML = document.body.innerHTML;
+    tmp.innerHTML = ORIGINAL_HTML; // Use stored original, not document.body.innerHTML
 
     const placeholders = [];
     let counter = 0;
@@ -161,12 +158,12 @@
       isTranslating = true;
       beginTransition();
       try {
+        // CRITICAL: Always restore from the clean original HTML
         document.body.innerHTML = ORIGINAL_HTML;
         setLangAttrs('en');
         localStorage.setItem(STORE_KEY, 'en');
         writeLangToURL('en');
       } finally {
-        // Re-bind picker listener after DOM swap
         bindPicker();
         isTranslating = false;
         endTransition();
@@ -174,6 +171,7 @@
       return;
     }
 
+    // CRITICAL: Always build from the original English HTML, never from current DOM
     const { html, placeholders } = buildTranslatableHTML();
 
     isTranslating = true;
@@ -184,30 +182,32 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ html, target_lang: lang })
       });
+      
       if (!res.ok) {
         const text = await res.text();
         throw new Error(`DeepL proxy failed: ${res.status} ${text}`);
       }
+      
       const data = await res.json();
       const translatedHTML = (data && data.translated) ? data.translated : '';
+      
       if (!translatedHTML) throw new Error('Empty translated payload');
 
-      // Restore placeholders (picker, address box, scripts/styles)
       const restored = restorePlaceholders(translatedHTML, placeholders);
-
-      // Swap full body content at once
+      
+      // CRITICAL: Complete DOM replacement
       document.body.innerHTML = restored;
 
-      // Attributes, memory, URL param
       setLangAttrs(lang);
       localStorage.setItem(STORE_KEY, lang);
       writeLangToURL(lang);
+      
     } catch (err) {
       console.error('[translator] Translation error:', err);
-      alert('Sorry — we could not translate the page just now. Please try again.');
-      // On failure, keep current DOM and attributes unchanged
+      alert('Sorry â€" we could not translate the page just now. Please try again.');
+      // On failure, restore original English
+      document.body.innerHTML = ORIGINAL_HTML;
     } finally {
-      // Re-bind picker listener after DOM swap
       bindPicker();
       isTranslating = false;
       endTransition();
