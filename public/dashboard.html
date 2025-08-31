@@ -579,69 +579,95 @@
       updateMetrics();
     }
 
-    // Load session history
+    // Load session history - matching original dashboard functionality
     async function loadSessionHistory(inquiryId) {
       const container = byId(`sessions-${inquiryId}`);
       if (!container) return;
 
       container.innerHTML = '<div class="loading"><div class="spinner"></div> Loading sessions...</div>';
 
-      try {
-        // Try to fetch session history
-        const response = await fetchJson(`/api/visits/${encodeURIComponent(inquiryId)}/history`).catch(() => null);
-        
-        if (!response || !response.sessions) {
-          // Fallback: create mock session from current data
-          const family = allFamilies.find(f => f.id === inquiryId);
-          if (family && family.visits > 0) {
-            container.innerHTML = renderMockSessions(family);
-          } else {
-            container.innerHTML = '<div class="no-data">No session data available</div>';
-          }
-          return;
-        }
+      // Try multiple endpoints as the original does
+      const endpoints = [
+        `/api/visits/${encodeURIComponent(inquiryId)}/history`,
+        `/api/visits/${encodeURIComponent(inquiryId)}/sessions`,
+        `/api/visits/${encodeURIComponent(inquiryId)}?limit=20`
+      ];
 
-        // Render real sessions
-        container.innerHTML = renderSessions(response.sessions);
-      } catch (error) {
-        console.error('Failed to load sessions:', error);
-        container.innerHTML = '<div class="error">Failed to load session history</div>';
+      let sessions = null;
+      for (const url of endpoints) {
+        try {
+          const data = await fetchJson(url);
+          if (Array.isArray(data) && data.length) {
+            sessions = data;
+            break;
+          }
+          if (data && Array.isArray(data.sessions) && data.sessions.length) {
+            sessions = data.sessions;
+            break;
+          }
+        } catch(e) {
+          console.log(`Tried ${url}:`, e.message);
+        }
       }
+
+      if (!sessions) {
+        container.innerHTML = '<div class="no-data">No session history found</div>';
+        return;
+      }
+
+      // Sort sessions by date (newest first)
+      sessions = sessions.slice().sort((a, b) => {
+        const aDate = new Date(a.start || a.started_at || a.created_at || 0);
+        const bDate = new Date(b.start || b.started_at || b.created_at || 0);
+        return bDate - aDate;
+      });
+
+      container.innerHTML = `
+        <div class="session-meta" style="margin-bottom:1rem;color:#64748b">
+          ${sessions.length} session${sessions.length === 1 ? '' : 's'} found
+        </div>
+        ${sessions.map((s, index) => renderSessionCard(s, index, inquiryId)).join('')}
+      `;
     }
 
-    // Render mock sessions from family data
-    function renderMockSessions(family) {
-      const sessions = [];
-      for (let i = 0; i < family.visits; i++) {
-        sessions.push({
-          id: `session-${i + 1}`,
-          visitNumber: family.visits - i,
-          duration: Math.floor(family.timeOnPageMs / family.visits),
-          timestamp: new Date(Date.now() - (i * 24 * 60 * 60 * 1000))
-        });
+    // Render individual session card
+    function renderSessionCard(session, index, inquiryId) {
+      const sessionId = session.id || session.session_id || `session-${index}`;
+      const sessionStart = session.start || session.started_at || session.created_at;
+      const sessionEnd = session.end || session.ended_at || session.updated_at;
+      
+      // Try to infer start time from session ID if needed
+      if (!sessionStart && sessionId.startsWith('S-')) {
+        const match = /^S-(\d{13})-/.exec(sessionId);
+        if (match) {
+          const timestamp = new Date(Number(match[1]));
+          if (!isNaN(timestamp)) {
+            session.start = timestamp.toISOString();
+          }
+        }
       }
 
-      return sessions.map(s => `
-        <div class="session-card">
-          <div class="session-header" onclick="toggleSession('${s.id}')">
+      const formatDate = (d) => d ? new Date(d).toLocaleString('en-GB') : '?';
+
+      return `
+        <div class="session-card" data-session="${sessionId}">
+          <div class="session-header" onclick="toggleSession('${sessionId}', '${inquiryId}')">
             <div class="session-info">
-              <div class="session-title">Visit ${s.visitNumber}</div>
-              <div class="session-meta">${formatTimeAgo(s.timestamp)} • ${formatDuration(s.duration)}</div>
-            </div>
-            <div class="session-stats">
-              <div class="session-stat">
-                <div class="session-stat-value">${Math.floor(s.duration / 60000)}</div>
-                <div class="session-stat-label">minutes</div>
+              <div class="session-title">Session ${sessionId}</div>
+              <div class="session-meta">
+                ${formatDate(sessionStart)}
+                ${sessionEnd ? ` → ${formatDate(sessionEnd)}` : ''}
               </div>
             </div>
+            <div class="expand-icon">▼</div>
           </div>
           <div class="session-body">
-            <div class="journey-timeline">
-              ${renderMockJourney()}
+            <div class="journey-timeline" id="journey-${sessionId}">
+              <div class="loading"><div class="spinner"></div> Click header to load events...</div>
             </div>
           </div>
         </div>
-      `).join('');
+      `;
     }
 
     // Render mock journey
@@ -698,32 +724,94 @@
       }).join('');
     }
 
-    // Toggle session
-    function toggleSession(sessionId) {
+    // Toggle session and load events if needed
+    async function toggleSession(sessionId, inquiryId) {
       const card = document.querySelector(`[data-session="${sessionId}"]`);
-      if (card) card.classList.toggle('open');
+      if (!card) return;
+      
+      card.classList.toggle('open');
+      
+      // Load events on first open
+      if (card.classList.contains('open')) {
+        const container = byId(`journey-${sessionId}`);
+        if (container && container.querySelector('.loading')) {
+          await loadSessionEvents(sessionId, inquiryId);
+        }
+      }
     }
 
-    // Load session events
-    async function loadSessionEvents(sessionId) {
+    // Load events for a specific session
+    async function loadSessionEvents(sessionId, inquiryId) {
       const container = byId(`journey-${sessionId}`);
       if (!container) return;
 
       container.innerHTML = '<div class="loading"><div class="spinner"></div> Loading events...</div>';
 
-      try {
-        const response = await fetchJson(`/api/visits/session/${sessionId}`).catch(() => null);
-        
-        if (!response || !response.events) {
-          container.innerHTML = renderMockJourney();
-          return;
-        }
+      // Try multiple endpoints as the original does
+      const urls = [
+        `/api/visits/session/${encodeURIComponent(sessionId)}`,
+        `/api/visits/session/${encodeURIComponent(sessionId)}/events`,
+        `/api/sessions/${encodeURIComponent(sessionId)}`,
+        `/api/session/${encodeURIComponent(sessionId)}`,
+        `/api/visits/${encodeURIComponent(inquiryId)}/sessions/${encodeURIComponent(sessionId)}`,
+        `/api/visits/${encodeURIComponent(inquiryId)}/session/${encodeURIComponent(sessionId)}`
+      ];
 
-        container.innerHTML = renderJourneyEvents(response.events);
-      } catch (error) {
-        console.error('Failed to load session events:', error);
-        container.innerHTML = '<div class="error">Failed to load session details</div>';
+      let events = null;
+      let hitUrl = null;
+
+      for (const url of urls) {
+        try {
+          const data = await fetchJson(url);
+          if (Array.isArray(data) && data.length && (data[0].type || data[0].name)) {
+            events = data;
+            hitUrl = url;
+            break;
+          }
+          if (data && Array.isArray(data.events)) {
+            events = data.events;
+            hitUrl = url;
+            break;
+          }
+          if (data && data.session && Array.isArray(data.session.events)) {
+            events = data.session.events;
+            hitUrl = url;
+            break;
+          }
+        } catch(e) {
+          console.log(`Tried ${url}:`, e.message);
+        }
       }
+
+      if (!events || !events.length) {
+        container.innerHTML = '<div class="no-data">No events found for this session</div>';
+        return;
+      }
+
+      // Render events
+      const eventsList = events.map(ev => {
+        let rendered = '';
+        
+        if (ev.type === 'page_load') rendered = '✓ Visit start';
+        else if (ev.type === 'page_unload') rendered = '✕ Visit end';
+        else if (ev.type === 'section_enter') rendered = `→ Enter section: ${ev.section}`;
+        else if (ev.type === 'section_exit') rendered = `↩︎ Exit section: ${ev.section} — ${ev.dwellSec || 0}s${ev.reason ? ` [${ev.reason}]` : ''}`;
+        else if (ev.type === 'tier_expand') rendered = `⟫ Tier opened: ${ev.tier}`;
+        else if (ev.type === 'tier_exit') rendered = `⟪ Tier closed (inferred): ${ev.tier} — ${ev.dwellSec || 0}s${ev.reason ? ` [${ev.reason}]` : ''}`;
+        else if (ev.type === 'video_open') rendered = `▶︎ Video open: ${ev.youtubeId || ''}${ev.title ? ` — ${ev.title}` : ''}`;
+        else if (ev.type === 'video_close') rendered = `■ Video close: ${ev.youtubeId || ''}`;
+        else if (ev.type === 'cta_openmorning_click') rendered = `★ Open Morning click: ${ev.href || ''}`;
+        else rendered = ev.name || ev.type || 'Unknown event';
+
+        return `<li style="margin: 4px 0; list-style-type: none; padding: 8px; background: #f8fafc; border-radius: 4px; font-size: 0.875rem;">${rendered}</li>`;
+      }).join('');
+
+      container.innerHTML = `
+        <ol style="margin: 0; padding: 0;">
+          ${eventsList}
+        </ol>
+        ${hitUrl ? `<div style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid #e5e7eb; font-size: 0.75rem; color: #64748b;">Loaded from: ${hitUrl}</div>` : ''}
+      `;
     }
 
     // Render journey events
