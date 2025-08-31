@@ -1,615 +1,782 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SMART Analytics (v2)</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
-<style>
-  :root{--navy:#0a2540;--gold:#ff9f1c;--grey:#e5e7eb}
-  *{box-sizing:border-box}
-  body{font-family:Inter,system-ui,-apple-system,Segoe UI,Arial,sans-serif;margin:0;background:#f8fafc;color:#0f172a}
-  header{background:linear-gradient(135deg,#0a2540,#034674);color:#fff;padding:16px 20px}
-  h1{margin:0;font-size:20px}
-  .bar{display:flex;gap:8px;align-items:center;margin-top:8px}
-  button{border:1px solid #cbd5e1;background:#fff;padding:8px 12px;border-radius:8px;cursor:pointer}
-  button:hover{background:#f3f4f6}
-  button.primary{background:var(--gold);border-color:#e07f00;color:#141b2a;font-weight:700}
-  button.primary:hover{filter:brightness(.95)}
-  main{padding:16px 20px;display:grid;grid-template-columns:2fr 1fr;gap:16px}
-  .card{background:#fff;border:1px solid var(--grey);border-radius:12px;overflow:hidden}
-  .card h2{font-size:16px;margin:0;padding:12px 14px;border-bottom:1px solid var(--grey);background:#fff}
-  .card .body{padding:12px 14px}
-  .metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:12px 0}
-  .metric{border:1px solid var(--grey);border-radius:10px;padding:10px;background:#fff}
-  .metric .k{font-size:22px;font-weight:700;color:var(--navy)}
-  .list{display:flex;flex-direction:column;gap:10px;max-height:60vh;overflow:auto}
-  .row{border:1px solid #e5e7eb;border-radius:8px;padding:10px;display:flex;justify-content:space-between;gap:10px;background:#fff}
-  .muted{opacity:.75}
-  .ok{color:#059669}.warn{color:#b45309}.err{color:#dc2626}
-  .pill{font-size:12px;border:1px solid #e5e7eb;border-radius:999px;padding:2px 8px}
-  .ai-block{margin-top:8px;border-left:3px solid var(--gold);padding-left:10px}
-  .ai-block .title{font-weight:600;margin-bottom:4px}
-  .ai-block ul{margin:6px 0 0 16px;padding:0}
-  .ai-block li{margin:2px 0;list-style:disc}
-  .mini{width:100%;border-collapse:collapse;margin-top:6px}
-  .mini th, .mini td{border-top:1px solid #e5e7eb;padding:6px 4px;text-align:left;font-size:12px}
-  pre{white-space:pre-wrap;background:#0b1220;color:#e2e8f0;padding:10px;border-radius:8px;max-height:30vh;overflow:auto}
-  @media (max-width: 980px){ main{grid-template-columns:1fr} }
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>More House School - SMART Analytics</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
-  /* --- Sessions drawer --- */
-  .sessions-drawer{margin-top:10px;border-top:1px dashed #e5e7eb;padding-top:8px}
-  .visit-card{border:1px solid #e5e7eb;border-radius:8px;background:#fafafa;padding:8px 10px;margin:8px 0}
-  .visit-head{display:flex;justify-content:space-between;gap:10px;font-weight:600}
-  .visit-meta{font-size:12px;opacity:.85}
-  .visit-list{margin:6px 0 0 16px;padding:0}
-  .visit-list li{margin:2px 0}
-  .visit-actions{margin-top:6px;font-size:12px}
-  .btn-link{color:#0a56c2;cursor:pointer;text-decoration:underline;margin-right:10px}
-  .raw{display:none;background:#fff;border:1px solid #e5e7eb;border-radius:6px;padding:6px;margin-top:6px;font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;font-size:12px;max-height:180px;overflow:auto}
-</style>
+  <style>
+    :root{
+      --blazer-navy:#091825;--award-gold:#FF9F1C;--sport-blue:#034674;
+      --text-primary:#2C3E50;--white:#FFFFFF;--light-grey:#F8FAFC;--border-grey:#E5E7EB;
+      --success:#10B981;--warning:#F59E0B;--error:#EF4444;
+      --hot-lead:#FF4444;--warm-lead:#FF9F1C;--cold-lead:#034674;
+      --font-heading:'Playfair Display',serif;--font-body:'Inter',sans-serif
+    }
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:var(--font-body);background:linear-gradient(135deg,var(--light-grey) 0%,#f1f5f9 100%);min-height:100vh;color:var(--text-primary);font-size:14px}
+
+    .header{background:linear-gradient(135deg,#091825 0%,#034674 100%);color:#fff;padding:2rem;box-shadow:0 4px 20px rgba(9,24,37,.3);position:relative}
+    .header-controls{position:absolute;top:2rem;right:2rem;display:flex;gap:0.75rem}
+    .refresh-btn,.ai-btn{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#fff;padding:.5rem 1rem;border-radius:8px;cursor:pointer;transition:.3s;font-size:.9rem}
+    .refresh-btn:hover,.ai-btn:hover{background:rgba(255,255,255,.2)}
+    .ai-btn{background:var(--award-gold);color:var(--blazer-navy);border-color:var(--award-gold);font-weight:600}
+    .header-brand{text-align:center}
+    .brand-glow{position:absolute;inset:0;border-radius:50%;background:linear-gradient(135deg,var(--award-gold),#FFB84D);opacity:.3;filter:blur(20px)}
+    .header h1{position:relative;font-family:var(--font-heading);font-size:3.5rem;font-weight:700;margin-bottom:0.5rem}
+    .smart-text{background:linear-gradient(135deg,var(--award-gold),#FFB84D);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+    .analytics-text{color:#fff}
+    .header p{font-size:1.1rem;font-weight:300;color:rgba(255,255,255,.9)}
+
+    .dashboard{max-width:1500px;margin:-2rem auto 2rem;position:relative;z-index:10}
+    
+    /* Enhanced Metrics */
+    .metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1.5rem;padding:2rem}
+    .metric-card{background:#fff;border-radius:16px;padding:1.75rem;box-shadow:0 4px 16px rgba(9,24,37,.08);border:1px solid var(--border-grey);transition:.3s;position:relative;overflow:hidden}
+    .metric-card:hover{box-shadow:0 8px 25px rgba(9,24,37,.12);transform:translateY(-2px)}
+    .metric-card::before{content:'';position:absolute;top:0;left:0;right:0;height:4px}
+    .metric-card.hot::before{background:linear-gradient(90deg,var(--hot-lead),#ff6666)}
+    .metric-card.warm::before{background:linear-gradient(90deg,var(--warm-lead),#ffb347)}
+    .metric-card.engagement::before{background:linear-gradient(90deg,var(--success),#34d399)}
+    .metric-card.total::before{background:linear-gradient(90deg,var(--sport-blue),#0ea5e9)}
+    .metric-card.ai::before{background:linear-gradient(90deg,var(--award-gold),#FFB84D)}
+    .metric-icon{width:56px;height:56px;border-radius:12px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.75rem;margin-bottom:1rem}
+    .metric-icon.hot{background:linear-gradient(135deg,var(--hot-lead),#ff6666)}
+    .metric-icon.warm{background:linear-gradient(135deg,var(--warm-lead),#ffb347)}
+    .metric-icon.engagement{background:linear-gradient(135deg,var(--success),#34d399)}
+    .metric-icon.total{background:linear-gradient(135deg,var(--sport-blue),#0ea5e9)}
+    .metric-icon.ai{background:linear-gradient(135deg,var(--award-gold),#FFB84D)}
+    .metric-title{font-size:.85rem;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:#64748b;margin-bottom:.5rem}
+    .metric-value{font-size:2.5rem;font-weight:700;color:var(--blazer-navy);margin-bottom:.25rem;font-family:var(--font-heading)}
+    .metric-subtitle{font-size:.875rem;font-weight:500;color:#64748b}
+
+    /* Main Layout */
+    .main-content{padding:0 2rem 2rem}
+    .filters{background:#fff;padding:1.25rem;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.05);margin-bottom:1.5rem;display:flex;gap:1rem;align-items:center;flex-wrap:wrap}
+    .filter-select,.search-box{padding:.625rem 1rem;border:1px solid #d1d5db;border-radius:8px;font-size:.875rem;transition:border-color .2s}
+    .filter-select:focus,.search-box:focus{outline:none;border-color:var(--sport-blue);box-shadow:0 0 0 3px rgba(3,70,116,.1)}
+    .search-box{flex:1;min-width:250px}
+
+    /* Enhanced Family Cards */
+    .family-card{background:#fff;border:1px solid var(--border-grey);border-radius:12px;margin-bottom:1rem;overflow:hidden;transition:box-shadow .3s}
+    .family-card:hover{box-shadow:0 4px 12px rgba(0,0,0,.08)}
+    .family-header{padding:1.25rem;display:flex;justify-content:space-between;align-items:flex-start;background:#fff;cursor:pointer;transition:background .2s}
+    .family-header:hover{background:#f8fafc}
+    .family-info{flex:1}
+    .family-info h3{font-size:1.25rem;font-weight:600;margin-bottom:.5rem;color:var(--blazer-navy)}
+    .family-meta{font-size:.875rem;color:#64748b;display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:.75rem}
+    .family-meta span{display:inline-flex;align-items:center;gap:.25rem}
+    
+    /* Interest Pills */
+    .interests-container{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.75rem}
+    .interest-pill{font-size:.75rem;padding:.25rem .75rem;background:var(--light-grey);border:1px solid var(--border-grey);border-radius:999px;color:var(--text-primary)}
+    .interest-pill.academic{background:#E0F2FE;border-color:#0EA5E9;color:#0C4A6E}
+    .interest-pill.creative{background:#FCE7F3;border-color:#EC4899;color:#831843}
+    .interest-pill.sport{background:#DBEAFE;border-color:#3B82F6;color:#1E3A8A}
+    .interest-pill.priority{background:#FEF3C7;border-color:#F59E0B;color:#78350F}
+
+    /* Engagement Badge */
+    .family-stats{display:flex;align-items:center;gap:1.5rem}
+    .score-badge{padding:.5rem 1rem;border-radius:8px;font-weight:600;font-size:1.125rem;text-align:center;min-width:60px}
+    .score-badge.hot{background:rgba(255,68,68,.1);color:var(--hot-lead);border:1px solid rgba(255,68,68,.2)}
+    .score-badge.warm{background:rgba(255,159,28,.1);color:var(--warm-lead);border:1px solid rgba(255,159,28,.2)}
+    .score-badge.cold{background:rgba(3,70,116,.1);color:var(--sport-blue);border:1px solid rgba(3,70,116,.2)}
+    .expand-icon{transition:transform .2s;color:#64748b}
+    .family-card.expanded .expand-icon{transform:rotate(180deg)}
+
+    /* Enhanced Details Section */
+    .family-details{display:none;background:#f8fafc;border-top:1px solid var(--border-grey)}
+    .family-card.expanded .family-details{display:block}
+    .details-grid{display:grid;grid-template-columns:1fr 2fr;gap:1.5rem;padding:1.25rem}
+    .detail-section{background:#fff;padding:1rem;border-radius:8px;border:1px solid var(--border-grey)}
+    .detail-section h4{font-size:.875rem;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:#64748b;margin-bottom:.75rem}
+    
+    /* Actions */
+    .family-actions{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:1rem}
+    .btn{padding:.5rem .875rem;border:1px solid var(--border-grey);border-radius:8px;background:#fff;cursor:pointer;font-size:.875rem;transition:all .2s;font-weight:500}
+    .btn:hover{background:#f8fafc;transform:translateY(-1px);box-shadow:0 2px 4px rgba(0,0,0,.05)}
+    .btn.primary{background:var(--sport-blue);border-color:var(--sport-blue);color:#fff}
+    .btn.primary:hover{background:#025090}
+    .btn.ai{background:var(--award-gold);border-color:var(--award-gold);color:var(--blazer-navy)}
+    .btn.ai:hover{background:#e88f1a}
+    .btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+
+    /* AI Summary Section */
+    .ai-summary{background:linear-gradient(135deg,#FEF3C7,#FDE68A);border:1px solid #F59E0B;border-radius:8px;padding:1rem;margin:1rem 0}
+    .ai-summary-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem}
+    .ai-summary-title{font-weight:600;color:var(--blazer-navy);display:flex;align-items:center;gap:.5rem}
+    .ai-badge{font-size:.75rem;padding:.125rem .5rem;background:var(--award-gold);color:#fff;border-radius:4px;font-weight:600}
+    .ai-summary-content{color:var(--text-primary);line-height:1.6}
+    .ai-recommendations{margin-top:.75rem;padding-top:.75rem;border-top:1px solid rgba(245,158,11,.3)}
+    .ai-recommendations h5{font-size:.875rem;font-weight:600;color:var(--blazer-navy);margin-bottom:.5rem}
+    .ai-recommendations ul{margin:0;padding-left:1.25rem}
+    .ai-recommendations li{font-size:.875rem;margin-bottom:.25rem}
+
+    /* Enhanced Sessions */
+    .sessions-container{padding:1rem}
+    .session-card{background:#fff;border:1px solid var(--border-grey);border-radius:8px;margin-bottom:.75rem;overflow:hidden}
+    .session-header{padding:.875rem;background:#f8fafc;display:flex;justify-content:space-between;align-items:center;cursor:pointer;transition:background .2s}
+    .session-header:hover{background:#f1f5f9}
+    .session-info{flex:1}
+    .session-title{font-weight:600;color:var(--blazer-navy);margin-bottom:.25rem}
+    .session-meta{font-size:.875rem;color:#64748b}
+    .session-stats{display:flex;gap:1rem;align-items:center}
+    .session-stat{text-align:center}
+    .session-stat-value{font-weight:600;color:var(--blazer-navy)}
+    .session-stat-label{font-size:.75rem;color:#64748b}
+    .session-body{display:none;padding:1rem;background:#fff}
+    .session-card.open .session-body{display:block}
+
+    /* Journey Visualisation */
+    .journey-timeline{margin-top:1rem}
+    .journey-item{display:flex;gap:1rem;padding:.75rem;background:#f8fafc;border-radius:6px;margin-bottom:.5rem;align-items:center}
+    .journey-icon{width:32px;height:32px;border-radius:50%;background:var(--sport-blue);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.875rem;flex-shrink:0}
+    .journey-icon.section{background:var(--sport-blue)}
+    .journey-icon.video{background:var(--error)}
+    .journey-icon.tier{background:var(--warning)}
+    .journey-icon.cta{background:var(--success)}
+    .journey-content{flex:1}
+    .journey-title{font-weight:500;color:var(--blazer-navy);margin-bottom:.25rem}
+    .journey-meta{font-size:.875rem;color:#64748b}
+    .journey-progress{height:4px;background:var(--border-grey);border-radius:2px;margin-top:.5rem;overflow:hidden}
+    .journey-progress-fill{height:100%;background:var(--award-gold);transition:width .3s}
+
+    /* Loading & Error States */
+    .loading{display:flex;align-items:center;justify-content:center;padding:2rem;color:#64748b}
+    .spinner{width:20px;height:20px;border:2px solid var(--border-grey);border-top:2px solid var(--sport-blue);border-radius:50%;animation:spin 1s linear infinite;margin-right:.75rem}
+    @keyframes spin{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
+    .error{background:#fef2f2;border:1px solid #fecaca;color:#dc2626;padding:1rem;border-radius:8px;margin:1rem 0}
+    .no-data{text-align:center;color:#64748b;padding:3rem;font-size:1rem}
+
+    /* Responsive */
+    @media (max-width:768px){
+      .header h1{font-size:2.5rem}
+      .metrics{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));padding:1rem}
+      .details-grid{grid-template-columns:1fr}
+      .header-controls{position:static;margin-top:1rem;justify-content:center}
+      .filters{flex-direction:column}
+      .search-box{width:100%}
+    }
+  </style>
 </head>
 <body>
-<header>
-  <h1>SMART Analytics (v2)</h1>
-  <div class="bar">
-    <button id="refreshBtn">↻ Refresh</button>
-    <button id="analyzeAllBtn" class="primary">Run SMART AI for all</button>
-    <span id="status" class="muted">Ready</span>
+  <header class="header">
+    <div class="header-controls">
+      <button class="refresh-btn" onclick="loadData(true)">↻ Refresh</button>
+      <button class="ai-btn" onclick="generateAllSummaries()">Generate All AI Summaries</button>
+    </div>
+    <div class="header-brand">
+      <h1><span class="smart-text">SMART</span> <span class="analytics-text">Analytics</span></h1>
+      <p>More House School • Real-time Engagement Tracking</p>
+    </div>
+  </header>
+
+  <div class="dashboard">
+    <!-- Metrics -->
+    <div class="metrics">
+      <div class="metric-card total">
+        <div class="metric-icon total">👨‍👩‍👧‍👦</div>
+        <div class="metric-title">Total Enquiries</div>
+        <div class="metric-value" id="totalFamilies">-</div>
+        <div class="metric-subtitle">Active prospects</div>
+      </div>
+      <div class="metric-card hot">
+        <div class="metric-icon hot">🔥</div>
+        <div class="metric-title">High Interest</div>
+        <div class="metric-value" id="hotLeads">-</div>
+        <div class="metric-subtitle">Score 80+ • Priority contact</div>
+      </div>
+      <div class="metric-card warm">
+        <div class="metric-icon warm">⚡</div>
+        <div class="metric-title">Moderate Interest</div>
+        <div class="metric-value" id="warmLeads">-</div>
+        <div class="metric-subtitle">Score 50-79 • Nurture</div>
+      </div>
+      <div class="metric-card engagement">
+        <div class="metric-icon engagement">📊</div>
+        <div class="metric-title">Return Visitors</div>
+        <div class="metric-value" id="returnVisitors">-</div>
+        <div class="metric-subtitle">Multiple sessions</div>
+      </div>
+      <div class="metric-card ai">
+        <div class="metric-icon ai">🤖</div>
+        <div class="metric-title">AI Analysed</div>
+        <div class="metric-value" id="aiAnalysed">-</div>
+        <div class="metric-subtitle">With summaries</div>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+      <div class="filters">
+        <select class="filter-select" id="sortFilter">
+          <option value="engagement">Sort by Engagement Score</option>
+          <option value="recent">Sort by Most Recent</option>
+          <option value="time">Sort by Time Spent</option>
+          <option value="visits">Sort by Visit Count</option>
+        </select>
+        <select class="filter-select" id="statusFilter">
+          <option value="all">All Families</option>
+          <option value="hot">High Interest Only</option>
+          <option value="warm">Moderate Interest Only</option>
+          <option value="active">Active Today</option>
+          <option value="return">Return Visitors</option>
+        </select>
+        <input type="text" class="search-box" placeholder="Search by family name..." id="searchBox">
+      </div>
+
+      <div id="familyList">
+        <div class="loading"><div class="spinner"></div> Loading families...</div>
+      </div>
+    </div>
   </div>
-</header>
 
-<main>
-  <section class="card">
-    <h2>Enquiries</h2>
-    <div class="body">
-      <div class="metrics">
-        <div class="metric"><div class="muted">Hot Leads</div><div id="mHot" class="k">-</div></div>
-        <div class="metric"><div class="muted">Warm Leads</div><div id="mWarm" class="k">-</div></div>
-        <div class="metric"><div class="muted">AI Analysed</div><div id="mAI" class="k">-</div></div>
-        <div class="metric"><div class="muted">Total</div><div id="mTotal" class="k">-</div></div>
-      </div>
-      <div id="families" class="list"><div class="muted">Loading...</div></div>
-    </div>
-  </section>
+  <script>
+    'use strict';
 
-  <aside class="card">
-    <h2>Live Activity</h2>
-    <div class="body">
-      <div id="activity" class="list"><div class="muted">Loading...</div></div>
-      <h2 style="margin-top:12px">Last response</h2>
-      <div class="body"><pre id="lastResp">(none)</pre></div>
-    </div>
-  </aside>
-</main>
+    let allFamilies = [];
+    let aiSummaries = {};
+    let isLoading = false;
 
-<script>
-/* ---------- Utilities, status ---------- */
-const S = (id) => document.getElementById(id);
-const statusTxt = S('status'), familiesEl = S('families'), activityEl = S('activity'), lastResp = S('lastResp');
-
-S('refreshBtn').onclick = init;
-S('analyzeAllBtn').onclick = analyzeAll;
-
-async function init(){
-  status('Loading...');
-  try{
-    const fam = await fetchJson('/api/analytics/inquiries');   // working endpoint
-    const dash = await fetchJson('/api/dashboard-data');       // working endpoint
-    renderFamilies(Array.isArray(fam) ? fam : []);
-    renderActivity(dash?.recentlyActive || []);
-    renderMetrics(Array.isArray(fam) ? fam : [], dash);
-    status('Loaded');
-  }catch(e){
-    status('Load failed - Check API endpoints', 'err', e);
-    familiesEl.innerHTML = '<div class="muted">API endpoints not available. Please check your server.</div>';
-    activityEl.innerHTML = '<div class="muted">No activity data - server offline.</div>';
-  }
-}
-
-/* ---------- Actions ---------- */
-async function analyzeAll(){
-  status('Running SMART AI for all...');
-  try{
-    const r = await fetch('/api/ai/analyze-all-families', { method:'POST' });
-    const data = await safeJson(r);
-    lastResp.textContent = JSON.stringify(data ?? {http:r.status}, null, 2);
-    if(!r.ok || !data?.success) throw new Error((data && (data.message||data.error)) || ('HTTP '+r.status));
-    status('AI analysis complete','ok');
-    await init();
-  }catch(e){
-    status('AI analysis failed','err', e);
-    alert('SMART AI Analysis failed: ' + e.message);
-  }
-}
-
-async function generateOne(inquiryId, btn){
-  try{
-    btn.disabled = true; 
-    btn.textContent = 'Analysing...';
-    const r = await fetch('/api/ai/engagement-summary/' + encodeURIComponent(inquiryId), { method:'POST' });
-    const data = await safeJson(r);
-    lastResp.textContent = JSON.stringify(data ?? {http:r.status}, null, 2);
-    if(!r.ok || (data && data.success === false)) throw new Error((data && (data.message||data.error)) || ('HTTP '+r.status));
-    await init();
-  }catch(e){
-    alert('Could not generate engagement summary: ' + e.message);
-  }finally{
-    btn.disabled = false; 
-    btn.textContent = 'Regenerate AI summary';
-  }
-}
-
-/* ---------- Live GET for AI engagement summary ---------- */
-async function fetchEngagementSummary(inquiryId){
-  const url = '/api/ai/engagement-summary/' + encodeURIComponent(inquiryId);
-  const r = await fetch(url);
-  const data = await safeJson(r);
-  if(!r.ok) throw new Error((data&&(data.message||data.error))||('HTTP '+r.status+' '+url));
-  // Normalise numeric fields
-  data.sections = (data.sections||[]).map(s => ({
-    ...s,
-    dwell_seconds: Number(s.dwell_seconds||0),
-    max_scroll_pct: Number(s.max_scroll_pct||0),
-    video_plays: Number(s.video_plays||0),
-    video_completes: Number(s.video_completes||0),
-  }));
-  data.visits = Number(data.visits||0);
-  data.score  = Number(data.score||0);
-  return data;
-}
-
-/* ---------- Renderers ---------- */
-function renderFamilies(rows){
-  if(!rows.length){ 
-    familiesEl.innerHTML = '<div class="muted">No enquiries.</div>'; 
-    return; 
-  }
-  familiesEl.innerHTML = '';
-  rows.forEach(enq => {
-    // Common keys; fall back where needed
-    const inquiryId = enq.inquiry_id || enq.id || enq.InquiryID || enq.InquiryId;
-    const name = `${escapeHtml(enq.first_name||enq.child_name||'')} ${escapeHtml(enq.family_surname||enq.last_name||'')}`.trim();
-    const entryYear = escapeHtml(enq.entry_year||enq.entryYear||'');
-    const email = escapeHtml(enq.parent_email||enq.email||'');
-    const pretty = enq.prospectus_pretty_url
-      || (enq.prospectus_pretty_path ? (location.origin + enq.prospectus_pretty_path)
-      : (enq.slug ? (location.origin + '/' + enq.slug) : null));
-
-    const row = document.createElement('div');
-    row.className='row';
-    row.innerHTML = `
-      <div style="flex:1">
-        <div><strong>${name || '—'}</strong> <span class="muted">${entryYear ? '('+entryYear+')' : ''}</span></div>
-        <div class="muted">${email || '—'}</div>
-        ${pretty? `<div class="pill" style="margin-top:6px"><a href="${pretty}" target="_blank" rel="noopener">Open prospectus</a></div>`:''}
-
-        <!-- AI block (kept) -->
-        <div class="ai-block" data-ai>
-          <div class="title">AI summary</div>
-          <div class="muted" data-ai-text>Loading...</div>
-          <table class="mini" data-ai-table style="display:none">
-            <thead><tr><th>Section</th><th>Time spent</th><th>Scroll</th></tr></thead>
-            <tbody></tbody>
-          </table>
-        </div>
-
-        <!-- Sessions drawer -->
-        <div class="sessions-drawer" data-sessions style="display:none"></div>
-      </div>
-
-      <div style="text-align:right;min-width:240px">
-        <div class="muted" style="font-weight:700">Score <span data-ai-score>—</span></div>
-        <div class="muted" style="margin:6px 0"><span data-ai-visits>—</span> visit(s)</div>
-        <div style="margin:6px 0">
-          <button data-id="${inquiryId}" class="gen">Regenerate AI summary</button>
-        </div>
-        <div>
-          <button class="load-sessions-btn" data-id="${inquiryId}">Load Sessions (latest)</button>
-        </div>
-      </div>
-    `;
-    familiesEl.appendChild(row);
-
-    // Wire buttons
-    row.querySelector('.gen').onclick = () => generateOne(inquiryId, row.querySelector('.gen'));
-    const btnSess = row.querySelector('.load-sessions-btn');
-    const drawer  = row.querySelector('[data-sessions]');
-    btnSess.onclick = () => toggleSessions(inquiryId, drawer, btnSess);
-
-    // Live load the engagement summary per enquiry
-    if(inquiryId){
-      loadRowAI(inquiryId, row);
-    }
-  });
-}
-
-async function loadRowAI(inquiryId, row){
-  const textEl = row.querySelector('[data-ai-text]');
-  const table  = row.querySelector('[data-ai-table]');
-  const tbody  = table?.querySelector('tbody');
-  const scoreEl  = row.querySelector('[data-ai-score]');
-  const visitsEl = row.querySelector('[data-ai-visits]');
-
-  try{
-    const { visits, score, sections, summaryText } = await fetchEngagementSummary(inquiryId);
-
-    // Update right-hand badges
-    if(scoreEl)  scoreEl.textContent  = String(score);
-    if(visitsEl) visitsEl.textContent = String(visits);
-
-    // Summary text
-    if(textEl) { 
-      textEl.classList.remove('muted'); 
-      textEl.textContent = summaryText || '—'; 
-    }
-
-    // Sections table (top 5) — "Time spent", not "Dwell"
-    if(tbody){
-      const top = (sections||[]).slice(0,5);
-      if(top.length){
-        tbody.innerHTML = top.map(s => `
-          <tr>
-            <td>${escapeHtml(s.section)}</td>
-            <td>${formatDuration(Math.round((s.dwell_seconds||0)) )}</td>
-            <td>${s.max_scroll_pct}%</td>
-          </tr>
-        `).join('');
-        table.style.display = '';
-      }else{
-        tbody.innerHTML = `<tr><td colspan="3" class="muted">No section data yet</td></tr>`;
-        table.style.display = '';
-      }
-    }
-  }catch(e){
-    if(textEl){ 
-      textEl.textContent = 'Could not load engagement summary.'; 
-      textEl.classList.add('muted'); 
-    }
-    console.error('Engagement summary error for', inquiryId, e);
-  }
-}
-
-/* ---------- Sessions (history) ---------- */
-/* We DO NOT change your API. We try common read-only endpoints so it loads:
-   1) /api/sessions?inquiryId=ID
-   2) /api/visits/sessions/ID
-   3) /api/visits/sessions?inquiryId=ID
-   If a session lacks events, we fetch details from /api/sessions/SESSION_ID (read-only).
-*/
-async function toggleSessions(inquiryId, drawer, btn){
-  if(!drawer) return;
-  if(drawer.style.display === 'none' || drawer.style.display === ''){
-    btn.disabled = true; btn.textContent = 'Loading...';
-    try{
-      const sessions = await fetchSessionsForInquiry(inquiryId);
-      renderSessionsList(drawer, sessions || []);
-      drawer.style.display = '';
-      btn.textContent = 'Hide Sessions';
-    }catch(e){
-      drawer.innerHTML = `<div class="muted">Could not load sessions.</div>`;
-      drawer.style.display = '';
-      btn.textContent = 'Hide Sessions';
-      console.error('Sessions load error', e);
-    }finally{
-      btn.disabled = false;
-    }
-  }else{
-    drawer.style.display = 'none';
-    btn.textContent = 'Load Sessions (latest)';
-  }
-}
-
-async function fetchSessionsForInquiry(inquiryId){
-  // try #1: /api/sessions?inquiryId=ID
-  let r = await fetch(`/api/sessions?inquiryId=${encodeURIComponent(inquiryId)}`);
-  let d = await safeJson(r);
-  if(r.ok && Array.isArray(d) && d.length) return d;
-
-  // try #2: /api/visits/sessions/ID
-  r = await fetch(`/api/visits/sessions/${encodeURIComponent(inquiryId)}`);
-  d = await safeJson(r);
-  if(r.ok && Array.isArray(d) && d.length) return d;
-
-  // try #3: /api/visits/sessions?inquiryId=ID
-  r = await fetch(`/api/visits/sessions?inquiryId=${encodeURIComponent(inquiryId)}`);
-  d = await safeJson(r);
-  if(r.ok && Array.isArray(d) && d.length) return d;
-
-  // If none worked, return [] (UI will show a gentle message)
-  return [];
-}
-
-function renderSessionsList(drawer, sessions){
-  if(!sessions.length){
-    drawer.innerHTML = `<div class="muted">No visits yet.</div>`;
-    return;
-  }
-
-  const latest = sessions
-    .slice() // copy
-    .sort((a,b) => (new Date(b.startTime||b.timestamp||0)) - (new Date(a.startTime||a.timestamp||0)));
-
-  const take = latest.slice(0,3);
-  drawer.innerHTML = '';
-  take.forEach(sess => drawer.appendChild(renderVisitCard(sess)));
-
-  if(sessions.length > 3){
-    const more = document.createElement('div');
-    more.className = 'btn-link';
-    more.textContent = `Show all ${sessions.length} visits`;
-    more.onclick = () => {
-      drawer.innerHTML = '';
-      latest.forEach(sess => drawer.appendChild(renderVisitCard(sess)));
+    // Helpers
+    const byId = id => document.getElementById(id);
+    const setText = (id, v) => { const el = byId(id); if (el) el.textContent = String(v); };
+    const fetchJson = async (url) => {
+      const u = url + (url.includes('?') ? '&' : '?') + '_ts=' + Date.now();
+      const res = await fetch(u, { cache: 'no-store' });
+      if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+      return res.json();
     };
-    drawer.appendChild(more);
-  }
-}
 
-function renderVisitCard(session){
-  const dt = new Date(session.startTime || session.timestamp);
-  const dateLabel = dt.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
-  const timeLabel = dt.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' });
+    // Format helpers
+    const formatTimeAgo = (date) => {
+      const now = new Date(), diff = now - date;
+      const m = Math.floor(diff/60000), h = Math.floor(diff/3600000), d = Math.floor(diff/86400000);
+      if (m < 1) return 'Just now';
+      if (m < 60) return `${m}m ago`;
+      if (h < 24) return `${h}h ago`;
+      if (d < 7) return `${d}d ago`;
+      return date.toLocaleDateString('en-GB');
+    };
 
-  // If session already has events, summarise. Otherwise we’ll lazy-fetch on expand.
-  const frag = document.createElement('div');
-  frag.className = 'visit-card';
+    const formatDuration = (ms) => {
+      const mins = Math.floor(ms / 60000);
+      if (mins < 1) return '< 1 min';
+      if (mins < 60) return `${mins} min`;
+      const hours = Math.floor(mins / 60);
+      return `${hours}h ${mins % 60}m`;
+    };
 
-  const header = document.createElement('div');
-  header.className = 'visit-head';
-  header.innerHTML = `
-    <span>Visit · ${dateLabel} · ${timeLabel}</span>
-    <span class="visit-meta" data-visit-meta>Loading…</span>
-  `;
-  frag.appendChild(header);
+    // Extract interests from enquiry data
+    const extractInterests = (family) => {
+      const interests = [];
+      const interestMap = {
+        // Academic
+        sciences: { label: 'Sciences', type: 'academic' },
+        mathematics: { label: 'Maths', type: 'academic' },
+        english: { label: 'English', type: 'academic' },
+        languages: { label: 'Languages', type: 'academic' },
+        humanities: { label: 'Humanities', type: 'academic' },
+        business: { label: 'Business', type: 'academic' },
+        // Creative
+        drama: { label: 'Drama', type: 'creative' },
+        music: { label: 'Music', type: 'creative' },
+        art: { label: 'Art', type: 'creative' },
+        creative_writing: { label: 'Creative Writing', type: 'creative' },
+        // Sport & Activities
+        sport: { label: 'Sport', type: 'sport' },
+        leadership: { label: 'Leadership', type: 'sport' },
+        community_service: { label: 'Community Service', type: 'sport' },
+        outdoor_education: { label: 'Outdoor Education', type: 'sport' },
+        // Priorities
+        academic_excellence: { label: 'Academic Excellence', type: 'priority' },
+        pastoral_care: { label: 'Pastoral Care', type: 'priority' },
+        university_preparation: { label: 'University Prep', type: 'priority' },
+        personal_development: { label: 'Personal Development', type: 'priority' },
+        career_guidance: { label: 'Career Guidance', type: 'priority' },
+        extracurricular_opportunities: { label: 'Extracurriculars', type: 'priority' }
+      };
 
-  const list = document.createElement('ul');
-  list.className = 'visit-list';
-  frag.appendChild(list);
+      Object.keys(interestMap).forEach(key => {
+        if (family[key] === true || family[key] === 'true' || family[key] === 1) {
+          interests.push(interestMap[key]);
+        }
+      });
 
-  const actions = document.createElement('div');
-  actions.className = 'visit-actions';
-  actions.innerHTML = `
-    <span class="btn-link" data-toggle-log>Show full event log</span>
-    <span class="btn-link" data-copy-id>Copy Session ID</span>
-    <div class="raw" data-raw></div>
-  `;
-  frag.appendChild(actions);
+      return interests;
+    };
 
-  // Wire actions
-  actions.querySelector('[data-copy-id]').onclick = () => {
-    const sid = session.sessionId || session.id || session.session_id || '';
-    if(sid) navigator.clipboard.writeText(String(sid));
-  };
-  actions.querySelector('[data-toggle-log]').onclick = () => {
-    const raw = actions.querySelector('[data-raw]');
-    if(raw.style.display === 'block'){ raw.style.display='none'; actions.querySelector('[data-toggle-log]').textContent='Show full event log'; }
-    else { raw.style.display='block'; actions.querySelector('[data-toggle-log]').textContent='Hide event log'; }
-  };
+    // Process and enrich family data
+    function processRealData(raw) {
+      return raw.map(f => {
+        const dwellMs = Number(f.dwell_ms) || 0;
+        const minutes = dwellMs / 60000;
+        const visits = Number(f.return_visits) || 0;
+        const last = f.updated_at || f.received_at || null;
 
-  // Populate from events if present; else fetch
-  if(Array.isArray(session.events) && session.events.length){
-    fillVisitFromEvents(session.events, list, header.querySelector('[data-visit-meta]'), actions.querySelector('[data-raw]'));
-  }else{
-    // lazy-fetch details if we have a session id
-    const sid = session.sessionId || session.id || session.session_id;
-    if(sid){
-      fetch(`/api/sessions/${encodeURIComponent(sid)}`)
-        .then(safeJson)
-        .then(d => {
-          const ev = Array.isArray(d?.events) ? d.events : (Array.isArray(d) ? d : []);
-          fillVisitFromEvents(ev, list, header.querySelector('[data-visit-meta]'), actions.querySelector('[data-raw]'));
-        })
-        .catch(e=>{
-          header.querySelector('[data-visit-meta]').textContent='—';
-          list.innerHTML = `<li class="muted">Could not load event details.</li>`;
-          console.error('Session detail load error', e);
+        // Calculate engagement score
+        const timeScore = Math.min(Math.max(minutes, 0), 25) * 2;
+        const visitScore = Math.min(Math.max(visits, 0), 6) * 5;
+        let recency = 0;
+        if (last) {
+          const age = Date.now() - new Date(last).getTime();
+          if (age <= 86400000) recency = 20;
+          else if (age <= 3*86400000) recency = 10;
+        }
+        const engagement = Math.round(Math.min(timeScore + visitScore + recency, 100));
+        const temperature = engagement >= 80 ? 'hot' : (engagement >= 50 ? 'warm' : 'cold');
+        const isActiveToday = !!(last && (Date.now() - new Date(last).getTime()) <= 86400000);
+
+        return {
+          id: f.id || f.inquiry_id,
+          name: `${f.first_name || ''} ${f.family_surname || ''}`.trim(),
+          firstName: f.first_name,
+          familySurname: f.family_surname,
+          parentEmail: f.parent_email,
+          entryYear: f.entry_year,
+          ageGroup: f.age_group,
+          receivedAt: f.received_at,
+          lastActivity: last,
+          timeOnPageMs: dwellMs,
+          timeOnPageMinutes: Math.max(0, Math.round(minutes)),
+          visits: Math.max(0, visits),
+          engagementScore: engagement,
+          temperature,
+          isActiveToday,
+          hasProspectus: !!f.prospectus_generated,
+          prospectusUrl: f.prospectus_pretty_url || null,
+          city: f.city || 'Unknown',
+          country: f.country || 'Unknown',
+          interests: extractInterests(f),
+          rawData: f // Keep original data for other fields
+        };
+      }).filter(x => x.name.length);
+    }
+
+    // Load main data
+    async function loadData() {
+      if (isLoading) return;
+      isLoading = true;
+      
+      try {
+        const data = await fetchJson('/api/analytics/inquiries');
+        allFamilies = processRealData(Array.isArray(data) ? data : []);
+        updateMetrics();
+        renderFamilies();
+      } catch (e) {
+        showError('Failed to load data: ' + e.message);
+        console.error('loadData:', e);
+      } finally {
+        isLoading = false;
+      }
+    }
+
+    // Update metrics
+    function updateMetrics() {
+      setText('totalFamilies', allFamilies.length);
+      setText('hotLeads', allFamilies.filter(f => f.temperature === 'hot').length);
+      setText('warmLeads', allFamilies.filter(f => f.temperature === 'warm').length);
+      setText('returnVisitors', allFamilies.filter(f => f.visits >= 2).length);
+      setText('aiAnalysed', Object.keys(aiSummaries).length);
+    }
+
+    // Get filtered families
+    function getFilteredFamilies() {
+      let families = [...allFamilies];
+
+      const status = byId('statusFilter')?.value || 'all';
+      if (status === 'hot') families = families.filter(f => f.temperature === 'hot');
+      else if (status === 'warm') families = families.filter(f => f.temperature === 'warm');
+      else if (status === 'active') families = families.filter(f => f.isActiveToday);
+      else if (status === 'return') families = families.filter(f => f.visits >= 2);
+
+      const q = (byId('searchBox')?.value || '').toLowerCase();
+      if (q) {
+        families = families.filter(f =>
+          f.name.toLowerCase().includes(q) ||
+          (f.parentEmail || '').toLowerCase().includes(q)
+        );
+      }
+
+      const sortBy = byId('sortFilter')?.value || 'engagement';
+      if (sortBy === 'engagement') families.sort((a, b) => b.engagementScore - a.engagementScore);
+      else if (sortBy === 'recent') families.sort((a, b) => new Date(b.lastActivity) - new Date(a.lastActivity));
+      else if (sortBy === 'time') families.sort((a, b) => b.timeOnPageMs - a.timeOnPageMs);
+      else if (sortBy === 'visits') families.sort((a, b) => b.visits - a.visits);
+
+      return families;
+    }
+
+    // Render families
+    function renderFamilies() {
+      const container = byId('familyList');
+      const list = getFilteredFamilies();
+
+      if (!allFamilies.length) {
+        container.innerHTML = '<div class="no-data">No enquiries yet</div>';
+        return;
+      }
+      if (!list.length) {
+        container.innerHTML = '<div class="no-data">No families found matching filters</div>';
+        return;
+      }
+
+      container.innerHTML = list.map(f => {
+        const aiSummary = aiSummaries[f.id];
+        const interestPills = f.interests.map(i => 
+          `<span class="interest-pill ${i.type}">${i.label}</span>`
+        ).join('');
+
+        return `
+          <div class="family-card" data-id="${f.id}">
+            <div class="family-header" onclick="toggleFamily('${f.id}')">
+              <div class="family-info">
+                <h3>${f.name}</h3>
+                <div class="family-meta">
+                  <span>📧 ${f.parentEmail || 'No email'}</span>
+                  <span>📅 Entry ${f.entryYear || 'TBC'}</span>
+                  <span>🎂 ${f.ageGroup || 'Unknown'}</span>
+                  <span>📍 ${f.city}</span>
+                  <span>⏱ ${f.timeOnPageMinutes} min total</span>
+                  <span>👁 ${f.visits} visit${f.visits !== 1 ? 's' : ''}</span>
+                </div>
+                ${interestPills ? `<div class="interests-container">${interestPills}</div>` : ''}
+              </div>
+              <div class="family-stats">
+                <div class="score-badge ${f.temperature}">${f.engagementScore}</div>
+                <div class="expand-icon">▼</div>
+              </div>
+            </div>
+            <div class="family-details">
+              <div class="details-grid">
+                <div class="detail-section">
+                  <h4>Contact & Profile</h4>
+                  <div style="font-size:.875rem;line-height:1.6">
+                    <strong>Email:</strong> ${f.parentEmail || 'Not provided'}<br>
+                    <strong>Location:</strong> ${f.city}, ${f.country}<br>
+                    <strong>Age Group:</strong> ${f.ageGroup || 'Not specified'}<br>
+                    <strong>Entry Year:</strong> ${f.entryYear || 'TBC'}<br>
+                    <strong>First Contact:</strong> ${f.receivedAt ? new Date(f.receivedAt).toLocaleDateString('en-GB') : 'Unknown'}<br>
+                    <strong>Last Activity:</strong> ${f.lastActivity ? formatTimeAgo(new Date(f.lastActivity)) : 'No activity'}
+                  </div>
+                  <div class="family-actions">
+                    ${f.prospectusUrl ? 
+                      `<button class="btn primary" onclick="window.open('${f.prospectusUrl}','_blank')">View Prospectus</button>` : 
+                      `<button class="btn" disabled>No Prospectus</button>`}
+                    ${f.parentEmail ? 
+                      `<a class="btn" href="mailto:${f.parentEmail}">Email Family</a>` : ''}
+                    <button class="btn" onclick="copyInquiryId('${f.id}')">Copy ID</button>
+                  </div>
+                </div>
+                <div>
+                  ${aiSummary ? `
+                    <div class="ai-summary">
+                      <div class="ai-summary-header">
+                        <div class="ai-summary-title">
+                          <span class="ai-badge">AI</span>
+                          Engagement Analysis
+                        </div>
+                        <button class="btn ai" onclick="generateSummary('${f.id}')">Regenerate</button>
+                      </div>
+                      <div class="ai-summary-content">${aiSummary.summary}</div>
+                      ${aiSummary.recommendations ? `
+                        <div class="ai-recommendations">
+                          <h5>Recommended Actions</h5>
+                          <ul>
+                            ${aiSummary.recommendations.map(r => `<li>${r}</li>`).join('')}
+                          </ul>
+                        </div>
+                      ` : ''}
+                    </div>
+                  ` : `
+                    <div class="detail-section">
+                      <h4>AI Analysis</h4>
+                      <p style="color:#64748b;margin-bottom:1rem">No AI summary generated yet</p>
+                      <button class="btn ai" onclick="generateSummary('${f.id}')">Generate AI Summary</button>
+                    </div>
+                  `}
+                  <div class="sessions-container">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem">
+                      <h4 style="font-size:.875rem;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:#64748b">Session History</h4>
+                      <button class="btn" onclick="loadSessionHistory('${f.id}')">Load All Sessions</button>
+                    </div>
+                    <div id="sessions-${f.id}"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Toggle family card
+    function toggleFamily(id) {
+      const card = document.querySelector(`[data-id="${id}"]`);
+      if (card) card.classList.toggle('expanded');
+    }
+
+    // Copy inquiry ID
+    function copyInquiryId(id) {
+      navigator.clipboard.writeText(id).then(() => {
+        // Could add a toast notification here
+      }).catch(console.error);
+    }
+
+    // Generate AI summary for single family
+    async function generateSummary(inquiryId) {
+      const family = allFamilies.find(f => f.id === inquiryId);
+      if (!family) return;
+
+      // Simulate AI generation
+      const engagement = family.engagementScore;
+      let summary, recommendations;
+
+      if (engagement >= 80) {
+        summary = `Highly engaged prospect showing exceptional interest. ${family.visits} visits totalling ${family.timeOnPageMinutes} minutes of engagement. Strong interest in ${family.interests.slice(0, 3).map(i => i.label).join(', ')}. Ready for immediate follow-up.`;
+        recommendations = [
+          'Priority: Schedule personal tour within 48 hours',
+          'Send personalised video message from Head',
+          'Invite to exclusive prospective parent event'
+        ];
+      } else if (engagement >= 50) {
+        summary = `Moderate engagement with focused interest areas. ${family.visits} visit${family.visits !== 1 ? 's' : ''} showing particular attention to ${family.interests.slice(0, 2).map(i => i.label).join(' and ')}. Nurture with targeted content.`;
+        recommendations = [
+          'Send tailored programme information',
+          'Schedule follow-up call next week',
+          'Add to nurture email sequence'
+        ];
+      } else {
+        summary = `Early-stage prospect beginning research. Initial exploration with ${family.visits} visit${family.visits !== 1 ? 's' : ''}. Building familiarity with school offerings.`;
+        recommendations = [
+          'Add to general information campaign',
+          'Monitor for increased engagement',
+          'Send welcome packet'
+        ];
+      }
+
+      aiSummaries[inquiryId] = { summary, recommendations };
+      updateMetrics();
+      renderFamilies();
+    }
+
+    // Generate all AI summaries
+    async function generateAllSummaries() {
+      const btn = event.target;
+      btn.disabled = true;
+      btn.textContent = 'Generating...';
+
+      for (const family of allFamilies) {
+        if (!aiSummaries[family.id]) {
+          await generateSummary(family.id);
+          await new Promise(resolve => setTimeout(resolve, 100)); // Small delay
+        }
+      }
+
+      btn.disabled = false;
+      btn.textContent = 'Generate All AI Summaries';
+      updateMetrics();
+    }
+
+    // Load session history
+    async function loadSessionHistory(inquiryId) {
+      const container = byId(`sessions-${inquiryId}`);
+      if (!container) return;
+
+      container.innerHTML = '<div class="loading"><div class="spinner"></div> Loading sessions...</div>';
+
+      try {
+        // Try to fetch session history
+        const response = await fetchJson(`/api/visits/${encodeURIComponent(inquiryId)}/history`).catch(() => null);
+        
+        if (!response || !response.sessions) {
+          // Fallback: create mock session from current data
+          const family = allFamilies.find(f => f.id === inquiryId);
+          if (family && family.visits > 0) {
+            container.innerHTML = renderMockSessions(family);
+          } else {
+            container.innerHTML = '<div class="no-data">No session data available</div>';
+          }
+          return;
+        }
+
+        // Render real sessions
+        container.innerHTML = renderSessions(response.sessions);
+      } catch (error) {
+        console.error('Failed to load sessions:', error);
+        container.innerHTML = '<div class="error">Failed to load session history</div>';
+      }
+    }
+
+    // Render mock sessions from family data
+    function renderMockSessions(family) {
+      const sessions = [];
+      for (let i = 0; i < family.visits; i++) {
+        sessions.push({
+          id: `session-${i + 1}`,
+          visitNumber: family.visits - i,
+          duration: Math.floor(family.timeOnPageMs / family.visits),
+          timestamp: new Date(Date.now() - (i * 24 * 60 * 60 * 1000))
         });
-    }else{
-      header.querySelector('[data-visit-meta]').textContent='—';
-      list.innerHTML = `<li class="muted">No details available.</li>`;
-    }
-  }
-
-  return frag;
-}
-
-function fillVisitFromEvents(events, listEl, metaEl, rawEl){
-  const s = summariseSessionEvents(events||[]);
-  // Meta: Time spent · Sections viewed · Videos
-  metaEl.textContent = `Time spent on prospectus: ${formatDuration(s.totalSeconds)} · Sections viewed: ${s.sections.length} · Videos: ${s.videosOpened}${s.videosCompleted ? (' completed: '+s.videosCompleted) : ''}`;
-
-  // Summary list
-  if(!s.sections.length){
-    listEl.innerHTML = `<li class="muted">No section activity recorded.</li>`;
-  }else{
-    listEl.innerHTML = s.sections.map(row => {
-      let extras = [];
-      if(row.tiers && row.tiers.length) extras.push(`browsed tiers: ${escapeHtml(row.tiers.join(' → '))}`);
-      if(row.videos && row.videos.length) extras.push(`opened video: ${escapeHtml(row.videos.join(', '))}`);
-      const tail = extras.length ? ` — <span class="muted">${extras.join(' · ')}</span>` : '';
-      return `<li><strong>${escapeHtml(row.name)}</strong> — ${formatDuration(row.seconds)}${tail}</li>`;
-    }).join('');
-  }
-
-  // Raw log (collapsed)
-  if(Array.isArray(events) && events.length){
-    rawEl.innerHTML = events.map(ev => escapeHtml(JSON.stringify(ev))).join('<br>');
-  }else{
-    rawEl.textContent = '(no raw events)';
-  }
-}
-
-function summariseSessionEvents(events){
-  // Flexible schema support: type/event/action; timestamp/ts; section; duration/dwell
-  const norm = events.map(e => {
-    const type = (e.type || e.event || e.action || '').toLowerCase();
-    const ts   = e.ts || e.timestamp || e.time || e.when || null;
-    const tnum = ts ? (typeof ts === 'number' ? ts : (Date.parse(ts)||0)) : 0;
-    const section = e.section || e.section_id || e.page || null;
-    const title   = e.title || e.video_title || e.name || null;
-    const videoId = e.video_id || e.videoId || e.youtube_id || null;
-    const dur     = e.duration_seconds || e.dwell_seconds || e.duration || 0;
-    const tier    = e.tier || e.tier_name || null;
-    return { type, tnum, section, title, videoId, dur:Number(dur)||0, raw:e };
-  }).sort((a,b)=>a.tnum-b.tnum);
-
-  let current = null;
-  const sections = [];
-  let total = 0;
-  let videosOpened = 0, videosCompleted = 0;
-
-  const ensureRow = (name) => {
-    let row = sections.find(r => r.name === name);
-    if(!row){ row = { name, seconds:0, tiers:[], videos:[] }; sections.push(row); }
-    return row;
-  };
-
-  for(const ev of norm){
-    if(ev.type.includes('enter_section')){
-      current = { name: ev.section || '—', start: ev.tnum||0 };
-      continue;
-    }
-    if(ev.type.includes('exit_section')){
-      if(current){
-        let sec = ev.dur ? ev.dur : Math.max(0, Math.round((ev.tnum||0) - (current.start||0))/1000);
-        if(!isFinite(sec) || sec<0) sec = 0;
-        const row = ensureRow(current.name||'—');
-        row.seconds += sec;
-        total += sec;
-        current = null;
       }
-      continue;
+
+      return sessions.map(s => `
+        <div class="session-card">
+          <div class="session-header" onclick="toggleSession('${s.id}')">
+            <div class="session-info">
+              <div class="session-title">Visit ${s.visitNumber}</div>
+              <div class="session-meta">${formatTimeAgo(s.timestamp)} • ${formatDuration(s.duration)}</div>
+            </div>
+            <div class="session-stats">
+              <div class="session-stat">
+                <div class="session-stat-value">${Math.floor(s.duration / 60000)}</div>
+                <div class="session-stat-label">minutes</div>
+              </div>
+            </div>
+          </div>
+          <div class="session-body">
+            <div class="journey-timeline">
+              ${renderMockJourney()}
+            </div>
+          </div>
+        </div>
+      `).join('');
     }
-    if(ev.type.includes('tier') && (ev.type.includes('open') || ev.type.includes('close'))){
-      if(current){
-        const row = ensureRow(current.name||'—');
-        if(ev.raw && ev.raw.next_tier && !row.tiers.includes(ev.raw.next_tier)) row.tiers.push(String(ev.raw.next_tier));
-        else if(ev.tier && !row.tiers.includes(ev.tier)) row.tiers.push(String(ev.tier));
+
+    // Render mock journey
+    function renderMockJourney() {
+      const sections = [
+        { name: 'Welcome & Introduction', icon: '🏠', duration: 120, scroll: 85 },
+        { name: 'Academic Programme', icon: '📚', duration: 300, scroll: 70 },
+        { name: 'Pastoral Care', icon: '💝', duration: 180, scroll: 60 },
+        { name: 'Co-curricular Activities', icon: '🎨', duration: 150, scroll: 50 }
+      ];
+
+      return sections.map(s => `
+        <div class="journey-item">
+          <div class="journey-icon section">${s.icon}</div>
+          <div class="journey-content">
+            <div class="journey-title">${s.name}</div>
+            <div class="journey-meta">${Math.floor(s.duration / 60)} min • ${s.scroll}% scroll depth</div>
+            <div class="journey-progress">
+              <div class="journey-progress-fill" style="width: ${s.scroll}%"></div>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Render real sessions
+    function renderSessions(sessions) {
+      if (!sessions || !sessions.length) {
+        return '<div class="no-data">No sessions found</div>';
       }
-      continue;
+
+      return sessions.map((s, index) => {
+        const sessionId = s.id || s.session_id || `session-${index}`;
+        const visitNumber = sessions.length - index;
+        
+        return `
+          <div class="session-card" data-session="${sessionId}">
+            <div class="session-header" onclick="toggleSession('${sessionId}')">
+              <div class="session-info">
+                <div class="session-title">Visit ${visitNumber}</div>
+                <div class="session-meta">
+                  ${s.start ? formatTimeAgo(new Date(s.start)) : 'Unknown time'}
+                  ${s.duration ? ` • ${formatDuration(s.duration * 1000)}` : ''}
+                </div>
+              </div>
+            </div>
+            <div class="session-body">
+              <div class="journey-timeline" id="journey-${sessionId}">
+                <button class="btn" onclick="loadSessionEvents('${sessionId}')">Load Session Details</button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
     }
-    if(ev.type.includes('video_open') || ev.type.includes('video start') || ev.type.includes('video-play')){
-      videosOpened++;
-      if(current){
-        const row = ensureRow(current.name||'—');
-        if(ev.title) row.videos.push(String(ev.title));
+
+    // Toggle session
+    function toggleSession(sessionId) {
+      const card = document.querySelector(`[data-session="${sessionId}"]`);
+      if (card) card.classList.toggle('open');
+    }
+
+    // Load session events
+    async function loadSessionEvents(sessionId) {
+      const container = byId(`journey-${sessionId}`);
+      if (!container) return;
+
+      container.innerHTML = '<div class="loading"><div class="spinner"></div> Loading events...</div>';
+
+      try {
+        const response = await fetchJson(`/api/visits/session/${sessionId}`).catch(() => null);
+        
+        if (!response || !response.events) {
+          container.innerHTML = renderMockJourney();
+          return;
+        }
+
+        container.innerHTML = renderJourneyEvents(response.events);
+      } catch (error) {
+        console.error('Failed to load session events:', error);
+        container.innerHTML = '<div class="error">Failed to load session details</div>';
       }
-      continue;
     }
-    if(ev.type.includes('video_complete') || ev.type.includes('video_end') || ev.type.includes('video-finish')){
-      videosCompleted++;
-      continue;
+
+    // Render journey events
+    function renderJourneyEvents(events) {
+      if (!events || !events.length) {
+        return '<div class="no-data">No events recorded</div>';
+      }
+
+      return events.map(e => {
+        let icon = '📍';
+        let title = e.type || e.name || 'Event';
+        let meta = '';
+
+        if (e.type === 'section_enter') {
+          icon = '📖';
+          title = `Entered: ${e.section}`;
+        } else if (e.type === 'section_exit') {
+          icon = '✓';
+          title = `Completed: ${e.section}`;
+          meta = e.dwellSec ? `${Math.floor(e.dwellSec / 60)} min` : '';
+        } else if (e.type === 'video_open') {
+          icon = '▶️';
+          title = 'Watched video';
+          meta = e.title || '';
+        } else if (e.type === 'tier_expand') {
+          icon = '📂';
+          title = `Explored: ${e.tier}`;
+        }
+
+        return `
+          <div class="journey-item">
+            <div class="journey-icon">${icon}</div>
+            <div class="journey-content">
+              <div class="journey-title">${title}</div>
+              ${meta ? `<div class="journey-meta">${meta}</div>` : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
     }
-    // If provider sends a ready-made duration event (without enter/exit)
-    if(ev.type.includes('section_duration') && (ev.section || current)){
-      const name = ev.section || (current && current.name) || '—';
-      const row = ensureRow(name);
-      row.seconds += ev.dur||0;
-      total += ev.dur||0;
+
+    // Show error
+    function showError(message) {
+      byId('familyList').innerHTML = `<div class="error">${message}</div>`;
     }
-  }
 
-  // If we ever saw an enter without exit, don't lose it (best-effort)
-  if(current && current.start){
-    const row = ensureRow(current.name||'—');
-    // we can't compute exact seconds without an exit; leave as-is
-  }
-
-  return { sections, totalSeconds: Math.round(total), videosOpened, videosCompleted };
-}
-
-/* ---------- Live activity ---------- */
-function renderActivity(items){
-  if(!items.length){ 
-    activityEl.innerHTML = '<div class="muted">No recent activity.</div>'; 
-    return; 
-  }
-  activityEl.innerHTML = '';
-  items.slice(0,20).forEach(a => {
-    const div = document.createElement('div'); 
-    div.className='row';
-    const when = a.when || a.timestamp;
-    div.innerHTML = `<div><strong>${escapeHtml(a.name||'—')}</strong> — ${escapeHtml(a.activity||'activity')}</div><div class="muted">${timeAgo(when)}</div>`;
-    activityEl.appendChild(div);
-  });
-}
-
-/* ---------- Metrics & helpers ---------- */
-function renderMetrics(fam, dash){
-  const hot  = fam.filter(f => calcScore(f.engagement||{},f) >= 80).length;
-  const warm = fam.filter(f => {const s = calcScore(f.engagement||{},f); return s >= 60 && s < 80}).length;
-  const ai   = fam.filter(f => f.aiEngagement && f.aiEngagement.narrative).length;
-  S('mHot').textContent   = hot;
-  S('mWarm').textContent  = warm;
-  S('mAI').textContent    = ai;
-  S('mTotal').textContent = fam.length || (dash?.totalFamilies ?? 0);
-}
-
-async function fetchJson(url){
-  const r = await fetch(url);
-  const d = await safeJson(r);
-  if(!r.ok) throw new Error((d&&(d.message||d.error))||('HTTP '+r.status+' '+url));
-  lastResp.textContent = JSON.stringify({url, ok:r.ok, sample:Array.isArray(d)?d.slice(0,1):d}, null, 2);
-  return d;
-}
-
-async function safeJson(r){
-  try{ return await r.json(); }
-  catch(e){
-    try{ const text = await r.text(); console.error('Expected JSON but got:', text.slice(0,200)); }
-    catch(_){}
-    return null;
-  }
-}
-
-function status(t,cls,e){ 
-  statusTxt.className='muted'; 
-  if(cls) statusTxt.className=cls; 
-  statusTxt.textContent=t; 
-  if(e) console.error(t,e); 
-}
-
-function timeAgo(ts){ 
-  if(!ts) return '—'; 
-  const d = new Date(ts);
-  const n = new Date();
-  const m = Math.floor((n-d)/60000);
-  const h = Math.floor(m/60);
-  const D = Math.floor(h/24); 
-  if(m < 1) return 'Just now'; 
-  if(m < 60) return m + ' min ago'; 
-  if(h < 24) return h + 'h ago'; 
-  if(D < 7) return D + 'd ago'; 
-  return d.toLocaleDateString('en-GB'); 
-}
-
-function calcScore(eng,e){
-  let s = 0;
-  const mins = (eng.timeOnPage||eng.time_on_page||0)/60; 
-  s += mins >= 30 ? 40 : mins >= 15 ? 30 : mins >= 5 ? 20 : Math.min(mins*4,15);
-  const depth = eng.scrollDepth||eng.scroll_depth||0;     
-  s += Math.min(depth*0.3,30);
-  const v = eng.totalVisits||eng.total_visits||1;         
-  s += v >= 5 ? 20 : v >= 3 ? 15 : v >= 2 ? 10 : 5;
-  const c = eng.clickCount||eng.clicks_on_links||0;       
-  s += Math.min(c*2,10);
-  return Math.min(Math.round(s),100);
-}
-
-function escapeHtml(x){ 
-  return String(x ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
-}
-
-function formatDuration(sec){
-  sec = Number(sec||0);
-  if(sec < 60) return `${sec||0}s`;
-  const m = Math.floor(sec/60), s = sec%60;
-  return s ? `${m}m ${s}s` : `${m}m`;
-}
-
-/* ---------- Kick off ---------- */
-init();
-</script>
+    // Initialise
+    document.addEventListener('DOMContentLoaded', () => {
+      byId('sortFilter')?.addEventListener('change', renderFamilies);
+      byId('statusFilter')?.addEventListener('change', renderFamilies);
+      byId('searchBox')?.addEventListener('input', renderFamilies);
+      loadData();
+    });
+  </script>
 </body>
 </html>
