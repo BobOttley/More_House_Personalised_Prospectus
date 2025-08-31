@@ -1,307 +1,221 @@
-/* SIMPLE TRACKING.JS - Clean, focused, reliable */
+/* public/tracking.js — Lean tracker (visit, sections, tiers, videos) */
+
 (function () {
   'use strict';
-  
-  // Prevent double loading
-  if (window.__MH_TRACKING_ACTIVE__) {
-    console.warn('Tracking already active');
-    return;
-  }
-  window.__MH_TRACKING_ACTIVE__ = true;
+  if (window.__PP_TRACKING_ACTIVE__) return;
+  window.__PP_TRACKING_ACTIVE__ = true;
 
-  // ===== CONFIG =====
-  const INQUIRY_ID = window.MORE_HOUSE_INQUIRY_ID || 
-                     document.querySelector('meta[name="inquiry-id"]')?.content || 
-                     'UNKNOWN';
-  
-  const SESSION_ID = getOrCreateSessionId();
-  const HEARTBEAT_INTERVAL = 15000; // 15 seconds
-  
-  // ===== SIMPLE STATE =====
-  let sessionStart = Date.now();
-  let lastActivity = Date.now();
+  // ===== IDs =====
+  const INQUIRY_ID =
+    window.MORE_HOUSE_INQUIRY_ID ||
+    document.querySelector('meta[name="inquiry-id"]')?.content ||
+    'UNKNOWN';
+  const SESSION_ID = 'S-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+
+  // ===== Config =====
+  const POST_URL = '/api/track-engagement';
+  const FLUSH_INTERVAL_MS = 4000;    // send small batches
+  const SECTION_VIS_RATIO = 0.5;     // dominant threshold
+
+  // ===== State =====
+  const queue = [];
+  let flushTimer = null;
+
   let currentSection = null;
-  let sectionStartTime = null;
-  let totalTimeOnPage = 0;
-  let maxScrollPercent = 0;
-  let clickCount = 0;
-  let eventQueue = [];
-  
-  console.log('📊 Simple Tracking started:', { INQUIRY_ID, SESSION_ID });
+  let lastSectionEnterTs = null;
 
-  // ===== UTILITY FUNCTIONS =====
-  function getOrCreateSessionId() {
-    const key = 'mh_session_id';
-    let sessionId = localStorage.getItem(key);
-    if (!sessionId) {
-      sessionId = 'S-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
-      localStorage.setItem(key, sessionId);
-    }
-    return sessionId;
-  }
+  // Tier dwell (expand-only; infer exit on next expand / leave section / unload)
+  let activeTier = null;
+  let activeTierEnterTs = null;
 
-  function getCurrentSection() {
-    const sections = document.querySelectorAll('[data-track-section]');
-    let bestSection = null;
-    let bestVisibility = 0;
+  // ===== Helpers =====
+  const nowIso = () => new Date().toISOString();
+  const throttle = (fn, ms) => { let t = 0; return () => { const n = Date.now(); if (n - t > ms) { t = n; fn(); } }; };
+  const nameFor = (kind, action, tail) => `pp.v1.${kind}.${action}${tail ? '.' + tail : ''}`;
 
-    sections.forEach(section => {
-      const rect = section.getBoundingClientRect();
-      const visibility = Math.max(0, Math.min(rect.bottom, window.innerHeight) - Math.max(rect.top, 0));
-      const visibilityRatio = visibility / Math.max(1, rect.height);
-      
-      if (visibilityRatio > 0.5 && visibilityRatio > bestVisibility) {
-        bestVisibility = visibilityRatio;
-        bestSection = section.getAttribute('data-track-section');
-      }
-    });
-
-    return bestSection;
-  }
-
-  function calculateScrollPercent() {
-    const scrolled = window.scrollY;
-    const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
-    return maxScroll > 0 ? Math.round((scrolled / maxScroll) * 100) : 0;
-  }
-
-  function updateActivity() {
-    lastActivity = Date.now();
-  }
-
-  function isActive() {
-    return (Date.now() - lastActivity) < 30000; // 30 seconds
-  }
-
-  // ===== EVENT TRACKING =====
-  function trackEvent(eventType, data = {}) {
-    const event = {
+  function track(eventType, data = {}) {
+    queue.push({
       inquiryId: INQUIRY_ID,
       sessionId: SESSION_ID,
-      eventType: eventType,
-      timestamp: new Date().toISOString(),
-      currentSection: currentSection,
-      data: {
-        ...data,
-        sessionDuration: Math.round((Date.now() - sessionStart) / 1000),
-        timeOnPage: totalTimeOnPage,
-        maxScroll: maxScrollPercent,
-        clicks: clickCount
-      }
-    };
-    
-    eventQueue.push(event);
-    console.log('📍 Event:', eventType, data);
-  }
-
-  // ===== SECTION TRACKING =====
-  function enterSection(sectionId) {
-    if (sectionId === currentSection) return;
-    
-    // Exit previous section
-    if (currentSection && sectionStartTime) {
-      const timeInSection = Math.round((Date.now() - sectionStartTime) / 1000);
-      totalTimeOnPage += timeInSection;
-      
-      trackEvent('section_exit', {
-        section: currentSection,
-        timeInSection: timeInSection,
-        scrollPercent: maxScrollPercent
-      });
-    }
-    
-    // Enter new section
-    currentSection = sectionId;
-    sectionStartTime = Date.now();
-    
-    trackEvent('section_enter', {
-      section: sectionId
+      eventType,
+      data: { ...data, name: data.name || eventType },
+      timestamp: nowIso()
     });
+    scheduleFlush();
   }
 
-  // ===== EVENT LISTENERS =====
-  
-  // Activity tracking
-  ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'].forEach(event => {
-    document.addEventListener(event, updateActivity, { passive: true });
-  });
+  function scheduleFlush() {
+    if (flushTimer) return;
+    flushTimer = setTimeout(flush, FLUSH_INTERVAL_MS);
+  }
 
-  // Click tracking
-  document.addEventListener('click', function(e) {
-    updateActivity();
-    clickCount++;
-    
-    const target = e.target;
-    const isLink = target.tagName === 'A' || target.closest('a');
-    const isButton = target.tagName === 'BUTTON';
-    
-    if (isLink || isButton) {
-      trackEvent('click', {
-        elementType: target.tagName,
-        text: target.textContent?.slice(0, 100) || '',
-        href: target.href || target.closest('a')?.href || ''
-      });
-    }
-  });
-
-  // Scroll tracking
-  let scrollTimeout;
-  window.addEventListener('scroll', function() {
-    updateActivity();
-    
-    clearTimeout(scrollTimeout);
-    scrollTimeout = setTimeout(() => {
-      maxScrollPercent = Math.max(maxScrollPercent, calculateScrollPercent());
-      
-      const newSection = getCurrentSection();
-      if (newSection && newSection !== currentSection) {
-        enterSection(newSection);
-      }
-    }, 100);
-  }, { passive: true });
-
-  // Video tracking
-  window.addEventListener('message', function(e) {
-    if (e.data && typeof e.data === 'object' && e.data.type === 'video_event') {
-      trackEvent('video_' + e.data.action, {
-        videoId: e.data.videoId,
-        videoTitle: e.data.title,
-        currentTime: e.data.currentTime || 0
-      });
-    }
-  });
-
-  // Page visibility
-  document.addEventListener('visibilitychange', function() {
-    if (document.hidden) {
-      trackEvent('page_hidden');
-    } else {
-      trackEvent('page_visible');
-      updateActivity();
-    }
-  });
-
-  // ===== DATA SENDING =====
-  async function sendEvents() {
-    if (eventQueue.length === 0) return;
-    
-    const events = eventQueue.splice(0); // Take all events
-    const payload = {
-      events: events,
-      sessionInfo: {
-        inquiryId: INQUIRY_ID,
-        sessionId: SESSION_ID,
-        timeOnPage: totalTimeOnPage,
-        maxScrollDepth: maxScrollPercent,
-        clickCount: clickCount,
-        deviceInfo: {
-          userAgent: navigator.userAgent,
-          viewport: {
-            width: window.innerWidth,
-            height: window.innerHeight
-          },
-          deviceType: /Mobi|Android/i.test(navigator.userAgent) ? 'mobile' : 'desktop'
-        }
-      }
-    };
+  async function flush() {
+    flushTimer = null;
+    if (!queue.length) return;
+    const batch = queue.splice(0, queue.length);
+    const payload = JSON.stringify({ events: batch, sessionInfo: { inquiryId: INQUIRY_ID, sessionId: SESSION_ID } });
 
     try {
-      const response = await fetch('/api/track-engagement', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-        keepalive: true
-      });
-      
-      if (response.ok) {
-        console.log('📤 Sent', events.length, 'events');
+      if (navigator.sendBeacon && document.visibilityState === 'hidden') {
+        navigator.sendBeacon(POST_URL, payload);
       } else {
-        console.warn('📤 Failed to send events:', response.status);
-        // Re-queue events on failure
-        eventQueue.unshift(...events);
+        await fetch(POST_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload });
       }
-    } catch (error) {
-      console.warn('📤 Network error:', error);
-      // Re-queue events on failure
-      eventQueue.unshift(...events);
+    } catch (e) {
+      // Best-effort retry: put events back to the front of the queue
+      batch.unshift(...queue);
+      queue.length = 0;
+      queue.push(...batch);
     }
   }
 
-  // ===== HEARTBEAT =====
-  function heartbeat() {
-    // Update total time if currently active
-    if (isActive() && sectionStartTime) {
-      const additionalTime = Math.round((Date.now() - sectionStartTime) / 1000);
-      totalTimeOnPage += additionalTime;
-      sectionStartTime = Date.now(); // Reset for next heartbeat
-    }
-    
-    // Always send heartbeat (even if no events)
-    trackEvent('heartbeat', {
-      isActive: isActive(),
-      currentSection: currentSection
+  function endActiveTier(reason) {
+    if (!activeTier || !activeTierEnterTs) return;
+    const dwellSec = Math.max(0, Math.round((Date.now() - activeTierEnterTs) / 1000));
+    track('tier_exit', {
+      name: nameFor('tier', 'exit', activeTier),
+      tier: activeTier,
+      dwellSec,
+      reason // 'next_tier' | 'left_section' | 'unload'
     });
-    
-    sendEvents();
+    activeTier = null;
+    activeTierEnterTs = null;
   }
 
-  // ===== INITIALIZATION =====
-  function initialize() {
-    // Initial section detection
-    const initialSection = getCurrentSection();
-    if (initialSection) {
-      enterSection(initialSection);
+  function detectDominantSection() {
+    const sections = document.querySelectorAll('section[data-track-section]');
+    let bestKey = null, bestRatio = 0;
+
+    for (const sec of sections) {
+      const key = sec.getAttribute('data-track-section');
+      const r = sec.getBoundingClientRect();
+      const visible = Math.max(0, Math.min(r.bottom, window.innerHeight) - Math.max(r.top, 0));
+      const ratio = r.height > 0 ? (visible / r.height) : 0;
+      if (ratio > SECTION_VIS_RATIO && ratio > bestRatio) {
+        bestRatio = ratio;
+        bestKey = key;
+      }
     }
-    
-    // Start heartbeat
-    setInterval(heartbeat, HEARTBEAT_INTERVAL);
-    
-    // Send initial page load event
-    trackEvent('page_load', {
-      url: window.location.href,
-      referrer: document.referrer,
-      timestamp: new Date().toISOString()
-    });
-    
-    console.log('✅ Simple tracking initialized');
+    return bestKey;
   }
 
-  // ===== PAGE UNLOAD =====
-  window.addEventListener('beforeunload', function() {
-    // Final time update
-    if (sectionStartTime) {
-      const finalTime = Math.round((Date.now() - sectionStartTime) / 1000);
-      totalTimeOnPage += finalTime;
+  function handleSectionChange() {
+    const next = detectDominantSection();
+
+    // If we leave 'your_journey' whilst a tier is active, infer its end
+    if (activeTier && next && next !== 'your_journey' && currentSection === 'your_journey') {
+      endActiveTier('left_section');
     }
-    
-    trackEvent('page_unload', {
-      finalTimeOnPage: totalTimeOnPage,
-      finalScrollPercent: maxScrollPercent,
-      finalClickCount: clickCount
-    });
-    
-    // Try to send final events
-    if (navigator.sendBeacon && eventQueue.length > 0) {
-      const payload = JSON.stringify({
-        events: eventQueue,
-        sessionInfo: {
-          inquiryId: INQUIRY_ID,
-          sessionId: SESSION_ID,
-          timeOnPage: totalTimeOnPage,
-          maxScrollDepth: maxScrollPercent,
-          clickCount: clickCount
-        }
+
+    if (next && next !== currentSection) {
+      const ts = Date.now();
+
+      // Exit old section
+      if (currentSection && lastSectionEnterTs) {
+        const dwellSec = Math.max(0, Math.round((ts - lastSectionEnterTs) / 1000));
+        track('section_exit', {
+          name: nameFor('section', 'exit', currentSection),
+          section: currentSection,
+          dwellSec
+        });
+      }
+
+      // Enter new section
+      currentSection = next;
+      lastSectionEnterTs = ts;
+      track('section_enter', {
+        name: nameFor('section', 'enter', currentSection),
+        section: currentSection
       });
-      
-      navigator.sendBeacon('/api/track-engagement', payload);
     }
+  }
+
+  // ===== Visit start =====
+  track('page_load', { name: nameFor('visit', 'start') });
+
+  // Initial detection + listeners
+  window.addEventListener('load', handleSectionChange, { passive: true });
+  window.addEventListener('scroll', throttle(handleSectionChange, 250), { passive: true });
+  window.addEventListener('resize', throttle(handleSectionChange, 250), { passive: true });
+
+  // ===== Tier cards (pre-senior / senior / sixth form) =====
+  const originalToggle = window.toggleCard;
+  window.toggleCard = function (cardId) {
+    const tier = cardId === 'preseniorCard' ? 'presenior'
+               : cardId === 'seniorCard'     ? 'senior'
+               : cardId === 'sixthformCard'  ? 'sixthform'
+               : cardId;
+
+    const el = document.getElementById(cardId);
+    const wasExpanded = el?.classList.contains('expanded');
+
+    if (typeof originalToggle === 'function') originalToggle(cardId);
+
+    const isExpanded = el?.classList.contains('expanded');
+
+    // Expand only (ignore collapse)
+    if (!wasExpanded && isExpanded) {
+      // End previous tier if switching
+      if (activeTier && activeTier !== tier) endActiveTier('next_tier');
+
+      activeTier = tier;
+      activeTierEnterTs = Date.now();
+
+      track('tier_expand', {
+        name: nameFor('tier', 'expand', tier),
+        tier
+      });
+    }
+  };
+
+  // ===== Video open/close (8 videos total; open/close only) =====
+  const originalOpenVideo  = window.openVideo;
+  const originalCloseVideo = window.closeVideo;
+
+  window.openVideo = function (youtubeId, title) {
+    track('video_open', { name: nameFor('video', 'open', youtubeId), youtubeId, title });
+    if (typeof originalOpenVideo === 'function') return originalOpenVideo(youtubeId, title);
+  };
+
+  window.closeVideo = function () {
+    // Try to infer current video ID from the modal iframe
+    let youtubeId;
+    try {
+      const iframe = document.querySelector('#videoModal iframe');
+      const src = iframe?.getAttribute('src') || '';
+      const m = src.match(/\/embed\/([A-Za-z0-9_\-]+)/);
+      if (m) youtubeId = m[1];
+    } catch (_) {}
+    track('video_close', { name: nameFor('video', 'close', youtubeId || 'unknown'), youtubeId });
+    if (typeof originalCloseVideo === 'function') return originalCloseVideo();
+  };
+
+  // ===== Flush on tab hide, and on unload close down cleanly =====
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') flush();
   });
 
-  // Start tracking when page loads
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initialize);
-  } else {
-    initialize();
-  }
+  window.addEventListener('beforeunload', function () {
+    // Close any active tier dwell
+    endActiveTier('unload');
 
+    // Final section exit if applicable
+    if (currentSection && lastSectionEnterTs) {
+      const dwellSec = Math.max(0, Math.round((Date.now() - lastSectionEnterTs) / 1000));
+      track('section_exit', {
+        name: nameFor('section', 'exit', currentSection),
+        section: currentSection,
+        dwellSec
+      });
+    }
+
+    // Visit end
+    track('page_unload', { name: nameFor('visit', 'end') });
+
+    // Best-effort final send
+    if (queue.length) {
+      const payload = JSON.stringify({ events: queue, sessionInfo: { inquiryId: INQUIRY_ID, sessionId: SESSION_ID } });
+      if (navigator.sendBeacon) navigator.sendBeacon(POST_URL, payload);
+    }
+  });
 })();
