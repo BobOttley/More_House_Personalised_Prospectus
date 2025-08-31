@@ -665,8 +665,12 @@
         return;
       }
       
-      // Generate comprehensive summary
-      const summary = generateComprehensiveSummary(family);
+      // Get actual session count from the DOM or API
+      const sessionCards = document.querySelectorAll(`#sessions-${inquiryId} .session-card`);
+      const actualVisits = sessionCards.length || family.visits || 1;
+      
+      // Generate comprehensive summary with correct visit count
+      const summary = generateComprehensiveSummary(family, actualVisits);
       
       container.innerHTML = `
         <div class="ai-summary-header">
@@ -692,9 +696,9 @@
     }
     
     // Generate comprehensive summary for a family
-    function generateComprehensiveSummary(family) {
+    function generateComprehensiveSummary(family, actualVisits) {
       const engagement = family.engagementScore || 0;
-      const visits = family.visits || 0;
+      const visits = actualVisits || family.visits || 0;  // Use actual visit count
       const totalMinutes = family.timeOnPageMinutes || 0;
       const interests = family.interests || [];
       
@@ -702,64 +706,122 @@
       const recommendations = [];
       let strategy = '';
       
-      // Determine engagement level and base strategy
-      if (engagement >= 80) {
-        overview = `Highly engaged prospect with exceptional interest levels. ${visits} visit${visits !== 1 ? 's' : ''} totalling ${totalMinutes} minutes demonstrates strong intent. `;
-        
-        if (visits >= 3) {
-          overview += 'Multiple return visits indicate serious consideration. ';
-          recommendations.push('Immediate personal outreach from Head or Senior Team');
-          recommendations.push('Schedule in-person or virtual tour within 48 hours');
-        } else {
-          recommendations.push('Priority follow-up within 24 hours');
-          recommendations.push('Personalised video message from relevant staff');
-        }
-        
-        strategy = 'This family is ready for conversion. Focus on personal connection and addressing any final questions. Highlight specific programmes matching their interests.';
-        
-      } else if (engagement >= 50) {
-        overview = `Moderately engaged prospect showing focused interest. ${visits} visit${visits !== 1 ? 's' : ''} with ${totalMinutes} minutes of engagement. `;
-        
-        recommendations.push('Send tailored information pack within 3 days');
-        recommendations.push('Add to nurture email sequence');
-        recommendations.push('Invite to upcoming open event');
-        
-        strategy = 'Build on existing interest with targeted content. Focus on addressing potential concerns and showcasing differentiators.';
-        
-      } else {
-        overview = `Early-stage prospect beginning research journey. ${visits} visit${visits !== 1 ? 's' : ''} with initial exploration. `;
-        
-        recommendations.push('Add to general information campaign');
-        recommendations.push('Monitor for increased engagement');
-        recommendations.push('Send welcome pack with key information');
-        
-        strategy = 'Nurture interest with broad information. Focus on building familiarity and trust with the school brand.';
+      // Recalculate engagement based on actual visits
+      let adjustedEngagement = engagement;
+      if (visits >= 5) {
+        adjustedEngagement = Math.min(100, engagement + 20);  // Boost score for high visit count
+      } else if (visits >= 3) {
+        adjustedEngagement = Math.min(100, engagement + 10);
       }
       
-      // Add interest-specific recommendations
+      // Determine engagement level and base strategy
+      if (adjustedEngagement >= 80 || visits >= 5) {
+        overview = `Highly engaged prospect with exceptional interest levels. ${visits} visit${visits !== 1 ? 's' : ''} totalling ${totalMinutes || 'multiple'} minutes demonstrates strong intent. `;
+        
+        if (visits >= 5) {
+          overview += 'Exceptional return rate with multiple visits shows serious consideration. ';
+          recommendations.push('URGENT: Immediate personal outreach required');
+          recommendations.push('Schedule in-person tour this week');
+          recommendations.push('Assign dedicated admissions officer');
+        } else if (visits >= 3) {
+          overview += 'Multiple return visits indicate growing interest. ';
+          recommendations.push('Priority follow-up within 24 hours');
+          recommendations.push('Personalised video message from Head');
+        } else {
+          recommendations.push('Schedule call within 48 hours');
+          recommendations.push('Send personalised prospectus highlights');
+        }
+        
+        strategy = 'This family shows high engagement through repeated visits. Focus on personal connection and converting interest to application. Address specific programme interests directly.';
+        
+      } else if (adjustedEngagement >= 50 || visits >= 2) {
+        overview = `Moderately engaged prospect showing sustained interest. ${visits} visit${visits !== 1 ? 's' : ''} with ${totalMinutes || 'consistent'} minutes of engagement. `;
+        
+        if (visits >= 2) {
+          overview += 'Return visit shows continued consideration. ';
+        }
+        
+        recommendations.push('Send tailored information pack within 3 days');
+        recommendations.push('Add to priority nurture sequence');
+        recommendations.push('Invite to next open event');
+        
+        strategy = 'Build on demonstrated interest with targeted follow-up. Focus on addressing potential concerns and showcasing programmes matching their interests.';
+        
+      } else {
+        overview = `Early-stage prospect in research phase. ${visits} visit${visits !== 1 ? 's' : ''} with initial exploration. `;
+        
+        recommendations.push('Add to welcome campaign');
+        recommendations.push('Monitor for return visits');
+        recommendations.push('Send general prospectus');
+        
+        strategy = 'Nurture early interest with broad information. Focus on building familiarity with the school and encouraging return engagement.';
+      }
+      
+      // Add interest-specific recommendations (but avoid duplicates)
+      const addedRecommendations = new Set();
+      
       if (interests.length > 0) {
         overview += `Key interests include ${interests.slice(0, 3).map(i => i.label).join(', ')}. `;
         
-        interests.forEach(interest => {
-          if (interest.type === 'academic') {
-            recommendations.push(`Share ${interest.label} department achievements and curriculum details`);
-          } else if (interest.type === 'creative') {
-            recommendations.push(`Highlight ${interest.label} programmes and showcase student work`);
-          } else if (interest.type === 'sport') {
-            recommendations.push(`Share sports facilities tour and team achievements`);
-          } else if (interest.label === 'Pastoral Care') {
-            recommendations.push('Emphasise wellbeing support and house system');
+        // Group interests by type to avoid repetition
+        const academicInterests = interests.filter(i => i.type === 'academic');
+        const creativeInterests = interests.filter(i => i.type === 'creative');
+        const sportInterests = interests.filter(i => i.type === 'sport');
+        const priorityInterests = interests.filter(i => i.type === 'priority');
+        
+        if (academicInterests.length > 0) {
+          const subjects = academicInterests.map(i => i.label).join(', ');
+          const rec = `Share academic achievements and curriculum for: ${subjects}`;
+          if (!addedRecommendations.has('academic')) {
+            recommendations.push(rec);
+            addedRecommendations.add('academic');
           }
-        });
+        }
+        
+        if (creativeInterests.length > 0) {
+          const arts = creativeInterests.map(i => i.label).join(', ');
+          const rec = `Showcase creative programmes: ${arts}`;
+          if (!addedRecommendations.has('creative')) {
+            recommendations.push(rec);
+            addedRecommendations.add('creative');
+          }
+        }
+        
+        if (sportInterests.length > 0 && !addedRecommendations.has('sport')) {
+          recommendations.push('Share sports facilities and team achievements');
+          addedRecommendations.add('sport');
+        }
+        
+        if (priorityInterests.find(i => i.label === 'Pastoral Care') && !addedRecommendations.has('pastoral')) {
+          recommendations.push('Emphasise wellbeing support and house system');
+          addedRecommendations.add('pastoral');
+        }
+        
+        if (priorityInterests.find(i => i.label === 'University Prep') && !addedRecommendations.has('university')) {
+          recommendations.push('Share university destinations and preparation programme');
+          addedRecommendations.add('university');
+        }
       }
       
       // Time-based insights
       if (family.isActiveToday) {
         overview += 'Recent activity today shows current interest. ';
-        recommendations.unshift('Strike while interest is high - contact today');
+        // Move time-sensitive recommendation to top
+        const urgentRec = 'Strike while interest is high - contact today';
+        const filteredRecs = recommendations.filter(r => !r.includes('Strike while'));
+        recommendations.length = 0;
+        recommendations.push(urgentRec, ...filteredRecs);
       }
       
-      return { overview, recommendations, strategy };
+      // Visit frequency insights
+      if (visits >= 3) {
+        const avgDays = 7 / visits; // Rough estimate
+        if (avgDays <= 2) {
+          overview += 'High visit frequency suggests urgent decision timeline. ';
+        }
+      }
+      
+      return { overview, recommendations: recommendations.slice(0, 8), strategy };  // Limit to 8 recommendations
     }
 
     // Load session history - matching original dashboard functionality
