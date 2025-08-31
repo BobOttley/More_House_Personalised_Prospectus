@@ -396,11 +396,6 @@
 
     // Process and enrich family data
     function processRealData(raw) {
-      // Ensure familyStatuses is initialized
-      if (!familyStatuses) {
-        familyStatuses = {};
-      }
-      
       return raw.map(f => {
         // Get the actual session count if available
         const sessionCount = f.session_count || f.sessions_count || f.total_sessions || f.return_visits || 0;
