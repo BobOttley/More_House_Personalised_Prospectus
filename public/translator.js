@@ -71,14 +71,24 @@
 
   // Replace tokens with <span class="notranslate" translate="no">…</span>
   function protectBrandTokens(html) {
+    // Sort tokens longest-first so "More House School" wraps before "More House"
+    const tokens = [...BRAND_TOKENS].sort((a, b) => b.length - a.length);
+  
+    // For multi-word tokens, allow spaces, &nbsp;, or tags between words
+    function tokenToPattern(tok) {
+      const parts = tok.split(/\s+/).map(escReg);
+      if (parts.length === 1) {
+        // Single word: simple case-insensitive whole-word-ish match
+        return new RegExp(`\\b${parts[0]}\\b`, 'gi');
+      }
+      // Multi-word: allow separators (space, NBSP, or any tags) between words
+      const sep = `(?:\\s|&nbsp;|<[^>]*>)+`;
+      return new RegExp(`\\b${parts.join(sep)}\\b`, 'gi');
+    }
+  
     let out = html;
-    BRAND_TOKENS.forEach(tok => {
-      if (!tok) return;
-      const re = new RegExp(escReg(tok), 'g');
-      out = out.replace(re, `<span class="notranslate" translate="no">${tok}</span>`);
-    });
-    return out;
-  }
+   
+  
 
   // Prepare HTML to send to DeepL:
   //  - remove excluded blocks (data-no-translate) and replace with placeholders
@@ -87,7 +97,7 @@
   function buildTranslatableHTML() {
     // Work from the original, never from a previously translated DOM
     const tmp = document.createElement('div');
-    tmp.innerHTML = ORIGINAL_HTML;
+    tmp.innerHTML = document.body.innerHTML;
 
     const placeholders = [];
     let counter = 0;
