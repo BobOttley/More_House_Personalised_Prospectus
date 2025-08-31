@@ -3197,6 +3197,58 @@ app.get('/prospectuses/:filename', async (req, res) => {
   }
 });
 
+// ===================== DeepL proxy (safe: POST; does not affect slug GETs) =====================
+app.post('/api/deepl', async (req, res) => {
+  try {
+    const DEEPL_API_KEY  = process.env.DEEPL_API_KEY;
+    const DEEPL_ENDPOINT = process.env.DEEPL_API_BASE || 'https://api-free.deepl.com/v2/translate'; // set to https://api.deepl.com/v2/translate if on paid
+
+    if (!DEEPL_API_KEY) {
+      return res.status(500).json({ error: 'DEEPL_API_KEY missing' });
+    }
+
+    const { html, target_lang } = req.body || {};
+    const ALLOWED = new Set(['en','zh','ar','ru','fr','es','de','it']);
+
+    if (typeof html !== 'string' || !html.trim()) {
+      return res.status(400).json({ error: 'Missing html' });
+    }
+    if (!ALLOWED.has((target_lang || '').toLowerCase())) {
+      return res.status(400).json({ error: 'Unsupported target_lang' });
+    }
+
+    // Build form for DeepL (HTML-aware)
+    const form = new URLSearchParams();
+    form.append('text', html);
+    form.append('target_lang', String(target_lang).toUpperCase()); // e.g. FR, DE
+    form.append('tag_handling', 'html');
+    form.append('preserve_formatting', '1');
+    form.append('split_sentences', 'nonewlines');
+
+    // Node 18+ has global fetch
+    const dl = await fetch(DEEPL_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Authorization': `DeepL-Auth-Key ${DEEPL_API_KEY}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: form
+    });
+
+    const payload = await dl.json();
+    if (!dl.ok) {
+      return res.status(502).json({ error: 'DeepL error', details: payload });
+    }
+
+    const translated = payload?.translations?.[0]?.text || '';
+    return res.json({ translated });
+  } catch (err) {
+    console.error('DeepL proxy failed:', err);
+    return res.status(500).json({ error: 'Proxy failure' });
+  }
+});
+
+
 // Slug-based routing
 const RESERVED = new Set([
   'api','prospectuses','health','tracking','dashboard','favicon','robots',

@@ -1171,6 +1171,24 @@
 
 </head>
 <body>
+
+    <!-- Language Switcher (excluded from translation) -->
+<div id="lang-switcher" data-no-translate
+     style="position:fixed; top:16px; right:16px; z-index:9999; background:#fff; border:1px solid #e5e5e5; border-radius:6px; padding:6px 8px; font:14px/1.2 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; box-shadow:0 2px 6px rgba(0,0,0,.08);">
+  <label for="prospectus-lang" style="margin-right:6px;">Language:</label>
+  <select id="prospectus-lang" aria-label="Select language">
+    <option value="en">🇬🇧 English</option>
+    <option value="zh">🇨🇳 中文</option>
+    <option value="ar">🇸🇦 العربية</option>
+    <option value="ru">🇷🇺 Русский</option>
+    <option value="fr">🇫🇷 Français</option>
+    <option value="es">🇪🇸 Español</option>
+    <option value="de">🇩🇪 Deutsch</option>
+    <option value="it">🇮🇹 Italiano</option>
+  </select>
+</div>
+
+
     <!-- Cover Page -->
     <section class="cover-page" data-track-section="cover_page">
         <div class="cover-content">
@@ -1957,7 +1975,7 @@
                 Join us for an Open Morning to experience the warmth of our community
             </p>
             
-            <div style="background: white; color: var(--morehouse-navy); padding: 2rem; display: inline-block; border-radius: 8px;">
+            <div data-no-translate style="background: white; color: var(--morehouse-navy); padding: 2rem; display: inline-block; border-radius: 8px;">
                 <h3 style="color: var(--morehouse-navy);">More House School</h3>
                 <p>22-24 Pont Street, Knightsbridge<br>
                 London SW1X 0AA</p>
@@ -2862,5 +2880,6 @@ ${extracurricularPersonalization ? `<p>${extracurricularPersonalization}</p>` : 
             } catch(_) {}
         })();
     </script>
+    <script src="/public/translator.js" defer></script>
 </body>
 </html>
