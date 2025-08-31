@@ -242,7 +242,7 @@
         allFamilies = processRealData(Array.isArray(data) ? data : []);
         updateMetrics();
         renderFamilies();
-        loadRecentActivity();
+        loadRecentActivity();   // << fixed: function now exists below
       } catch (e) {
         showError('Failed to load data: ' + e.message);
         console.error('loadData:', e);
@@ -387,7 +387,7 @@
       const sortBy = byId('sortFilter')?.value || 'engagement';
       if (sortBy==='engagement') families.sort((a,b)=>b.engagementScore-a.engagementScore);
       else if (sortBy==='recent') families.sort((a,b)=>new Date(b.lastActivity)-new Date(a.lastActivity));
-      else if (sortBy==='time') families.sort((a,b)=>b.timeOnPageMs-a.timeOnPageMs);
+      else if (sortBy==='time') families.sort((a,b)=>b.timeOnPageMs-a.btimeOnPageMs);
 
       return families;
     }
@@ -434,6 +434,42 @@
         const el = byId(id);
         if (el) el.innerHTML = '<div class="error">'+message+'</div>';
       });
+    }
+
+    // ----- NEW: loadRecentActivity (was missing) -----
+    function loadRecentActivity(){
+      const container = byId('activityFeed');
+      if (!container) return;
+
+      if (!allFamilies.length) {
+        container.innerHTML = '<div class="no-data">No data yet</div>';
+        return;
+      }
+
+      try {
+        const recent = allFamilies
+          .slice()
+          .sort((a,b)=>new Date(b.lastActivity)-new Date(a.lastActivity))
+          .slice(0,10);
+
+        const html = recent.map(f=>{
+          const timeAgo = f.lastActivity ? formatTimeAgo(new Date(f.lastActivity)) : '—';
+          const activity = f.isActiveToday
+            ? 'viewed their prospectus today'
+            : (f.hasProspectus ? 'received personalised prospectus' : 'submitted enquiry');
+          return `
+            <div class="activity-item">
+              <div class="activity-avatar">${f.firstName ? f.firstName.charAt(0) : 'F'}</div>
+              <div class="activity-text"><strong>${f.name}</strong> ${activity}</div>
+              <div class="activity-time">${timeAgo}</div>
+            </div>`;
+        }).join('');
+
+        container.innerHTML = html || '<div class="no-data">No recent activity</div>';
+      } catch (e) {
+        console.error('loadRecentActivity error:', e);
+        container.innerHTML = '<div class="error">Failed to load activity</div>';
+      }
     }
 
     // ----- Init -----
