@@ -444,6 +444,19 @@
         </div>
     </header>
 
+    <!-- Latest Visit Timeline (paste an Inquiry ID) -->
+<div id="latest-visit" style="margin:16px 0; padding:12px; border:1px solid #E5E7EB; border-radius:8px; background:#F8FAFC;">
+    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+      <strong>Latest Visit Timeline</strong>
+      <input id="lv-inquiry" type="text" placeholder="Paste Inquiry ID e.g. INQ-1756…" 
+             style="flex:1; min-width:260px; padding:8px; border:1px solid #E5E7EB; border-radius:6px;">
+      <button id="lv-load" style="padding:8px 12px; border:0; border-radius:6px; background:#034674; color:#fff;">Load</button>
+    </div>
+    <div id="lv-meta" style="margin-top:8px; font-size:0.9rem; color:#334155;"></div>
+    <ol id="lv-list" style="margin-top:8px; padding-left:18px;"></ol>
+  </div>
+  
+
     <div class="dashboard">
         <!-- Metrics -->
         <div class="metrics">
@@ -837,5 +850,61 @@
         // Initial load
         document.addEventListener('DOMContentLoaded', loadData);
     </script>
+    <script>
+        (function(){
+          async function loadLatestVisit(inquiryId){
+            if(!inquiryId) return;
+            const res = await fetch(`/api/visits/${encodeURIComponent(inquiryId)}/latest`);
+            const body = await res.json();
+            const meta = document.getElementById('lv-meta');
+            const list = document.getElementById('lv-list');
+            list.innerHTML = ''; meta.textContent = '';
+        
+            if(!body.ok || !body.session){
+              meta.textContent = 'No visits found for that inquiry.';
+              return;
+            }
+        
+            const fmt = ts => new Date(ts).toLocaleString();
+            meta.textContent = `Session ${body.session.id} — ${fmt(body.session.start)} → ${fmt(body.session.end)}`;
+        
+            // Render timeline: show only the minimal events we track
+            for(const ev of body.events){
+              const li = document.createElement('li');
+              li.style.margin = '4px 0';
+        
+              if(ev.type === 'section_enter'){
+                li.textContent = `→ Enter section: ${ev.section}`;
+              } else if(ev.type === 'section_exit'){
+                li.textContent = `↩︎ Exit section: ${ev.section} — ${ev.dwellSec ?? 0}s`;
+              } else if(ev.type === 'tier_expand'){
+                li.textContent = `⟫ Tier opened: ${ev.tier}`;
+              } else if(ev.type === 'tier_exit'){
+                li.textContent = `⟪ Tier closed (inferred): ${ev.tier} — ${ev.dwellSec ?? 0}s [${ev.reason}]`;
+              } else if(ev.type === 'video_open'){
+                li.textContent = `▶︎ Video open: ${ev.youtubeId || ''} ${ev.title ? `— ${ev.title}` : ''}`;
+              } else if(ev.type === 'video_close'){
+                li.textContent = `■ Video close: ${ev.youtubeId || ''}`;
+              } else if(ev.type === 'page_load'){
+                li.textContent = `✓ Visit start`;
+              } else if(ev.type === 'page_unload'){
+                li.textContent = `✕ Visit end`;
+              } else {
+                li.textContent = ev.name;
+              }
+              list.appendChild(li);
+            }
+          }
+        
+          document.getElementById('lv-load').addEventListener('click', () => {
+            const id = document.getElementById('lv-inquiry').value.trim();
+            loadLatestVisit(id);
+          });
+        
+          // Optional: if your dashboard already knows a selected family, you could auto-fill:
+          // document.getElementById('lv-inquiry').value = SOME_INQUIRY_ID;
+        })();
+        </script>
+        
 </body>
 </html>
