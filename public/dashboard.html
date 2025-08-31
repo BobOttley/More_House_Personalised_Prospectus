@@ -1,911 +1,672 @@
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"><!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>More House Analytics - Real Data Dashboard</title>
-    <style>
-        /* More House SMART Analytics Brand Colors */
-        :root {
-            --blazer-navy: #091825;
-            --award-gold: #FF9F1C;
-            --sport-blue: #034674;
-            --text-primary: #2C3E50;
-            --white: #FFFFFF;
-            --light-grey: #F8FAFC;
-            --border-grey: #E5E7EB;
-            --success: #10B981;
-            --warning: #F59E0B;
-            --error: #EF4444;
-            --hot-lead: #FF4444;
-            --warm-lead: #FF9F1C;
-            --cold-lead: #034674;
-            
-            --font-heading: 'Playfair Display', serif;
-            --font-body: 'Inter', sans-serif;
-        }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>More House Analytics - Real Data Dashboard</title>
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
-        body {
-            font-family: var(--font-body);
-            background: linear-gradient(135deg, var(--light-grey) 0%, #f1f5f9 100%);
-            min-height: 100vh;
-            color: var(--text-primary);
-            font-size: 14px;
-        }
+  <style>
+    /* More House SMART Analytics Brand Colours */
+    :root {
+      --blazer-navy: #091825;
+      --award-gold: #FF9F1C;
+      --sport-blue: #034674;
+      --text-primary: #2C3E50;
+      --white: #FFFFFF;
+      --light-grey: #F8FAFC;
+      --border-grey: #E5E7EB;
+      --success: #10B981;
+      --warning: #F59E0B;
+      --error: #EF4444;
+      --hot-lead: #FF4444;
+      --warm-lead: #FF9F1C;
+      --cold-lead: #034674;
 
-        .header {
-            background: linear-gradient(135deg, #091825 0%, #034674 100%);
-            color: #FFFFFF;
-            padding: 2rem;
-            box-shadow: 0 4px 20px rgba(9, 24, 37, 0.3);
-            text-align: center;
-            position: relative;
-        }
+      --font-heading: 'Playfair Display', serif;
+      --font-body: 'Inter', sans-serif;
+    }
 
-        .header-brand {
-            display: inline-block;
-            position: relative;
-        }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
 
-        .brand-glow {
-            position: absolute;
-            inset: 0;
-            border-radius: 50%;
-            background: linear-gradient(135deg, var(--award-gold), #FFB84D);
-            opacity: 0.3;
-            filter: blur(20px);
-        }
+    body {
+      font-family: var(--font-body);
+      background: linear-gradient(135deg, var(--light-grey) 0%, #f1f5f9 100%);
+      min-height: 100vh;
+      color: var(--text-primary);
+      font-size: 14px;
+    }
 
-        .header h1 {
-            position: relative;
-            font-family: var(--font-heading);
-            font-size: 4rem;
-            font-weight: 700;
-            margin-bottom: 1rem;
-        }
+    .header {
+      background: linear-gradient(135deg, #091825 0%, #034674 100%);
+      color: #FFFFFF;
+      padding: 2rem;
+      box-shadow: 0 4px 20px rgba(9, 24, 37, 0.3);
+      text-align: center;
+      position: relative;
+    }
 
-        .header h1 .smart-text {
-            background: linear-gradient(135deg, var(--award-gold), #FFB84D);
-            background-clip: text;
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
+    .header-brand { display: inline-block; position: relative; }
+    .brand-glow {
+      position: absolute; inset: 0; border-radius: 50%;
+      background: linear-gradient(135deg, var(--award-gold), #FFB84D);
+      opacity: 0.3; filter: blur(20px);
+    }
 
-        .header h1 .analytics-text {
-            color: white;
-        }
+    .header h1 {
+      position: relative;
+      font-family: var(--font-heading);
+      font-size: 4rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+    }
 
-        .header p {
-            font-size: 1.2rem;
-            font-weight: 300;
-            color: rgba(255, 255, 255, 0.9);
-            margin-bottom: 0.5rem;
-        }
+    .header h1 .smart-text {
+      background: linear-gradient(135deg, var(--award-gold), #FFB84D);
+      background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .header h1 .analytics-text { color: white; }
 
-        .refresh-btn {
-            position: absolute;
-            top: 2rem;
-            right: 2rem;
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            color: white;
-            padding: 0.5rem 1rem;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.3s;
-            font-size: 0.9rem;
-        }
+    .header p {
+      font-size: 1.2rem;
+      font-weight: 300;
+      color: rgba(255, 255, 255, 0.9);
+      margin-bottom: 0.5rem;
+    }
 
-        .refresh-btn:hover {
-            background: rgba(255, 255, 255, 0.2);
-        }
+    .refresh-btn {
+      position: absolute; top: 2rem; right: 2rem;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: white; padding: 0.5rem 1rem; border-radius: 8px;
+      cursor: pointer; transition: all 0.3s; font-size: 0.9rem;
+    }
+    .refresh-btn:hover { background: rgba(255, 255, 255, 0.2); }
 
-        .dashboard {
-            max-width: 1400px;
-            margin: -2rem auto 2rem;
-            position: relative;
-            z-index: 10;
-        }
+    .dashboard {
+      max-width: 1400px;
+      margin: -2rem auto 2rem;
+      position: relative;
+      z-index: 10;
+    }
 
-        .metrics {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-            gap: 1.5rem;
-            padding: 2rem;
-        }
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1.5rem;
+      padding: 2rem;
+    }
 
-        .metric-card {
-            background: var(--white);
-            border-radius: 16px;
-            padding: 1.5rem;
-            box-shadow: 0 4px 16px rgba(9, 24, 37, 0.08);
-            border: 1px solid var(--border-grey);
-            transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
-        }
+    .metric-card {
+      background: var(--white);
+      border-radius: 16px;
+      padding: 1.5rem;
+      box-shadow: 0 4px 16px rgba(9, 24, 37, 0.08);
+      border: 1px solid var(--border-grey);
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    .metric-card:hover { box-shadow: 0 8px 25px rgba(9, 24, 37, 0.12); transform: translateY(-2px); }
+    .metric-card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px;
+      background: linear-gradient(90deg, var(--award-gold), var(--sport-blue));
+    }
 
-        .metric-card:hover {
-            box-shadow: 0 8px 25px rgba(9, 24, 37, 0.12);
-            transform: translateY(-2px);
-        }
+    .metric-card.hot::before { background: var(--hot-lead); }
+    .metric-card.warm::before { background: var(--warm-lead); }
+    .metric-card.engagement::before { background: var(--success); }
+    .metric-card.total::before { background: var(--sport-blue); }
 
-        .metric-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 4px;
-            background: linear-gradient(90deg, var(--award-gold), var(--sport-blue));
-        }
+    .metric-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; }
 
-        .metric-card.hot::before { background: var(--hot-lead); }
-        .metric-card.warm::before { background: var(--warm-lead); }
-        .metric-card.engagement::before { background: var(--success); }
-        .metric-card.total::before { background: var(--sport-blue); }
+    .metric-icon {
+      width: 48px; height: 48px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--white); background: var(--award-gold); position: relative; font-size: 1.5rem;
+    }
+    .metric-icon.hot { background: linear-gradient(135deg, var(--hot-lead), #ff6666); }
+    .metric-icon.warm { background: linear-gradient(135deg, var(--warm-lead), #ffb347); }
+    .metric-icon.engagement { background: linear-gradient(135deg, var(--success), #34d399); }
+    .metric-icon.total { background: linear-gradient(135deg, var(--sport-blue), #0ea5e9); }
 
-        .metric-header {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            margin-bottom: 1rem;
-        }
+    .metric-content { flex: 1; }
 
-        .metric-icon {
-            width: 48px;
-            height: 48px;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--white);
-            background: var(--award-gold);
-            position: relative;
-            font-size: 1.5rem;
-        }
+    .metric-title {
+      font-size: 0.85rem; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.5px; color: #64748b; margin-bottom: 0.5rem;
+    }
+    .metric-value {
+      font-size: 2.25rem; font-weight: 700; color: var(--blazer-navy);
+      margin-bottom: 0.25rem; font-family: var(--font-heading);
+    }
+    .metric-subtitle {
+      font-size: 0.8rem; font-weight: 500; color: var(--success);
+      display: flex; align-items: center; gap: 0.25rem;
+    }
 
-        .metric-icon.hot { 
-            background: linear-gradient(135deg, var(--hot-lead), #ff6666); 
-        }
-        .metric-icon.warm { 
-            background: linear-gradient(135deg, var(--warm-lead), #ffb347); 
-        }
-        .metric-icon.engagement { 
-            background: linear-gradient(135deg, var(--success), #34d399); 
-        }
-        .metric-icon.total { 
-            background: linear-gradient(135deg, var(--sport-blue), #0ea5e9); 
-        }
+    .main-content {
+      display: grid; grid-template-columns: 2fr 1fr; gap: 2rem; padding: 0 1rem;
+    }
 
-        .metric-content {
-            flex: 1;
-        }
+    .panel {
+      background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); overflow: hidden;
+    }
+    .panel-header { background: #034674; color: white; padding: 1rem 1.5rem; font-weight: 600; }
+    .panel-content { padding: 1.5rem; }
 
-        .metric-title {
-            font-size: 0.85rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: #64748b;
-            margin-bottom: 0.5rem;
-        }
+    .family-list { max-height: 600px; overflow-y: auto; }
 
-        .metric-value {
-            font-size: 2.25rem;
-            font-weight: 700;
-            color: var(--blazer-navy);
-            margin-bottom: 0.25rem;
-            font-family: var(--font-heading);
-        }
+    .family-card { border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 1rem; overflow: hidden; }
+    .family-header {
+      padding: 1rem; cursor: pointer; display: flex; justify-content: space-between; align-items: center; background: #f8fafc;
+    }
+    .family-header:hover { background: #f1f5f9; }
 
-        .metric-subtitle {
-            font-size: 0.8rem;
-            font-weight: 500;
-            color: var(--success);
-            display: flex;
-            align-items: center;
-            gap: 0.25rem;
-        }
+    .family-info h3 { font-size: 1rem; font-weight: 600; margin-bottom: 0.25rem; }
+    .family-meta { font-size: 0.875rem; color: #64748b; }
 
-        .main-content {
-            display: grid;
-            grid-template-columns: 2fr 1fr;
-            gap: 2rem;
-            padding: 0 1rem;
-        }
+    .score-badge { padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600; }
+    .score-badge.hot { background: #fef2f2; color: #dc2626; }
+    .score-badge.warm { background: #fefbeb; color: #d97706; }
+    .score-badge.cold { background: #f0f9ff; color: #2563eb; }
 
-        .panel {
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            overflow: hidden;
-        }
+    .family-details { padding: 1rem; border-top: 1px solid #e2e8f0; display: none; background: white; }
+    .family-card.expanded .family-details { display: block; }
 
-        .panel-header {
-            background: #034674;
-            color: white;
-            padding: 1rem 1.5rem;
-            font-weight: 600;
-        }
+    .expand-icon { transition: transform 0.2s; }
+    .family-card.expanded .expand-icon { transform: rotate(180deg); }
 
-        .panel-content {
-            padding: 1.5rem;
-        }
+    .activity-feed { max-height: 500px; overflow-y: auto; }
+    .activity-item {
+      padding: 1rem; border-bottom: 1px solid var(--border-grey);
+      display: flex; gap: 1rem; align-items: center;
+    }
+    .activity-item:last-child { border-bottom: none; }
 
-        .family-list {
-            max-height: 600px;
-            overflow-y: auto;
-        }
+    .activity-avatar {
+      width: 40px; height: 40px; border-radius: 50%;
+      background: var(--award-gold); display: flex; align-items: center; justify-content: center;
+      font-weight: 600; color: var(--blazer-navy); flex-shrink: 0;
+    }
+    .activity-text { flex: 1; font-size: 0.9rem; color: var(--text-primary); }
+    .activity-time { font-size: 0.75rem; color: #64748b; }
 
-        .family-card {
-            border: 1px solid #e2e8f0;
-            border-radius: 6px;
-            margin-bottom: 1rem;
-            overflow: hidden;
-        }
+    .loading { display: flex; align-items: center; justify-content: center; padding: 2rem; color: #64748b; }
+    .spinner {
+      width: 16px; height: 16px; border: 2px solid #e2e8f0; border-top: 2px solid #3b82f6;
+      border-radius: 50%; animation: spin 1s linear infinite; margin-right: 0.5rem;
+    }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-        .family-header {
-            padding: 1rem;
-            cursor: pointer;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: #f8fafc;
-        }
+    .error {
+      background: #fef2f2; border: 1px solid #fecaca; color: #dc2626;
+      padding: 1rem; border-radius: 6px; margin: 1rem 0;
+    }
+    .no-data { text-align: center; color: #64748b; padding: 2rem; }
 
-        .family-header:hover {
-            background: #f1f5f9;
-        }
+    .filters {
+      background: white; padding: 1rem 1.5rem; border-bottom: 1px solid #e2e8f0;
+      display: flex; gap: 1rem; align-items: center;
+    }
+    .filter-select, .search-box {
+      padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 4px; font-size: 0.875rem;
+    }
+    .search-box { flex: 1; max-width: 300px; }
 
-        .family-info h3 {
-            font-size: 1rem;
-            font-weight: 600;
-            margin-bottom: 0.25rem;
-        }
-
-        .family-meta {
-            font-size: 0.875rem;
-            color: #64748b;
-        }
-
-        .score-badge {
-            padding: 0.25rem 0.75rem;
-            border-radius: 12px;
-            font-size: 0.75rem;
-            font-weight: 600;
-        }
-
-        .score-badge.hot {
-            background: #fef2f2;
-            color: #dc2626;
-        }
-
-        .score-badge.warm {
-            background: #fefbeb;
-            color: #d97706;
-        }
-
-        .score-badge.cold {
-            background: #f0f9ff;
-            color: #2563eb;
-        }
-
-        .family-details {
-            padding: 1rem;
-            border-top: 1px solid #e2e8f0;
-            display: none;
-            background: white;
-        }
-
-        .family-card.expanded .family-details {
-            display: block;
-        }
-
-        .expand-icon {
-            transition: transform 0.2s;
-        }
-
-        .family-card.expanded .expand-icon {
-            transform: rotate(180deg);
-        }
-
-        .activity-feed {
-            max-height: 500px;
-            overflow-y: auto;
-        }
-
-        .activity-item {
-            padding: 1rem;
-            border-bottom: 1px solid var(--border-grey);
-            display: flex;
-            gap: 1rem;
-            align-items: center;
-        }
-
-        .activity-item:last-child {
-            border-bottom: none;
-        }
-
-        .activity-avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: var(--award-gold);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 600;
-            color: var(--blazer-navy);
-            flex-shrink: 0;
-        }
-
-        .activity-text {
-            flex: 1;
-            font-size: 0.9rem;
-            color: var(--text-primary);
-        }
-
-        .activity-time {
-            font-size: 0.75rem;
-            color: #64748b;
-        }
-
-        .loading {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 2rem;
-            color: #64748b;
-        }
-
-        .spinner {
-            width: 16px;
-            height: 16px;
-            border: 2px solid #e2e8f0;
-            border-top: 2px solid #3b82f6;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-right: 0.5rem;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        .error {
-            background: #fef2f2;
-            border: 1px solid #fecaca;
-            color: #dc2626;
-            padding: 1rem;
-            border-radius: 6px;
-            margin: 1rem 0;
-        }
-
-        .no-data {
-            text-align: center;
-            color: #64748b;
-            padding: 2rem;
-        }
-
-        .filters {
-            background: white;
-            padding: 1rem 1.5rem;
-            border-bottom: 1px solid #e2e8f0;
-            display: flex;
-            gap: 1rem;
-            align-items: center;
-        }
-
-        .filter-select {
-            padding: 0.5rem;
-            border: 1px solid #d1d5db;
-            border-radius: 4px;
-            font-size: 0.875rem;
-        }
-
-        .search-box {
-            padding: 0.5rem;
-            border: 1px solid #d1d5db;
-            border-radius: 4px;
-            font-size: 0.875rem;
-            flex: 1;
-            max-width: 300px;
-        }
-
-        @media (max-width: 768px) {
-            .main-content {
-                grid-template-columns: 1fr;
-            }
-            
-            .metrics {
-                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            }
-        }
-    </style>
+    @media (max-width: 768px) {
+      .main-content { grid-template-columns: 1fr; }
+      .metrics { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+    }
+  </style>
 </head>
 <body>
-    <header class="header">
-        <button class="refresh-btn" onclick="loadData()">↻ Refresh</button>
-        <div class="header-brand">
-            <div class="brand-glow"></div>
-            <h1><span class="smart-text">SMART</span> <span class="analytics-text">Analytics</span></h1>
-        </div>
-        <p>More House School</p>
-        <div style="font-size: 0.9rem; color: rgba(255, 255, 255, 0.7); margin-top: 0.5rem;">
-            Real-time family engagement tracking
-        </div>
-    </header>
+  <header class="header">
+    <button class="refresh-btn" onclick="loadData()">↻ Refresh</button>
+    <div class="header-brand">
+      <div class="brand-glow"></div>
+      <h1><span class="smart-text">SMART</span> <span class="analytics-text">Analytics</span></h1>
+    </div>
+    <p>More House School</p>
+    <div style="font-size: 0.9rem; color: rgba(255, 255, 255, 0.7); margin-top: 0.5rem;">
+      Real-time family engagement tracking
+    </div>
+  </header>
 
-    <!-- Latest Visit Timeline (paste an Inquiry ID) -->
-<div id="latest-visit" style="margin:16px 0; padding:12px; border:1px solid #E5E7EB; border-radius:8px; background:#F8FAFC;">
-    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+  <!-- Latest Visit Timeline -->
+  <div id="latest-visit" style="max-width:1400px;margin:16px auto 0;padding:12px;border:1px solid #E5E7EB;border-radius:8px;background:#F8FAFC;">
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
       <strong>Latest Visit Timeline</strong>
-      <input id="lv-inquiry" type="text" placeholder="Paste Inquiry ID e.g. INQ-1756…" 
-             style="flex:1; min-width:260px; padding:8px; border:1px solid #E5E7EB; border-radius:6px;">
-      <button id="lv-load" style="padding:8px 12px; border:0; border-radius:6px; background:#034674; color:#fff;">Load</button>
+      <input id="lv-inquiry" type="text" placeholder="Paste Inquiry ID e.g. INQ-1756…" style="flex:1;min-width:260px;padding:8px;border:1px solid #E5E7EB;border-radius:6px;">
+      <button id="lv-load" style="padding:8px 12px;border:0;border-radius:6px;background:#034674;color:#fff;">Load</button>
     </div>
-    <div id="lv-meta" style="margin-top:8px; font-size:0.9rem; color:#334155;"></div>
-    <ol id="lv-list" style="margin-top:8px; padding-left:18px;"></ol>
+    <div id="lv-meta" style="margin-top:8px;font-size:0.9rem;color:#334155;"></div>
+    <ol id="lv-list" style="margin-top:8px;padding-left:18px;"></ol>
   </div>
-  
-      
 
-    <div class="dashboard">
-        <!-- Metrics -->
-        <div class="metrics">
-            <div class="metric-card total">
-                <div class="metric-header">
-                    <div class="metric-icon total">👨‍👩‍👧‍👦</div>
-                    <div class="metric-content">
-                        <div class="metric-title">Total Families</div>
-                        <div class="metric-value" id="totalFamilies">-</div>
-                        <div class="metric-subtitle">Active prospects</div>
-                    </div>
-                </div>
-            </div>
-            <div class="metric-card hot">
-                <div class="metric-header">
-                    <div class="metric-icon hot">🔥</div>
-                    <div class="metric-content">
-                        <div class="metric-title">Hot Leads</div>
-                        <div class="metric-value" id="hotLeads">-</div>
-                        <div class="metric-subtitle">Score 80+ • Ready for Contact</div>
-                    </div>
-                </div>
-            </div>
-            <div class="metric-card warm">
-                <div class="metric-header">
-                    <div class="metric-icon warm">⚡</div>
-                    <div class="metric-content">
-                        <div class="metric-title">Warm Leads</div>
-                        <div class="metric-value" id="warmLeads">-</div>
-                        <div class="metric-subtitle">Score 50-79 • Contact Soon</div>
-                    </div>
-                </div>
-            </div>
-            <div class="metric-card engagement">
-                <div class="metric-header">
-                    <div class="metric-icon engagement">📊</div>
-                    <div class="metric-content">
-                        <div class="metric-title">Active Today</div>
-                        <div class="metric-value" id="activeToday">-</div>
-                        <div class="metric-subtitle">Recent engagement</div>
-                    </div>
-                </div>
-            </div>
+  <div class="dashboard">
+    <!-- Metrics -->
+    <div class="metrics">
+      <div class="metric-card total">
+        <div class="metric-header">
+          <div class="metric-icon total">👨‍👩‍👧‍👦</div>
+          <div class="metric-content">
+            <div class="metric-title">Total Families</div>
+            <div class="metric-value" id="totalFamilies">-</div>
+            <div class="metric-subtitle">Active prospects</div>
+          </div>
         </div>
-
-        <!-- Main Content -->
-        <div class="main-content">
-            <!-- Families Panel -->
-            <div class="panel">
-                <div class="panel-header">
-                    <div>
-                        <h2>Family Prospects</h2>
-                        <div style="font-size: 0.9rem; opacity: 0.9; margin-top: 0.25rem;">
-                            Real-time engagement tracking
-                        </div>
-                    </div>
-                </div>
-                <div class="filters">
-                    <select class="filter-select" id="sortFilter">
-                        <option value="engagement">Sort by Engagement</option>
-                        <option value="recent">Sort by Recent</option>
-                        <option value="time">Sort by Time Spent</option>
-                    </select>
-                    <select class="filter-select" id="statusFilter">
-                        <option value="all">All Families</option>
-                        <option value="hot">Hot Leads</option>
-                        <option value="warm">Warm Leads</option>
-                        <option value="active">Active Today</option>
-                    </select>
-                    <input type="text" class="search-box" placeholder="Search families..." id="searchBox">
-                </div>
-                <div class="panel-content">
-                    <div id="familyList">
-                        <div class="loading">
-                            <div class="spinner"></div>
-                            Loading families...
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Activity Panel -->
-            <div class="panel">
-                <div class="panel-header">
-                    <h2>Recent Activity</h2>
-                </div>
-                <div class="panel-content">
-                    <div id="activityFeed">
-                        <div class="loading">
-                            <div class="spinner"></div>
-                            Loading activity...
-                        </div>
-                    </div>
-                </div>
-            </div>
+      </div>
+      <div class="metric-card hot">
+        <div class="metric-header">
+          <div class="metric-icon hot">🔥</div>
+          <div class="metric-content">
+            <div class="metric-title">Hot Leads</div>
+            <div class="metric-value" id="hotLeads">-</div>
+            <div class="metric-subtitle">Score 80+ • Ready for contact</div>
+          </div>
         </div>
+      </div>
+      <div class="metric-card warm">
+        <div class="metric-header">
+          <div class="metric-icon warm">⚡</div>
+          <div class="metric-content">
+            <div class="metric-title">Warm Leads</div>
+            <div class="metric-value" id="warmLeads">-</div>
+            <div class="metric-subtitle">Score 50–79 • Contact soon</div>
+          </div>
+        </div>
+      </div>
+      <div class="metric-card engagement">
+        <div class="metric-header">
+          <div class="metric-icon engagement">📊</div>
+          <div class="metric-content">
+            <div class="metric-title">Active Today</div>
+            <div class="metric-value" id="activeToday">-</div>
+            <div class="metric-subtitle">Recent engagement</div>
+          </div>
+        </div>
+      </div>
     </div>
 
-    <script>
-        let allFamilies = [];
-        let isLoading = false;
+    <!-- Main Content -->
+    <div class="main-content">
+      <!-- Families Panel -->
+      <div class="panel">
+        <div class="panel-header">
+          <div>
+            <h2>Family Prospects</h2>
+            <div style="font-size: 0.9rem; opacity: 0.9; margin-top: 0.25rem;">
+              Real-time engagement tracking
+            </div>
+          </div>
+        </div>
+        <div class="filters">
+          <select class="filter-select" id="sortFilter">
+            <option value="engagement">Sort by Engagement</option>
+            <option value="recent">Sort by Recent</option>
+            <option value="time">Sort by Time Spent</option>
+          </select>
+          <select class="filter-select" id="statusFilter">
+            <option value="all">All Families</option>
+            <option value="hot">Hot Leads</option>
+            <option value="warm">Warm Leads</option>
+            <option value="active">Active Today</option>
+          </select>
+          <input type="text" class="search-box" placeholder="Search families..." id="searchBox">
+        </div>
+        <div class="panel-content">
+          <div id="familyList">
+            <div class="loading">
+              <div class="spinner"></div>
+              Loading families...
+            </div>
+          </div>
+        </div>
+      </div>
 
-        // Load real data from server
-        async function loadData() {
-            if (isLoading) return;
-            isLoading = true;
-            
-            try {
-                console.log('📊 Loading real data...');
-                
-                // Fetch real inquiries data
-                const response = await fetch('/api/analytics/inquiries');
-                if (!response.ok) {
-                    throw new Error(`API error: ${response.status} ${response.statusText}`);
-                }
-                
-                const data = await response.json();
-                console.log('✅ Raw data loaded:', data.length, 'families');
-                
-                allFamilies = processRealData(data);
-                console.log('📈 Processed families:', allFamilies.length);
-                
-                updateMetrics();
-                renderFamilies();
-                loadRecentActivity();
-                
-            } catch (error) {
-                console.error('❌ Error loading data:', error);
-                showError('Failed to load data: ' + error.message);
-            } finally {
-                isLoading = false;
-            }
-        }
+      <!-- Activity Panel -->
+      <div class="panel">
+        <div class="panel-header">
+          <h2>Recent Activity</h2>
+        </div>
+        <div class="panel-content">
+          <div id="activityFeed">
+            <div class="loading">
+              <div class="spinner"></div>
+              Loading activity...
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 
-        // Process real data from API
-        function processRealData(rawData) {
-            if (!Array.isArray(rawData)) {
-                console.warn('Expected array but got:', typeof rawData);
-                return [];
-            }
+  <script>
+    let allFamilies = [];
+    let isLoading = false;
 
-            return rawData.map(family => {
-                // Calculate engagement score
-                const timeMs = family.dwell_ms || 0;
-                const timeMinutes = timeMs / (1000 * 60);
-                const visits = family.return_visits || 1;
-                
-                // Simple engagement calculation
-                let engagementScore = 0;
-                engagementScore += Math.min(timeMinutes * 2, 40); // Time component (max 40)
-                engagementScore += Math.min(visits * 15, 30);      // Visits component (max 30)
-                engagementScore += Math.random() * 30;             // Random factor for scroll/clicks we don't track yet
-                
-                engagementScore = Math.round(Math.min(engagementScore, 100));
+    // Load real data from server
+    async function loadData() {
+      if (isLoading) return;
+      isLoading = true;
 
-                // Determine temperature
-                let temperature = 'cold';
-                if (engagementScore >= 80) temperature = 'hot';
-                else if (engagementScore >= 50) temperature = 'warm';
+      try {
+        console.log('📊 Loading real data...');
+        const response = await fetch('/api/analytics/inquiries');
+        if (!response.ok) throw new Error(`API error: ${response.status} ${response.statusText}`);
 
-                // Check if active today
-                const lastActivity = family.updated_at || family.received_at;
-                const isActiveToday = lastActivity && 
-                    (Date.now() - new Date(lastActivity).getTime()) < (24 * 60 * 60 * 1000);
+        const data = await response.json();
+        console.log('✅ Raw data loaded:', data.length, 'families');
 
-                return {
-                    id: family.id,
-                    name: `${family.first_name || ''} ${family.family_surname || ''}`.trim(),
-                    firstName: family.first_name,
-                    familySurname: family.family_surname,
-                    parentEmail: family.parent_email,
-                    entryYear: family.entry_year,
-                    ageGroup: family.age_group,
-                    receivedAt: family.received_at,
-                    lastActivity: lastActivity,
-                    
-                    // Engagement data
-                    timeOnPageMs: timeMs,
-                    timeOnPageMinutes: Math.round(timeMinutes),
-                    visits: visits,
-                    engagementScore: engagementScore,
-                    temperature: temperature,
-                    isActiveToday: isActiveToday,
-                    
-                    // Status
-                    status: family.status || 'received',
-                    hasProspectus: family.prospectus_generated || false,
-                    prospectusUrl: family.prospectus_pretty_url || null,
-                    
-                    // Location
-                    city: family.city || 'Unknown',
-                    country: family.country || 'Unknown'
-                };
-            }).filter(f => f.name.trim().length > 0); // Remove families with no name
-        }
+        allFamilies = processRealData(data);
+        console.log('📈 Processed families:', allFamilies.length);
 
-        // Update metrics display
-        function updateMetrics() {
-            const total = allFamilies.length;
-            const hot = allFamilies.filter(f => f.temperature === 'hot').length;
-            const warm = allFamilies.filter(f => f.temperature === 'warm').length;
-            const activeToday = allFamilies.filter(f => f.isActiveToday).length;
+        updateMetrics();
+        renderFamilies();
+        loadRecentActivity();
+      } catch (error) {
+        console.error('❌ Error loading data:', error);
+        showError('Failed to load data: ' + error.message);
+      } finally {
+        isLoading = false;
+      }
+    }
 
-            document.getElementById('totalFamilies').textContent = total;
-            document.getElementById('hotLeads').textContent = hot;
-            document.getElementById('warmLeads').textContent = warm;
-            document.getElementById('activeToday').textContent = activeToday;
+    // Process real data from API
+    function processRealData(rawData) {
+      if (!Array.isArray(rawData)) {
+        console.warn('Expected array but got:', typeof rawData);
+        return [];
+      }
 
-            console.log('📊 Metrics updated:', { total, hot, warm, activeToday });
-        }
+      return rawData.map(family => {
+        const timeMs = family.dwell_ms || 0;
+        const timeMinutes = timeMs / (1000 * 60);
+        const visits = family.return_visits || 1;
 
-        // Render families list
-        function renderFamilies() {
-            const container = document.getElementById('familyList');
-            const filteredFamilies = getFilteredFamilies();
+        // Simple engagement calculation
+        let engagementScore = 0;
+        engagementScore += Math.min(timeMinutes * 2, 40); // Time component (max 40)
+        engagementScore += Math.min(visits * 15, 30);      // Visits component (max 30)
+        engagementScore += Math.random() * 30;             // Random factor for scroll/clicks we don’t track yet
+        engagementScore = Math.round(Math.min(engagementScore, 100));
 
-            if (filteredFamilies.length === 0) {
-                container.innerHTML = '<div class="no-data">No families found matching current filters</div>';
-                return;
-            }
+        let temperature = 'cold';
+        if (engagementScore >= 80) temperature = 'hot';
+        else if (engagementScore >= 50) temperature = 'warm';
 
-            container.innerHTML = filteredFamilies.map(family => `
-                <div class="family-card" data-id="${family.id}">
-                    <div class="family-header" onclick="toggleFamily('${family.id}')">
-                        <div class="family-info">
-                            <h3>${family.name} Family</h3>
-                            <div class="family-meta">
-                                Entry ${family.entryYear || 'TBC'} • 
-                                ${family.timeOnPageMinutes}min • 
-                                ${family.visits} visit${family.visits === 1 ? '' : 's'} • 
-                                ${family.city}
-                            </div>
-                        </div>
-                        <div style="display: flex; align-items: center; gap: 0.5rem;">
-                            <div class="score-badge ${family.temperature}">
-                                ${family.engagementScore}
-                            </div>
-                            <div class="expand-icon">▼</div>
-                        </div>
-                    </div>
-                    <div class="family-details">
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                            <div>
-                                <strong>Contact Info</strong><br>
-                                Email: ${family.parentEmail || 'Unknown'}<br>
-                                Age Group: ${family.ageGroup || 'Unknown'}<br>
-                                Entry Year: ${family.entryYear || 'TBC'}
-                            </div>
-                            <div>
-                                <strong>Engagement</strong><br>
-                                Time: ${family.timeOnPageMinutes} minutes<br>
-                                Visits: ${family.visits}<br>
-                                Score: ${family.engagementScore}/100<br>
-                                ${family.isActiveToday ? '🟢 Active today' : '⚫ Not active today'}
-                            </div>
-                        </div>
-                        ${family.prospectusUrl ? `
-                            <div style="margin-top: 1rem;">
-                                <a href="${family.prospectusUrl}" target="_blank" 
-                                   style="color: #3b82f6; text-decoration: none;">
-                                    📄 View Prospectus
-                                </a>
-                            </div>
-                        ` : ''}
-                    </div>
-                </div>
-            `).join('');
+        const lastActivity = family.updated_at || family.received_at;
+        const isActiveToday = lastActivity &&
+          (Date.now() - new Date(lastActivity).getTime()) < (24 * 60 * 60 * 1000);
 
-            console.log('👥 Rendered', filteredFamilies.length, 'families');
-        }
+        return {
+          id: family.id,
+          name: `${family.first_name || ''} ${family.family_surname || ''}`.trim(),
+          firstName: family.first_name,
+          familySurname: family.family_surname,
+          parentEmail: family.parent_email,
+          entryYear: family.entry_year,
+          ageGroup: family.age_group,
+          receivedAt: family.received_at,
+          lastActivity: lastActivity,
 
-        // Get filtered families based on current filters
-        function getFilteredFamilies() {
-            let families = [...allFamilies];
-            
-            // Apply status filter
-            const statusFilter = document.getElementById('statusFilter').value;
-            if (statusFilter === 'hot') {
-                families = families.filter(f => f.temperature === 'hot');
-            } else if (statusFilter === 'warm') {
-                families = families.filter(f => f.temperature === 'warm');
-            } else if (statusFilter === 'active') {
-                families = families.filter(f => f.isActiveToday);
-            }
-            
-            // Apply search filter
-            const searchTerm = document.getElementById('searchBox').value.toLowerCase();
-            if (searchTerm) {
-                families = families.filter(f => 
-                    f.name.toLowerCase().includes(searchTerm) ||
-                    (f.parentEmail || '').toLowerCase().includes(searchTerm) ||
-                    (f.city || '').toLowerCase().includes(searchTerm)
-                );
-            }
-            
-            // Apply sorting
-            const sortBy = document.getElementById('sortFilter').value;
-            if (sortBy === 'engagement') {
-                families.sort((a, b) => b.engagementScore - a.engagementScore);
-            } else if (sortBy === 'recent') {
-                families.sort((a, b) => new Date(b.lastActivity) - new Date(a.lastActivity));
-            } else if (sortBy === 'time') {
-                families.sort((a, b) => b.timeOnPageMs - a.timeOnPageMs);
-            }
-            
-            return families;
-        }
+          // Engagement
+          timeOnPageMs: timeMs,
+          timeOnPageMinutes: Math.round(timeMinutes),
+          visits: visits,
+          engagementScore: engagementScore,
+          temperature: temperature,
+          isActiveToday: isActiveToday,
 
-        // Load recent activity
-        async function loadRecentActivity() {
-            try {
-                // For now, create activity from recent families
-                const recentFamilies = allFamilies
-                    .sort((a, b) => new Date(b.lastActivity) - new Date(a.lastActivity))
-                    .slice(0, 10);
+          // Status
+          status: family.status || 'received',
+          hasProspectus: family.prospectus_generated || false,
+          prospectusUrl: family.prospectus_pretty_url || null,
 
-                const activityHtml = recentFamilies.map(family => {
-                    const timeAgo = formatTimeAgo(new Date(family.lastActivity));
-                    return `
-                        <div class="activity-item">
-                            <div class="activity-avatar">${family.firstName ? family.firstName.charAt(0) : 'F'}</div>
-                            <div class="activity-text">
-                                <strong>${family.name}</strong> ${getActivityText(family)}
-                            </div>
-                            <div class="activity-time">${timeAgo}</div>
-                        </div>
-                    `;
-                }).join('');
+          // Location
+          city: family.city || 'Unknown',
+          country: family.country || 'Unknown'
+        };
+      }).filter(f => f.name.trim().length > 0);
+    }
 
-                document.getElementById('activityFeed').innerHTML = activityHtml || 
-                    '<div class="no-data">No recent activity</div>';
+    // Update metrics display
+    function updateMetrics() {
+      const total = allFamilies.length;
+      const hot = allFamilies.filter(f => f.temperature === 'hot').length;
+      const warm = allFamilies.filter(f => f.temperature === 'warm').length;
+      const activeToday = allFamilies.filter(f => f.isActiveToday).length;
 
-            } catch (error) {
-                console.error('Error loading activity:', error);
-                document.getElementById('activityFeed').innerHTML = 
-                    '<div class="error">Failed to load activity</div>';
-            }
-        }
+      document.getElementById('totalFamilies').textContent = total;
+      document.getElementById('hotLeads').textContent = hot;
+      document.getElementById('warmLeads').textContent = warm;
+      document.getElementById('activeToday').textContent = activeToday;
 
-        // Get activity text based on family status
-        function getActivityText(family) {
-            if (family.isActiveToday) {
-                return 'viewed their prospectus today';
-            } else if (family.hasProspectus) {
-                return 'received personalized prospectus';
-            } else {
-                return 'submitted inquiry';
-            }
-        }
+      console.log('📊 Metrics updated:', { total, hot, warm, activeToday });
+    }
 
-        // Format time ago
-        function formatTimeAgo(date) {
-            const now = new Date();
-            const diffMs = now - date;
-            const diffMins = Math.floor(diffMs / (1000 * 60));
-            const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-            const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    // Render families list
+    function renderFamilies() {
+      const container = document.getElementById('familyList');
+      const filteredFamilies = getFilteredFamilies();
 
-            if (diffMins < 1) return 'Just now';
-            if (diffMins < 60) return `${diffMins}m ago`;
-            if (diffHours < 24) return `${diffHours}h ago`;
-            if (diffDays < 7) return `${diffDays}d ago`;
-            return date.toLocaleDateString();
-        }
+      if (filteredFamilies.length === 0) {
+        container.innerHTML = '<div class="no-data">No families found matching current filters</div>';
+        return;
+      }
 
-        // Toggle family details
-        function toggleFamily(familyId) {
-            const card = document.querySelector(`[data-id="${familyId}"]`);
-            if (card) {
-                card.classList.toggle('expanded');
-            }
-        }
+      container.innerHTML = filteredFamilies.map(family => `
+        <div class="family-card" data-id="${family.id}">
+          <div class="family-header" onclick="toggleFamily('${family.id}')">
+            <div class="family-info">
+              <h3>${family.name} Family</h3>
+              <div class="family-meta">
+                Entry ${family.entryYear || 'TBC'} •
+                ${family.timeOnPageMinutes}min •
+                ${family.visits} visit${family.visits === 1 ? '' : 's'} •
+                ${family.city}
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:0.5rem;">
+              <div class="score-badge ${family.temperature}">
+                ${family.engagementScore}
+              </div>
+              <div class="expand-icon">▼</div>
+            </div>
+          </div>
+          <div class="family-details">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+              <div>
+                <strong>Contact Info</strong><br>
+                Email: ${family.parentEmail || 'Unknown'}<br>
+                Age Group: ${family.ageGroup || 'Unknown'}<br>
+                Entry Year: ${family.entryYear || 'TBC'}
+              </div>
+              <div>
+                <strong>Engagement</strong><br>
+                Time: ${family.timeOnPageMinutes} minutes<br>
+                Visits: ${family.visits}<br>
+                Score: ${family.engagementScore}/100<br>
+                ${family.isActiveToday ? '🟢 Active today' : '⚫ Not active today'}
+              </div>
+            </div>
+            ${family.prospectusUrl ? `
+              <div style="margin-top:1rem;">
+                <a href="${family.prospectusUrl}" target="_blank" style="color:#3b82f6;text-decoration:none;">
+                  📄 View Prospectus
+                </a>
+              </div>
+            ` : ''}
+          </div>
+        </div>
+      `).join('');
 
-        // Show error message
-        function showError(message) {
-            const containers = ['familyList', 'activityFeed'];
-            containers.forEach(containerId => {
-                const container = document.getElementById(containerId);
-                container.innerHTML = `<div class="error">${message}</div>`;
-            });
-        }
+      console.log('👥 Rendered', filteredFamilies.length, 'families');
+    }
 
-        // Event listeners
-        document.getElementById('sortFilter').addEventListener('change', renderFamilies);
-        document.getElementById('statusFilter').addEventListener('change', renderFamilies);
-        document.getElementById('searchBox').addEventListener('input', renderFamilies);
+    // Get filtered families
+    function getFilteredFamilies() {
+      let families = [...allFamilies];
 
-        // Auto refresh every 30 seconds
-        setInterval(loadData, 30000);
+      const statusFilter = document.getElementById('statusFilter').value;
+      if (statusFilter === 'hot') families = families.filter(f => f.temperature === 'hot');
+      else if (statusFilter === 'warm') families = families.filter(f => f.temperature === 'warm');
+      else if (statusFilter === 'active') families = families.filter(f => f.isActiveToday);
 
-        // Initial load
-        document.addEventListener('DOMContentLoaded', loadData);
-    </script>
-    <script>
-        (function(){
-          async function loadLatestVisit(inquiryId){
-            if(!inquiryId) return;
-            const res = await fetch(`/api/visits/${encodeURIComponent(inquiryId)}/latest`);
-            const body = await res.json();
-            const meta = document.getElementById('lv-meta');
-            const list = document.getElementById('lv-list');
-            list.innerHTML = ''; meta.textContent = '';
-        
-            if(!body.ok || !body.session){
-              meta.textContent = 'No visits found for that inquiry.';
-              return;
-            }
-        
-            const fmt = ts => new Date(ts).toLocaleString();
-            meta.textContent = `Session ${body.session.id} — ${fmt(body.session.start)} → ${fmt(body.session.end)}`;
-        
-            // Render timeline: show only the minimal events we track
-            for(const ev of body.events){
-              const li = document.createElement('li');
-              li.style.margin = '4px 0';
-        
-              if(ev.type === 'section_enter'){
-                li.textContent = `→ Enter section: ${ev.section}`;
-              } else if(ev.type === 'section_exit'){
-                li.textContent = `↩︎ Exit section: ${ev.section} — ${ev.dwellSec ?? 0}s`;
-              } else if(ev.type === 'tier_expand'){
-                li.textContent = `⟫ Tier opened: ${ev.tier}`;
-              } else if(ev.type === 'tier_exit'){
-                li.textContent = `⟪ Tier closed (inferred): ${ev.tier} — ${ev.dwellSec ?? 0}s [${ev.reason}]`;
-              } else if(ev.type === 'video_open'){
-                li.textContent = `▶︎ Video open: ${ev.youtubeId || ''} ${ev.title ? `— ${ev.title}` : ''}`;
-              } else if(ev.type === 'video_close'){
-                li.textContent = `■ Video close: ${ev.youtubeId || ''}`;
-              } else if(ev.type === 'page_load'){
-                li.textContent = `✓ Visit start`;
-              } else if(ev.type === 'page_unload'){
-                li.textContent = `✕ Visit end`;
-              } else {
-                li.textContent = ev.name;
-              }
-              list.appendChild(li);
-            }
+      const searchTerm = document.getElementById('searchBox').value.toLowerCase();
+      if (searchTerm) {
+        families = families.filter(f =>
+          f.name.toLowerCase().includes(searchTerm) ||
+          (f.parentEmail || '').toLowerCase().includes(searchTerm) ||
+          (f.city || '').toLowerCase().includes(searchTerm)
+        );
+      }
+
+      const sortBy = document.getElementById('sortFilter').value;
+      if (sortBy === 'engagement') families.sort((a, b) => b.engagementScore - a.engagementScore);
+      else if (sortBy === 'recent') families.sort((a, b) => new Date(b.lastActivity) - new Date(a.lastActivity));
+      else if (sortBy === 'time') families.sort((a, b) => b.timeOnPageMs - a.timeOnPageMs);
+
+      return families;
+    }
+
+    // Load recent activity
+    async function loadRecentActivity() {
+      try {
+        const recentFamilies = allFamilies
+          .slice()
+          .sort((a, b) => new Date(b.lastActivity) - new Date(a.lastActivity))
+          .slice(0, 10);
+
+        const activityHtml = recentFamilies.map(family => {
+          const timeAgo = formatTimeAgo(new Date(family.lastActivity));
+          return `
+            <div class="activity-item">
+              <div class="activity-avatar">${family.firstName ? family.firstName.charAt(0) : 'F'}</div>
+              <div class="activity-text">
+                <strong>${family.name}</strong> ${getActivityText(family)}
+              </div>
+              <div class="activity-time">${timeAgo}</div>
+            </div>
+          `;
+        }).join('');
+
+        document.getElementById('activityFeed').innerHTML =
+          activityHtml || '<div class="no-data">No recent activity</div>';
+      } catch (error) {
+        console.error('Error loading activity:', error);
+        document.getElementById('activityFeed').innerHTML =
+          '<div class="error">Failed to load activity</div>';
+      }
+    }
+
+    function getActivityText(family) {
+      if (family.isActiveToday) return 'viewed their prospectus today';
+      if (family.hasProspectus) return 'received personalised prospectus';
+      return 'submitted enquiry';
+    }
+
+    function formatTimeAgo(date) {
+      const now = new Date();
+      const diffMs = now - date;
+      const diffMins = Math.floor(diffMs / (1000 * 60));
+      const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+      if (diffMins < 1) return 'Just now';
+      if (diffMins < 60) return `${diffMins}m ago`;
+      if (diffHours < 24) return `${diffHours}h ago`;
+      if (diffDays < 7) return `${diffDays}d ago`;
+      return date.toLocaleDateString();
+    }
+
+    function toggleFamily(familyId) {
+      const card = document.querySelector(`[data-id="${familyId}"]`);
+      if (card) card.classList.toggle('expanded');
+    }
+
+    function showError(message) {
+      ['familyList', 'activityFeed'].forEach(containerId => {
+        const container = document.getElementById(containerId);
+        container.innerHTML = `<div class="error">${message}</div>`;
+      });
+    }
+
+    // Listeners
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('sortFilter').addEventListener('change', renderFamilies);
+      document.getElementById('statusFilter').addEventListener('change', renderFamilies);
+      document.getElementById('searchBox').addEventListener('input', renderFamilies);
+      document.getElementById('lv-load').addEventListener('click', () => {
+        const id = document.getElementById('lv-inquiry').value.trim();
+        loadLatestVisit(id);
+      });
+
+      loadData();
+      setInterval(loadData, 30000);
+    });
+  </script>
+
+  <script>
+    (function(){
+      async function loadLatestVisit(inquiryId){
+        if(!inquiryId) return;
+
+        try {
+          const res = await fetch(`/api/visits/${encodeURIComponent(inquiryId)}/latest`);
+          const body = await res.json();
+          const meta = document.getElementById('lv-meta');
+          const list = document.getElementById('lv-list');
+          list.innerHTML = ''; meta.textContent = '';
+
+          if(!body.ok || !body.session){
+            meta.textContent = 'No visits found for that inquiry.';
+            return;
           }
-        
-          document.getElementById('lv-load').addEventListener('click', () => {
-            const id = document.getElementById('lv-inquiry').value.trim();
-            loadLatestVisit(id);
-          });
-        
-          // Optional: if your dashboard already knows a selected family, you could auto-fill:
-          // document.getElementById('lv-inquiry').value = SOME_INQUIRY_ID;
-        })();
-        </script>
-        
+
+          const fmt = ts => new Date(ts).toLocaleString();
+          meta.textContent = `Session ${body.session.id} — ${fmt(body.session.start)} → ${fmt(body.session.end)}`;
+
+          for (const ev of body.events) {
+            const li = document.createElement('li');
+            li.style.margin = '4px 0';
+
+            if (ev.type === 'section_enter') {
+              li.textContent = `→ Enter section: ${ev.section}`;
+            } else if (ev.type === 'section_exit') {
+              li.textContent = `↩︎ Exit section: ${ev.section} — ${ev.dwellSec ?? 0}s${ev.reason ? ` [${ev.reason}]` : ''}`;
+            } else if (ev.type === 'tier_expand') {
+              li.textContent = `⟫ Tier opened: ${ev.tier}`;
+            } else if (ev.type === 'tier_exit') {
+              li.textContent = `⟪ Tier closed (inferred): ${ev.tier} — ${ev.dwellSec ?? 0}s${ev.reason ? ` [${ev.reason}]` : ''}`;
+            } else if (ev.type === 'video_open') {
+              li.textContent = `▶︎ Video open: ${ev.youtubeId || ''}${ev.title ? ` — ${ev.title}` : ''}`;
+            } else if (ev.type === 'video_close') {
+              li.textContent = `■ Video close: ${ev.youtubeId || ''}`;
+            } else if (ev.type === 'cta_openmorning_click') {
+              li.textContent = `★ Open Morning click: ${ev.href || ''}`;
+            } else if (ev.type === 'page_load') {
+              li.textContent = '✓ Visit start';
+            } else if (ev.type === 'page_unload') {
+              li.textContent = '✕ Visit end';
+            } else {
+              li.textContent = ev.name || ev.type;
+            }
+
+            list.appendChild(li);
+          }
+        } catch (e) {
+          const meta = document.getElementById('lv-meta');
+          meta.textContent = 'Error loading visit.';
+          console.error('loadLatestVisit error:', e);
+        }
+      }
+
+      // expose for button handler if needed elsewhere
+      window.loadLatestVisit = loadLatestVisit;
+    })();
+  </script>
 </body>
 </html>
