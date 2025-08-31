@@ -1,283 +1,460 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>More House Analytics - Admissions Dashboard</title>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<style>
-:root{
-  --blazer-navy:#091825; --award-gold:#FF9F1C; --sport-blue:#034674;
-  --text:#2C3E50; --white:#fff; --bg:#f6f8fb; --line:#e5e7eb;
-  --rate-high:#0F766E; --rate-med:#B45309; --rate-low:#374151; --rate-unrated:#6B7280;
-  --heading:'Playfair Display',serif; --body:'Inter',sans-serif
-}
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:var(--body);background:linear-gradient(135deg,#f8fafc,#eef2f7);color:var(--text)}
-.header{background:linear-gradient(135deg,#091825,#034674);color:#fff;padding:2rem;text-align:center;position:relative}
-.header h1{font-family:var(--heading);font-size:3rem}
-.header .smart{background:linear-gradient(135deg,var(--award-gold),#FFB84D);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
-.header small{opacity:.8;display:block;margin-top:.25rem}
-.refresh{position:absolute;right:16px;top:16px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);color:#fff;border-radius:8px;padding:.4rem .7rem;cursor:pointer}
-.container{max-width:1400px;margin:-24px auto 24px;padding:0 12px}
-.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin:0 0 16px}
-.card{background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 4px 14px rgba(9,24,37,.06);overflow:hidden}
-.card .head{background:#034674;color:#fff;padding:.8rem 1rem;font-weight:600}
-.card .body{padding:1rem}
-.kpi{display:flex;align-items:center;gap:12px}
-.kpi .icon{width:44px;height:44px;border-radius:10px;background:#034674;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700}
-.kpi .val{font-size:2rem;font-family:var(--heading)}
-.grid{display:grid;grid-template-columns:2fr 1fr;gap:16px}
-@media (max-width:1000px){.grid{grid-template-columns:1fr}}
-.controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
-input[type="text"],select,button{font:inherit}
-.input, .select{padding:.5rem;border:1px solid #d1d5db;border-radius:8px;background:#fff}
-.btn{padding:.5rem .75rem;border:1px solid #cbd5e1;border-radius:8px;background:#fff;cursor:pointer}
-.btn.primary{background:#034674;color:#fff;border-color:#034674}
-.badge{display:inline-block;padding:.15rem .5rem;border-radius:999px;background:#eef2f7;border:1px solid var(--line);font-size:.75rem;margin-left:.35rem}
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>More House Analytics – Admissions Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      /* Brand */
+      --blazer-navy:#091825; --award-gold:#FF9F1C; --sport-blue:#034674;
+      --text:#2C3E50; --white:#fff; --bg:#f6f8fb; --line:#e5e7eb;
+      --light:#F8FAFC;
 
-/* Family list */
-.family{border:1px solid var(--line);border-radius:10px;margin-bottom:10px;overflow:hidden;background:#fff}
-.family .hdr{display:flex;justify-content:space-between;align-items:center;background:#f8fafc;padding:.8rem 1rem;cursor:pointer}
-.family .meta{color:#64748b;font-size:.9rem}
-.family .details{display:none;border-top:1px solid var(--line);padding:1rem}
-.family.open .details{display:block}
-.pills{display:flex;gap:6px;flex-wrap:wrap}
-.pill{border:1px solid #d1d5db;border-radius:999px;padding:.25rem .6rem;font-size:.8rem;background:#fff;cursor:pointer}
-.pill.active{color:#fff;border-color:transparent}
-.pill.high.active{background:var(--rate-high)}
-.pill.medium.active{background:var(--rate-med)}
-.pill.low.active{background:var(--rate-low)}
-.pill.unrated.active{background:var(--rate-unrated)}
-textarea.notes{width:100%;min-height:72px;border:1px solid #d1d5db;border-radius:8px;padding:.6rem;margin-top:.6rem}
+      /* Team rating colours */
+      --rate-high:#0F766E;   /* teal */
+      --rate-med:#B45309;    /* amber-brown */
+      --rate-low:#374151;    /* slate */
+      --rate-unrated:#6B7280;
 
-/* Session Summary Cards */
-.session-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px}
-.session-card{border:1px solid var(--line);border-radius:10px;background:#fff;padding:.75rem}
-.session-card .row{display:flex;justify-content:space-between;font-size:.9rem;margin:.15rem 0}
-.session-card .bar{height:8px;background:#e5e7eb;border-radius:999px;overflow:hidden;margin-top:.4rem}
-.session-card .bar > div{height:100%;background:#034674}
+      --heading:'Playfair Display',serif;
+      --body:'Inter',sans-serif;
+    }
 
-/* Timeline visual */
-.timeline{margin-top:.75rem;border:1px solid var(--line);border-radius:8px;padding:.6rem;background:#F8FAFC}
-.trow{display:flex;gap:6px;align-items:center;margin:.25rem 0}
-.block{height:16px;background:#cfe2f3;border:1px solid #b6cde1;border-radius:4px;min-width:6px}
-.legend{font-size:.85rem;color:#475569;margin-top:.35rem}
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:var(--body);background:linear-gradient(135deg,#f8fafc,#eef2f7);color:var(--text);font-size:14px}
 
-/* Leaderboard / Heatmap */
-.leader{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;border-bottom:1px solid var(--line);padding:.4rem 0}
-.leader:last-child{border-bottom:0}
-.heat{height:10px;width:120px;background:#eef2f7;border-radius:999px;overflow:hidden}
-.heat > div{height:100%;background:#034674}
+    /* Header */
+    .header{background:linear-gradient(135deg,#091825,#034674);color:#fff;padding:2rem;text-align:center;position:relative;box-shadow:0 4px 20px rgba(9,24,37,.25)}
+    .header h1{font-family:var(--heading);font-size:3rem;letter-spacing:.2px}
+    .smart{background:linear-gradient(135deg,var(--award-gold),#FFB84D);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+    .sub{opacity:.85;margin-top:.35rem}
+    .refresh{position:absolute;right:16px;top:16px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);color:#fff;border-radius:8px;padding:.4rem .7rem;cursor:pointer}
+    .refresh:hover{background:rgba(255,255,255,.18)}
 
-/* Latest visit quick viewer */
-#latest-visit{border:1px solid var(--line);border-radius:10px;background:#F8FAFC;padding:10px;margin:0 0 16px}
-.loading{display:flex;gap:8px;align-items:center;justify-content:center;padding:1rem;color:#64748b}
-.error{background:#fef2f2;border:1px solid #fecaca;padding:.8rem;border-radius:8px;color:#b91c1c}
-</style>
+    /* Error banner */
+    #err-banner{position:sticky;top:0;z-index:9999;background:#FEF2F2;color:#991B1B;border:1px solid #FCA5A5;padding:10px 12px;display:none;font:13px/1.3 system-ui}
+
+    /* Layout */
+    .container{max-width:1400px;margin:-24px auto 24px;padding:0 12px}
+    .metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin:0 0 16px}
+    .grid{display:grid;grid-template-columns:2fr 1fr;gap:16px}
+    @media (max-width:1000px){.grid{grid-template-columns:1fr}}
+
+    /* Cards / panels */
+    .card{background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 4px 14px rgba(9,24,37,.06);overflow:hidden}
+    .head{background:#034674;color:#fff;padding:.8rem 1rem;font-weight:600}
+    .body{padding:1rem}
+    .kpi{display:flex;align-items:center;gap:12px}
+    .icon{width:44px;height:44px;border-radius:10px;background:#034674;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700}
+    .val{font-size:2rem;font-family:var(--heading)}
+
+    /* Controls */
+    .controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+    input[type="text"],select,button{font:inherit}
+    .input,.select{padding:.5rem;border:1px solid #d1d5db;border-radius:8px;background:#fff}
+    .btn{padding:.5rem .75rem;border:1px solid #cbd5e1;border-radius:8px;background:#fff;cursor:pointer}
+    .btn.primary{background:#034674;color:#fff;border-color:#034674}
+    .badge{display:inline-block;padding:.15rem .5rem;border-radius:999px;background:#eef2f7;border:1px solid var(--line);font-size:.75rem;margin-left:.35rem}
+
+    /* Diagnostics */
+    #diag{max-width:1400px;margin:12px auto 0;padding:10px;border:1px solid var(--line);border-radius:8px;background:#fff}
+    #diag-out{margin-top:8px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;white-space:pre-wrap}
+
+    /* Latest visit quick viewer */
+    #latest-visit{border:1px solid var(--line);border-radius:10px;background:var(--light);padding:10px;margin:12px auto 16px}
+
+    /* Families */
+    .family{border:1px solid var(--line);border-radius:10px;margin-bottom:10px;overflow:hidden;background:#fff}
+    .family .hdr{display:flex;justify-content:space-between;align-items:center;background:#f8fafc;padding:.8rem 1rem;cursor:pointer}
+    .family .meta{color:#64748b;font-size:.9rem}
+    .family .details{display:none;border-top:1px solid var(--line);padding:1rem}
+    .family.open .details{display:block}
+    .pills{display:flex;gap:6px;flex-wrap:wrap}
+    .pill{border:1px solid #d1d5db;border-radius:999px;padding:.25rem .6rem;font-size:.8rem;background:#fff;cursor:pointer}
+    .pill.active{color:#fff;border-color:transparent}
+    .pill.high.active{background:var(--rate-high)}
+    .pill.medium.active{background:var(--rate-med)}
+    .pill.low.active{background:var(--rate-low)}
+    .pill.unrated.active{background:var(--rate-unrated)}
+    textarea.notes{width:100%;min-height:72px;border:1px solid #d1d5db;border-radius:8px;padding:.6rem;margin-top:.6rem}
+
+    /* Session summary cards */
+    .session-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px}
+    .session-card{border:1px solid var(--line);border-radius:10px;background:#fff;padding:.75rem}
+    .session-card .row{display:flex;justify-content:space-between;font-size:.9rem;margin:.15rem 0}
+    .session-card .bar{height:8px;background:#e5e7eb;border-radius:999px;overflow:hidden;margin-top:.4rem}
+    .session-card .bar > div{height:100%;background:#034674}
+
+    /* Timeline visual */
+    .timeline{margin-top:.75rem;border:1px solid var(--line);border-radius:8px;padding:.6rem;background:#F8FAFC}
+    .block{height:16px;background:#cfe2f3;border:1px solid #b6cde1;border-radius:4px;min-width:6px}
+    .legend{font-size:.85rem;color:#475569;margin-top:.35rem}
+
+    /* Sessions list */
+    details.session{border:1px solid var(--line);border-radius:8px;margin:.4rem 0;background:#fff}
+    details.session > summary{padding:.5rem .7rem;cursor:pointer}
+
+    /* Leaderboard / Heatmap */
+    .leader-row{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;border-bottom:1px solid var(--line);padding:.4rem 0}
+    .leader-row:last-child{border-bottom:0}
+    .heat{height:10px;width:120px;background:#eef2f7;border-radius:999px;overflow:hidden}
+    .heat > div{height:100%;background:#034674}
+
+    /* Misc states */
+    .loading{display:flex;gap:8px;align-items:center;justify-content:center;padding:1rem;color:#64748b}
+    .error{background:#fef2f2;border:1px solid #fecaca;padding:.8rem;border-radius:8px;color:#b91c1c}
+  </style>
 </head>
 <body>
-<header class="header">
-  <button class="refresh" onclick="loadAll(true)">Refresh</button>
-  <h1><span class="smart">SMART</span> Analytics</h1>
-  <small>More House School — team-rated pipeline (no auto hot/warm)</small>
-</header>
 
-<div class="container">
+  <div id="err-banner"></div>
 
-  <!-- Top KPIs (team-rated only) -->
-  <div class="metrics">
-    <div class="card"><div class="body kpi">
-      <div class="icon">👨‍👩‍👧‍👦</div>
-      <div><div style="font-size:.8rem;opacity:.7">Total Families</div><div class="val" id="k_total">-</div></div>
-    </div></div>
-    <div class="card"><div class="body kpi">
-      <div class="icon" style="background:#0F766E">▲</div>
-      <div><div style="font-size:.8rem;opacity:.7">Team-Rated High</div><div class="val" id="k_high">-</div></div>
-    </div></div>
-    <div class="card"><div class="body kpi">
-      <div class="icon" style="background:#B45309">◼</div>
-      <div><div style="font-size:.8rem;opacity:.7">Team-Rated Medium</div><div class="val" id="k_med">-</div></div>
-    </div></div>
-    <div class="card"><div class="body kpi">
-      <div class="icon" style="background:#374151">▼</div>
-      <div><div style="font-size:.8rem;opacity:.7">Team-Rated Low</div><div class="val" id="k_low">-</div></div>
-    </div></div>
-    <div class="card"><div class="body kpi">
-      <div class="icon" style="background:#6B7280">•</div>
-      <div><div style="font-size:.8rem;opacity:.7">Unrated</div><div class="val" id="k_unrated">-</div></div>
-    </div></div>
-    <div class="card"><div class="body kpi">
-      <div class="icon" style="background:linear-gradient(135deg,#10B981,#34d399)">📊</div>
-      <div><div style="font-size:.8rem;opacity:.7">Active Today</div><div class="val" id="k_active">-</div></div>
-    </div></div>
+  <header class="header">
+    <button class="refresh" onclick="reloadAll()">Refresh</button>
+    <h1><span class="smart">SMART</span> Analytics</h1>
+    <div class="sub">More House School — team-rated pipeline (no automatic lead labelling)</div>
+  </header>
+
+  <!-- Diagnostics panel -->
+  <div id="diag">
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <strong>Diagnostics</strong>
+      <button id="diag-run" class="btn primary">Run checks</button>
+      <label style="margin-left:auto;font-size:.9rem;color:#334155">
+        API Base:
+        <select id="diag-base" class="select" style="padding:.25rem .4rem">
+          <option value="/api" selected>/api</option>
+          <option value="">(root)</option>
+        </select>
+      </label>
+      <label style="font-size:.9rem;color:#334155">
+        Inquiry ID:
+        <input id="diag-inq" class="input" placeholder="e.g. INQ-1756…" style="min-width:220px">
+      </label>
+    </div>
+    <div id="diag-out"></div>
   </div>
 
   <!-- Latest visit viewer -->
   <div id="latest-visit">
     <strong>Latest Visit Timeline</strong>
     <div class="controls" style="margin-top:6px">
-      <input id="lv-id" class="input" placeholder="Paste Inquiry ID e.g. INQ-1756…" style="min-width:260px;flex:1">
+      <input id="lv-id" class="input" placeholder="Paste Inquiry ID (e.g. INQ-1756…)" style="min-width:260px;flex:1">
       <button class="btn primary" onclick="loadLatestTimeline()">Load</button>
     </div>
     <div id="lv-meta" style="font-size:.9rem;color:#334155;margin-top:4px"></div>
     <div id="lv-list" style="margin-top:6px"></div>
   </div>
 
-  <div class="grid">
-    <!-- Left: Families + Session cards -->
-    <div>
-      <div class="card">
-        <div class="head">Family Prospects</div>
-        <div class="body">
-          <div class="controls">
-            <select id="f_sort" class="select">
-              <option value="recent">Sort by Recent Activity</option>
-              <option value="time">Sort by Time Spent</option>
-              <option value="visits">Sort by Return Visits</option>
-            </select>
-            <select id="f_rate" class="select">
-              <option value="all">All Ratings</option>
-              <option value="high">High</option>
-              <option value="medium">Medium</option>
-              <option value="low">Low</option>
-              <option value="unrated">Unrated</option>
-            </select>
-            <input id="f_q" class="input" placeholder="Search families…">
-          </div>
-          <div id="families"><div class="loading">Loading families…</div></div>
-        </div>
-      </div>
+  <div class="container">
 
-      <!-- NEW: Engagement Summary Cards (per-session high-level) -->
-      <div class="card" style="margin-top:16px">
-        <div class="head">Engagement Summary (latest sessions)</div>
-        <div class="body">
-          <div id="sessionCards" class="session-cards"><div class="loading">Loading sessions…</div></div>
-        </div>
-      </div>
+    <!-- KPIs (team-rated only) -->
+    <div class="metrics">
+      <div class="card"><div class="body kpi"><div class="icon">👨‍👩‍👧‍👦</div><div><div style="font-size:.8rem;opacity:.7">Total Families</div><div class="val" id="k_total">-</div></div></div></div>
+      <div class="card"><div class="body kpi"><div class="icon" style="background:var(--rate-high)">▲</div><div><div style="font-size:.8rem;opacity:.7">Team-Rated High</div><div class="val" id="k_high">-</div></div></div></div>
+      <div class="card"><div class="body kpi"><div class="icon" style="background:var(--rate-med)">◼</div><div><div style="font-size:.8rem;opacity:.7">Team-Rated Medium</div><div class="val" id="k_med">-</div></div></div></div>
+      <div class="card"><div class="body kpi"><div class="icon" style="background:var(--rate-low)">▼</div><div><div style="font-size:.8rem;opacity:.7">Team-Rated Low</div><div class="val" id="k_low">-</div></div></div></div>
+      <div class="card"><div class="body kpi"><div class="icon" style="background:var(--rate-unrated)">•</div><div><div style="font-size:.8rem;opacity:.7">Unrated</div><div class="val" id="k_unrated">-</div></div></div></div>
+      <div class="card"><div class="body kpi"><div class="icon" style="background:linear-gradient(135deg,#10B981,#34d399)">📊</div><div><div style="font-size:.8rem;opacity:.7">Active Today</div><div class="val" id="k_active">-</div></div></div></div>
     </div>
 
-    <!-- Right: Leaderboard / Heatmap + Recent activity -->
-    <div>
-      <div class="card">
-        <div class="head">Section Leaderboard (aggregate)</div>
-        <div class="body" id="leaderboard">
-          <div class="loading">Computing section stats…</div>
+    <div class="grid">
+      <!-- Left column -->
+      <div>
+        <div class="card">
+          <div class="head">Family Prospects</div>
+          <div class="body">
+            <div class="controls">
+              <select id="f_sort" class="select">
+                <option value="recent">Sort by Recent Activity</option>
+                <option value="time">Sort by Time Spent</option>
+                <option value="visits">Sort by Return Visits</option>
+              </select>
+              <select id="f_rate" class="select">
+                <option value="all">All Ratings</option>
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
+                <option value="unrated">Unrated</option>
+              </select>
+              <input id="f_q" class="input" placeholder="Search families…">
+            </div>
+            <div id="families"><div class="loading">Loading families…</div></div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:16px">
+          <div class="head">Engagement Summary (latest sessions)</div>
+          <div class="body">
+            <div id="sessionCards" class="session-cards"><div class="loading">Loading sessions…</div></div>
+          </div>
         </div>
       </div>
 
-      <div class="card" style="margin-top:16px">
-        <div class="head">Recent Activity</div>
-        <div class="body" id="recent"><div class="loading">Loading…</div></div>
-      </div>
-
-      <!-- AI summaries (off by default) -->
-      <div class="card" style="margin-top:16px">
-        <div class="head">AI Summaries (disabled)</div>
-        <div class="body">
-          <p style="font-size:.9rem;color:#475569">For safety/trust, automated “hot/warm” wording is <strong>disabled</strong>. Toggle below if you want one-line neutral summaries for each family/session once you’re happy with the raw metrics.</p>
-          <div class="controls" style="margin-top:8px">
-            <label><input type="checkbox" id="ai_toggle"> Enable neutral AI summaries</label>
+      <!-- Right column -->
+      <div>
+        <div class="card">
+          <div class="head">Section Leaderboard (aggregate)</div>
+          <div class="body" id="leaderboard">
+            <div class="loading">Computing section stats…</div>
           </div>
-          <div id="ai_status" style="font-size:.9rem;color:#64748b;margin-top:6px">AI summariser is off.</div>
+        </div>
+
+        <div class="card" style="margin-top:16px">
+          <div class="head">Recent Activity</div>
+          <div class="body" id="recent"><div class="loading">Loading…</div></div>
+        </div>
+
+        <div class="card" style="margin-top:16px">
+          <div class="head">AI Summaries (disabled)</div>
+          <div class="body">
+            <p style="font-size:.9rem;color:#475569">To protect trust, automated “hot/warm” wording is <strong>disabled</strong>. You can enable neutral, single-sentence summaries once you’re happy with the raw metrics.</p>
+            <div class="controls" style="margin-top:8px">
+              <label><input type="checkbox" id="ai_toggle"> Enable neutral AI summaries</label>
+            </div>
+            <div id="ai_status" style="font-size:.9rem;color:#64748b;margin-top:6px">AI summariser is off.</div>
+          </div>
         </div>
       </div>
     </div>
   </div>
-</div>
 
-<script>
-'use strict';
+  <script>
+  'use strict';
 
-// ---------- basics ----------
-const $ = id => document.getElementById(id);
-const setTxt = (id,v)=>{const el=$(id); if(el) el.textContent=String(v)};
-const j = (url,opts)=>fetch(url+(opts?'':(url.includes('?')?'&':'?')+'_ts='+Date.now()),opts||{cache:'no-store'}).then(r=>{if(!r.ok)throw new Error(r.status+' '+r.statusText);return r.json()});
+  /* ==========================
+     Config & globals
+     ========================== */
 
-// ---------- state ----------
-let familiesRaw=[], families=[], sessionsFlat=[], sectionStats={}; // aggregates
+  // Switchable from Diagnostics dropdown
+  let API_BASE = '/api';
 
-// ---------- load all ----------
-async function loadAll(force){
-  try{
-    // Families (expected to include team_rating, team_notes, prospectus URL, basic aggregates)
-    const arr = await j('/api/analytics/inquiries');
-    familiesRaw = Array.isArray(arr)?arr:[];
-    families = familiesRaw.map(x => shapeFamily(x));
-    updateKPIs();
-    renderFamilies();
-    renderRecent();
+  // Abort long API calls
+  const API_TIMEOUT_MS = 12000;
 
-    // Session summaries (latest session per family)
-    await buildSessionCards();            // uses visit history when needed
-
-    // Section leaderboard / heatmap
-    await buildSectionLeaderboard();      // aggregates across sessionsFlat
-
-  }catch(e){
-    console.error(e);
-    $('#families').innerHTML = '<div class="error">Failed to load data</div>';
-    $('#leaderboard').innerHTML = '<div class="error">Failed to compute section stats</div>';
+  // Simple error banner
+  function showErr(msg){
+    const el = document.getElementById('err-banner');
+    if (!el) return;
+    el.textContent = '⚠️ ' + msg;
+    el.style.display = 'block';
   }
-}
 
-// ---------- shaping ----------
-function shapeFamily(f){
-  const dwellMs = Number(f.dwell_ms)||0;
-  const minutes = Math.round(dwellMs/60000);
-  const rating = (f.team_rating||'').toLowerCase();
-  return {
-    id: f.id,
-    name: `${f.first_name||''} ${f.family_surname||''}`.trim() || (f.family_name||'Family'),
-    email: f.parent_email||'',
-    city: f.city||'',
-    entryYear: f.entry_year||'TBC',
-    ageGroup: f.age_group||'',
-    last: f.updated_at || f.received_at || null,
-    visits: Number(f.return_visits)||0,
-    minutes,
-    prospectusUrl: f.prospectus_pretty_url||null,
-    rating: ['high','medium','low'].includes(rating)?rating:'unrated',
-    notes: f.team_notes||''
-  };
-}
+  // Robust fetch helper with strong logging
+  async function j(url, opts){
+    // Normalise relative paths to chosen API_BASE
+    const full = url.startsWith('http')
+      ? url
+      : (url.startsWith(API_BASE) ? url : (API_BASE + (url.startsWith('/api') ? url.replace(/^\/api/, '') : url)));
 
-function updateKPIs(){
-  setTxt('k_total', families.length);
-  setTxt('k_high', families.filter(f=>f.rating==='high').length);
-  setTxt('k_med', families.filter(f=>f.rating==='medium').length);
-  setTxt('k_low', families.filter(f=>f.rating==='low').length);
-  setTxt('k_unrated', families.filter(f=>f.rating==='unrated').length);
-  const day = 86400000;
-  setTxt('k_active', families.filter(f=>f.last && (Date.now()-new Date(f.last).getTime())<=day).length);
-}
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+    try{
+      const res = await fetch(full + (opts ? '' : (full.includes('?') ? '&' : '?') + '_ts=' + Date.now()), {
+        cache:'no-store', signal: controller.signal, ...opts
+      });
+      clearTimeout(id);
 
-// ---------- families list ----------
-function renderFamilies(){
-  const wrap = $('#families');
-  const q = ($('#f_q').value||'').toLowerCase();
-  const rf = $('#f_rate').value||'all';
-  const sort = $('#f_sort').value||'recent';
+      const ctype = (res.headers.get('content-type') || '').toLowerCase();
+      const text  = await res.text();
 
-  let list = families.slice();
-  if (rf!=='all') list = list.filter(f=>f.rating===rf);
-  if (q) list = list.filter(f=>(f.name.toLowerCase().includes(q) || (f.email||'').toLowerCase().includes(q) || (f.city||'').toLowerCase().includes(q)));
+      if (!res.ok){
+        console.error('[API]', full, 'HTTP', res.status, '\nBody preview:', text.slice(0,300));
+        throw new Error(`HTTP ${res.status} for ${full}`);
+      }
 
-  if (sort==='time') list.sort((a,b)=>b.minutes-a.minutes);
-  else if (sort==='visits') list.sort((a,b)=>b.visits-a.visits);
-  else list.sort((a,b)=>new Date(b.last||0)-new Date(a.last||0));
+      if (ctype.includes('application/json')) {
+        try { return JSON.parse(text); }
+        catch (e) {
+          console.error('[API]', full, 'JSON parse error. Raw:', text.slice(0,300));
+          return { __nonjson__: true, text };
+        }
+      } else {
+        console.warn('[API]', full, 'Non-JSON content-type:', ctype, '\nPreview:', text.slice(0,300));
+        return { __nonjson__: true, text, contentType: ctype };
+      }
+    } catch(e){
+      clearTimeout(id);
+      console.error('[API]', (url||''), 'Fetch error:', e);
+      throw e;
+    }
+  }
 
-  if (!list.length){ wrap.innerHTML='<div class="loading">No families for current filters</div>'; return; }
+  const $ = id => document.getElementById(id);
+  const setTxt = (id,v)=>{ const el=$(id); if (el) el.textContent = String(v); };
 
-  wrap.innerHTML = list.map(f=>{
-    return `
+  // State
+  let familiesRaw = [];
+  let families    = [];
+  let sessionsFlat = [];   // [{inquiryId, sessionId, sections:[{name,secs}]}]
+  let sectionStats = {};
+
+  /* ==========================
+     Diagnostics
+     ========================== */
+  function attachDiagnostics(){
+    const runBtn = $('diag-run');
+    const baseSel = $('diag-base');
+    const out = $('diag-out');
+    const inq = $('diag-inq');
+    if (!runBtn || !baseSel || !out) return;
+
+    baseSel.addEventListener('change', () => {
+      API_BASE = baseSel.value; // switch base dynamically
+    });
+
+    runBtn.addEventListener('click', async () => {
+      out.textContent = 'Checking…\n';
+      const testId = (inq && inq.value || '').trim();
+
+      const checks = [
+        {label:'Inquiries',  path:'/analytics/inquiries'},
+      ];
+      if (testId) {
+        checks.push({label:'Latest Visit', path:`/visits/${encodeURIComponent(testId)}/latest`});
+        checks.push({label:'Sessions',     path:`/visits/${encodeURIComponent(testId)}/sessions`});
+      }
+
+      for (const c of checks){
+        const url = (API_BASE + c.path);
+        try{
+          const res = await fetch(url + '?_ts=' + Date.now(), {cache:'no-store'});
+          const ctype = res.headers.get('content-type') || '(none)';
+          let bodyPreview = '';
+          try { bodyPreview = (await res.text()).slice(0,300); } catch {}
+          out.textContent += `\n[${c.label}] ${url}\n  status: ${res.status}\n  content-type: ${ctype}\n  body preview: ${bodyPreview}\n`;
+        }catch(e){
+          out.textContent += `\n[${c.label}] ${url}\n  ERROR: ${e.message}\n`;
+        }
+      }
+
+      out.textContent += '\nTip: If status is 404 at /api/…, switch API Base to (root) and re-run.';
+    });
+  }
+
+  /* ==========================
+     Data loading
+     ========================== */
+  async function reloadAll(){
+    // Convenience button in header
+    loadAll();
+  }
+
+  async function loadAll(){
+    try{
+      // Families
+      let arr = await j('/analytics/inquiries');
+      if (!Array.isArray(arr)) {
+        if (arr && arr.__nonjson__) {
+          showErr('Inquiries returned non-JSON. Check backend route /analytics/inquiries.');
+          arr = [];
+        } else {
+          arr = [];
+        }
+      }
+      familiesRaw = arr;
+      families = familiesRaw.map(shapeFamily);
+
+      // KPIs + lists
+      updateKPIs();
+      bindControls();
+      renderFamilies();
+      renderRecent();
+
+      // Session summaries (latest per family, capped for perf)
+      sessionsFlat = []; // reset before rebuild
+      await buildSessionCards();
+
+      // Leaderboard / Heatmap
+      await buildSectionLeaderboard();
+
+    }catch(e){
+      console.error('loadAll fatal:', e);
+      showErr('Dashboard failed to load: ' + (e.message || e));
+      if ($('families'))   $('families').innerHTML   = '<div class="error">Could not load families.</div>';
+      if ($('leaderboard'))$('leaderboard').innerHTML = '<div class="error">Could not build section stats.</div>';
+    }
+  }
+
+  function shapeFamily(f){
+    const dwellMs = Number(f.dwell_ms)||0;
+    const minutes = Math.round(dwellMs/60000);
+    const rating  = (f.team_rating||'').toLowerCase();
+    return {
+      id: f.id,
+      name: `${f.first_name||''} ${f.family_surname||''}`.trim() || (f.family_name||'Family'),
+      email: f.parent_email||'',
+      city: f.city||'',
+      ageGroup: f.age_group||'',
+      entryYear: f.entry_year||'TBC',
+      last: f.updated_at || f.received_at || null,
+      visits: Number(f.return_visits)||0,
+      minutes,
+      prospectusUrl: f.prospectus_pretty_url||null,
+      rating: ['high','medium','low'].includes(rating)?rating:'unrated',
+      notes: f.team_notes||''
+    };
+  }
+
+  function updateKPIs(){
+    setTxt('k_total',   families.length);
+    setTxt('k_high',    families.filter(f=>f.rating==='high').length);
+    setTxt('k_med',     families.filter(f=>f.rating==='medium').length);
+    setTxt('k_low',     families.filter(f=>f.rating==='low').length);
+    setTxt('k_unrated', families.filter(f=>f.rating==='unrated').length);
+    const day = 86400000;
+    setTxt('k_active',  families.filter(f=>f.last && (Date.now()-new Date(f.last).getTime())<=day).length);
+  }
+
+  /* ==========================
+     Families list
+     ========================== */
+  function bindControls(){
+    ['f_q','f_rate','f_sort'].forEach(id=>{
+      const el = $(id); if(!el) return;
+      if (id==='f_q') el.addEventListener('input', renderFamilies);
+      else el.addEventListener('change', renderFamilies);
+    });
+
+    const ai = $('ai_toggle');
+    if (ai) ai.addEventListener('change',()=>{
+      $('ai_status').textContent = ai.checked
+        ? 'Enabled (client). Hook up your server endpoint to generate neutral summaries.'
+        : 'AI summariser is off.';
+    });
+
+    // Latest visit quick viewer convenience
+    const lv = $('lv-id');
+    if (lv) lv.addEventListener('keydown', e => { if (e.key==='Enter') loadLatestTimeline(); });
+  }
+
+  function renderFamilies(){
+    const wrap = $('families'); if(!wrap) return;
+
+    const q   = ($('f_q')?.value || '').toLowerCase();
+    const rf  = $('f_rate')?.value || 'all';
+    const sort= $('f_sort')?.value || 'recent';
+
+    let list = families.slice();
+    if (rf!=='all') list = list.filter(f=>f.rating===rf);
+    if (q) list = list.filter(f =>
+      f.name.toLowerCase().includes(q) ||
+      (f.email||'').toLowerCase().includes(q) ||
+      (f.city||'').toLowerCase().includes(q)
+    );
+
+    if (sort==='time') list.sort((a,b)=>b.minutes-a.minutes);
+    else if (sort==='visits') list.sort((a,b)=>b.visits-a.visits);
+    else list.sort((a,b)=>new Date(b.last||0)-new Date(a.last||0));
+
+    if (!list.length){ wrap.innerHTML = '<div class="loading">No families for current filters</div>'; return; }
+
+    wrap.innerHTML = list.map(f => `
       <div class="family" data-id="${f.id}">
         <div class="hdr" onclick="toggleCard('${f.id}')">
-          <div>
-            <strong>${f.name} Family</strong>
-            <span class="badge">${f.entryYear}</span>
-          </div>
+          <div><strong>${f.name} Family</strong> <span class="badge">${f.entryYear}</span></div>
           <div class="meta">${f.minutes} min • ${f.visits} visit${f.visits===1?'':'s'} • ${f.city||'—'}</div>
         </div>
         <div class="details">
@@ -305,7 +482,7 @@ function renderFamilies(){
             <button class="btn" onclick="copyId('${f.id}')">Copy Inquiry ID</button>
           </div>
 
-          <textarea id="n-${f.id}" class="notes" placeholder="Team notes (saved on blur)" onblur="saveNotes('${f.id}')">${(f.notes||'').replace(/[&<>"']/g,s=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[s]))}</textarea>
+          <textarea id="n-${f.id}" class="notes" placeholder="Team notes (saved on blur)" onblur="saveNotes('${f.id}')">${(f.notes||'').replace(/[&<>"']/g,s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[s]))}</textarea>
 
           <!-- timeline visual -->
           <div id="tl-${f.id}" class="timeline" style="display:none">
@@ -318,311 +495,350 @@ function renderFamilies(){
           <div id="ss-${f.id}" style="margin-top:8px"></div>
         </div>
       </div>
-    `;
-  }).join('');
-}
+    `).join('');
+  }
 
-function ratingPill(f, key){
-  const active = f.rating===key?'active':'';
-  const cls = key==='high'?'high':key==='medium'?'medium':key==='low'?'low':'unrated';
-  const label = key.charAt(0).toUpperCase()+key.slice(1);
-  return `<button class="pill ${cls} ${active}" onclick="setRating(event,'${f.id}','${key}')">${label}</button>`;
-}
+  function ratingPill(f, key){
+    const active = f.rating===key?'active':'';
+    const cls = key==='high'?'high':key==='medium'?'medium':key==='low'?'low':'unrated';
+    const label = key.charAt(0).toUpperCase()+key.slice(1);
+    return `<button class="pill ${cls} ${active}" onclick="setRating(event,'${f.id}','${key}')">${label}</button>`;
+  }
 
-function toggleCard(id){ const el = document.querySelector(`.family[data-id="${id}"]`); if(el) el.classList.toggle('open'); }
-function openProspectus(u){ window.open(u,'_blank'); }
-function copyId(id){ navigator.clipboard.writeText(id).catch(()=>{}); }
+  function toggleCard(id){
+    const el = document.querySelector(\`.family[data-id="\${id}"]\`);
+    if(el) el.classList.toggle('open');
+  }
 
-async function setRating(ev,id,val){
-  ev.stopPropagation();
-  try{
-    const f = families.find(x=>x.id===id); if (!f) return;
-    f.rating = val;
-    await j(`/api/inquiries/${encodeURIComponent(id)}/rating`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({rating:val})});
-    updateKPIs();
-    renderFamilies(); // refresh pills state
-  }catch(e){ console.error(e); alert('Could not save rating'); }
-}
+  function openProspectus(u){ window.open(u,'_blank'); }
+  function copyId(id){ navigator.clipboard.writeText(id).catch(()=>{}); }
 
-async function saveNotes(id){
-  const ta = $(`n-${id}`); if (!ta) return;
-  try{
-    await j(`/api/inquiries/${encodeURIComponent(id)}/notes`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({notes:ta.value||''})});
-  }catch(e){ console.error(e); }
-}
-
-// ---------- latest visit quick viewer ----------
-async function loadLatestTimeline(){
-  const id = ($('#lv-id').value||'').trim();
-  const meta = $('#lv-meta'), list = $('#lv-list');
-  if (!id){ meta.textContent='Please paste an Inquiry ID.'; list.innerHTML=''; return; }
-  meta.textContent='Loading…'; list.innerHTML='';
-  const body = await fetchLatestVisit(id);
-  if (!body || !body.ok || !body.session){ meta.textContent='No visits found.'; return; }
-  const fmt = ts => new Date(ts).toLocaleString();
-  meta.textContent = `Session ${body.session.id} — ${fmt(body.session.start)} → ${fmt(body.session.end)}`;
-  list.innerHTML = body.events.map(e=>`<div>${renderEvent(e)}</div>`).join('');
-}
-
-async function fetchLatestVisit(inquiryId){
-  try{ return await j(`/api/visits/${encodeURIComponent(inquiryId)}/latest`); }
-  catch{ return null; }
-}
-function renderEvent(ev){
-  if (ev.type==='section_enter')  return `→ Enter section: ${ev.section}`;
-  if (ev.type==='section_exit')   return `↩︎ Exit section: ${ev.section} — ${ev.dwellSec??0}s${ev.reason?` [${ev.reason}]`:''}`;
-  if (ev.type==='tier_expand')    return `⟫ Tier opened: ${ev.tier}`;
-  if (ev.type==='tier_exit')      return `⟪ Tier closed (inferred): ${ev.tier} — ${ev.dwellSec??0}s${ev.reason?` [${ev.reason}]`:''}`;
-  if (ev.type==='video_open')     return `▶︎ Video open: ${ev.youtubeId||''}${ev.title?` — ${ev.title}`:''}`;
-  if (ev.type==='video_close')    return `■ Video close: ${ev.youtubeId||''}`;
-  if (ev.type==='page_load')      return '✓ Visit start';
-  if (ev.type==='page_unload')    return '✕ Visit end';
-  return ev.name || ev.type;
-}
-
-// ---------- card: timeline & sessions ----------
-async function loadCardLatest(id){
-  const tl = $(`tl-${id}`), tlm = $(`tlm-${id}`), tlb = $(`tlb-${id}`);
-  if (!tl||!tlm||!tlb) return;
-  tl.style.display='block'; tlm.textContent='Loading…'; tlb.innerHTML='';
-  const body = await fetchLatestVisit(id);
-  if (!body || !body.ok || !body.session){ tlm.textContent='No visits found.'; return; }
-  tlm.textContent = fmtSession(body.session);
-  drawTimelineBlocks(tlb, body.events);
-  // keep a flat list for aggregates
-  upsertSessionsFlat(id, body.session, body.events);
-}
-
-function fmtSession(s){ const f = d=>d?new Date(d).toLocaleString():'?'; return `Session ${s.id||''} — ${f(s.start)} → ${f(s.end)}`; }
-
-function drawTimelineBlocks(container, events){
-  // collect section dwell
-  const segs = [];
-  events.forEach(e=>{
-    if (e.type==='section_exit'){
-      const secs = Number(e.dwellSec)||0;
-      segs.push({label:e.section||'section', secs});
-    }
-  });
-  const total = segs.reduce((a,b)=>a+b.secs,0)||1;
-  container.innerHTML = segs.map(s=>{
-    const w = Math.max(3, Math.round((s.secs/total)*100));
-    return `<div class="trow">
-      <div class="block" style="width:${w}%;" title="${s.label} — ${s.secs}s"></div>
-      <div style="font-size:.9rem">${s.label} <span class="badge">${s.secs}s</span></div>
-    </div>`;
-  }).join('') || '<div style="color:#64748b">No section dwell recorded.</div>';
-}
-
-async function loadSessions(id){
-  const box = $(`ss-${id}`); if (!box) return;
-  box.innerHTML = '<div class="loading">Loading sessions…</div>';
-  const hist = await fetchVisitHistory(id);
-  if (!hist || !hist.sessions || !hist.sessions.length){ box.innerHTML='<div class="loading">No sessions</div>'; return; }
-
-  // Render accordion with lazy event fetch + mini timelines
-  box.innerHTML = hist.sessions.slice().sort((a,b)=>new Date(b.start||b.started_at||0)-new Date(a.start||a.started_at||0))
-    .map(s=>{
-      const sid = s.id || s.session_id || '';
-      const start = s.start || s.started_at || '';
-      const end = s.end || s.ended_at || '';
-      return `
-        <details style="border:1px solid var(--line);border-radius:8px;margin:.4rem 0;background:#fff">
-          <summary style="padding:.5rem .7rem;cursor:pointer"><strong>${sid||'Session'}</strong> — ${start?new Date(start).toLocaleString():'?'}${end?' → '+new Date(end).toLocaleString():''}</summary>
-          <div id="ev-${sid}" style="padding:.5rem .7rem">Click to load events…</div>
-        </details>
-      `;
-    }).join('');
-
-  // Attach lazy loaders
-  box.querySelectorAll('details').forEach(d=>{
-    d.addEventListener('toggle', async ()=>{
-      if (!d.open) return;
-      const sid = (d.querySelector('summary').textContent||'').split('—')[0].trim().replace('Session ','');
-      const tgt = d.querySelector(`#ev-${sid}`);
-      if (!tgt || tgt.dataset.loaded) return;
-      tgt.textContent = 'Loading events…';
-      const res = await fetchSessionEvents(sid,id);
-      const evs = (res && res.events)||[];
-      tgt.innerHTML = evs.length ? renderEventListWithMiniTimeline(evs) : 'No events';
-      tgt.dataset.loaded = '1';
-      // push to flat for aggregates
-      upsertSessionsFlat(id, {id:sid}, evs);
-      // refresh leaderboard now that we have more data
-      buildSectionLeaderboard(true);
-    }, {once:false});
-  });
-}
-
-async function fetchVisitHistory(inquiryId){
-  const options = [
-    `/api/visits/${encodeURIComponent(inquiryId)}/history`,
-    `/api/visits/${encodeURIComponent(inquiryId)}/sessions`,
-    `/api/visits/${encodeURIComponent(inquiryId)}?limit=20`
-  ];
-  for (const u of options){
+  async function setRating(ev,id,val){
+    ev.stopPropagation();
     try{
-      const d = await j(u);
-      if (Array.isArray(d) && d.length) return {sessions:d};
-      if (d && Array.isArray(d.sessions) && d.sessions.length) return {sessions:d.sessions};
-    }catch{}
+      const f = families.find(x=>x.id===id); if (!f) return;
+      f.rating = val;
+      await j(\`/inquiries/\${encodeURIComponent(id)}/rating\`,{
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({rating:val})
+      });
+      updateKPIs();
+      renderFamilies();
+    }catch(e){
+      console.error(e);
+      showErr('Could not save rating: ' + e.message);
+    }
   }
-  return null;
-}
-async function fetchSessionEvents(sessionId,inquiryId){
-  const urls = [
-    `/api/visits/session/${encodeURIComponent(sessionId)}`,
-    `/api/visits/session/${encodeURIComponent(sessionId)}/events`,
-    `/api/visits/${encodeURIComponent(inquiryId)}/sessions/${encodeURIComponent(sessionId)}`
-  ];
-  for (const u of urls){
+
+  async function saveNotes(id){
+    const ta = $('n-'+id); if (!ta) return;
     try{
-      const d = await j(u);
-      if (Array.isArray(d) && d.length && (d[0].type||d[0].name)) return {events:d,hit:u};
-      if (d && Array.isArray(d.events)) return {events:d.events,hit:u};
-    }catch{}
-  }
-  return {events:[]};
-}
-function renderEventListWithMiniTimeline(events){
-  const blocks = [];
-  events.forEach(e=>{
-    if (e.type==='section_exit'){
-      const secs = Number(e.dwellSec)||0;
-      blocks.push({label:e.section||'section', secs});
+      await j(\`/inquiries/\${encodeURIComponent(id)}/notes\`,{
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({notes: ta.value || ''})
+      });
+    }catch(e){
+      console.error(e);
+      showErr('Could not save notes: ' + e.message);
     }
-  });
-  const total = blocks.reduce((a,b)=>a+b.secs,0)||1;
-  const mini = `<div class="bar" title="Section dwell proportions">${blocks.map(b=>{
-    const w = Math.max(2, Math.round((b.secs/total)*100));
-    return `<div style="width:${w}%"></div>`;
-  }).join('')}</div>`;
-  const list = events.map(e=>`<div>${renderEvent(e)}</div>`).join('');
-  return mini + '<div style="margin-top:.4rem">'+list+'</div>';
-}
-
-// ---------- section leaderboard / heatmap ----------
-function upsertSessionsFlat(inquiryId, session, events){
-  if (!events || !events.length) return;
-  // store sections with dwell
-  const sections = [];
-  events.forEach(e=>{
-    if (e.type==='section_exit'){
-      const secs = Number(e.dwellSec)||0;
-      sections.push({name:e.section||'section', secs});
-    }
-  });
-  if (!sections.length) return;
-  sessionsFlat.push({inquiryId, sessionId: session.id||'', sections});
-}
-
-async function buildSessionCards(){
-  // naive latest-session fetch for each family (limited to first 12 for performance)
-  const target = $('#sessionCards');
-  const subset = families.slice(0,12);
-  if (!subset.length){ target.innerHTML='<div class="loading">No sessions yet</div>'; return; }
-
-  const rows = [];
-  for (const f of subset){
-    const res = await fetchLatestVisit(f.id);
-    if (!res || !res.ok || !res.session){ continue; }
-    const secs = [];
-    res.events.forEach(e=>{ if (e.type==='section_exit') secs.push(Number(e.dwellSec)||0); });
-    const total = secs.reduce((a,b)=>a+b,0)||1;
-    const pct = Math.min(100, Math.round((total/480)*100)); // normalise vs. 8 minutes target
-    upsertSessionsFlat(f.id, res.session, res.events);
-    rows.push(`
-      <div class="session-card" title="${f.name}">
-        <div class="row"><strong>${f.name}</strong><span>${f.entryYear}</span></div>
-        <div class="row"><span>Sections viewed</span><span>${secs.length}</span></div>
-        <div class="row"><span>Estimated dwell</span><span>${Math.round(total)}s</span></div>
-        <div class="bar"><div style="width:${pct}%"></div></div>
-      </div>
-    `);
   }
-  target.innerHTML = rows.join('') || '<div class="loading">No recent sessions</div>';
-}
 
-async function buildSectionLeaderboard(soft){
-  // aggregate from sessionsFlat
-  const agg = {}; // name -> {count, secs}
-  sessionsFlat.forEach(s=>{
-    s.sections.forEach(x=>{
-      const k = x.name||'section';
-      if (!agg[k]) agg[k]={count:0, secs:0};
-      agg[k].count += 1;
-      agg[k].secs  += Number(x.secs)||0;
+  /* ==========================
+     Latest visit quick viewer
+     ========================== */
+  async function loadLatestTimeline(){
+    const id = ($('lv-id')?.value || '').trim();
+    const meta = $('lv-meta'), list = $('lv-list');
+    if (!id){ meta.textContent='Please paste an Inquiry ID.'; list.innerHTML=''; return; }
+    meta.textContent='Loading…'; list.innerHTML='';
+
+    const body = await getLatestVisit(id);
+    if (!body || !body.ok || !body.session){ meta.textContent='No visits found.'; return; }
+
+    const fmt = ts => new Date(ts).toLocaleString();
+    meta.textContent = \`Session \${body.session.id} — \${fmt(body.session.start)} → \${fmt(body.session.end)}\`;
+    list.innerHTML = body.events.map(renderEventHTML).join('');
+  }
+
+  async function getLatestVisit(inquiryId){
+    try{
+      const data = await j(\`/visits/\${encodeURIComponent(inquiryId)}/latest\`);
+      if (data && data.__nonjson__) {
+        showErr('Latest visit returned non-JSON. Check backend route.');
+        return null;
+      }
+      return data;
+    }catch(e){
+      showErr('Latest visit failed: ' + e.message);
+      return null;
+    }
+  }
+
+  function renderEventHTML(e){
+    if (e.type==='section_enter')  return \`<div>→ Enter section: \${e.section}</div>\`;
+    if (e.type==='section_exit')   return \`<div>↩︎ Exit section: \${e.section} — \${e.dwellSec??0}s\${e.reason?` [\${e.reason}]`:''}</div>\`;
+    if (e.type==='tier_expand')    return \`<div>⟫ Tier opened: \${e.tier}</div>\`;
+    if (e.type==='tier_exit')      return \`<div>⟪ Tier closed: \${e.tier} — \${e.dwellSec??0}s\${e.reason?` [\${e.reason}]`:''}</div>\`;
+    if (e.type==='video_open')     return \`<div>▶︎ Video open: \${e.youtubeId||''}\${e.title?` — \${e.title}`:''}</div>\`;
+    if (e.type==='video_close')    return \`<div>■ Video close: \${e.youtubeId||''}</div>\`;
+    if (e.type==='page_load')      return '<div>✓ Visit start</div>';
+    if (e.type==='page_unload')    return '<div>✕ Visit end</div>';
+    return \`<div>\${e.name || e.type}</div>\`;
+  }
+
+  /* ==========================
+     Per-family timeline & sessions
+     ========================== */
+  async function loadCardLatest(id){
+    const tl = $('tl-'+id), tlm = $('tlm-'+id), tlb = $('tlb-'+id);
+    if (!tl||!tlm||!tlb) return;
+    tl.style.display='block'; tlm.textContent='Loading…'; tlb.innerHTML='';
+
+    const body = await getLatestVisit(id);
+    if (!body || !body.ok || !body.session){ tlm.textContent='No visits found.'; return; }
+
+    tlm.textContent = formatSessionHeader(body.session);
+    drawTimelineBlocks(tlb, body.events);
+    upsertSessionsFlat(id, body.session, body.events);
+  }
+
+  function formatSessionHeader(s){
+    const f = d=>d?new Date(d).toLocaleString():'?';
+    return \`Session \${s.id||''} — \${f(s.start)} → \${f(s.end)}\`;
+  }
+
+  async function loadSessions(id){
+    const box = $('ss-'+id); if (!box) return;
+    box.innerHTML = '<div class="loading">Loading sessions…</div>';
+    const hist = await fetchVisitHistory(id);
+    if (!hist || !hist.sessions || !hist.sessions.length){
+      box.innerHTML='<div class="loading">No sessions</div>'; return;
+    }
+
+    box.innerHTML = hist.sessions.slice().sort((a,b)=>new Date(b.start||b.started_at||0)-new Date(a.start||a.started_at||0))
+      .map(s=>{
+        const sid = s.id || s.session_id || '';
+        const start = s.start || s.started_at || '';
+        const end   = s.end   || s.ended_at   || '';
+        return `
+          <details class="session">
+            <summary><strong>${sid||'Session'}</strong> — ${start?new Date(start).toLocaleString():'?'}${end?' → '+new Date(end).toLocaleString():''}</summary>
+            <div id="ev-${sid}" style="padding:.5rem .7rem">Click to load events…</div>
+          </details>
+        `;
+      }).join('');
+
+    box.querySelectorAll('details.session').forEach(d=>{
+      d.addEventListener('toggle', async ()=>{
+        if (!d.open) return;
+        const sidText = d.querySelector('summary').textContent || '';
+        const sid = sidText.replace(/^Session\s*/,'').split('—')[0].trim();
+        const tgt = d.querySelector('#ev-'+sid);
+        if (!tgt || tgt.dataset.loaded) return;
+        tgt.textContent = 'Loading events…';
+        const res = await fetchSessionEvents(sid, id);
+        const evs = (res && res.events) || [];
+        tgt.innerHTML = evs.length ? renderEventListWithMiniTimeline(evs) : 'No events';
+        tgt.dataset.loaded = '1';
+        upsertSessionsFlat(id, {id:sid}, evs);
+        buildSectionLeaderboard(); // refresh aggregates
+      });
     });
-  });
-  sectionStats = agg;
-
-  const rows = Object.keys(agg).map(k=>({name:k, count:agg[k].count, secs:agg[k].secs}))
-                .sort((a,b)=>b.count-a.count).slice(0,12);
-
-  const maxC = Math.max(1, ...rows.map(r=>r.count));
-  const maxS = Math.max(1, ...rows.map(r=>r.secs));
-
-  const html = rows.map(r=>{
-    const pw = Math.round((r.count/maxC)*100);
-    const sw = Math.round((r.secs/maxS)*100);
-    return `
-      <div class="leader">
-        <div><strong>${r.name}</strong></div>
-        <div class="heat" title="Visits: ${r.count}"><div style="width:${pw}%"></div></div>
-        <div class="heat" title="Dwell: ${r.secs}s"><div style="width:${sw}%"></div></div>
-      </div>
-    `;
-  }).join('') || '<div class="loading">No section data yet</div>';
-
-  $('#leaderboard').innerHTML = `
-    <div style="font-size:.85rem;color:#475569;margin-bottom:6px">Left bar = visits · Right bar = total dwell</div>
-    ${html}
-  `;
-
-  // If AI summaries switch is on, show neutral summaries status
-  if ($('#ai_toggle').checked) {
-    $('#ai_status').textContent = 'Summaries would use these aggregates (disabled until you enable server endpoint).';
   }
-}
 
-// ---------- recent activity ----------
-function renderRecent(){
-  const box = $('#recent');
-  const list = families.slice().sort((a,b)=>new Date(b.last||0)-new Date(a.last||0)).slice(0,10);
-  if (!list.length){ box.innerHTML='<div class="loading">No recent activity</div>'; return; }
-  box.innerHTML = list.map(f=>{
-    const initial = (f.name||'F').charAt(0).toUpperCase();
-    const ago = f.last?timeAgo(new Date(f.last)):'—';
-    const label = f.prospectusUrl?'viewed personalised prospectus':'interacted';
-    return `<div style="display:flex;gap:10px;align-items:center;border-bottom:1px solid var(--line);padding:.6rem 0">
-      <div style="width:36px;height:36px;border-radius:50%;background:var(--award-gold);color:var(--blazer-navy);display:flex;align-items:center;justify-content:center;font-weight:700">${initial}</div>
-      <div style="flex:1;font-size:.95rem"><strong>${f.name}</strong> ${label}</div>
-      <div style="font-size:.8rem;color:#64748b">${ago}</div>
+  async function fetchVisitHistory(inquiryId){
+    const options = [
+      \`/visits/\${encodeURIComponent(inquiryId)}/history\`,
+      \`/visits/\${encodeURIComponent(inquiryId)}/sessions\`,
+      \`/visits/\${encodeURIComponent(inquiryId)}?limit=20\`
+    ];
+    for (const u of options){
+      try{
+        const d = await j(u);
+        if (Array.isArray(d) && d.length) return {sessions:d};
+        if (d && Array.isArray(d.sessions) && d.sessions.length) return {sessions:d.sessions};
+      }catch(e){ /* try next */ }
+    }
+    return null;
+  }
+
+  async function fetchSessionEvents(sessionId,inquiryId){
+    const urls = [
+      \`/visits/session/\${encodeURIComponent(sessionId)}\`,
+      \`/visits/session/\${encodeURIComponent(sessionId)}/events\`,
+      \`/visits/\${encodeURIComponent(inquiryId)}/sessions/\${encodeURIComponent(sessionId)}\`
+    ];
+    for (const u of urls){
+      try{
+        const d = await j(u);
+        if (Array.isArray(d) && d.length && (d[0].type||d[0].name)) return {events:d,hit:u};
+        if (d && Array.isArray(d.events)) return {events:d.events,hit:u};
+      }catch(e){ /* try next */ }
+    }
+    return {events:[]};
+  }
+
+  function drawTimelineBlocks(container, events){
+    const segs = [];
+    events.forEach(e=>{
+      if (e.type==='section_exit'){
+        const secs = Number(e.dwellSec)||0;
+        segs.push({label:e.section||'section', secs});
+      }
+    });
+    const total = segs.reduce((a,b)=>a+b.secs,0)||1;
+    container.innerHTML = segs.map(s=>{
+      const w = Math.max(3, Math.round((s.secs/total)*100));
+      return `<div style="display:flex;gap:6px;align-items:center;margin:.25rem 0">
+        <div class="block" style="width:${w}%;" title="${s.label} — ${s.secs}s"></div>
+        <div style="font-size:.9rem">${s.label} <span class="badge">${s.secs}s</span></div>
+      </div>`;
+    }).join('') || '<div style="color:#64748b">No section dwell recorded.</div>';
+  }
+
+  function renderEventListWithMiniTimeline(events){
+    const blocks = [];
+    events.forEach(e=>{
+      if (e.type==='section_exit'){
+        const secs = Number(e.dwellSec)||0;
+        blocks.push({label:e.section||'section', secs});
+      }
+    });
+    const total = blocks.reduce((a,b)=>a+b.secs,0)||1;
+    const mini = `<div class="session-card bar" title="Section dwell proportions" style="margin:0">
+      <div style="width:100%;display:flex;gap:0">
+        ${blocks.map(b=>{
+          const w = Math.max(2, Math.round((b.secs/total)*100));
+          return `<div style="width:${w}%;height:8px;background:#034674"></div>`;
+        }).join('')}
+      </div>
     </div>`;
-  }).join('');
-}
-function timeAgo(d){
-  const diff = Date.now()-d.getTime();
-  const m = Math.floor(diff/60000), h=Math.floor(diff/3600000), dd=Math.floor(diff/86400000);
-  if (m<1) return 'Just now';
-  if (m<60) return `${m}m ago`;
-  if (h<24) return `${h}h ago`;
-  if (dd<7) return `${dd}d ago`;
-  return d.toLocaleDateString();
-}
+    const list = events.map(e=>renderEventHTML(e)).join('');
+    return mini + '<div style="margin-top:.4rem">'+list+'</div>';
+  }
 
-// ---------- wire up ----------
-['f_q','f_rate','f_sort'].forEach(id=>{ const el=$(id); if (el) el.addEventListener('input',renderFamilies); if (el && id!=='f_q') el.addEventListener('change',renderFamilies); });
-$('#ai_toggle').addEventListener('change',()=>{
-  $('#ai_status').textContent = $('#ai_toggle').checked ? 'Enabled (client). You can now call your server summariser for neutral one-liners.' : 'AI summariser is off.';
-});
+  function upsertSessionsFlat(inquiryId, session, events){
+    if (!events || !events.length) return;
+    const sections = [];
+    events.forEach(e=>{
+      if (e.type==='section_exit'){
+        const secs = Number(e.dwellSec)||0;
+        sections.push({name:e.section||'section', secs});
+      }
+    });
+    if (!sections.length) return;
+    sessionsFlat.push({inquiryId, sessionId: session.id||'', sections});
+  }
 
-document.addEventListener('DOMContentLoaded', ()=>loadAll());
+  /* ==========================
+     Session summary cards
+     ========================== */
+  async function buildSessionCards(){
+    const target = $('sessionCards'); if (!target) return;
+    const subset = families.slice(0, 12);
+    if (!subset.length){ target.innerHTML = '<div class="loading">No sessions yet</div>'; return; }
 
-// ---------- helper to fetch a session’s events into leaderboard ----------
-/* no-op, used above */
+    const rows = [];
+    for (const f of subset){
+      let res = null;
+      try{
+        res = await j(\`/visits/\${encodeURIComponent(f.id)}/latest\`);
+        if (res && res.__nonjson__) { console.warn('Non-JSON latest visit for', f.id); res = null; }
+      }catch(e){ console.warn('Latest visit failed for', f.id, e); }
 
-// ---------- END ----------
-</script>
+      if (!res || !res.ok || !res.session) continue;
+
+      const secs = [];
+      res.events.forEach(e=>{ if (e.type==='section_exit') secs.push(Number(e.dwellSec)||0); });
+      const total = secs.reduce((a,b)=>a+b,0)||1;
+      const pct = Math.min(100, Math.round((total/480)*100)); // vs ~8 minutes baseline
+
+      upsertSessionsFlat(f.id, res.session, res.events);
+
+      rows.push(`
+        <div class="session-card" title="${f.name}">
+          <div class="row"><strong>${f.name}</strong><span>${f.entryYear}</span></div>
+          <div class="row"><span>Sections viewed</span><span>${secs.length}</span></div>
+          <div class="row"><span>Estimated dwell</span><span>${Math.round(total)}s</span></div>
+          <div class="bar"><div style="width:${pct}%"></div></div>
+        </div>
+      `);
+    }
+    target.innerHTML = rows.join('') || '<div class="loading">No recent sessions</div>';
+  }
+
+  /* ==========================
+     Leaderboard / Heatmap
+     ========================== */
+  async function buildSectionLeaderboard(){
+    const agg = {}; // name -> {count, secs}
+    sessionsFlat.forEach(s=>{
+      s.sections.forEach(x=>{
+        const k = x.name||'section';
+        if (!agg[k]) agg[k] = {count:0, secs:0};
+        agg[k].count += 1;
+        agg[k].secs  += Number(x.secs)||0;
+      });
+    });
+    sectionStats = agg;
+
+    const box = $('leaderboard'); if (!box) return;
+    const rows = Object.keys(agg).map(k=>({name:k, count:agg[k].count, secs:agg[k].secs}))
+                  .sort((a,b)=>b.count-a.count).slice(0,12);
+
+    if (!rows.length){ box.innerHTML = '<div class="loading">No section data yet</div>'; return; }
+
+    const maxC = Math.max(1, ...rows.map(r=>r.count));
+    const maxS = Math.max(1, ...rows.map(r=>r.secs));
+
+    box.innerHTML = `
+      <div style="font-size:.85rem;color:#475569;margin-bottom:6px">Left bar = visits · Right bar = total dwell</div>
+      ${rows.map(r=>`
+        <div class="leader-row">
+          <div><strong>${r.name}</strong></div>
+          <div class="heat" title="Visits: ${r.count}"><div style="width:${Math.round((r.count/maxC)*100)}%"></div></div>
+          <div class="heat" title="Dwell: ${r.secs}s"><div style="width:${Math.round((r.secs/maxS)*100)}%"></div></div>
+        </div>
+      `).join('')}
+    `;
+  }
+
+  /* ==========================
+     Recent activity
+     ========================== */
+  function renderRecent(){
+    const box = $('recent');
+    const list = families.slice().sort((a,b)=>new Date(b.last||0)-new Date(a.last||0)).slice(0,10);
+    if (!list.length){ box.innerHTML='<div class="loading">No recent activity</div>'; return; }
+    box.innerHTML = list.map(f=>{
+      const initial = (f.name||'F').charAt(0).toUpperCase();
+      const ago = f.last ? timeAgo(new Date(f.last)) : '—';
+      const label = f.prospectusUrl ? 'viewed personalised prospectus' : 'interacted';
+      return `<div style="display:flex;gap:10px;align-items:center;border-bottom:1px solid var(--line);padding:.6rem 0">
+        <div style="width:36px;height:36px;border-radius:50%;background:var(--award-gold);color:var(--blazer-navy);display:flex;align-items:center;justify-content:center;font-weight:700">${initial}</div>
+        <div style="flex:1;font-size:.95rem"><strong>${f.name}</strong> ${label}</div>
+        <div style="font-size:.8rem;color:#64748b">${ago}</div>
+      </div>`;
+    }).join('');
+  }
+
+  function timeAgo(d){
+    const diff = Date.now()-d.getTime();
+    const m = Math.floor(diff/60000), h=Math.floor(diff/3600000), dd=Math.floor(diff/86400000);
+    if (m<1) return 'Just now';
+    if (m<60) return `${m}m ago`;
+    if (h<24) return `${h}h ago`;
+    if (dd<7) return `${dd}d ago`;
+    return d.toLocaleDateString();
+  }
+
+  /* ==========================
+     Bootstrap
+     ========================== */
+  document.addEventListener('DOMContentLoaded', () => {
+    attachDiagnostics();
+    loadAll();
+  });
+  </script>
 </body>
 </html>
