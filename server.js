@@ -3305,6 +3305,39 @@ app.get('/api/visits/:inquiryId/latest', async (req, res) => {
   }
 });
 
+// === Per-session events (used by dashboard session history) ===
+app.get('/api/sessions/:sessionId', async (req, res) => {
+  const { sessionId } = req.params;
+  if (!sessionId) return res.status(400).json({ ok: false, error: 'Missing sessionId' });
+
+  try {
+    if (!db) return res.json({ ok: true, events: [] });
+
+    const evs = await db.query(`
+      SELECT event_type, event_data, timestamp
+      FROM tracking_events
+      WHERE session_id = $1
+      ORDER BY timestamp ASC
+    `, [sessionId]);
+
+    const events = evs.rows.map(r => ({
+      type: r.event_type,
+      ts: r.timestamp,
+      name: (r.event_data && r.event_data.name) || r.event_type,
+      section: r.event_data?.section ?? null,
+      dwellSec: r.event_data?.dwellSec ?? null,
+      tier: r.event_data?.tier ?? null,
+      reason: r.event_data?.reason ?? null,
+      youtubeId: r.event_data?.youtubeId ?? null,
+      title: r.event_data?.title ?? null
+    }));
+
+    res.json({ ok: true, sessionId, events });
+  } catch (e) {
+    console.error('session events error:', e);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
 
 
 app.get('/api/check-summary/:inquiryId', async (req, res) => {
