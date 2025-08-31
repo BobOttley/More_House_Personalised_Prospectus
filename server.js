@@ -2969,6 +2969,70 @@ app.get('/api/debug/snapshot/:inquiryId', async (req, res) => {
   }
 });
 
+// === Latest visit timeline (read-only) ==========================
+app.get('/api/visits/:inquiryId/latest', async (req, res) => {
+  const { inquiryId } = req.params;
+  if (!inquiryId) return res.status(400).json({ ok: false, error: 'Missing inquiryId' });
+
+  try {
+    if (!db) return res.json({ ok: true, session: null, events: [] });
+
+    // Find most recent session for this inquiry
+    const sess = await db.query(`
+      WITH sessions AS (
+        SELECT session_id,
+               MIN(timestamp) AS start_ts,
+               MAX(timestamp) AS end_ts
+        FROM tracking_events
+        WHERE inquiry_id = $1
+          AND session_id IS NOT NULL
+        GROUP BY session_id
+        ORDER BY end_ts DESC
+        LIMIT 1
+      )
+      SELECT session_id, start_ts, end_ts
+      FROM sessions
+    `, [inquiryId]);
+
+    if (!sess.rows.length) return res.json({ ok: true, session: null, events: [] });
+
+    const { session_id, start_ts, end_ts } = sess.rows[0];
+
+    // Pull ordered events for that session
+    const evs = await db.query(`
+      SELECT event_type, event_data, timestamp
+      FROM tracking_events
+      WHERE inquiry_id = $1
+        AND session_id = $2
+      ORDER BY timestamp ASC
+    `, [inquiryId, session_id]);
+
+    // Light transform: flatten JSON and keep only what we need in the dashboard
+    const events = evs.rows.map(r => ({
+      type: r.event_type,
+      ts: r.timestamp,
+      name: (r.event_data && r.event_data.name) || r.event_type,
+      section: r.event_data && r.event_data.section || null,
+      dwellSec: r.event_data && (r.event_data.dwellSec ?? null),
+      tier: r.event_data && r.event_data.tier || null,
+      reason: r.event_data && r.event_data.reason || null,
+      youtubeId: r.event_data && r.event_data.youtubeId || null,
+      title: r.event_data && r.event_data.title || null
+    }));
+
+    res.json({
+      ok: true,
+      session: { id: session_id, start: start_ts, end: end_ts },
+      events
+    });
+  } catch (e) {
+    console.error('latest visit error:', e);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+
+
 app.get('/api/check-summary/:inquiryId', async (req, res) => {
   try {
     const inquiryId = req.params.inquiryId;
