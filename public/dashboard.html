@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>More House Analytics – Admissions Dashboard</title>
+  <title>More House – Admissions Dashboard</title>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root{
@@ -15,7 +15,6 @@
     *{box-sizing:border-box;margin:0;padding:0}
     body{font-family:var(--body);background:linear-gradient(135deg,#f8fafc,#eef2f7);color:var(--text);font-size:14px}
 
-    /* Header */
     .header{background:linear-gradient(135deg,#091825,#034674);color:#fff;padding:2rem;text-align:center;position:relative;box-shadow:0 4px 20px rgba(9,24,37,.25)}
     .header h1{font-family:var(--heading);font-size:3rem;letter-spacing:.2px}
     .smart{background:linear-gradient(135deg,var(--award-gold),#FFB84D);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
@@ -23,24 +22,20 @@
     .refresh{position:absolute;right:16px;top:16px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);color:#fff;border-radius:8px;padding:.4rem .7rem;cursor:pointer}
     .refresh:hover{background:rgba(255,255,255,.18)}
 
-    /* Error banner */
     #err{position:sticky;top:0;z-index:9999;background:#FEF2F2;color:#991B1B;border:1px solid #FCA5A5;padding:10px 12px;display:none;font:13px/1.3 system-ui}
 
-    /* Layout */
     .container{max-width:1400px;margin:-24px auto 24px;padding:0 12px}
     .metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin:0 0 16px}
-    .grid{display:grid;grid-template-columns:2fr 1fr;gap:16px}
-    @media (max-width:1000px){.grid{grid-template-columns:1fr}}
-
-    /* Cards / panels */
     .card{background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 4px 14px rgba(9,24,37,.06);overflow:hidden}
-    .head{background:#034674;color:#fff;padding:.8rem 1rem;font-weight:600}
     .body{padding:1rem}
     .kpi{display:flex;align-items:center;gap:12px}
     .icon{width:44px;height:44px;border-radius:10px;background:#034674;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700}
     .val{font-size:2rem;font-family:var(--heading)}
 
-    /* Controls */
+    .grid{display:grid;grid-template-columns:2fr 1fr;gap:16px}
+    @media (max-width:1000px){.grid{grid-template-columns:1fr}}
+
+    .head{background:#034674;color:#fff;padding:.8rem 1rem;font-weight:600}
     .controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
     input[type="text"],select,button{font:inherit}
     .input,.select{padding:.5rem;border:1px solid #d1d5db;border-radius:8px;background:#fff}
@@ -48,10 +43,6 @@
     .btn.primary{background:#034674;color:#fff;border-color:#034674}
     .badge{display:inline-block;padding:.15rem .5rem;border-radius:999px;background:#eef2f7;border:1px solid var(--line);font-size:.75rem;margin-left:.35rem}
 
-    /* Latest visit quick viewer */
-    #latest-visit{border:1px solid var(--line);border-radius:10px;background:var(--light);padding:10px;margin:12px auto 16px}
-
-    /* Families */
     .family{border:1px solid var(--line);border-radius:10px;margin-bottom:10px;overflow:hidden;background:#fff}
     .family .hdr{display:flex;justify-content:space-between;align-items:center;background:#f8fafc;padding:.8rem 1rem;cursor:pointer}
     .family .meta{color:#64748b;font-size:.9rem}
@@ -66,35 +57,24 @@
     .pill.unrated.active{background:var(--rate-unrated)}
     textarea.notes{width:100%;min-height:72px;border:1px solid #d1d5db;border-radius:8px;padding:.6rem;margin-top:.6rem}
 
-    /* Session summary cards */
     .session-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px}
     .session-card{border:1px solid var(--line);border-radius:10px;background:#fff;padding:.75rem}
     .session-card .row{display:flex;justify-content:space-between;font-size:.9rem;margin:.15rem 0}
     .session-card .bar{height:8px;background:#e5e7eb;border-radius:999px;overflow:hidden;margin-top:.4rem}
     .session-card .bar > div{height:100%;background:#034674}
 
-    /* Timeline visual */
     .timeline{margin-top:.75rem;border:1px solid var(--line);border-radius:8px;padding:.6rem;background:#F8FAFC}
     .block{height:16px;background:#cfe2f3;border:1px solid #b6cde1;border-radius:4px;min-width:6px}
     .legend{font-size:.85rem;color:#475569;margin-top:.35rem}
 
-    /* Sessions list */
     details.session{border:1px solid var(--line);border-radius:8px;margin:.4rem 0;background:#fff}
     details.session > summary{padding:.5rem .7rem;cursor:pointer}
 
-    /* Leaderboard / Heatmap */
-    .leader-row{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;border-bottom:1px solid var(--line);padding:.4rem 0}
-    .leader-row:last-child{border-bottom:0}
-    .heat{height:10px;width:120px;background:#eef2f7;border-radius:999px;overflow:hidden}
-    .heat > div{height:100%;background:#034674}
-
-    /* Misc states */
     .loading{display:flex;gap:8px;align-items:center;justify-content:center;padding:1rem;color:#64748b}
     .error{background:#fef2f2;border:1px solid #fecaca;padding:.8rem;border-radius:8px;color:#b91c1c}
   </style>
 </head>
 <body>
-
   <div id="err"></div>
 
   <header class="header">
@@ -104,19 +84,21 @@
   </header>
 
   <!-- Latest visit viewer -->
-  <div id="latest-visit">
-    <strong>Latest Visit Timeline</strong>
-    <div class="controls" style="margin-top:6px">
-      <input id="lv-id" class="input" placeholder="Paste Inquiry ID (e.g. INQ-1756…)" style="min-width:260px;flex:1">
-      <button class="btn primary" onclick="loadLatestTimeline()">Load</button>
+  <div class="container" style="margin-top:16px">
+    <div class="card">
+      <div class="head">Latest Visit Timeline</div>
+      <div class="body">
+        <div class="controls">
+          <input id="lv-id" class="input" placeholder="Paste Inquiry ID (e.g. INQ-1756…)" style="min-width:260px;flex:1">
+          <button class="btn primary" onclick="loadLatestTimeline()">Load</button>
+        </div>
+        <div id="lv-meta" style="font-size:.9rem;color:#334155;margin-top:4px"></div>
+        <div id="lv-list" style="margin-top:6px"></div>
+      </div>
     </div>
-    <div id="lv-meta" style="font-size:.9rem;color:#334155;margin-top:4px"></div>
-    <div id="lv-list" style="margin-top:6px"></div>
   </div>
 
   <div class="container">
-
-    <!-- KPIs (team-rated only) -->
     <div class="metrics">
       <div class="card"><div class="body kpi"><div class="icon">👨‍👩‍👧‍👦</div><div><div style="font-size:.8rem;opacity:.7">Total Families</div><div class="val" id="k_total">-</div></div></div></div>
       <div class="card"><div class="body kpi"><div class="icon" style="background:var(--rate-high)">▲</div><div><div style="font-size:.8rem;opacity:.7">Team-Rated High</div><div class="val" id="k_high">-</div></div></div></div>
@@ -127,7 +109,6 @@
     </div>
 
     <div class="grid">
-      <!-- Left column -->
       <div>
         <div class="card">
           <div class="head">Family Prospects</div>
@@ -159,29 +140,10 @@
         </div>
       </div>
 
-      <!-- Right column -->
       <div>
         <div class="card">
-          <div class="head">Section Leaderboard (aggregate)</div>
-          <div class="body" id="leaderboard">
-            <div class="loading">Computing section stats…</div>
-          </div>
-        </div>
-
-        <div class="card" style="margin-top:16px">
           <div class="head">Recent Activity</div>
           <div class="body" id="recent"><div class="loading">Loading…</div></div>
-        </div>
-
-        <div class="card" style="margin-top:16px">
-          <div class="head">AI Summaries (disabled)</div>
-          <div class="body">
-            <p style="font-size:.9rem;color:#475569">To protect trust, automated “hot/warm” wording is <strong>disabled</strong>. You can enable neutral, single-sentence summaries later.</p>
-            <div class="controls" style="margin-top:8px">
-              <label><input type="checkbox" id="ai_toggle"> Enable neutral AI summaries</label>
-            </div>
-            <div id="ai_status" style="font-size:.9rem;color:#64748b;margin-top:6px">AI summariser is off.</div>
-          </div>
         </div>
       </div>
     </div>
@@ -190,31 +152,63 @@
   <script>
   'use strict';
 
-  /* ========= Helpers ========= */
+  /* ---------------- API wrapper (robust & simple) ---------------- */
   const $ = id => document.getElementById(id);
   const setTxt = (id,v)=>{ const el=$(id); if (el) el.textContent = String(v); };
   const showErr = msg => { const b = $('err'); b.textContent='⚠️ '+msg; b.style.display='block'; };
 
-  // Keep your original fetch style
-  async function fetchJson(url, opts){
+  // GET expecting JSON; tolerant to text/empty responses
+  async function getJson(url){
     const u = url + (url.includes('?')?'&':'?') + '_ts=' + Date.now();
-    const res = await fetch(u, opts || { cache:'no-store' });
-    if (!res.ok) throw new Error(res.status+' '+res.statusText);
-    const ctype = (res.headers.get('content-type')||'').toLowerCase();
-    if (ctype.includes('application/json')) return res.json();
-    // allow callers to parse text logs if needed
-    return res.text();
+    const res = await fetch(u, { cache:'no-store' });
+    if (!res.ok) throw new Error(`${res.status} ${res.statusText} @ ${url}`);
+    const text = await res.text();
+    if (!text) return null;
+    try { return JSON.parse(text); }
+    catch {
+      // surface a helpful preview if backend returned HTML/text
+      console.error('Non-JSON from', url, '::', text.slice(0,250));
+      throw new Error(`Non-JSON from ${url}: ${text.slice(0,120)}`);
+    }
   }
 
-  // State
-  let familiesRaw=[], families=[], sessionsFlat=[];
+  // POST (or PATCH) with JSON body; handles 204/empty responses
+  async function postOk(url, payload){
+    const u = url + (url.includes('?')?'&':'?') + '_ts=' + Date.now();
+    const res = await fetch(u, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: payload ? JSON.stringify(payload) : null,
+      cache:'no-store'
+    });
+    if (!res.ok) throw new Error(`${res.status} ${res.statusText} @ ${url}`);
+    // some endpoints return 204 or empty body: success is just res.ok
+    return true;
+  }
 
-  /* ========= Load All ========= */
+  // GET that may return a plain-text session log (for visits/events)
+  async function getMaybeText(url){
+    const u = url + (url.includes('?')?'&':'?') + '_ts=' + Date.now();
+    const res = await fetch(u, { cache:'no-store' });
+    if (!res.ok) throw new Error(`${res.status} ${res.statusText} @ ${url}`);
+    const ctype = (res.headers.get('content-type')||'').toLowerCase();
+    const text  = await res.text();
+    if (ctype.includes('application/json')) {
+      try { return JSON.parse(text); } catch { /* fall through to text */ }
+    }
+    return text; // raw text (we'll parse logs)
+  }
+
+  /* ---------------- State ---------------- */
+  let families = [];
+  let sessionsFlat = []; // kept for cards only (no leaderboard now)
+
+  /* ---------------- Load all ---------------- */
   async function loadAll(){
     try{
-      const data = await fetchJson('/api/analytics/inquiries');
-      familiesRaw = Array.isArray(data) ? data : [];
-      families = familiesRaw.map(shapeFamily);
+      const data = await getJson('/api/analytics/inquiries');
+      const arr = Array.isArray(data) ? data : [];
+      families = arr.map(shapeFamily);
 
       updateKPIs();
       bindControls();
@@ -223,11 +217,11 @@
 
       sessionsFlat = [];
       await buildSessionCards();
-      await buildSectionLeaderboard();
+
     }catch(e){
       console.error(e);
       showErr('Failed to load families: '+e.message);
-      if ($('families')) $('families').innerHTML = '<div class="error">Could not load families.</div>';
+      const fam = $('families'); if (fam) fam.innerHTML = '<div class="error">Could not load families.</div>';
     }
   }
 
@@ -255,90 +249,88 @@
   function updateKPIs(){
     setTxt('k_total', families.length);
     setTxt('k_high', families.filter(f=>f.rating==='high').length);
-    setTxt('k_med', families.filter(f=>f.rating==='medium').length);
-    setTxt('k_low', families.filter(f=>f.rating==='low').length);
+    setTxt('k_med',  families.filter(f=>f.rating==='medium').length);
+    setTxt('k_low',  families.filter(f=>f.rating==='low').length);
     setTxt('k_unrated', families.filter(f=>f.rating==='unrated').length);
     setTxt('k_active', families.filter(f=>f.activeToday).length);
   }
 
+  /* ---------------- Controls & filtering ---------------- */
   function bindControls(){
     ['f_q','f_rate','f_sort'].forEach(id=>{
       const el=$(id); if(!el) return;
-      if (id==='f_q') el.addEventListener('input',renderFamilies);
-      else el.addEventListener('change',renderFamilies);
+      if (id==='f_q') el.addEventListener('input', renderFamilies);
+      else el.addEventListener('change', renderFamilies);
     });
-    const ai = $('ai_toggle');
-    if (ai) ai.addEventListener('change',()=>{
-      $('ai_status').textContent = ai.checked
-        ? 'Enabled (client only). Wire your server endpoint when ready.'
-        : 'AI summariser is off.';
-    });
-
     const lv = $('lv-id');
     if (lv) lv.addEventListener('keydown', e=>{ if(e.key==='Enter') loadLatestTimeline(); });
   }
 
-  /* ========= Families UI ========= */
-  function renderFamilies(){
-    const wrap = $('families'); if(!wrap) return;
-    const q = ($('#f_q')?.value||'').toLowerCase();
-    const rf = $('#f_rate')?.value||'all';
-    const sort = $('#f_sort')?.value||'recent';
+  function filteredAndSorted(){
+    const q   = ($('#f_q')?.value||'').toLowerCase();
+    const rf  = $('#f_rate')?.value||'all';
+    const sort= $('#f_sort')?.value||'recent';
 
     let list = families.slice();
     if (rf!=='all') list = list.filter(f=>f.rating===rf);
     if (q) list = list.filter(f=>(f.name.toLowerCase().includes(q) || (f.email||'').toLowerCase().includes(q) || (f.city||'').toLowerCase().includes(q)));
+
     if (sort==='time') list.sort((a,b)=>b.minutes-a.minutes);
     else if (sort==='visits') list.sort((a,b)=>b.visits-a.visits);
     else list.sort((a,b)=>new Date(b.last||0)-new Date(a.last||0));
 
+    return list;
+  }
+
+  /* ---------------- Families list ---------------- */
+  function renderFamilies(){
+    const wrap = $('families'); if(!wrap) return;
+    const list = filteredAndSorted();
     if (!list.length){ wrap.innerHTML='<div class="loading">No families for current filters</div>'; return; }
 
-    wrap.innerHTML = list.map(f=>{
-      return `
-        <div class="family" data-id="${f.id}">
-          <div class="hdr" onclick="toggleCard('${f.id}')">
-            <div><strong>${f.name} Family</strong> <span class="badge">${f.entryYear}</span></div>
-            <div class="meta">${f.minutes} min • ${f.visits} visit${f.visits===1?'':'s'} • ${f.city||'—'}</div>
-          </div>
-          <div class="details">
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-              <div>
-                <div><strong>Email:</strong> ${f.email||'—'}</div>
-                <div><strong>Age Group:</strong> ${f.ageGroup||'—'}</div>
-                <div><strong>Last Activity:</strong> ${f.last?new Date(f.last).toLocaleString():'—'}</div>
-              </div>
-              <div>
-                <div><strong>Team Rating</strong></div>
-                <div class="pills" style="margin-top:6px">
-                  ${ratingPill(f,'high')}
-                  ${ratingPill(f,'medium')}
-                  ${ratingPill(f,'low')}
-                  ${ratingPill(f,'unrated')}
-                </div>
-              </div>
-            </div>
-
-            <div class="controls" style="margin-top:10px">
-              ${f.prospectusUrl?`<button class="btn primary" onclick="openProspectus('${encodeURI(f.prospectusUrl)}')">Open Prospectus</button>`:`<button class="btn" disabled>Open Prospectus</button>`}
-              <button class="btn" onclick="loadCardLatest('${f.id}')">Load Timeline</button>
-              <button class="btn" onclick="loadSessions('${f.id}')">Load Sessions</button>
-              <button class="btn" onclick="copyId('${f.id}')">Copy Inquiry ID</button>
-            </div>
-
-            <textarea id="n-${f.id}" class="notes" placeholder="Team notes (saved on blur)" onblur="saveNotes('${f.id}')">${(f.notes||'').replace(/[&<>"']/g,s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]))}</textarea>
-
-            <div id="tl-${f.id}" class="timeline" style="display:none">
-              <div id="tlm-${f.id}" style="font-size:.9rem;color:#334155;margin-bottom:.25rem"></div>
-              <div id="tlb-${f.id}"></div>
-              <div class="legend">Block widths reflect dwell time; hover for labels.</div>
-            </div>
-
-            <div id="ss-${f.id}" style="margin-top:8px"></div>
-          </div>
+    wrap.innerHTML = list.map(f=>`
+      <div class="family" data-id="${f.id}">
+        <div class="hdr" onclick="toggleCard('${f.id}')">
+          <div><strong>${f.name} Family</strong> <span class="badge">${f.entryYear}</span></div>
+          <div class="meta">${f.minutes} min • ${f.visits} visit${f.visits===1?'':'s'} • ${f.city||'—'}</div>
         </div>
-      `;
-    }).join('');
+        <div class="details">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div>
+              <div><strong>Email:</strong> ${f.email||'—'}</div>
+              <div><strong>Age Group:</strong> ${f.ageGroup||'—'}</div>
+              <div><strong>Last Activity:</strong> ${f.last?new Date(f.last).toLocaleString():'—'}</div>
+            </div>
+            <div>
+              <div><strong>Team Rating</strong></div>
+              <div class="pills" style="margin-top:6px">
+                ${ratingPill(f,'high')}
+                ${ratingPill(f,'medium')}
+                ${ratingPill(f,'low')}
+                ${ratingPill(f,'unrated')}
+              </div>
+            </div>
+          </div>
+
+          <div class="controls" style="margin-top:10px">
+            ${f.prospectusUrl?`<button class="btn primary" onclick="openProspectus('${encodeURI(f.prospectusUrl)}')">Open Prospectus</button>`:`<button class="btn" disabled>Open Prospectus</button>`}
+            <button class="btn" onclick="loadCardLatest('${f.id}')">Load Timeline</button>
+            <button class="btn" onclick="loadSessions('${f.id}')">Load Sessions</button>
+            <button class="btn" onclick="copyId('${f.id}')">Copy Inquiry ID</button>
+          </div>
+
+          <textarea id="n-${f.id}" class="notes" placeholder="Notes (saved on blur)" onblur="saveNotes('${f.id}')">${escapeHtml(f.notes||'')}</textarea>
+
+          <div id="tl-${f.id}" class="timeline" style="display:none">
+            <div id="tlm-${f.id}" style="font-size:.9rem;color:#334155;margin-bottom:.25rem"></div>
+            <div id="tlb-${f.id}"></div>
+            <div class="legend">Block widths reflect dwell time; hover for labels.</div>
+          </div>
+
+          <div id="ss-${f.id}" style="margin-top:8px"></div>
+        </div>
+      </div>
+    `).join('');
   }
 
   function ratingPill(f, key){
@@ -352,47 +344,81 @@
   function openProspectus(u){ window.open(u,'_blank'); }
   function copyId(id){ navigator.clipboard.writeText(id).catch(()=>{}); }
 
+  // Persist rating, then re-fetch families so a refresh shows the saved value.
   async function setRating(ev,id,val){
     ev.stopPropagation();
     try{
-      const f = families.find(x=>x.id===id); if (!f) return;
-      f.rating = val;
-      await fetchJson(`/api/inquiries/${encodeURIComponent(id)}/rating`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({rating:val})});
-      updateKPIs();
-      renderFamilies();
-    }catch(e){ console.error(e); showErr('Could not save rating: '+e.message); }
+      // optimistic UI
+      const f = families.find(x=>x.id===id); if (f){ f.rating = val; renderFamilies(); updateKPIs(); }
+      await postOk(`/api/inquiries/${encodeURIComponent(id)}/rating`, { rating: val });
+      await reloadFamilies(); // ensure backend value is now definitive
+    }catch(e){
+      console.error(e);
+      showErr('Could not save rating: '+e.message);
+      // reload to avoid stale optimistic UI
+      await reloadFamilies();
+    }
   }
+
+  // Persist notes, then re-fetch families so a refresh shows the saved value.
   async function saveNotes(id){
     const ta = $(`n-${id}`); if (!ta) return;
     try{
-      await fetchJson(`/api/inquiries/${encodeURIComponent(id)}/notes`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({notes:ta.value||''})});
-    }catch(e){ console.error(e); showErr('Could not save notes: '+e.message); }
+      await postOk(`/api/inquiries/${encodeURIComponent(id)}/notes`, { notes: ta.value || '' });
+      await reloadFamilies();
+    }catch(e){
+      console.error(e);
+      showErr('Could not save notes: '+e.message);
+      await reloadFamilies();
+    }
   }
 
-  /* ========= Latest visit quick viewer ========= */
+  async function reloadFamilies(){
+    try{
+      const data = await getJson('/api/analytics/inquiries');
+      const arr = Array.isArray(data) ? data : [];
+      const map = new Map(arr.map(x=>[x.id,x]));
+      // merge into current list (keeps expansion state)
+      families = families.map(f=>{
+        const n = map.get(f.id);
+        return n ? shapeFamily(n) : f;
+      });
+      updateKPIs();
+      renderFamilies();
+      renderRecent();
+    }catch(e){
+      console.error('reloadFamilies failed:', e);
+      showErr('Refresh after save failed: '+e.message);
+    }
+  }
+
+  /* ---------------- Latest visit viewer ---------------- */
   async function loadLatestTimeline(){
     const id = ($('#lv-id')?.value||'').trim();
     const meta = $('lv-meta'), list = $('lv-list');
     if (!id){ meta.textContent='Please paste an Inquiry ID.'; list.innerHTML=''; return; }
     meta.textContent='Loading…'; list.innerHTML='';
-    const body = await getLatestVisit(id);
-    if (!body || !body.ok || !body.session){ meta.textContent='No visits found.'; return; }
-    const fmt = ts => new Date(ts).toLocaleString();
-    meta.textContent = `Session ${body.session.id} — ${fmt(body.session.start)} → ${fmt(body.session.end)}`;
-    list.innerHTML = body.events.map(renderEventHTML).join('');
-  }
-
-  async function getLatestVisit(inquiryId){
     try{
-      const data = await fetchJson(`/api/visits/${encodeURIComponent(inquiryId)}/latest`);
-      if (typeof data === 'string'){ // text page/log
-        const parsed = parseSessionLog(data);
-        return parsed.length ? { ok:true, session:{id:'latest',start:null,end:null}, events:parsed } : null;
-      }
-      return data;
-    }catch(e){ showErr('Latest visit failed: '+e.message); return null; }
+      const data = await getMaybeText(`/api/visits/${encodeURIComponent(id)}/latest`);
+      const body = normaliseVisitResponse(data);
+      if (!body || !body.ok || !body.session){ meta.textContent='No visits found.'; return; }
+      meta.textContent = fmtSession(body.session);
+      list.innerHTML = body.events.map(renderEventHTML).join('');
+    }catch(e){
+      console.error(e);
+      meta.textContent = 'Failed to load latest visit: '+e.message;
+    }
   }
 
+  function normaliseVisitResponse(data){
+    if (!data) return null;
+    if (typeof data === 'string'){
+      const events = parseSessionLog(data);
+      return events.length ? { ok:true, session:{id:'latest',start:null,end:null}, events } : null;
+    }
+    return data;
+  }
+  function fmtSession(s){ const f = d=>d?new Date(d).toLocaleString():'?'; return `Session ${s.id||''} — ${f(s.start)} → ${f(s.end)}`; }
   function renderEventHTML(e){
     if (e.type==='section_enter')  return `→ Enter section: ${e.section}`;
     if (e.type==='section_exit')   return `↩︎ Exit section: ${e.section} — ${e.dwellSec??0}s${e.reason?` [${e.reason}]`:''}`;
@@ -405,19 +431,22 @@
     return e.name || e.type;
   }
 
-  /* ========= Family timeline & sessions ========= */
+  /* ---------------- Per-family timeline & sessions ---------------- */
   async function loadCardLatest(id){
     const tl = $(`tl-${id}`), tlm = $(`tlm-${id}`), tlb = $(`tlb-${id}`);
     if (!tl||!tlm||!tlb) return;
     tl.style.display='block'; tlm.textContent='Loading…'; tlb.innerHTML='';
-    const body = await getLatestVisit(id);
-    if (!body || !body.ok || !body.session){ tlm.textContent='No visits found.'; return; }
-    tlm.textContent = formatSessionHeader(body.session);
-    drawTimelineBlocks(tlb, body.events);
-    upsertSessionsFlat(id, body.session, body.events);
-    buildSectionLeaderboard();
+    try{
+      const data = await getMaybeText(`/api/visits/${encodeURIComponent(id)}/latest`);
+      const body = normaliseVisitResponse(data);
+      if (!body || !body.ok || !body.session){ tlm.textContent='No visits found.'; return; }
+      tlm.textContent = fmtSession(body.session);
+      drawTimelineBlocks(tlb, body.events);
+      // no leaderboard anymore
+    }catch(e){
+      console.error(e); tlm.textContent='Failed to load: '+e.message;
+    }
   }
-  function formatSessionHeader(s){ const f = d=>d?new Date(d).toLocaleString():'?'; return `Session ${s.id||''} — ${f(s.start)} → ${f(s.end)}`; }
 
   async function loadSessions(id){
     const box = $(`ss-${id}`); if (!box) return;
@@ -425,7 +454,6 @@
     const hist = await fetchVisitHistory(id);
     if (!hist || !hist.sessions || !hist.sessions.length){ box.innerHTML='<div class="loading">No sessions</div>'; return; }
 
-    // Render list, lazy-load events
     box.innerHTML = hist.sessions.slice().sort((a,b)=>new Date(b.start||b.started_at||0)-new Date(a.start||a.started_at||0))
       .map(s=>{
         const sid = s.id || s.session_id || '';
@@ -450,13 +478,10 @@
         const evs = (res && res.events)||[];
         tgt.innerHTML = evs.length ? renderEventListWithMiniTimeline(evs) : 'No events';
         tgt.dataset.loaded = '1';
-        upsertSessionsFlat(id, {id:sid}, evs);
-        buildSectionLeaderboard();
       });
     });
   }
 
-  // History: try many endpoints + parse text lists
   async function fetchVisitHistory(inquiryId){
     const urls = [
       `/api/visits/${encodeURIComponent(inquiryId)}/history`,
@@ -468,13 +493,14 @@
     ];
     for (const u of urls){
       try{
-        const resp = await fetchJson(u);
-        if (typeof resp === 'string'){ // text page/log; try to extract session IDs
-          const ids = Array.from(new Set(resp.match(/S-\d{13}-[a-z0-9]+/g)||[]));
+        const res = await getMaybeText(u);
+        if (typeof res === 'string'){
+          // text page with IDs; extract S-… IDs
+          const ids = Array.from(new Set(res.match(/S-\d{13}-[a-z0-9]+/g)||[]));
           if (ids.length) return { sessions: ids.map(id=>({id})) };
           continue;
         }
-        const d = resp;
+        const d = res;
         if (Array.isArray(d) && d.length) return { sessions: d };
         if (d && Array.isArray(d.sessions) && d.sessions.length) return { sessions: d.sessions };
         if (d && d.data && Array.isArray(d.data.sessions) && d.data.sessions.length) return { sessions: d.data.sessions };
@@ -483,7 +509,6 @@
     return null;
   }
 
-  // Events: try JSON endpoints first, then parse text logs if needed
   async function fetchSessionEvents(sessionId,inquiryId){
     const urls = [
       `/api/visits/session/${encodeURIComponent(sessionId)}`,
@@ -494,26 +519,21 @@
     ];
     for (const u of urls){
       try{
-        const res = await fetch(u + (u.includes('?')?'&':'?') + '_ts=' + Date.now(), {cache:'no-store'});
-        const ctype = (res.headers.get('content-type')||'').toLowerCase();
-        const text = await res.text();
-
-        if (ctype.includes('application/json')){
-          try{
-            const d = JSON.parse(text);
-            if (Array.isArray(d) && d.length && (d[0].type||d[0].name)) return {events:d,hit:u};
-            if (d && Array.isArray(d.events)) return {events:d.events,hit:u};
-            if (d && d.data && Array.isArray(d.data.events)) return {events:d.data.events,hit:u};
-          }catch{ /* fall through */ }
+        const res = await getMaybeText(u);
+        if (typeof res === 'string'){
+          const parsed = parseSessionLog(res);
+          if (parsed.length) return {events:parsed,hit:u};
+          continue;
         }
-        const parsed = parseSessionLog(text);
-        if (parsed.length) return {events:parsed,hit:u};
+        const d = res;
+        if (Array.isArray(d) && d.length && (d[0].type||d[0].name)) return {events:d,hit:u};
+        if (d && Array.isArray(d.events)) return {events:d.events,hit:u};
+        if (d && d.data && Array.isArray(d.data.events)) return {events:d.data.events,hit:u};
       }catch(e){ /* try next */ }
     }
     return {events:[]};
   }
 
-  // Parse your plain-text session logs into structured events
   function parseSessionLog(text){
     if (!text || typeof text!=='string') return [];
     const lines = text.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
@@ -522,36 +542,18 @@
     for (const line of lines){
       if (/^✓\s*Visit start/i.test(line)){ evs.push({type:'page_load'}); continue; }
       if (/^✕\s*Visit end/i.test(line)){ evs.push({type:'page_unload'}); continue; }
-
       let m = line.match(/^→\s*Enter section:\s*(.+)$/i);
       if (m){ evs.push({type:'section_enter', section:m[1].trim()}); continue; }
-
       m = line.match(/^↩︎?\s*Exit section:\s*([—\-\w\d_ ]+?)(?:\s*[—-]\s*(\d+)s)?(?:\s*\[(.+?)\])?$/i);
-      if (m){
-        const section = (m[1]||'').trim();
-        const dwellSec = m[2] ? Number(m[2]) : undefined;
-        const reason = m[3] ? m[3].trim() : undefined;
-        evs.push({type:'section_exit', section, dwellSec, reason}); continue;
-      }
-
+      if (m){ evs.push({type:'section_exit', section:(m[1]||'').trim(), dwellSec:m[2]?Number(m[2]):undefined, reason:m[3]?.trim()}); continue; }
       m = line.match(/^⟫\s*Tier opened:\s*(.+)$/i);
       if (m){ evs.push({type:'tier_expand', tier:m[1].trim()}); continue; }
-
       m = line.match(/^⟪\s*Tier closed.*?:\s*(.+?)(?:\s*[—-]\s*(\d+)s)?(?:\s*\[(.+?)\])?$/i);
-      if (m){
-        const tier = (m[1]||'').trim();
-        const dwellSec = m[2] ? Number(m[2]) : undefined;
-        const reason = m[3] ? m[3].trim() : undefined;
-        evs.push({type:'tier_exit', tier, dwellSec, reason}); continue;
-      }
-
+      if (m){ evs.push({type:'tier_exit', tier:(m[1]||'').trim(), dwellSec:m[2]?Number(m[2]):undefined, reason:m[3]?.trim()}); continue; }
       m = line.match(/^▶︎\s*Video open:\s*([A-Za-z0-9_-]+)(?:\s*[—-]\s*(.+))?$/i);
       if (m){ evs.push({type:'video_open', youtubeId:m[1], title:m[2]?.trim()}); continue; }
-
       m = line.match(/^■\s*Video close:\s*([A-Za-z0-9_-]+)/i);
       if (m){ evs.push({type:'video_close', youtubeId:m[1]}); continue; }
-
-      // generic fallback to preserve context
       evs.push({type:'log', name: line});
     }
     return evs;
@@ -593,20 +595,9 @@
     return mini + list;
   }
 
-  function upsertSessionsFlat(inquiryId, session, events){
-    if (!events || !events.length) return;
-    const sections = [];
-    events.forEach(e=>{
-      if (e.type==='section_exit'){
-        const secs = Number(e.dwellSec)||0;
-        sections.push({name:e.section||'section', secs});
-      }
-    });
-    if (!sections.length) return;
-    sessionsFlat.push({inquiryId, sessionId: session.id||'', sections});
-  }
+  function escapeHtml(str){ return String(str).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s])); }
 
-  /* ========= Session cards ========= */
+  /* ---------------- Session summary cards ---------------- */
   async function buildSessionCards(){
     const target = $('sessionCards'); if (!target) return;
     const subset = families.slice(0,12);
@@ -614,18 +605,18 @@
 
     const rows = [];
     for (const f of subset){
-      let res = null;
+      let res=null;
       try{
-        const data = await fetchJson(`/api/visits/${encodeURIComponent(f.id)}/latest`);
-        res = (typeof data === 'string') ? { ok:true, session:{id:'latest',start:null,end:null}, events:parseSessionLog(data) } : data;
-      }catch{}
-      if (!res || !res.ok || !res.session) continue;
+        const data = await getMaybeText(`/api/visits/${encodeURIComponent(f.id)}/latest`);
+        const body = normaliseVisitResponse(data);
+        if (!body || !body.ok || !body.session) continue;
+        res = body;
+      }catch{ continue; }
 
       const secs = [];
       res.events.forEach(e=>{ if (e.type==='section_exit') secs.push(Number(e.dwellSec)||0); });
       const total = secs.reduce((a,b)=>a+b,0)||1;
       const pct = Math.min(100, Math.round((total/480)*100)); // ~8 min baseline
-      upsertSessionsFlat(f.id, res.session, res.events);
 
       rows.push(`
         <div class="session-card" title="${f.name}">
@@ -639,36 +630,7 @@
     target.innerHTML = rows.join('') || '<div class="loading">No recent sessions</div>';
   }
 
-  /* ========= Leaderboard ========= */
-  async function buildSectionLeaderboard(){
-    const agg = {};
-    sessionsFlat.forEach(s=>{
-      s.sections.forEach(x=>{
-        const k = x.name||'section';
-        if (!agg[k]) agg[k]={count:0, secs:0};
-        agg[k].count += 1;
-        agg[k].secs  += Number(x.secs)||0;
-      });
-    });
-    const box = $('leaderboard'); if (!box) return;
-    const rows = Object.keys(agg).map(k=>({name:k, count:agg[k].count, secs:agg[k].secs}))
-                  .sort((a,b)=>b.count-a.count).slice(0,12);
-    if (!rows.length){ box.innerHTML = '<div class="loading">No section data yet</div>'; return; }
-    const maxC = Math.max(1, ...rows.map(r=>r.count));
-    const maxS = Math.max(1, ...rows.map(r=>r.secs));
-    box.innerHTML = `
-      <div style="font-size:.85rem;color:#475569;margin-bottom:6px">Left bar = visits · Right bar = total dwell</div>
-      ${rows.map(r=>`
-        <div class="leader-row">
-          <div><strong>${r.name}</strong></div>
-          <div class="heat" title="Visits: ${r.count}"><div style="width:${Math.round((r.count/maxC)*100)}%"></div></div>
-          <div class="heat" title="Dwell: ${r.secs}s"><div style="width:${Math.round((r.secs/maxS)*100)}%"></div></div>
-        </div>
-      `).join('')}
-    `;
-  }
-
-  /* ========= Recent activity ========= */
+  /* ---------------- Recent ---------------- */
   function renderRecent(){
     const box = $('recent');
     const list = families.slice().sort((a,b)=>new Date(b.last||0)-new Date(a.last||0)).slice(0,10);
@@ -694,7 +656,7 @@
     return d.toLocaleDateString();
   }
 
-  /* ========= Bootstrap ========= */
+  /* ---------------- Init ---------------- */
   document.addEventListener('DOMContentLoaded', ()=>loadAll());
   </script>
 </body>
