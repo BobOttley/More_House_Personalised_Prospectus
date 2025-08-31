@@ -3,68 +3,107 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>More House Analytics - Real Data Dashboard</title>
+  <title>More House Analytics - Admissions Dashboard</title>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-
   <style>
     :root{
-      --blazer-navy:#091825;--award-gold:#FF9F1C;--sport-blue:#034674;
-      --text-primary:#2C3E50;--white:#FFFFFF;--light-grey:#F8FAFC;--border-grey:#E5E7EB;
-      --success:#10B981;--warning:#F59E0B;--error:#EF4444;
-      --hot-lead:#FF4444;--warm-lead:#FF9F1C;--cold-lead:#034674;
-      --font-heading:'Playfair Display',serif;--font-body:'Inter',sans-serif
-    }
-    *{margin:0;padding:0;box-sizing:border-box}
-    body{font-family:var(--font-body);background:linear-gradient(135deg,var(--light-grey) 0%,#f1f5f9 100%);min-height:100vh;color:var(--text-primary);font-size:14px}
+      /* Brand palette */
+      --blazer-navy:#091825; --award-gold:#FF9F1C; --sport-blue:#034674;
+      --text-primary:#2C3E50; --white:#FFFFFF; --light-grey:#F8FAFC; --border-grey:#E5E7EB;
+      --success:#10B981; --warning:#F59E0B; --error:#EF4444;
 
-    .header{background:linear-gradient(135deg,#091825 0%,#034674 100%);color:#fff;padding:2rem;box-shadow:0 4px 20px rgba(9,24,37,.3);text-align:center;position:relative}
-    .refresh-btn{position:absolute;top:2rem;right:2rem;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#fff;padding:.5rem 1rem;border-radius:8px;cursor:pointer;transition:.3s;font-size:.9rem}
+      /* Team rating colours */
+      --rate-high:#0F766E;   /* teal */
+      --rate-medium:#B45309; /* amber-brown */
+      --rate-low:#374151;    /* slate */
+      --rate-unrated:#6B7280;
+
+      --font-heading:'Playfair Display',serif;
+      --font-body:'Inter',sans-serif
+    }
+
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{
+      font-family:var(--font-body);
+      background:linear-gradient(135deg,var(--light-grey) 0%,#f1f5f9 100%);
+      min-height:100vh;color:var(--text-primary);font-size:14px
+    }
+
+    /* Header */
+    .header{
+      background:linear-gradient(135deg,#091825 0%,#034674 100%);
+      color:#fff;padding:2rem;box-shadow:0 4px 20px rgba(9,24,37,.3);
+      text-align:center;position:relative
+    }
+    .refresh-btn{
+      position:absolute;top:2rem;right:2rem;background:rgba(255,255,255,.1);
+      border:1px solid rgba(255,255,255,.2);color:#fff;padding:.5rem 1rem;border-radius:8px;
+      cursor:pointer;transition:.3s;font-size:.9rem
+    }
     .refresh-btn:hover{background:rgba(255,255,255,.2)}
     .header-brand{display:inline-block;position:relative}
-    .brand-glow{position:absolute;inset:0;border-radius:50%;background:linear-gradient(135deg,var(--award-gold),#FFB84D);opacity:.3;filter:blur(20px)}
-    .header h1{position:relative;font-family:var(--font-heading);font-size:4rem;font-weight:700;margin-bottom:1rem}
+    .brand-glow{position:absolute;inset:0;border-radius:50%;
+      background:linear-gradient(135deg,var(--award-gold),#FFB84D);opacity:.3;filter:blur(20px)}
+    .header h1{position:relative;font-family:var(--font-heading);font-size:3.25rem;font-weight:700;margin-bottom:.75rem}
     .smart-text{background:linear-gradient(135deg,var(--award-gold),#FFB84D);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
     .analytics-text{color:#fff}
-    .header p{font-size:1.2rem;font-weight:300;color:rgba(255,255,255,.9);margin-bottom:.5rem}
+    .header p{font-size:1.05rem;font-weight:300;color:rgba(255,255,255,.9)}
 
     .dashboard{max-width:1400px;margin:-2rem auto 2rem;position:relative;z-index:10}
-    .metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1.5rem;padding:2rem}
-    .metric-card{background:#fff;border-radius:16px;padding:1.5rem;box-shadow:0 4px 16px rgba(9,24,37,.08);border:1px solid var(--border-grey);transition:.3s;position:relative;overflow:hidden}
-    .metric-card:hover{box-shadow:0 8px 25px rgba(9,24,37,.12);transform:translateY(-2px)}
+
+    /* Metrics */
+    .metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1.25rem;padding:1.5rem}
+    .metric-card{background:#fff;border-radius:16px;padding:1.25rem;box-shadow:0 4px 16px rgba(9,24,37,.08);border:1px solid var(--border-grey);position:relative;overflow:hidden}
     .metric-card::before{content:'';position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,var(--award-gold),var(--sport-blue))}
-    .metric-card.hot::before{background:var(--hot-lead)}.metric-card.warm::before{background:var(--warm-lead)}.metric-card.engagement::before{background:var(--success)}.metric-card.total::before{background:var(--sport-blue)}
-    .metric-header{display:flex;align-items:center;gap:1rem;margin-bottom:1rem}
-    .metric-icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;color:#fff;background:var(--award-gold);font-size:1.5rem}
-    .metric-icon.hot{background:linear-gradient(135deg,var(--hot-lead),#ff6666)}
-    .metric-icon.warm{background:linear-gradient(135deg,var(--warm-lead),#ffb347)}
-    .metric-icon.engagement{background:linear-gradient(135deg,var(--success),#34d399)}
-    .metric-icon.total{background:linear-gradient(135deg,var(--sport-blue),#0ea5e9)}
-    .metric-title{font-size:.85rem;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:#64748b;margin-bottom:.5rem}
-    .metric-value{font-size:2.25rem;font-weight:700;color:var(--blazer-navy);margin-bottom:.25rem;font-family:var(--font-heading)}
-    .metric-subtitle{font-size:.8rem;font-weight:500;color:var(--success);display:flex;align-items:center;gap:.25rem}
+    .metric-header{display:flex;align-items:center;gap:1rem;margin-bottom:.75rem}
+    .metric-icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.25rem;background:var(--sport-blue)}
+    .metric-title{font-size:.8rem;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:#64748b;margin-bottom:.25rem}
+    .metric-value{font-size:2rem;font-weight:700;color:var(--blazer-navy);font-family:var(--font-heading)}
+    .metric-subtitle{font-size:.8rem;color:#64748b}
 
-    .main-content{display:grid;grid-template-columns:2fr 1fr;gap:2rem;padding:0 1rem}
-    .panel{background:#fff;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.1);overflow:hidden}
-    .panel-header{background:#034674;color:#fff;padding:1rem 1.5rem;font-weight:600}
-    .panel-content{padding:1.5rem}
-    .filters{background:#fff;padding:1rem 1.5rem;border-bottom:1px solid #e2e8f0;display:flex;gap:1rem;align-items:center}
-    .filter-select,.search-box{padding:.5rem;border:1px solid #d1d5db;border-radius:4px;font-size:.875rem}
-    .search-box{flex:1;max-width:300px}
+    /* Panels */
+    .main-content{display:grid;grid-template-columns:2fr 1fr;gap:1.75rem;padding:0 1rem}
+    .panel{background:#fff;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.08);overflow:hidden;border:1px solid #e5e7f0}
+    .panel-header{background:#034674;color:#fff;padding:1rem 1.25rem;font-weight:600;display:flex;align-items:center;justify-content:space-between}
+    .panel-content{padding:1.25rem}
+    .filters{background:#fff;padding:.75rem 1.25rem;border-bottom:1px solid #e2e8f0;display:flex;gap:.75rem;align-items:center;flex-wrap:wrap}
+    .filter-select,.search-box{padding:.5rem;border:1px solid #d1d5db;border-radius:6px;font-size:.9rem}
+    .search-box{flex:1;min-width:220px}
 
-    .family-card{border:1px solid #e2e8f0;border-radius:6px;margin-bottom:1rem;overflow:hidden}
+    /* Family cards */
+    .family-card{border:1px solid #e2e8f0;border-radius:8px;margin-bottom:1rem;overflow:hidden;background:#fff}
     .family-header{padding:1rem;display:flex;justify-content:space-between;align-items:center;background:#f8fafc}
     .family-header:hover{background:#f1f5f9}
-    .family-info h3{font-size:1rem;font-weight:600;margin-bottom:.25rem}
-    .family-meta{font-size:.875rem;color:#64748b}
-    .family-actions{display:flex;gap:.5rem;flex-wrap:wrap}
-    .btn{padding:.4rem .6rem;border:1px solid #cbd5e1;border-radius:6px;background:#fff;cursor:pointer;font-size:.8rem}
+    .family-info h3{font-size:1rem;font-weight:700;margin-bottom:.25rem}
+    .family-meta{font-size:.9rem;color:#64748b}
+    .family-actions{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.75rem}
+    .btn{padding:.45rem .65rem;border:1px solid #cbd5e1;border-radius:6px;background:#fff;cursor:pointer;font-size:.85rem}
     .btn.primary{background:#034674;border-color:#034674;color:#fff}
-    .btn:disabled{opacity:.5;cursor:not-allowed}
-    .family-details{padding:1rem;border-top:1px solid #e2e8f0;display:none;background:#fff}
-    .family-card.expanded .family-details{display:block}
+    .btn:disabled{opacity:.55;cursor:not-allowed}
     .expand-icon{transition:transform .2s}
     .family-card.expanded .expand-icon{transform:rotate(180deg)}
+    .family-details{padding:1rem;border-top:1px solid #e2e8f0;display:none;background:#fff}
+    .family-card.expanded .family-details{display:block}
 
+    /* Team rating */
+    .rating-wrap{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}
+    .rating-label{font-size:.8rem;color:#64748b}
+    .rate-pill{
+      border:1px solid #d1d5db;border-radius:999px;padding:.25rem .6rem;font-size:.8rem;cursor:pointer;background:#fff
+    }
+    .rate-pill.active{color:#fff;border-color:transparent}
+    .rate-high.active{background:var(--rate-high)}
+    .rate-medium.active{background:var(--rate-medium)}
+    .rate-low.active{background:var(--rate-low)}
+    .rate-unrated.active{background:var(--rate-unrated)}
+
+    /* Notes */
+    .notes-wrap{margin-top:.75rem}
+    .notes-wrap textarea{
+      width:100%;min-height:70px;border:1px solid #d1d5db;border-radius:6px;padding:.5rem;font-size:.9rem
+    }
+
+    /* Timeline & sessions (kept, but tidied) */
     .timeline{margin-top:.75rem;padding:.75rem;background:#F8FAFC;border:1px solid #E5E7EB;border-radius:6px}
     .timeline-meta{font-size:.9rem;color:#334155;margin-bottom:.5rem}
     .timeline-list{margin:0;padding-left:18px}
@@ -75,21 +114,21 @@
     .session-body{padding:.5rem .75rem;display:none}
     .session-item.open .session-body{display:block}
 
-    .activity-feed{max-height:500px;overflow-y:auto}
-    .activity-item{padding:1rem;border-bottom:1px solid var(--border-grey);display:flex;gap:1rem;align-items:center}
-    .activity-item:last-child{border-bottom:none}
-    .activity-avatar{width:40px;height:40px;border-radius:50%;background:var(--award-gold);display:flex;align-items:center;justify-content:center;font-weight:600;color:var(--blazer-navy);flex-shrink:0}
-    .activity-text{flex:1;font-size:.9rem;color:var(--text-primary)}
-    .activity-time{font-size:.75rem;color:#64748b}
+    /* Latest Visit quick viewer */
+    #latest-visit{max-width:1400px;margin:16px auto 0;padding:12px;border:1px solid #E5E7EB;border-radius:8px;background:#F8FAFC}
 
+    /* Misc */
     .loading{display:flex;align-items:center;justify-content:center;padding:2rem;color:#64748b}
     .spinner{width:16px;height:16px;border:2px solid #e2e8f0;border-top:2px solid #3b82f6;border-radius:50%;animation:spin 1s linear infinite;margin-right:.5rem}
     @keyframes spin{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
     .error{background:#fef2f2;border:1px solid #fecaca;color:#dc2626;padding:1rem;border-radius:6px;margin:1rem 0}
     .no-data{text-align:center;color:#64748b;padding:2rem}
 
-    #latest-visit{max-width:1400px;margin:16px auto 0;padding:12px;border:1px solid #E5E7EB;border-radius:8px;background:#F8FAFC}
-    @media (max-width:768px){.main-content{grid-template-columns:1fr}.metrics{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}}
+    /* Small, accessible badges for counts */
+    .count-dot{display:inline-block;min-width:22px;padding:.05rem .4rem;border-radius:999px;background:#e5e7eb;text-align:center;font-size:.75rem;margin-left:.4rem}
+
+    @media (max-width:900px){.main-content{grid-template-columns:1fr}}
+    @media (max-width:768px){.metrics{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}}
   </style>
 </head>
 <body>
@@ -100,7 +139,7 @@
       <h1><span class="smart-text">SMART</span> <span class="analytics-text">Analytics</span></h1>
     </div>
     <p>More House School</p>
-    <div style="font-size:.9rem;color:rgba(255,255,255,.7);margin-top:.5rem;">Real-time family engagement tracking</div>
+    <div style="font-size:.9rem;color:rgba(255,255,255,.7);margin-top:.35rem;">Real-time family engagement tracking, team-rated pipeline</div>
   </header>
 
   <!-- Latest Visit Timeline (paste an Inquiry ID) -->
@@ -115,42 +154,62 @@
   </div>
 
   <div class="dashboard">
-    <!-- Metrics -->
+    <!-- Team-rated metrics (no system 'hot/warm') -->
     <div class="metrics">
-      <div class="metric-card total">
+      <div class="metric-card">
         <div class="metric-header">
-          <div class="metric-icon total">👨‍👩‍👧‍👦</div>
-          <div class="metric-content">
+          <div class="metric-icon">👨‍👩‍👧‍👦</div>
+          <div>
             <div class="metric-title">Total Families</div>
             <div class="metric-value" id="totalFamilies">-</div>
             <div class="metric-subtitle">Active prospects</div>
           </div>
         </div>
       </div>
-      <div class="metric-card hot">
+      <div class="metric-card">
         <div class="metric-header">
-          <div class="metric-icon hot">🔥</div>
-          <div class="metric-content">
-            <div class="metric-title">Hot Leads</div>
-            <div class="metric-value" id="hotLeads">-</div>
-            <div class="metric-subtitle">Score 80+ • Ready for contact</div>
+          <div class="metric-icon" style="background:var(--rate-high)">▲</div>
+          <div>
+            <div class="metric-title">Team-Rated High</div>
+            <div class="metric-value" id="ratedHigh">-</div>
+            <div class="metric-subtitle">Set by admissions</div>
           </div>
         </div>
       </div>
-      <div class="metric-card warm">
+      <div class="metric-card">
         <div class="metric-header">
-          <div class="metric-icon warm">⚡</div>
-          <div class="metric-content">
-            <div class="metric-title">Warm Leads</div>
-            <div class="metric-value" id="warmLeads">-</div>
-            <div class="metric-subtitle">Score 50–79 • Contact soon</div>
+          <div class="metric-icon" style="background:var(--rate-medium)">◼</div>
+          <div>
+            <div class="metric-title">Team-Rated Medium</div>
+            <div class="metric-value" id="ratedMedium">-</div>
+            <div class="metric-subtitle">Set by admissions</div>
           </div>
         </div>
       </div>
-      <div class="metric-card engagement">
+      <div class="metric-card">
         <div class="metric-header">
-          <div class="metric-icon engagement">📊</div>
-          <div class="metric-content">
+          <div class="metric-icon" style="background:var(--rate-low)">▼</div>
+          <div>
+            <div class="metric-title">Team-Rated Low</div>
+            <div class="metric-value" id="ratedLow">-</div>
+            <div class="metric-subtitle">Set by admissions</div>
+          </div>
+        </div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-header">
+          <div class="metric-icon" style="background:var(--rate-unrated)">•</div>
+          <div>
+            <div class="metric-title">Unrated</div>
+            <div class="metric-value" id="ratedUnrated">-</div>
+            <div class="metric-subtitle">Needs review</div>
+          </div>
+        </div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-header">
+          <div class="metric-icon" style="background:linear-gradient(135deg,var(--success),#34d399)">📊</div>
+          <div>
             <div class="metric-title">Active Today</div>
             <div class="metric-value" id="activeToday">-</div>
             <div class="metric-subtitle">Recent engagement</div>
@@ -159,43 +218,44 @@
       </div>
     </div>
 
-    <!-- Main Content -->
+    <!-- Main content -->
     <div class="main-content">
       <!-- Families -->
       <div class="panel">
         <div class="panel-header">
           <div>
             <h2>Family Prospects</h2>
-            <div style="font-size:.9rem;opacity:.9;margin-top:.25rem;">Real-time engagement tracking</div>
+            <div style="font-size:.9rem;opacity:.9;margin-top:.25rem;">Admissions set lead quality; the system never auto-labels it</div>
           </div>
         </div>
         <div class="filters">
           <select class="filter-select" id="sortFilter">
-            <option value="engagement">Sort by Engagement</option>
-            <option value="recent">Sort by Recent</option>
+            <option value="recent">Sort by Recent Activity</option>
             <option value="time">Sort by Time Spent</option>
+            <option value="visits">Sort by Return Visits</option>
           </select>
-          <select class="filter-select" id="statusFilter">
-            <option value="all">All Families</option>
-            <option value="hot">Hot Leads</option>
-            <option value="warm">Warm Leads</option>
-            <option value="active">Active Today</option>
+          <select class="filter-select" id="ratingFilter">
+            <option value="all">All Ratings</option>
+            <option value="high">High</option>
+            <option value="medium">Medium</option>
+            <option value="low">Low</option>
+            <option value="unrated">Unrated</option>
           </select>
-          <input type="text" class="search-box" placeholder="Search families..." id="searchBox">
+          <input type="text" class="search-box" placeholder="Search families…" id="searchBox">
         </div>
         <div class="panel-content">
           <div id="familyList">
-            <div class="loading"><div class="spinner"></div> Loading families...</div>
+            <div class="loading"><div class="spinner"></div> Loading families…</div>
           </div>
         </div>
       </div>
 
-      <!-- Activity -->
+      <!-- Recent Activity -->
       <div class="panel">
         <div class="panel-header"><h2>Recent Activity</h2></div>
         <div class="panel-content">
           <div id="activityFeed">
-            <div class="loading"><div class="spinner"></div> Loading activity...</div>
+            <div class="loading"><div class="spinner"></div> Loading activity…</div>
           </div>
         </div>
       </div>
@@ -206,16 +266,17 @@
   <script>
     'use strict';
 
-    let allFamilies = [];
+    let allFamilies = [];      // shaped records
+    let rawFamilies = [];      // raw payload for reference
     let isLoading = false;
 
-    // ----- Helpers -----
+    // Helpers
     const byId = id => document.getElementById(id);
     const setText = (id, v) => { const el = byId(id); if (el) el.textContent = String(v); };
-    const fetchJson = async (url) => {
-      const u = url + (url.includes('?') ? '&' : '?') + '_ts=' + Date.now();
-      const res = await fetch(u, { cache: 'no-store' });
-      if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+    const fetchJson = async (url, opts) => {
+      const u = opts ? url : url + (url.includes('?') ? '&' : '?') + '_ts=' + Date.now();
+      const res = await fetch(u, opts || { cache:'no-store' });
+      if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
       return res.json();
     };
     const formatTimeAgo = (date) => {
@@ -227,6 +288,296 @@
       if (d < 7) return `${d}d ago`;
       return date.toLocaleDateString();
     };
+
+    // ─────────────────────────────────────────────────────────────
+    // Data load & shaping
+    // Expect /api/analytics/inquiries to include team_rating & notes if available
+    // ─────────────────────────────────────────────────────────────
+    async function loadData(){
+      if (isLoading) return; isLoading = true;
+      try {
+        const data = await fetchJson('/api/analytics/inquiries');
+        rawFamilies = Array.isArray(data) ? data : [];
+        allFamilies = shapeFamilies(rawFamilies);
+        updateMetrics();
+        renderFamilies();
+        loadRecentActivity();
+      } catch (e) {
+        showError('Failed to load data: ' + e.message);
+        console.error('loadData:', e);
+      } finally {
+        isLoading = false;
+      }
+    }
+
+    function shapeFamilies(raw){
+      return raw.map(f => {
+        const dwellMs = Number(f.dwell_ms) || 0;
+        const minutes = Math.max(0, Math.round(dwellMs/60000));
+        const visits  = Math.max(0, Number(f.return_visits) || 0);
+        const last    = f.updated_at || f.received_at || null;
+
+        // Admissions-owned rating & notes (never inferred by system)
+        const teamRating = (f.team_rating || '').toLowerCase(); // 'high'|'medium'|'low'|'' (unrated)
+        const notes = f.team_notes || '';
+
+        const isActiveToday = !!(last && (Date.now() - new Date(last).getTime()) <= 86400000);
+
+        return {
+          id: f.id,
+          name: `${f.first_name || ''} ${f.family_surname || ''}`.trim(),
+          firstName: f.first_name || '',
+          familySurname: f.family_surname || '',
+          parentEmail: f.parent_email || '',
+          entryYear: f.entry_year,
+          ageGroup: f.age_group,
+          receivedAt: f.received_at,
+          lastActivity: last,
+          timeOnPageMs: dwellMs,
+          timeOnPageMinutes: minutes,
+          visits,
+          isActiveToday,
+          hasProspectus: !!f.prospectus_generated,
+          prospectusUrl: f.prospectus_pretty_url || null,
+          city: f.city || 'Unknown',
+          country: f.country || 'Unknown',
+          teamRating: ['high','medium','low'].includes(teamRating) ? teamRating : 'unrated',
+          teamNotes: notes
+        };
+      }).filter(x => x.name.length);
+    }
+
+    function updateMetrics(){
+      setText('totalFamilies', allFamilies.length);
+      setText('ratedHigh',     allFamilies.filter(f=>f.teamRating==='high').length);
+      setText('ratedMedium',   allFamilies.filter(f=>f.teamRating==='medium').length);
+      setText('ratedLow',      allFamilies.filter(f=>f.teamRating==='low').length);
+      setText('ratedUnrated',  allFamilies.filter(f=>f.teamRating==='unrated').length);
+      setText('activeToday',   allFamilies.filter(f=>f.isActiveToday).length);
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Rendering
+    // ─────────────────────────────────────────────────────────────
+    function renderFamilies(){
+      const container = byId('familyList');
+      let list = filterAndSortFamilies();
+
+      if (!allFamilies.length) { container.innerHTML = '<div class="no-data">No data yet</div>'; return; }
+      if (!list.length) { container.innerHTML = '<div class="no-data">No families found for current filters</div>'; return; }
+
+      container.innerHTML = list.map(f => {
+        const openBtn = f.prospectusUrl
+          ? `<button class="btn primary" onclick="openProspectus('${encodeURI(f.prospectusUrl)}')">Open Prospectus</button>`
+          : `<button class="btn" disabled title="No prospectus URL">Open Prospectus</button>`;
+
+        const ratingPills = renderRatingPills(f.id, f.teamRating);
+
+        return `
+          <div class="family-card" data-id="${f.id}">
+            <div class="family-header">
+              <div class="family-info" onclick="toggleFamily('${f.id}')" style="cursor:pointer;">
+                <h3>${f.name} Family</h3>
+                <div class="family-meta">
+                  Entry ${f.entryYear || 'TBC'} • ${f.timeOnPageMinutes} min • ${f.visits} visit${f.visits===1?'':'s'} • ${f.city}
+                  <span class="count-dot" title="Team rating">${f.teamRating}</span>
+                </div>
+              </div>
+              <div class="expand-icon">▼</div>
+            </div>
+
+            <div class="family-details">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:.75rem;">
+                <div>
+                  <strong>Contact Info</strong><br>
+                  Email: ${f.parentEmail || 'Unknown'}<br>
+                  Age Group: ${f.ageGroup || 'Unknown'}<br>
+                  Entry Year: ${f.entryYear || 'TBC'}<br>
+                  ${f.isActiveToday ? '🟢 Active today' : '⚫ Not active today'}
+                </div>
+                <div>
+                  <strong>Team Rating</strong>
+                  <div class="rating-wrap" style="margin-top:.5rem;">
+                    ${ratingPills}
+                    <span class="rating-label">(Set by admissions)</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="family-actions">
+                ${openBtn}
+                <button class="btn" onclick="copyInquiryId('${f.id}')">Copy Inquiry ID</button>
+                <button class="btn" onclick="loadCardTimeline('${f.id}')">Load Timeline (latest)</button>
+                <button class="btn" onclick="loadSessionHistory('${f.id}')">Load Sessions (history)</button>
+                ${f.parentEmail ? `<a class="btn" href="mailto:${encodeURIComponent(f.parentEmail)}" target="_blank">Email Parent</a>` : ''}
+              </div>
+
+              <div class="notes-wrap">
+                <label for="notes-${f.id}" style="display:block;font-weight:600;margin-bottom:.25rem;">Notes (visible to admissions team)</label>
+                <textarea id="notes-${f.id}" placeholder="e.g. Interested in Senior entry; loved Creative Arts." onblur="saveNotes('${f.id}')">${escapeHtml(f.teamNotes||'')}</textarea>
+              </div>
+
+              <div id="timeline-${f.id}" class="timeline" style="display:none;">
+                <div class="timeline-meta" id="timeline-meta-${f.id}"></div>
+                <ol class="timeline-list" id="timeline-list-${f.id}"></ol>
+              </div>
+
+              <div id="sessions-${f.id}" class="sessions" style="display:none;">
+                <div class="timeline-meta" id="sessions-meta-${f.id}">Loading sessions…</div>
+                <div id="sessions-list-${f.id}"></div>
+              </div>
+
+              ${f.prospectusUrl ? `
+                <div style="margin-top:.75rem;">
+                  <a href="${f.prospectusUrl}" target="_blank" style="color:#3b82f6;text-decoration:none;">View Prospectus in new tab</a>
+                </div>` : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function filterAndSortFamilies(){
+      let families = [...allFamilies];
+
+      const rf = (byId('ratingFilter')?.value || 'all');
+      if (rf !== 'all') families = families.filter(f => f.teamRating === rf);
+
+      const q = (byId('searchBox')?.value || '').toLowerCase();
+      if (q) {
+        families = families.filter(f =>
+          f.name.toLowerCase().includes(q) ||
+          (f.parentEmail||'').toLowerCase().includes(q) ||
+          (f.city||'').toLowerCase().includes(q)
+        );
+      }
+
+      const sortBy = byId('sortFilter')?.value || 'recent';
+      if (sortBy==='recent') families.sort((a,b)=>new Date(b.lastActivity||0)-new Date(a.lastActivity||0));
+      else if (sortBy==='time') families.sort((a,b)=>b.timeOnPageMs-a.timeOnPageMs);
+      else if (sortBy==='visits') families.sort((a,b)=>b.visits-a.visits);
+
+      return families;
+    }
+
+    function renderRatingPills(id, current){
+      const mk = (key,label,cls) => {
+        const active = current===key ? 'active' : '';
+        return `<button class="rate-pill rate-${key} ${cls} ${active}" onclick="setTeamRating('${id}','${key}',this)">${label}</button>`;
+      };
+      return [
+        mk('high','High','rate-high'),
+        mk('medium','Medium','rate-medium'),
+        mk('low','Low','rate-low'),
+        mk('unrated','Unrated','rate-unrated')
+      ].join('');
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Actions
+    // ─────────────────────────────────────────────────────────────
+    function toggleFamily(id){
+      const card = document.querySelector(`[data-id="${id}"]`);
+      if (card) card.classList.toggle('expanded');
+    }
+    function openProspectus(url){ try { window.open(url,'_blank'); } catch(e){ console.error(e); } }
+    function copyInquiryId(id){ navigator.clipboard.writeText(id).catch(()=>{}); }
+
+    // Persist rating (team-owned)
+    async function setTeamRating(inquiryId, rating, el){
+      try{
+        // Update UI instantly
+        const wrap = el.parentElement;
+        [...wrap.querySelectorAll('.rate-pill')].forEach(b=>b.classList.remove('active'));
+        el.classList.add('active');
+
+        // Update local state
+        const i = allFamilies.findIndex(f=>f.id===inquiryId);
+        if (i>=0){ allFamilies[i].teamRating = rating; updateMetrics(); }
+
+        // Send to backend (adjust endpoint if needed)
+        await fetchJson(`/api/inquiries/${encodeURIComponent(inquiryId)}/rating`, {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ rating })
+        });
+
+        // Refresh counts without reloading list
+        updateMetrics();
+      }catch(e){
+        console.error('setTeamRating error:', e);
+        alert('Could not save rating. Please try again.');
+      }
+    }
+
+    // Persist notes
+    async function saveNotes(inquiryId){
+      const ta = byId(`notes-${inquiryId}`); if (!ta) return;
+      const notes = ta.value || '';
+      try{
+        await fetchJson(`/api/inquiries/${encodeURIComponent(inquiryId)}/notes`, {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ notes })
+        });
+      }catch(e){
+        console.error('saveNotes error:', e);
+      }
+    }
+
+    // Existing visit loaders (kept from your file, lightly adapted)
+    async function fetchLatestVisit(inquiryId){
+      if (!inquiryId) return null;
+      try { return await fetchJson(`/api/visits/${encodeURIComponent(inquiryId)}/latest`); }
+      catch (e) { console.error('fetchLatestVisit:', e); return null; }
+    }
+    async function fetchVisitHistory(inquiryId){
+      const endpoints = [
+        `/api/visits/${encodeURIComponent(inquiryId)}/history`,
+        `/api/visits/${encodeURIComponent(inquiryId)}/sessions`,
+        `/api/visits/${encodeURIComponent(inquiryId)}?limit=20`
+      ];
+      const attempts = [];
+      for (const url of endpoints){
+        try{
+          const data = await fetchJson(url);
+          if (Array.isArray(data) && data.length) return { sessions: data };
+          if (data && Array.isArray(data.sessions) && data.sessions.length) return { sessions: data.sessions };
+        }catch(e){ attempts.push(url + ' → ' + e.message); }
+      }
+      return null;
+    }
+    async function fetchSessionEvents(sessionId, inquiryId){
+      const urls = [
+        `/api/visits/session/${encodeURIComponent(sessionId)}`,
+        `/api/visits/session/${encodeURIComponent(sessionId)}/events`,
+        `/api/visits/sessions/${encodeURIComponent(sessionId)}`,
+        `/api/sessions/${encodeURIComponent(sessionId)}`,
+        `/api/session/${encodeURIComponent(sessionId)}`,
+        `/api/visit/${encodeURIComponent(sessionId)}`,
+        `/api/visits/${encodeURIComponent(inquiryId)}/sessions/${encodeURIComponent(sessionId)}`,
+        `/api/visits/${encodeURIComponent(inquiryId)}/session/${encodeURIComponent(sessionId)}/events`,
+        `/api/visits/${encodeURIComponent(inquiryId)}/history?include=events&sessionId=${encodeURIComponent(sessionId)}`,
+        `/api/visits/${encodeURIComponent(inquiryId)}?sessionId=${encodeURIComponent(sessionId)}`
+      ];
+      const attempts = [];
+      for (const u of urls){
+        try{
+          const data = await fetchJson(u);
+          if (Array.isArray(data) && data.length && (data[0].type || data[0].name)) return { events: data, hit: u };
+          if (data && Array.isArray(data.events)) return { events: data.events, hit: u };
+          if (data && data.session && Array.isArray(data.session.events)) return { events: data.session.events, hit: u };
+          if (data && Array.isArray(data.sessions)) {
+            const s = data.sessions.find(x => (x.id||x.session_id) === sessionId);
+            if (s && Array.isArray(s.events)) return { events: s.events, hit: u };
+          }
+          attempts.push(u + ' → no events');
+        }catch(e){ attempts.push(u + ' → ' + e.message); }
+      }
+      return { events: null, attempts };
+    }
+
+    // Render helpers reused from your original
     const renderEvent = (ev) => {
       if (ev.type==='section_enter')  return `→ Enter section: ${ev.section}`;
       if (ev.type==='section_exit')   return `↩︎ Exit section: ${ev.section} — ${ev.dwellSec ?? 0}s${ev.reason?` [${ev.reason}]`:''}`;
@@ -245,247 +596,7 @@
       try { return new Date(t); } catch { return null; }
     };
 
-    // ----- Data load -----
-    async function loadData(){
-      if (isLoading) return; isLoading = true;
-      try {
-        const data = await fetchJson('/api/analytics/inquiries');
-        allFamilies = processRealData(Array.isArray(data) ? data : []);
-        updateMetrics();
-        renderFamilies();
-        loadRecentActivity();
-      } catch (e) {
-        showError('Failed to load data: ' + e.message);
-        console.error('loadData:', e);
-      } finally {
-        isLoading = false;
-      }
-    }
-
-    // Deterministic scoring (no randomness)
-    function processRealData(raw){
-      return raw.map(f => {
-        const dwellMs = Number(f.dwell_ms) || 0;
-        const minutes = dwellMs / 60000;
-        const visits  = Number(f.return_visits) || 0;
-        const last    = f.updated_at || f.received_at || null;
-
-        const timeScore  = Math.min(Math.max(minutes, 0), 25) * 2; // 0..50
-        const visitScore = Math.min(Math.max(visits, 0), 6) * 5;   // 0..30
-        let recency = 0;                                           // 0..20
-        if (last) {
-          const age = Date.now() - new Date(last).getTime();
-          if (age <= 86400000) recency = 20;
-          else if (age <= 3*86400000) recency = 10;
-        }
-        const engagement = Math.round(Math.min(timeScore + visitScore + recency, 100));
-        const temperature = engagement >= 80 ? 'hot' : (engagement >= 50 ? 'warm' : 'cold');
-        const isActiveToday = !!(last && (Date.now() - new Date(last).getTime()) <= 86400000);
-
-        return {
-          id: f.id,
-          name: `${f.first_name || ''} ${f.family_surname || ''}`.trim(),
-          firstName: f.first_name,
-          familySurname: f.family_surname,
-          parentEmail: f.parent_email,
-          entryYear: f.entry_year,
-          ageGroup: f.age_group,
-          receivedAt: f.received_at,
-          lastActivity: last,
-          timeOnPageMs: dwellMs,
-          timeOnPageMinutes: Math.max(0, Math.round(minutes)),
-          visits: Math.max(0, visits),
-          engagementScore: engagement,
-          temperature,
-          isActiveToday,
-          status: f.status || 'received',
-          hasProspectus: !!f.prospectus_generated,
-          prospectusUrl: f.prospectus_pretty_url || null,
-          city: f.city || 'Unknown',
-          country: f.country || 'Unknown'
-        };
-      }).filter(x => x.name.length);
-    }
-
-    function updateMetrics(){
-      setText('totalFamilies', allFamilies.length);
-      setText('hotLeads',     allFamilies.filter(f=>f.temperature==='hot').length);
-      setText('warmLeads',    allFamilies.filter(f=>f.temperature==='warm').length);
-      setText('activeToday',  allFamilies.filter(f=>f.isActiveToday).length);
-    }
-
-    function renderFamilies(){
-      const container = byId('familyList');
-      const list = getFilteredFamilies();
-
-      if (!allFamilies.length) { container.innerHTML = '<div class="no-data">No data yet</div>'; return; }
-      if (!list.length) { container.innerHTML = '<div class="no-data">No families found matching current filters</div>'; return; }
-
-      container.innerHTML = list.map(f => {
-        const openBtn = f.prospectusUrl
-          ? `<button class="btn primary" onclick="openProspectus('${encodeURI(f.prospectusUrl)}')">Open Prospectus</button>`
-          : `<button class="btn" disabled title="No prospectus URL">Open Prospectus</button>`;
-        return `
-          <div class="family-card" data-id="${f.id}">
-            <div class="family-header">
-              <div class="family-info" onclick="toggleFamily('${f.id}')" style="cursor:pointer;">
-                <h3>${f.name} Family</h3>
-                <div class="family-meta">
-                  Entry ${f.entryYear || 'TBC'} • ${f.timeOnPageMinutes}min • ${f.visits} visit${f.visits===1?'':'s'} • ${f.city}
-                </div>
-              </div>
-              <div style="display:flex;align-items:center;gap:.5rem;">
-                <div class="score-badge ${f.temperature}">${f.engagementScore}</div>
-                <div class="expand-icon">▼</div>
-              </div>
-            </div>
-            <div class="family-details">
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:.75rem;">
-                <div>
-                  <strong>Contact Info</strong><br>
-                  Email: ${f.parentEmail || 'Unknown'}<br>
-                  Age Group: ${f.ageGroup || 'Unknown'}<br>
-                  Entry Year: ${f.entryYear || 'TBC'}
-                </div>
-                <div>
-                  <strong>Engagement</strong><br>
-                  Time: ${f.timeOnPageMinutes} minutes<br>
-                  Visits: ${f.visits}<br>
-                  Score: ${f.engagementScore}/100<br>
-                  ${f.isActiveToday ? '🟢 Active today' : '⚫ Not active today'}
-                </div>
-              </div>
-
-              <div class="family-actions">
-                ${openBtn}
-                <button class="btn" onclick="copyInquiryId('${f.id}')">Copy Inquiry ID</button>
-                <button class="btn" onclick="loadCardTimeline('${f.id}')">Load Timeline (latest)</button>
-                <button class="btn" onclick="loadSessionHistory('${f.id}')">Load Sessions (history)</button>
-                ${f.parentEmail ? `<a class="btn" href="mailto:${encodeURIComponent(f.parentEmail)}" target="_blank">Email Parent</a>` : ''}
-              </div>
-
-              <div id="timeline-${f.id}" class="timeline" style="display:none;">
-                <div class="timeline-meta" id="timeline-meta-${f.id}"></div>
-                <ol class="timeline-list" id="timeline-list-${f.id}"></ol>
-              </div>
-
-              <div id="sessions-${f.id}" class="sessions" style="display:none;">
-                <div class="timeline-meta" id="sessions-meta-${f.id}">Loading sessions…</div>
-                <div id="sessions-list-${f.id}"></div>
-              </div>
-
-              ${f.prospectusUrl ? `
-                <div style="margin-top:.75rem;">
-                  <a href="${f.prospectusUrl}" target="_blank" style="color:#3b82f6;text-decoration:none;">📄 View Prospectus in new tab</a>
-                </div>` : ''}
-            </div>
-          </div>
-        `;
-      }).join('');
-    }
-
-    function getFilteredFamilies(){
-      let families = [...allFamilies];
-
-      const status = byId('statusFilter')?.value || 'all';
-      if (status==='hot') families = families.filter(f=>f.temperature==='hot');
-      else if (status==='warm') families = families.filter(f=>f.temperature==='warm');
-      else if (status==='active') families = families.filter(f=>f.isActiveToday);
-
-      const q = (byId('searchBox')?.value || '').toLowerCase();
-      if (q) {
-        families = families.filter(f =>
-          f.name.toLowerCase().includes(q) ||
-          (f.parentEmail||'').toLowerCase().includes(q) ||
-          (f.city||'').toLowerCase().includes(q)
-        );
-      }
-
-      const sortBy = byId('sortFilter')?.value || 'engagement';
-      if (sortBy==='engagement') families.sort((a,b)=>b.engagementScore-a.engagementScore);
-      else if (sortBy==='recent') families.sort((a,b)=>new Date(b.lastActivity)-new Date(a.lastActivity));
-      else if (sortBy==='time') families.sort((a,b)=>b.timeOnPageMs-a.timeOnPageMs);
-
-      return families;
-    }
-
-    // ----- Actions -----
-    function toggleFamily(id){
-      const card = document.querySelector(`[data-id="${id}"]`);
-      if (card) card.classList.toggle('expanded');
-    }
-    function openProspectus(url){ try { window.open(url,'_blank'); } catch(e){ console.error(e); } }
-    function copyInquiryId(id){ navigator.clipboard.writeText(id).catch(()=>{}); }
-
-    async function fetchLatestVisit(inquiryId){
-      if (!inquiryId) return null;
-      try { return await fetchJson(`/api/visits/${encodeURIComponent(inquiryId)}/latest`); }
-      catch (e) { console.error('fetchLatestVisit:', e); return null; }
-    }
-
-    // History endpoints (sessions list)
-    async function fetchVisitHistory(inquiryId){
-      const endpoints = [
-        `/api/visits/${encodeURIComponent(inquiryId)}/history`,
-        `/api/visits/${encodeURIComponent(inquiryId)}/sessions`,
-        `/api/visits/${encodeURIComponent(inquiryId)}?limit=20`
-      ];
-      for (const url of endpoints){
-        try{
-          const data = await fetchJson(url);
-          if (Array.isArray(data) && data.length) return { sessions: data };
-          if (data && Array.isArray(data.sessions) && data.sessions.length) return { sessions: data.sessions };
-        }catch(e){}
-      }
-      return null;
-    }
-
-    // Per-session events loader: probes many common routes
-    async function fetchSessionEvents(sessionId, inquiryId){
-      const urls = [
-        `/api/visits/session/${encodeURIComponent(sessionId)}`,
-        `/api/visits/session/${encodeURIComponent(sessionId)}/events`,
-        `/api/visits/sessions/${encodeURIComponent(sessionId)}`,
-        `/api/sessions/${encodeURIComponent(sessionId)}`,
-        `/api/session/${encodeURIComponent(sessionId)}`,
-        `/api/visit/${encodeURIComponent(sessionId)}`,
-        `/api/visits/${encodeURIComponent(inquiryId)}/sessions/${encodeURIComponent(sessionId)}`,
-        `/api/visits/${encodeURIComponent(inquiryId)}/session/${encodeURIComponent(sessionId)}`,
-        `/api/visits/${encodeURIComponent(inquiryId)}/sessions/${encodeURIComponent(sessionId)}/events`,
-        `/api/visits/${encodeURIComponent(inquiryId)}/session/${encodeURIComponent(sessionId)}/events`,
-        `/api/visits/${encodeURIComponent(inquiryId)}/history?include=events&sessionId=${encodeURIComponent(sessionId)}`,
-        `/api/visits/${encodeURIComponent(inquiryId)}?sessionId=${encodeURIComponent(sessionId)}`,
-        `/api/visits?sessionId=${encodeURIComponent(sessionId)}`,
-        `/api/analytics/visits?sessionId=${encodeURIComponent(sessionId)}`
-      ];
-      const attempts = [];
-      for (const u of urls){
-        try{
-          const data = await fetchJson(u);
-          if (Array.isArray(data) && data.length && (data[0].type || data[0].name)) {
-            return { events: data, hit: u };
-          }
-          if (data && Array.isArray(data.events)) {
-            return { events: data.events, hit: u };
-          }
-          if (data && data.session && Array.isArray(data.session.events)) {
-            return { events: data.session.events, hit: u };
-          }
-          if (data && Array.isArray(data.sessions)) {
-            const s = data.sessions.find(x => (x.id||x.session_id) === sessionId);
-            if (s && Array.isArray(s.events)) {
-              return { events: s.events, hit: u };
-            }
-          }
-          attempts.push(`${u} → no events`);
-        }catch(e){
-          attempts.push(`${u} → ${e.message}`);
-        }
-      }
-      return { events: null, attempts };
-    }
-
-    // Load latest session timeline (single)
+    // Card timeline (latest)
     async function loadCardTimeline(inquiryId){
       const box  = byId('timeline-'+inquiryId);
       const meta = byId('timeline-meta-'+inquiryId);
@@ -509,7 +620,7 @@
       }
     }
 
-    // Load full session history list; each session lazy-loads events on first open
+    // Full session history list
     async function loadSessionHistory(inquiryId){
       const wrap = byId('sessions-'+inquiryId);
       const meta = byId('sessions-meta-'+inquiryId);
@@ -601,6 +712,7 @@
       });
     }
 
+    // Recent activity (simple & readable)
     function loadRecentActivity(){
       const container = byId('activityFeed');
       if (!container) return;
@@ -613,7 +725,7 @@
       try {
         const recent = allFamilies
           .slice()
-          .sort((a,b)=>new Date(b.lastActivity)-new Date(a.lastActivity))
+          .sort((a,b)=>new Date(b.lastActivity||0)-new Date(a.lastActivity||0))
           .slice(0,10);
 
         const html = recent.map(f=>{
@@ -621,11 +733,12 @@
           const activity = f.isActiveToday
             ? 'viewed their prospectus today'
             : (f.hasProspectus ? 'received personalised prospectus' : 'submitted enquiry');
+          const initial = (f.firstName || f.familySurname || 'F').charAt(0).toUpperCase();
           return `
-            <div class="activity-item">
-              <div class="activity-avatar">${f.firstName ? f.firstName.charAt(0) : 'F'}</div>
-              <div class="activity-text"><strong>${f.name}</strong> ${activity}</div>
-              <div class="activity-time">${timeAgo}</div>
+            <div class="activity-item" style="padding:1rem;border-bottom:1px solid var(--border-grey);display:flex;gap:1rem;align-items:center">
+              <div class="activity-avatar" style="width:40px;height:40px;border-radius:50%;background:var(--award-gold);display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--blazer-navy);flex-shrink:0">${initial}</div>
+              <div class="activity-text" style="flex:1;font-size:.9rem;color:var(--text-primary)"><strong>${f.name}</strong> ${activity}</div>
+              <div class="activity-time" style="font-size:.75rem;color:#64748b">${timeAgo}</div>
             </div>`;
         }).join('');
 
@@ -636,10 +749,15 @@
       }
     }
 
-    // ----- Init -----
+    // Escape helper for notes text
+    function escapeHtml(str){
+      return String(str).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
+    }
+
+    // Init
     document.addEventListener('DOMContentLoaded', () => {
       byId('sortFilter')?.addEventListener('change', renderFamilies);
-      byId('statusFilter')?.addEventListener('change', renderFamilies);
+      byId('ratingFilter')?.addEventListener('change', renderFamilies);
       byId('searchBox')?.addEventListener('input', renderFamilies);
 
       byId('lv-load')?.addEventListener('click', async () => {
