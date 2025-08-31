@@ -78,7 +78,7 @@
     function tokenToPattern(tok) {
       const parts = tok.split(/\s+/).map(escReg);
       if (parts.length === 1) {
-        // Single word: simple case-insensitive whole-word-ish match
+        // Single word: case-insensitive whole-word-ish match
         return new RegExp(`\\b${parts[0]}\\b`, 'gi');
       }
       // Multi-word: allow separators (space, NBSP, or any tags) between words
@@ -87,6 +87,19 @@
     }
   
     let out = html;
+  
+    for (const tok of tokens) {
+      const pat = tokenToPattern(tok);
+      out = out.replace(pat, (m) => {
+        // Avoid double-wrapping if already protected
+        if (/class="[^"]*notranslate[^"]*"/i.test(m) || /translate="no"/i.test(m)) return m;
+        return `<span class="notranslate" translate="no">${m}</span>`;
+      });
+    }
+  
+    return out;
+  }
+  
    
   
 
