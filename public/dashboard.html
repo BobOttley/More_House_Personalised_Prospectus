@@ -1,18 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>More House Analytics - Real Data Dashboard</title>
-
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
   <style>
-    /* More House SMART Analytics Brand Colours */
     :root{
       --blazer-navy:#091825;--award-gold:#FF9F1C;--sport-blue:#034674;
       --text-primary:#2C3E50;--white:#FFFFFF;--light-grey:#F8FAFC;--border-grey:#E5E7EB;
-      --success:#10B981;--warning:#F59E0B;--error:#EF4444;--hot-lead:#FF4444;--warm-lead:#FF9F1C;--cold-lead:#034674;
+      --success:#10B981;--warning:#F59E0B;--error:#EF4444;
+      --hot-lead:#FF4444;--warm-lead:#FF9F1C;--cold-lead:#034674;
       --font-heading:'Playfair Display',serif;--font-body:'Inter',sans-serif
     }
     *{margin:0;padding:0;box-sizing:border-box}
@@ -65,6 +64,7 @@
     .family-card.expanded .family-details{display:block}
     .expand-icon{transition:transform .2s}
     .family-card.expanded .expand-icon{transform:rotate(180deg)}
+
     .timeline{margin-top:.75rem;padding:.75rem;background:#F8FAFC;border:1px solid #E5E7EB;border-radius:6px}
     .timeline-meta{font-size:.9rem;color:#334155;margin-bottom:.5rem}
     .timeline-list{margin:0;padding-left:18px}
@@ -82,14 +82,13 @@
     .error{background:#fef2f2;border:1px solid #fecaca;color:#dc2626;padding:1rem;border-radius:6px;margin:1rem 0}
     .no-data{text-align:center;color:#64748b;padding:2rem}
 
-    /* Top “paste ID” timeline box */
     #latest-visit{max-width:1400px;margin:16px auto 0;padding:12px;border:1px solid #E5E7EB;border-radius:8px;background:#F8FAFC}
     @media (max-width:768px){.main-content{grid-template-columns:1fr}.metrics{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}}
   </style>
 </head>
 <body>
   <header class="header">
-    <button class="refresh-btn" onclick="loadData()">↻ Refresh</button>
+    <button class="refresh-btn" onclick="loadData(true)">↻ Refresh</button>
     <div class="header-brand">
       <div class="brand-glow"></div>
       <h1><span class="smart-text">SMART</span> <span class="analytics-text">Analytics</span></h1>
@@ -98,7 +97,7 @@
     <div style="font-size:.9rem;color:rgba(255,255,255,.7);margin-top:.5rem;">Real-time family engagement tracking</div>
   </header>
 
-  <!-- Latest Visit Timeline (paste an Inquiry ID) -->
+  <!-- Top Latest Visit Timeline (paste an Inquiry ID) -->
   <div id="latest-visit">
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
       <strong>Latest Visit Timeline</strong>
@@ -156,7 +155,7 @@
 
     <!-- Main Content -->
     <div class="main-content">
-      <!-- Families Panel -->
+      <!-- Families -->
       <div class="panel">
         <div class="panel-header">
           <div>
@@ -185,7 +184,7 @@
         </div>
       </div>
 
-      <!-- Activity Panel -->
+      <!-- Activity -->
       <div class="panel">
         <div class="panel-header"><h2>Recent Activity</h2></div>
         <div class="panel-content">
@@ -197,68 +196,99 @@
     </div>
   </div>
 
-  <!-- Core Dashboard Logic -->
+  <!-- Core Logic -->
   <script>
+    'use strict';
+
     let allFamilies = [];
     let isLoading = false;
 
-    async function loadData(){
-      if(isLoading) return; isLoading = true;
-      try{
-        const res = await fetch('/api/analytics/inquiries');
-        if(!res.ok) throw new Error(\`API error: \${res.status} \${res.statusText}\`);
-        const data = await res.json();
-        allFamilies = processRealData(data);
+    // ----- Helpers -----
+    const byId = id => document.getElementById(id);
+    const setText = (id, v) => { const el = byId(id); if (el) el.textContent = String(v); };
+    const fetchJson = async (url) => {
+      const u = url + (url.includes('?') ? '&' : '?') + '_ts=' + Date.now();
+      const res = await fetch(u, { cache: 'no-store' });
+      if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+      return res.json();
+    };
+    const formatTimeAgo = (date) => {
+      const now = new Date(), diff = now - date;
+      const m = Math.floor(diff/60000), h = Math.floor(diff/3600000), d = Math.floor(diff/86400000);
+      if (m < 1) return 'Just now';
+      if (m < 60) return `${m}m ago`;
+      if (h < 24) return `${h}h ago`;
+      if (d < 7) return `${d}d ago`;
+      return date.toLocaleDateString();
+    };
+    const renderEvent = (ev) => {
+      if (ev.type==='section_enter')  return `→ Enter section: ${ev.section}`;
+      if (ev.type==='section_exit')   return `↩︎ Exit section: ${ev.section} — ${ev.dwellSec ?? 0}s${ev.reason?` [${ev.reason}]`:''}`;
+      if (ev.type==='tier_expand')    return `⟫ Tier opened: ${ev.tier}`;
+      if (ev.type==='tier_exit')      return `⟪ Tier closed (inferred): ${ev.tier} — ${ev.dwellSec ?? 0}s${ev.reason?` [${ev.reason}]`:''}`;
+      if (ev.type==='video_open')     return `▶︎ Video open: ${ev.youtubeId||''}${ev.title?` — ${ev.title}`:''}`;
+      if (ev.type==='video_close')    return `■ Video close: ${ev.youtubeId||''}`;
+      if (ev.type==='cta_openmorning_click') return `★ Open Morning click: ${ev.href||''}`;
+      if (ev.type==='page_load')      return '✓ Visit start';
+      if (ev.type==='page_unload')    return '✕ Visit end';
+      return ev.name || ev.type;
+    };
+
+    // ----- Data load -----
+    async function loadData(force=false){
+      if (isLoading) return; isLoading = true;
+      try {
+        const data = await fetchJson('/api/analytics/inquiries');
+        allFamilies = processRealData(Array.isArray(data) ? data : []);
         updateMetrics();
         renderFamilies();
         loadRecentActivity();
-      }catch(err){
-        console.error('loadData error:', err);
-        showError('Failed to load data: ' + err.message);
-      }finally{
+      } catch (e) {
+        showError('Failed to load data: ' + e.message);
+        console.error('loadData:', e);
+      } finally {
         isLoading = false;
       }
     }
 
+    // Deterministic scoring (no randomness)
     function processRealData(raw){
-      if(!Array.isArray(raw)) return [];
       return raw.map(f => {
-        const timeMs = f.dwell_ms || 0;
-        const timeMin = timeMs / 60000;
-        const visits = f.return_visits || 1;
+        const dwellMs = Number(f.dwell_ms) || 0;
+        const minutes = dwellMs / 60000;
+        const visits  = Number(f.return_visits) || 0;
+        const last    = f.updated_at || f.received_at || null;
 
-        let engagement = 0;
-        engagement += Math.min(timeMin * 2, 40);
-        engagement += Math.min(visits * 15, 30);
-        engagement += Math.random() * 30;
-        engagement = Math.round(Math.min(engagement, 100));
-
-        let temperature = 'cold';
-        if(engagement >= 80) temperature = 'hot';
-        else if(engagement >= 50) temperature = 'warm';
-
-        const lastActivity = f.updated_at || f.received_at;
-        const isActiveToday = lastActivity && ((Date.now() - new Date(lastActivity)) < 86400000);
-
+        const timeScore  = Math.min(Math.max(minutes, 0), 25) * 2; // 0..50
+        const visitScore = Math.min(Math.max(visits, 0), 6) * 5;   // 0..30
+        let recency = 0;                                           // 0..20
+        if (last) {
+          const age = Date.now() - new Date(last).getTime();
+          if (age <= 86400000) recency = 20;
+          else if (age <= 3*86400000) recency = 10;
+        }
+        const engagement = Math.round(Math.min(timeScore + visitScore + recency, 100));
+        const temperature = engagement >= 80 ? 'hot' : (engagement >= 50 ? 'warm' : 'cold');
+        const isActiveToday = !!(last && (Date.now() - new Date(last).getTime()) <= 86400000);
 
         return {
           id: f.id,
-          name: \`\${f.first_name || ''} \${f.family_surname || ''}\`.trim(),
+          name: `${f.first_name || ''} ${f.family_surname || ''}`.trim(),
           firstName: f.first_name,
           familySurname: f.family_surname,
           parentEmail: f.parent_email,
           entryYear: f.entry_year,
           ageGroup: f.age_group,
           receivedAt: f.received_at,
-          lastActivity,
-          timeOnPageMs: timeMs,
-          timeOnPageMinutes: Math.round(timeMin),
-          visits,
+          lastActivity: last,
+          timeOnPageMs: dwellMs,
+          timeOnPageMinutes: Math.max(0, Math.round(minutes)),
+          visits: Math.max(0, visits),
           engagementScore: engagement,
           temperature,
           isActiveToday,
           status: f.status || 'received',
-          hasProspectus: f.prospectus_generated || false,
+          hasProspectus: !!f.prospectus_generated,
           prospectusUrl: f.prospectus_pretty_url || null,
           city: f.city || 'Unknown',
           country: f.country || 'Unknown'
@@ -267,25 +297,23 @@
     }
 
     function updateMetrics(){
-      const total = allFamilies.length;
-      const hot = allFamilies.filter(f => f.temperature === 'hot').length;
-      const warm = allFamilies.filter(f => f.temperature === 'warm').length;
-      const activeToday = allFamilies.filter(f => f.isActiveToday).length;
-      document.getElementById('totalFamilies').textContent = total;
-      document.getElementById('hotLeads').textContent = hot;
-      document.getElementById('warmLeads').textContent = warm;
-      document.getElementById('activeToday').textContent = activeToday;
+      setText('totalFamilies', allFamilies.length);
+      setText('hotLeads',     allFamilies.filter(f=>f.temperature==='hot').length);
+      setText('warmLeads',    allFamilies.filter(f=>f.temperature==='warm').length);
+      setText('activeToday',  allFamilies.filter(f=>f.isActiveToday).length);
     }
 
     function renderFamilies(){
-      const container = document.getElementById('familyList');
+      const container = byId('familyList');
       const list = getFilteredFamilies();
-      if(!list.length){ container.innerHTML = '<div class="no-data">No families found matching current filters</div>'; return; }
+
+      if (!allFamilies.length) { container.innerHTML = '<div class="no-data">No data yet</div>'; return; }
+      if (!list.length) { container.innerHTML = '<div class="no-data">No families found matching current filters</div>'; return; }
 
       container.innerHTML = list.map(f => {
         const openBtn = f.prospectusUrl
-          ? \`<button class="btn primary" onclick="openProspectus('\${encodeURI(f.prospectusUrl)}')">Open Prospectus</button>\`
-          : \`<button class="btn" disabled title="No prospectus URL">Open Prospectus</button>\`;
+          ? `<button class="btn primary" onclick="openProspectus('${encodeURI(f.prospectusUrl)}')">Open Prospectus</button>`
+          : `<button class="btn" disabled title="No prospectus URL">Open Prospectus</button>`;
         return `
           <div class="family-card" data-id="${f.id}">
             <div class="family-header">
@@ -330,7 +358,7 @@
               </div>
 
               ${f.prospectusUrl ? `
-                <div style="margin-top: .75rem;">
+                <div style="margin-top:.75rem;">
                   <a href="${f.prospectusUrl}" target="_blank" style="color:#3b82f6;text-decoration:none;">📄 View Prospectus in new tab</a>
                 </div>` : ''}
             </div>
@@ -341,13 +369,14 @@
 
     function getFilteredFamilies(){
       let families = [...allFamilies];
-      const status = document.getElementById('statusFilter').value;
-      if(status==='hot') families = families.filter(f=>f.temperature==='hot');
-      else if(status==='warm') families = families.filter(f=>f.temperature==='warm');
-      else if(status==='active') families = families.filter(f=>f.isActiveToday);
 
-      const q = document.getElementById('searchBox').value.toLowerCase();
-      if(q){
+      const status = byId('statusFilter')?.value || 'all';
+      if (status==='hot') families = families.filter(f=>f.temperature==='hot');
+      else if (status==='warm') families = families.filter(f=>f.temperature==='warm');
+      else if (status==='active') families = families.filter(f=>f.isActiveToday);
+
+      const q = (byId('searchBox')?.value || '').toLowerCase();
+      if (q) {
         families = families.filter(f =>
           f.name.toLowerCase().includes(q) ||
           (f.parentEmail||'').toLowerCase().includes(q) ||
@@ -355,41 +384,44 @@
         );
       }
 
-      const sortBy = document.getElementById('sortFilter').value;
-      if(sortBy==='engagement') families.sort((a,b)=>b.engagementScore-a.engagementScore);
-      else if(sortBy==='recent') families.sort((a,b)=>new Date(b.lastActivity)-new Date(a.lastActivity));
-      else if(sortBy==='time') families.sort((a,b)=>b.timeOnPageMs-a.timeOnPageMs);
+      const sortBy = byId('sortFilter')?.value || 'engagement';
+      if (sortBy==='engagement') families.sort((a,b)=>b.engagementScore-a.engagementScore);
+      else if (sortBy==='recent') families.sort((a,b)=>new Date(b.lastActivity)-new Date(a.lastActivity));
+      else if (sortBy==='time') families.sort((a,b)=>b.timeOnPageMs-a.timeOnPageMs);
 
       return families;
     }
 
+    // ----- Actions -----
     function toggleFamily(id){
-      const card = document.querySelector(\`[data-id="\${id}"]\`);
-      if(card) card.classList.toggle('expanded');
+      const card = document.querySelector(`[data-id="${id}"]`);
+      if (card) card.classList.toggle('expanded');
     }
+    function openProspectus(url){ try { window.open(url,'_blank'); } catch(e){ console.error(e); } }
+    function copyInquiryId(id){ navigator.clipboard.writeText(id).catch(()=>{}); }
 
-    function openProspectus(url){
-      try{ window.open(url, '_blank'); }catch(e){ console.error('openProspectus:', e); }
+    async function fetchLatestVisit(inquiryId){
+      if (!inquiryId) return null;
+      try { return await fetchJson(`/api/visits/${encodeURIComponent(inquiryId)}/latest`); }
+      catch (e) { console.error('fetchLatestVisit:', e); return null; }
     }
 
     async function loadCardTimeline(inquiryId){
-      const box = document.getElementById('timeline-'+inquiryId);
-      const meta = document.getElementById('timeline-meta-'+inquiryId);
-      const list = document.getElementById('timeline-list-'+inquiryId);
-      if(!box||!meta||!list) return;
+      const box  = byId('timeline-'+inquiryId);
+      const meta = byId('timeline-meta-'+inquiryId);
+      const list = byId('timeline-list-'+inquiryId);
+      if (!box || !meta || !list) return;
 
       box.style.display = 'block';
       meta.textContent = 'Loading…';
       list.innerHTML = '';
 
       const body = await fetchLatestVisit(inquiryId);
-      if(!body || !body.ok || !body.session){
-        meta.textContent = 'No visits found for that inquiry.';
-        return;
-      }
+      if (!body || !body.ok || !body.session) { meta.textContent = 'No visits found for that inquiry.'; return; }
+
       const fmt = ts => new Date(ts).toLocaleString();
-      meta.textContent = \`Session \${body.session.id} — \${fmt(body.session.start)} → \${fmt(body.session.end)}\`;
-      for(const ev of body.events){
+      meta.textContent = `Session ${body.session.id} — ${fmt(body.session.start)} → ${fmt(body.session.end)}`;
+      for (const ev of body.events) {
         const li = document.createElement('li');
         li.style.margin = '4px 0';
         li.textContent = renderEvent(ev);
@@ -397,94 +429,37 @@
       }
     }
 
-    function renderEvent(ev){
-      if(ev.type==='section_enter')  return \`→ Enter section: \${ev.section}\`;
-      if(ev.type==='section_exit')   return \`↩︎ Exit section: \${ev.section} — \${ev.dwellSec ?? 0}s\${ev.reason ? \` [\${ev.reason}]\` : ''}\`;
-      if(ev.type==='tier_expand')    return \`⟫ Tier opened: \${ev.tier}\`;
-      if(ev.type==='tier_exit')      return \`⟪ Tier closed (inferred): \${ev.tier} — \${ev.dwellSec ?? 0}s\${ev.reason ? \` [\${ev.reason}]\` : ''}\`;
-      if(ev.type==='video_open')     return \`▶︎ Video open: \${ev.youtubeId || ''}\${ev.title ? \` — \${ev.title}\` : ''}\`;
-      if(ev.type==='video_close')    return \`■ Video close: \${ev.youtubeId || ''}\`;
-      if(ev.type==='cta_openmorning_click') return \`★ Open Morning click: \${ev.href || ''}\`;
-      if(ev.type==='page_load')      return '✓ Visit start';
-      if(ev.type==='page_unload')    return '✕ Visit end';
-      return ev.name || ev.type;
-    }
-
     function showError(message){
       ['familyList','activityFeed'].forEach(id=>{
-        const el=document.getElementById(id);
-        if(el) el.innerHTML = '<div class="error">'+message+'</div>';
+        const el = byId(id);
+        if (el) el.innerHTML = '<div class="error">'+message+'</div>';
       });
     }
 
-    async function fetchLatestVisit(inquiryId){
-      try{
-        const res = await fetch('/api/visits/'+encodeURIComponent(inquiryId)+'/latest');
-        return await res.json();
-      }catch(e){
-        console.error('fetchLatestVisit:', e);
-        return null;
-      }
-    }
+    // ----- Init -----
+    document.addEventListener('DOMContentLoaded', () => {
+      byId('sortFilter')?.addEventListener('change', renderFamilies);
+      byId('statusFilter')?.addEventListener('change', renderFamilies);
+      byId('searchBox')?.addEventListener('input', renderFamilies);
 
-    function copyInquiryId(id){
-      navigator.clipboard.writeText(id).then(
-        ()=>console.log('Copied:', id),
-        err=>console.warn('Clipboard failed:', err)
-      );
-    }
-
-    function formatTimeAgo(date){
-      const now=new Date(); const diffMs=now-date;
-      const mins=Math.floor(diffMs/60000), hrs=Math.floor(diffMs/3600000), days=Math.floor(diffMs/86400000);
-      if(mins<1) return 'Just now';
-      if(mins<60) return \`\${mins}m ago\`;
-      if(hrs<24) return \`\${hrs}h ago\`;
-      if(days<7) return \`\${days}d ago\`;
-      return date.toLocaleDateString();
-    }
-
-    async function loadRecentActivity(){
-      try{
-        const recent = allFamilies.slice().sort((a,b)=>new Date(b.lastActivity)-new Date(a.lastActivity)).slice(0,10);
-        const html = recent.map(f=>{
-          const timeAgo = f.lastActivity ? formatTimeAgo(new Date(f.lastActivity)) : '—';
-          return `
-            <div class="activity-item">
-              <div class="activity-avatar">${f.firstName ? f.firstName.charAt(0) : 'F'}</div>
-              <div class="activity-text"><strong>${f.name}</strong> ${f.isActiveToday ? 'viewed their prospectus today' : (f.hasProspectus ? 'received personalised prospectus' : 'submitted enquiry')}</div>
-              <div class="activity-time">${timeAgo}</div>
-            </div>
-          `;
-        }).join('');
-        document.getElementById('activityFeed').innerHTML = html || '<div class="no-data">No recent activity</div>';
-      }catch(e){
-        console.error('loadRecentActivity error:', e);
-        document.getElementById('activityFeed').innerHTML = '<div class="error">Failed to load activity</div>';
-      }
-    }
-
-    // Initialise
-    document.addEventListener('DOMContentLoaded', ()=>{
-      document.getElementById('sortFilter').addEventListener('change', renderFamilies);
-      document.getElementById('statusFilter').addEventListener('change', renderFamilies);
-      document.getElementById('searchBox').addEventListener('input', renderFamilies);
-      document.getElementById('lv-load').addEventListener('click', async ()=>{
-        const id = document.getElementById('lv-inquiry').value.trim();
-        const meta = document.getElementById('lv-meta');
-        const list = document.getElementById('lv-list');
+      byId('lv-load')?.addEventListener('click', async () => {
+        const id = (byId('lv-inquiry')?.value || '').trim();
+        const meta = byId('lv-meta'); const list = byId('lv-list');
+        if (!id) { meta.textContent = 'Please paste an Inquiry ID.'; list.innerHTML=''; return; }
         meta.textContent = 'Loading…'; list.innerHTML = '';
         const body = await fetchLatestVisit(id);
-        if(!body || !body.ok || !body.session){ meta.textContent = 'No visits found for that inquiry.'; return; }
+        if (!body || !body.ok || !body.session) { meta.textContent = 'No visits found for that inquiry.'; return; }
         const fmt = ts => new Date(ts).toLocaleString();
-        meta.textContent = \`Session \${body.session.id} — \${fmt(body.session.start)} → \${fmt(body.session.end)}\`;
-        for(const ev of body.events){
-          const li=document.createElement('li'); li.style.margin='4px 0'; li.textContent = renderEvent(ev); list.appendChild(li);
+        meta.textContent = `Session ${body.session.id} — ${fmt(body.session.start)} → ${fmt(body.session.end)}`;
+        for (const ev of body.events) {
+          const li = document.createElement('li');
+          li.style.margin = '4px 0';
+          li.textContent = renderEvent(ev);
+          list.appendChild(li);
         }
       });
 
-      loadData();
-      setInterval(loadData, 30000);
+      loadData(true);
     });
   </script>
 </body>
