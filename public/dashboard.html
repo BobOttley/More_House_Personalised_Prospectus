@@ -1038,21 +1038,32 @@
         family.visits = totalSessions;
         family.sessionCount = totalSessions;
         
-        // Calculate total time from sessions
-        let totalTime = 0;
-        sessions.forEach(s => {
-          // Try to get duration from various possible fields
-          const duration = s.duration || s.dwell_seconds || s.dwell_ms || 0;
-          totalTime += Number(duration);
-        });
-        
-        // Update time if we have session data
-        if (totalTime > 0) {
-          // Convert to milliseconds if needed (assuming duration is in seconds if < 10000)
-          if (totalTime < 10000) totalTime = totalTime * 1000;
-          family.timeOnPageMs = totalTime;
-          family.timeOnPageMinutes = Math.round(totalTime / 60000);
-        }
+        // Calculate total time from sessions - need to load actual events for each session
+let totalTimeSeconds = 0;
+for (const session of sessions) {
+  // Try to get duration from session object first
+  let sessionDuration = 0;
+  
+  if (session.duration_seconds) {
+    sessionDuration = Number(session.duration_seconds);
+  } else if (session.dwell_seconds) {
+    sessionDuration = Number(session.dwell_seconds);
+  } else if (session.duration) {
+    sessionDuration = Number(session.duration);
+  } else if (session.total_dwell_seconds) {
+    sessionDuration = Number(session.total_dwell_seconds);
+  } else if (session.dwell_ms) {
+    sessionDuration = Number(session.dwell_ms) / 1000; // Convert ms to seconds
+  }
+  
+  totalTimeSeconds += sessionDuration;
+}
+
+// Update family object with correct totals
+if (totalTimeSeconds > 0) {
+  family.timeOnPageMs = totalTimeSeconds * 1000; // Convert to ms
+  family.timeOnPageMinutes = Math.round(totalTimeSeconds / 60);
+}
         
         // Re-render the family card to show updated counts
         updateFamilyDisplay(inquiryId, totalSessions, family.timeOnPageMinutes);
