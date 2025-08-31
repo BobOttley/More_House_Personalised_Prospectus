@@ -58,6 +58,90 @@
     .filter-select:focus,.search-box:focus{outline:none;border-color:var(--sport-blue);box-shadow:0 0 0 3px rgba(3,70,116,.1)}
     .search-box{flex:1;min-width:250px}
 
+    /* Status Management */
+    .status-selector {
+      position: relative;
+      display: inline-block;
+    }
+    
+    .status-dropdown {
+      padding: 0.5rem 2rem 0.5rem 0.75rem;
+      border: 1px solid var(--border-grey);
+      border-radius: 8px;
+      background: white;
+      font-size: 0.875rem;
+      font-weight: 500;
+      cursor: pointer;
+      min-width: 180px;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 0.75rem center;
+    }
+    
+    .status-dropdown:hover {
+      border-color: var(--sport-blue);
+    }
+    
+    .status-dropdown:focus {
+      outline: none;
+      border-color: var(--sport-blue);
+      box-shadow: 0 0 0 3px rgba(3,70,116,.1);
+    }
+    
+    /* Status badge colours */
+    .status-badge {
+      padding: 0.375rem 0.75rem;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      display: inline-block;
+    }
+    
+    .status-new { background: #F3F4F6; color: #6B7280; }
+    .status-contacted { background: #DBEAFE; color: #1E40AF; }
+    .status-high-interest { background: #FEE2E2; color: #DC2626; }
+    .status-tour-booked { background: #D1FAE5; color: #065F46; }
+    .status-open-day-booked { background: #E9D5FF; color: #6B21A8; }
+    .status-application-started { background: #FED7AA; color: #C2410C; }
+    .status-not-interested { background: #F3F4F6; color: #6B7280; }
+    .status-enrolled { background: #10B981; color: white; }
+    
+    /* Status Summary Cards */
+    .status-summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 0.75rem;
+      padding: 1rem;
+      background: var(--light-grey);
+      border-radius: 8px;
+      margin-bottom: 1rem;
+    }
+    
+    .status-summary-item {
+      background: white;
+      padding: 0.75rem;
+      border-radius: 6px;
+      border: 1px solid var(--border-grey);
+      text-align: center;
+    }
+    
+    .status-summary-count {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--navy);
+      margin-bottom: 0.25rem;
+    }
+    
+    .status-summary-label {
+      font-size: 0.75rem;
+      color: var(--dark-grey);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
     /* Enhanced Family Cards */
     .family-card{background:#fff;border:1px solid var(--border-grey);border-radius:12px;margin-bottom:1rem;overflow:hidden;transition:box-shadow .3s}
     .family-card:hover{box-shadow:0 4px 12px rgba(0,0,0,.08)}
@@ -182,28 +266,28 @@
         <div class="metric-subtitle">Active prospects</div>
       </div>
       <div class="metric-card hot">
-        <div class="metric-icon hot">🔥</div>
-        <div class="metric-title">High Interest</div>
-        <div class="metric-value" id="hotLeads">-</div>
-        <div class="metric-subtitle">Score 80+ • Priority contact</div>
+        <div class="metric-icon hot">📞</div>
+        <div class="metric-title">Contacted</div>
+        <div class="metric-value" id="contactedCount">-</div>
+        <div class="metric-subtitle">Families reached</div>
       </div>
       <div class="metric-card warm">
-        <div class="metric-icon warm">⚡</div>
-        <div class="metric-title">Moderate Interest</div>
-        <div class="metric-value" id="warmLeads">-</div>
-        <div class="metric-subtitle">Score 50-79 • Nurture</div>
+        <div class="metric-icon warm">⭐</div>
+        <div class="metric-title">High Interest</div>
+        <div class="metric-value" id="highInterestCount">-</div>
+        <div class="metric-subtitle">Priority families</div>
       </div>
       <div class="metric-card engagement">
-        <div class="metric-icon engagement">📊</div>
-        <div class="metric-title">Return Visitors</div>
-        <div class="metric-value" id="returnVisitors">-</div>
-        <div class="metric-subtitle">Multiple sessions</div>
+        <div class="metric-icon engagement">🎓</div>
+        <div class="metric-title">Tours/Open Days</div>
+        <div class="metric-value" id="bookedCount">-</div>
+        <div class="metric-subtitle">Visits scheduled</div>
       </div>
       <div class="metric-card ai">
-        <div class="metric-icon ai">🤖</div>
-        <div class="metric-title">AI Analysed</div>
-        <div class="metric-value" id="aiAnalysed">-</div>
-        <div class="metric-subtitle">With summaries</div>
+        <div class="metric-icon ai">📝</div>
+        <div class="metric-title">Applications</div>
+        <div class="metric-value" id="applicationCount">-</div>
+        <div class="metric-subtitle">In progress</div>
       </div>
     </div>
 
@@ -211,17 +295,20 @@
     <div class="main-content">
       <div class="filters">
         <select class="filter-select" id="sortFilter">
-          <option value="engagement">Sort by Engagement Score</option>
           <option value="recent">Sort by Most Recent</option>
-          <option value="time">Sort by Time Spent</option>
           <option value="visits">Sort by Visit Count</option>
+          <option value="time">Sort by Time Spent</option>
+          <option value="status">Sort by Status</option>
         </select>
         <select class="filter-select" id="statusFilter">
-          <option value="all">All Families</option>
-          <option value="hot">High Interest Only</option>
-          <option value="warm">Moderate Interest Only</option>
-          <option value="active">Active Today</option>
-          <option value="return">Return Visitors</option>
+          <option value="all">All Statuses</option>
+          <option value="new">New Enquiries</option>
+          <option value="contacted">Contacted</option>
+          <option value="high-interest">High Interest</option>
+          <option value="tour-booked">Tour Booked</option>
+          <option value="open-day-booked">Open Day Booked</option>
+          <option value="application-started">Application Started</option>
+          <option value="not-interested">Not Interested</option>
         </select>
         <input type="text" class="search-box" placeholder="Search by family name..." id="searchBox">
       </div>
@@ -310,14 +397,28 @@
     // Process and enrich family data
     function processRealData(raw) {
       return raw.map(f => {
-        const dwellMs = Number(f.dwell_ms) || 0;
-        const minutes = dwellMs / 60000;
-        const visits = Number(f.return_visits) || 0;
+        // Get the actual session count if available
+        const sessionCount = f.session_count || f.sessions_count || f.total_sessions || f.return_visits || 0;
+        
+        // Calculate total time from all sessions if we have session data
+        let totalDwellMs = Number(f.dwell_ms) || 0;
+        let actualVisits = Math.max(1, Number(sessionCount));
+        
+        // If we have sessions array, count them directly
+        if (f.sessions && Array.isArray(f.sessions)) {
+          actualVisits = f.sessions.length;
+          // Sum up time from sessions if available
+          totalDwellMs = f.sessions.reduce((sum, s) => {
+            return sum + (Number(s.dwell_ms) || Number(s.duration) || 0);
+          }, 0);
+        }
+        
+        const minutes = totalDwellMs / 60000;
         const last = f.updated_at || f.received_at || null;
 
-        // Calculate engagement score
+        // Calculate engagement score based on actual visits
         const timeScore = Math.min(Math.max(minutes, 0), 25) * 2;
-        const visitScore = Math.min(Math.max(visits, 0), 6) * 5;
+        const visitScore = Math.min(Math.max(actualVisits, 0), 10) * 5; // Higher weight for visits
         let recency = 0;
         if (last) {
           const age = Date.now() - new Date(last).getTime();
@@ -338,16 +439,16 @@
           ageGroup: f.age_group,
           receivedAt: f.received_at,
           lastActivity: last,
-          timeOnPageMs: dwellMs,
+          timeOnPageMs: totalDwellMs,
           timeOnPageMinutes: Math.max(0, Math.round(minutes)),
-          visits: Math.max(0, visits),
+          visits: actualVisits,
+          sessionCount: actualVisits, // Store actual session count
           engagementScore: engagement,
           temperature,
           isActiveToday,
           hasProspectus: !!f.prospectus_generated,
           prospectusUrl: f.prospectus_pretty_url || null,
-          city: f.city || 'Unknown',
-          country: f.country || 'Unknown',
+          country: f.country || null,
           interests: extractInterests(f),
           rawData: f // Keep original data for other fields
         };
@@ -362,6 +463,7 @@
       try {
         const data = await fetchJson('/api/analytics/inquiries');
         allFamilies = processRealData(Array.isArray(data) ? data : []);
+        loadSavedStatuses(); // Load saved statuses from localStorage
         updateMetrics();
         renderFamilies();
       } catch (e) {
@@ -372,13 +474,54 @@
       }
     }
 
-    // Update metrics
+    // Update metrics based on statuses
     function updateMetrics() {
       setText('totalFamilies', allFamilies.length);
-      setText('hotLeads', allFamilies.filter(f => f.temperature === 'hot').length);
-      setText('warmLeads', allFamilies.filter(f => f.temperature === 'warm').length);
-      setText('returnVisitors', allFamilies.filter(f => f.visits >= 2).length);
-      setText('aiAnalysed', Object.keys(aiSummaries).length);
+      
+      // Count by status
+      const statusCounts = {
+        contacted: 0,
+        'high-interest': 0,
+        'tour-booked': 0,
+        'open-day-booked': 0,
+        'application-started': 0
+      };
+      
+      allFamilies.forEach(family => {
+        const status = familyStatuses[family.id] || 'new';
+        if (statusCounts.hasOwnProperty(status)) {
+          statusCounts[status]++;
+        }
+      });
+      
+      setText('contactedCount', statusCounts.contacted);
+      setText('highInterestCount', statusCounts['high-interest']);
+      setText('bookedCount', statusCounts['tour-booked'] + statusCounts['open-day-booked']);
+      setText('applicationCount', statusCounts['application-started']);
+    }
+
+    // Update family status
+    function updateFamilyStatus(familyId, newStatus) {
+      familyStatuses[familyId] = newStatus;
+      
+      // In production, you'd save this to the database
+      // await fetch('/api/families/' + familyId + '/status', {
+      //   method: 'PUT',
+      //   body: JSON.stringify({ status: newStatus })
+      // });
+      
+      // Store in localStorage for now
+      localStorage.setItem('familyStatuses', JSON.stringify(familyStatuses));
+      
+      updateMetrics();
+    }
+
+    // Load saved statuses
+    function loadSavedStatuses() {
+      const saved = localStorage.getItem('familyStatuses');
+      if (saved) {
+        familyStatuses = JSON.parse(saved);
+      }
     }
 
     // Get filtered families
@@ -386,10 +529,9 @@
       let families = [...allFamilies];
 
       const status = byId('statusFilter')?.value || 'all';
-      if (status === 'hot') families = families.filter(f => f.temperature === 'hot');
-      else if (status === 'warm') families = families.filter(f => f.temperature === 'warm');
-      else if (status === 'active') families = families.filter(f => f.isActiveToday);
-      else if (status === 'return') families = families.filter(f => f.visits >= 2);
+      if (status !== 'all') {
+        families = families.filter(f => (familyStatuses[f.id] || 'new') === status);
+      }
 
       const q = (byId('searchBox')?.value || '').toLowerCase();
       if (q) {
@@ -399,11 +541,31 @@
         );
       }
 
-      const sortBy = byId('sortFilter')?.value || 'engagement';
-      if (sortBy === 'engagement') families.sort((a, b) => b.engagementScore - a.engagementScore);
-      else if (sortBy === 'recent') families.sort((a, b) => new Date(b.lastActivity) - new Date(a.lastActivity));
-      else if (sortBy === 'time') families.sort((a, b) => b.timeOnPageMs - a.timeOnPageMs);
-      else if (sortBy === 'visits') families.sort((a, b) => b.visits - a.visits);
+      const sortBy = byId('sortFilter')?.value || 'recent';
+      if (sortBy === 'recent') {
+        families.sort((a, b) => new Date(b.lastActivity || b.receivedAt) - new Date(a.lastActivity || a.receivedAt));
+      } else if (sortBy === 'time') {
+        families.sort((a, b) => b.timeOnPageMs - a.timeOnPageMs);
+      } else if (sortBy === 'visits') {
+        families.sort((a, b) => b.visits - a.visits);
+      } else if (sortBy === 'status') {
+        // Sort by status priority
+        const statusPriority = {
+          'high-interest': 1,
+          'tour-booked': 2,
+          'open-day-booked': 3,
+          'application-started': 4,
+          'contacted': 5,
+          'new': 6,
+          'not-interested': 7,
+          'enrolled': 8
+        };
+        families.sort((a, b) => {
+          const aPriority = statusPriority[familyStatuses[a.id] || 'new'] || 99;
+          const bPriority = statusPriority[familyStatuses[b.id] || 'new'] || 99;
+          return aPriority - bPriority;
+        });
+      }
 
       return families;
     }
@@ -437,7 +599,7 @@
                   <span>📧 ${f.parentEmail || 'No email'}</span>
                   <span>📅 Entry ${f.entryYear || 'TBC'}</span>
                   <span>🎂 ${f.ageGroup || 'Unknown'}</span>
-                  <span>📍 ${f.city}</span>
+                  <span>📍 ${formatLocation(f.country)}</span>
                   <span>⏱ ${f.timeOnPageMinutes} min total</span>
                   <span>👁 ${f.visits} visit${f.visits !== 1 ? 's' : ''}</span>
                 </div>
@@ -868,10 +1030,36 @@
       });
 
       const totalSessions = sessions.length;
+      
+      // Update the family's visit count with actual session count
+      const family = allFamilies.find(f => f.id === inquiryId);
+      if (family && totalSessions > family.visits) {
+        family.visits = totalSessions;
+        family.sessionCount = totalSessions;
+        
+        // Calculate total time from sessions
+        let totalTime = 0;
+        sessions.forEach(s => {
+          // Try to get duration from various possible fields
+          const duration = s.duration || s.dwell_seconds || s.dwell_ms || 0;
+          totalTime += Number(duration);
+        });
+        
+        // Update time if we have session data
+        if (totalTime > 0) {
+          // Convert to milliseconds if needed (assuming duration is in seconds if < 10000)
+          if (totalTime < 10000) totalTime = totalTime * 1000;
+          family.timeOnPageMs = totalTime;
+          family.timeOnPageMinutes = Math.round(totalTime / 60000);
+        }
+        
+        // Re-render the family card to show updated counts
+        updateFamilyDisplay(inquiryId, totalSessions, family.timeOnPageMinutes);
+      }
 
       container.innerHTML = `
         <div class="session-meta" style="margin-bottom:1rem;color:#64748b;display:flex;justify-content:space-between;align-items:center;">
-          <span>${totalSessions} visit${totalSessions === 1 ? '' : 's'} recorded</span>
+          <span><strong>${totalSessions}</strong> visit${totalSessions === 1 ? '' : 's'} recorded</span>
           <button class="btn ai" onclick="generateOverallSummary('${inquiryId}')" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">
             Generate Overall AI Summary
           </button>
@@ -879,6 +1067,23 @@
         <div id="overall-summary-${inquiryId}" class="ai-summary" style="display:none; margin-bottom: 1rem;"></div>
         ${sessions.map((s, index) => renderSessionCard(s, index, totalSessions, inquiryId)).join('')}
       `;
+    }
+    
+    // Update family display with correct counts
+    function updateFamilyDisplay(inquiryId, visitCount, totalMinutes) {
+      const card = document.querySelector(`[data-id="${inquiryId}"]`);
+      if (!card) return;
+      
+      // Update the visit count in the header
+      const metaSpans = card.querySelectorAll('.family-meta span');
+      metaSpans.forEach(span => {
+        if (span.textContent.includes('visit')) {
+          span.innerHTML = `👁 ${visitCount} visit${visitCount !== 1 ? 's' : ''}`;
+        }
+        if (span.textContent.includes('min total')) {
+          span.innerHTML = `⏱ ${totalMinutes} min total`;
+        }
+      });
     }
 
     // Extract date from session object
@@ -1342,6 +1547,37 @@
           </div>
         `;
       }).join('');
+    }
+
+    // Format location for display
+    function formatLocation(country) {
+      const countryNames = {
+        'GB': 'United Kingdom',
+        'UK': 'United Kingdom',
+        'US': 'United States',
+        'USA': 'United States',
+        'FR': 'France',
+        'DE': 'Germany',
+        'ES': 'Spain',
+        'IT': 'Italy',
+        'IE': 'Ireland',
+        'NL': 'Netherlands',
+        'BE': 'Belgium',
+        'CH': 'Switzerland',
+        'AU': 'Australia',
+        'NZ': 'New Zealand',
+        'CA': 'Canada',
+        'IN': 'India',
+        'CN': 'China',
+        'JP': 'Japan',
+        'AE': 'UAE',
+        'SA': 'Saudi Arabia',
+        'SG': 'Singapore',
+        'HK': 'Hong Kong'
+      };
+      
+      if (!country) return 'Not specified';
+      return countryNames[country] || country;
     }
 
     // Show error
