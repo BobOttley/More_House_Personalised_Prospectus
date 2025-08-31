@@ -69,6 +69,13 @@
     .timeline-meta{font-size:.9rem;color:#334155;margin-bottom:.5rem}
     .timeline-list{margin:0;padding-left:18px}
 
+    /* Sessions history */
+    .sessions{margin-top:0.75rem;padding:0.75rem;background:#FFF;border:1px solid #E5E7EB;border-radius:6px}
+    .session-item{border:1px solid #E5E7EB;border-radius:6px;margin:.5rem 0}
+    .session-header{padding:.5rem .75rem;background:#F8FAFC;display:flex;justify-content:space-between;align-items:center;cursor:pointer}
+    .session-body{padding:.5rem .75rem;display:none}
+    .session-item.open .session-body{display:block}
+
     .activity-feed{max-height:500px;overflow-y:auto}
     .activity-item{padding:1rem;border-bottom:1px solid var(--border-grey);display:flex;gap:1rem;align-items:center}
     .activity-item:last-child{border-bottom:none}
@@ -242,7 +249,7 @@
         allFamilies = processRealData(Array.isArray(data) ? data : []);
         updateMetrics();
         renderFamilies();
-        loadRecentActivity();   // << fixed: function now exists below
+        loadRecentActivity();
       } catch (e) {
         showError('Failed to load data: ' + e.message);
         console.error('loadData:', e);
@@ -348,13 +355,19 @@
               <div class="family-actions">
                 ${openBtn}
                 <button class="btn" onclick="copyInquiryId('${f.id}')">Copy Inquiry ID</button>
-                <button class="btn" onclick="loadCardTimeline('${f.id}')">Load Timeline</button>
+                <button class="btn" onclick="loadCardTimeline('${f.id}')">Load Timeline (latest)</button>
+                <button class="btn" onclick="loadSessionHistory('${f.id}')">Load Sessions (history)</button>
                 ${f.parentEmail ? `<a class="btn" href="mailto:${encodeURIComponent(f.parentEmail)}" target="_blank">Email Parent</a>` : ''}
               </div>
 
               <div id="timeline-${f.id}" class="timeline" style="display:none;">
                 <div class="timeline-meta" id="timeline-meta-${f.id}"></div>
                 <ol class="timeline-list" id="timeline-list-${f.id}"></ol>
+              </div>
+
+              <div id="sessions-${f.id}" class="sessions" style="display:none;">
+                <div class="timeline-meta" id="sessions-meta-${f.id}">Loading sessions…</div>
+                <div id="sessions-list-${f.id}"></div>
               </div>
 
               ${f.prospectusUrl ? `
@@ -387,7 +400,7 @@
       const sortBy = byId('sortFilter')?.value || 'engagement';
       if (sortBy==='engagement') families.sort((a,b)=>b.engagementScore-a.engagementScore);
       else if (sortBy==='recent') families.sort((a,b)=>new Date(b.lastActivity)-new Date(a.lastActivity));
-      else if (sortBy==='time') families.sort((a,b)=>b.timeOnPageMs-a.btimeOnPageMs);
+      else if (sortBy==='time') families.sort((a,b)=>b.timeOnPageMs-a.timeOnPageMs);
 
       return families;
     }
@@ -406,6 +419,30 @@
       catch (e) { console.error('fetchLatestVisit:', e); return null; }
     }
 
+    // Try several likely history endpoints; return { sessions: [...] } or null
+    async function fetchVisitHistory(inquiryId){
+      const tryEndpoints = [
+        `/api/visits/${encodeURIComponent(inquiryId)}/history`,
+        `/api/visits/${encodeURIComponent(inquiryId)}/sessions`,
+        `/api/visits/${encodeURIComponent(inquiryId)}?limit=10`
+      ];
+      for (const url of tryEndpoints){
+        try{
+          const data = await fetchJson(url);
+          // Normalise: expect either {sessions:[...]} or an array
+          if (Array.isArray(data) && data.length){
+            return { sessions: data };
+          } else if (data && Array.isArray(data.sessions) && data.sessions.length){
+            return { sessions: data.sessions };
+          }
+        }catch(e){
+          // try next
+        }
+      }
+      return null;
+    }
+
+    // Load latest (single) timeline
     async function loadCardTimeline(inquiryId){
       const box  = byId('timeline-'+inquiryId);
       const meta = byId('timeline-meta-'+inquiryId);
@@ -429,6 +466,73 @@
       }
     }
 
+    // Load full session history list (new)
+    async function loadSessionHistory(inquiryId){
+      const wrap = byId('sessions-'+inquiryId);
+      const meta = byId('sessions-meta-'+inquiryId);
+      const list = byId('sessions-list-'+inquiryId);
+      if (!wrap || !meta || !list) return;
+
+      wrap.style.display = 'block';
+      meta.textContent = 'Loading sessions…';
+      list.innerHTML = '';
+
+      const hist = await fetchVisitHistory(inquiryId);
+      if (!hist || !hist.sessions || !hist.sessions.length){
+        meta.textContent = 'No session history found for that inquiry.';
+        return;
+      }
+
+      // Sort newest first by start time if present
+      const sessions = hist.sessions.slice().sort((a,b)=>new Date(b.start||b.started_at||0)-new Date(a.start||a.started_at||0));
+
+      meta.textContent = `${sessions.length} session${sessions.length===1?'':'s'} found`;
+
+      for (const s of sessions){
+        const sId = s.id || s.session_id || '';
+        const start = s.start || s.started_at || s.session_start || s.created_at || null;
+        const end   = s.end   || s.ended_at   || s.session_end   || s.updated_at || null;
+
+        const item = document.createElement('div');
+        item.className = 'session-item';
+        const header = document.createElement('div');
+        header.className = 'session-header';
+        header.innerHTML = `
+          <div><strong>${sId ? ('Session ' + sId) : 'Session'}</strong></div>
+          <div style="font-size:.9rem;color:#334155;">
+            ${start ? new Date(start).toLocaleString() : '?'}
+            ${end ? ' → ' + new Date(end).toLocaleString() : ''}
+          </div>
+        `;
+        const body = document.createElement('div');
+        body.className = 'session-body';
+
+        // If events are already present, render; otherwise show a hint.
+        if (Array.isArray(s.events) && s.events.length){
+          const ol = document.createElement('ol');
+          ol.className = 'timeline-list';
+          for (const ev of s.events){
+            const li = document.createElement('li');
+            li.style.margin = '4px 0';
+            li.textContent = renderEvent(ev);
+            ol.appendChild(li);
+          }
+          body.appendChild(ol);
+        } else {
+          const p = document.createElement('div');
+          p.className = 'timeline-meta';
+          p.textContent = 'Events not included in history response.';
+          body.appendChild(p);
+        }
+
+        header.addEventListener('click', ()=> item.classList.toggle('open'));
+
+        item.appendChild(header);
+        item.appendChild(body);
+        list.appendChild(item);
+      }
+    }
+
     function showError(message){
       ['familyList','activityFeed'].forEach(id=>{
         const el = byId(id);
@@ -436,7 +540,6 @@
       });
     }
 
-    // ----- NEW: loadRecentActivity (was missing) -----
     function loadRecentActivity(){
       const container = byId('activityFeed');
       if (!container) return;
