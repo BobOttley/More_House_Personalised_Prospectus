@@ -875,7 +875,7 @@
 <body>
   <header class="header">
     <div class="header-controls">
-      <button class="refresh-btn" onclick="loadData(true)">↻ Refresh</button>
+      <button class="refresh-btn" onclick="loadData()">↻ Refresh</button>
       <button class="ai-btn" onclick="generateAllSummaries()">Generate All AI Summaries</button>
     </div>
     <div class="header-brand">
@@ -990,21 +990,7 @@
       return date.toLocaleDateString('en-GB');
     };
 
-    // Status helpers
-    const STATUS_LABELS = {
-      'new': 'New Inquiry',
-      'contacted': 'Contacted',
-      'high-interest': 'High Interest',
-      'tour-booked': 'Tour Booked',
-      'open-day-booked': 'Open Day Booked',
-      'application-started': 'Application Started',
-      'application-complete': 'Application Complete',
-      'not-interested': 'Not Interested'
-    };
-    const statusToClass = s => `status-${s}`;
-    const statusToLabel = s => STATUS_LABELS[s] || 'New Inquiry';
-
-    const formatDuration = (ms) => {
+        const formatDuration = (ms) => {
       const mins = Math.floor(ms / 60000);
       if (mins < 1) return '< 1 min';
       if (mins < 60) return `${mins} min`;
@@ -1588,8 +1574,6 @@
 
       return { overview, recommendations: recommendations.slice(0, 8), strategy };
 }
-    }
-
     // Load session history (no per-visit AI summary)
     async function loadSessionHistory(inquiryId) {
       const container = byId(`sessions-${inquiryId}`);
