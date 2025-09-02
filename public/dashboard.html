@@ -134,10 +134,6 @@
     .session-info{flex:1}
     .session-title{font-weight:600;color:var(--blazer-navy);margin-bottom:.25rem}
     .session-meta{font-size:.875rem;color:#64748b}
-    .session-stats{display:flex;gap:1rem;align-items:center}
-    .session-stat{text-align:center}
-    .session-stat-value{font-weight:600;color:var(--blazer-navy)}
-    .session-stat-label{font-size:.75rem;color:#64748b}
     .session-body{display:none;padding:1rem;background:#fff}
     .session-card.open .session-body{display:block}
 
@@ -547,14 +543,17 @@
                 </div>
 
                 <div>
-                  <!-- AI Analysis tablet removed per request -->
-
                   <div class="sessions-container">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem">
                       <h4 style="font-size:.875rem;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:#64748b">Session History</h4>
-                      <button class="btn" onclick="loadSessionHistory('${f.id}')">Load All Sessions</button>
+                      <button class="btn ai" onclick="generateOverallSummary('${f.id}')" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">
+                        Generate Overall AI Summary
+                      </button>
                     </div>
                     <div id="sessions-${f.id}"></div>
+                    <div style="margin-top:.5rem">
+                      <button class="btn" onclick="loadSessionHistory('${f.id}')">Load All Sessions</button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -601,120 +600,7 @@
       }
     }
 
-    // Generate AI summary for a single session/visit
-    async function generateSessionSummary(sessionId, inquiryId) {
-      const summaryContainer = byId(`ai-summary-${sessionId}`);
-      if (!summaryContainer) return;
-      
-      summaryContainer.style.display = 'block';
-      summaryContainer.innerHTML = '<div class="loading"><div class="spinner"></div> Generating AI summary...</div>';
-      
-      const urls = [
-        `/api/visits/session/${encodeURIComponent(sessionId)}`,
-        `/api/sessions/${encodeURIComponent(sessionId)}`
-      ];
-      
-      let events = null;
-      for (const url of urls) {
-        try {
-          const data = await fetchJson(url);
-          if (Array.isArray(data)) events = data;
-          else if (data && data.events) events = data.events;
-          if (events) break;
-        } catch(e) {}
-      }
-      
-      if (!events) {
-        summaryContainer.innerHTML = '<div class="error">Could not load session data for AI analysis</div>';
-        return;
-      }
-      
-      const processedJourney = processEvents(events);
-      const summary = generateSessionInsights(processedJourney, sessionId);
-      
-      summaryContainer.innerHTML = `
-        <div class="ai-summary-header">
-          <div class="ai-summary-title">
-            <span class="ai-badge">AI</span>
-            Visit Analysis
-          </div>
-        </div>
-        <div class="ai-summary-content">${summary.text}</div>
-        ${summary.insights.length > 0 ? `
-          <div class="ai-recommendations">
-            <h5>Key Insights</h5>
-            <ul>
-              ${summary.insights.map(i => `<li>${i}</li>`).join('')}
-            </ul>
-          </div>
-        ` : ''}
-      `;
-    }
-    
-    function generateSessionInsights(journey) {
-      const sections = journey.filter(j => j.type === 'section');
-      const videos = journey.filter(j => j.type === 'video');
-      const tiers = journey.filter(j => j.type === 'tier');
-      const ctas = journey.filter(j => j.type === 'cta');
-      
-      const totalTime = sections.reduce((sum, s) => sum + (s.duration || 0), 0);
-      const totalMinutes = Math.floor(totalTime / 60);
-      
-      let text = '';
-      const insights = [];
-      
-      if (totalMinutes >= 10) {
-        text = `High engagement visit with ${totalMinutes} minutes spent exploring ${sections.length} sections. `;
-        insights.push('Strong interest shown - priority follow-up recommended');
-      } else if (totalMinutes >= 5) {
-        text = `Moderate engagement visit with ${totalMinutes} minutes across ${sections.length} sections. `;
-        insights.push('Growing interest - nurture with targeted content');
-      } else if (totalMinutes >= 2) {
-        text = `Initial exploration visit with ${totalMinutes} minutes of browsing. `;
-        insights.push('Early stage - monitor for return visits');
-      } else {
-        text = `Quick browse session with minimal time spent. `;
-        insights.push('Low engagement - consider different outreach approach');
-      }
-      
-      const topSections = sections
-        .sort((a, b) => b.duration - a.duration)
-        .slice(0, 3);
-      
-      if (topSections.length > 0) {
-        text += `Primary interest in ${topSections.map(s => s.title).join(', ')}. `;
-        
-        topSections.forEach(section => {
-          if (section.title.includes('Academic')) {
-            insights.push('Academic programme is a key priority');
-          } else if (section.title.includes('Creative') || section.title.includes('Arts')) {
-            insights.push('Strong interest in creative programmes');
-          } else if (section.title.includes('Pastoral')) {
-            insights.push('Pastoral care is important to this family');
-          } else if (section.title.includes('Sport')) {
-            insights.push('Sports programme resonates with family');
-          } else if (section.title.includes('Values')) {
-            insights.push('School values and ethos are important');
-          }
-        });
-      }
-      
-      if (videos.length > 0) {
-        text += `Watched ${videos.length} video${videos.length > 1 ? 's' : ''}. `;
-        insights.push('Video content is engaging - share more multimedia');
-      }
-      if (tiers.length > 0) {
-        const tierNames = [...new Set(tiers.map(t => t.title))];
-        text += `Explored ${tierNames.join(', ')}. `;
-      }
-      if (ctas.length > 0) {
-        insights.push('Ready for next step - clicked CTA');
-      }
-      
-      return { text, insights };
-    }
-    
-    // Generate overall AI summary for all sessions → now renders under Contact & Profile
+    // Generate overall AI summary for all sessions → renders under Contact & Profile
     async function generateOverallSummary(inquiryId) {
       const container = byId(`ai-overall-${inquiryId}`) || byId(`overall-summary-${inquiryId}`);
       if (!container) return;
@@ -875,7 +761,7 @@
       return { overview, recommendations: recommendations.slice(0, 8), strategy };
     }
 
-    // Load session history and keep the existing “Generate Overall AI Summary” button
+    // Load session history (no per-visit AI summary)
     async function loadSessionHistory(inquiryId) {
       const container = byId(`sessions-${inquiryId}`);
       if (!container) return;
@@ -933,11 +819,8 @@
       }
 
       container.innerHTML = `
-        <div class="session-meta" style="margin-bottom:1rem;color:#64748b;display:flex;justify-content:space-between;align-items:center;">
-          <span><strong>${totalSessions}</strong> visit${totalSessions === 1 ? '' : 's'} recorded</span>
-          <button class="btn ai" onclick="generateOverallSummary('${inquiryId}')" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">
-            Generate Overall AI Summary
-          </button>
+        <div class="session-meta" style="margin-bottom:1rem;color:#64748b;">
+          <strong>${totalSessions}</strong> visit${totalSessions === 1 ? '' : 's'} recorded
         </div>
         ${sessions.map((s, index) => renderSessionCard(s, index, totalSessions, inquiryId)).join('')}
       `;
@@ -1009,15 +892,9 @@
                 ${timeAgo ? ` • ${timeAgo}` : ''}
               </div>
             </div>
-            <div class="session-stats">
-              <button class="btn ai" onclick="event.stopPropagation(); generateSessionSummary('${sessionId}', '${inquiryId}')" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">
-                AI Summary
-              </button>
-            </div>
             <div class="expand-icon">▼</div>
           </div>
           <div class="session-body">
-            <div id="ai-summary-${sessionId}" class="ai-summary" style="display:none; margin-bottom: 1rem;"></div>
             <div class="journey-timeline" id="journey-${sessionId}">
               <div class="loading"><div class="spinner"></div> Click to load journey...</div>
             </div>
@@ -1086,7 +963,6 @@
 
     function processEvents(events) {
       const journey = [];
-      let lastSection = null;
 
       events.forEach(ev => {
         if (ev.type === 'heartbeat' || ev.type === 'page_hidden' || ev.type === 'page_visible' || ev.type === 'click') {
