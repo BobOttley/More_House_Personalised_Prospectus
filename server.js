@@ -1923,48 +1923,67 @@ app.get('/api/visits/:inquiryId/sessions', async (req, res) => {
 
 // === Utility: summarise a set of events into a short narrative ===
 function summariseEvents(events) {
-  // Sections (by dwell)
+  // Track dwell by section
   const bySection = new Map();
-  const videos = [];
+  // Track unique videos by ID
+  const videos = new Map(); // youtubeId -> title
   let openMorningClicks = 0;
   const tiers = [];
 
   for (const ev of events) {
     if (ev.type === 'section_exit' && ev.section) {
       const prev = bySection.get(ev.section) || 0;
-      if (Number.isFinite(ev.dwellSec)) bySection.set(ev.section, prev + Number(ev.dwellSec));
+      if (Number.isFinite(ev.dwellSec)) {
+        bySection.set(ev.section, prev + Number(ev.dwellSec));
+      }
     }
-    if (ev.type === 'video_open') {
-      videos.push({ id: ev.youtubeId, title: ev.title });
+
+    if (ev.type === 'video_open' && ev.youtubeId) {
+      if (!videos.has(ev.youtubeId)) {
+        videos.set(ev.youtubeId, ev.title || ev.youtubeId);
+      }
     }
+
     if (ev.type === 'cta_openmorning_click') {
       openMorningClicks += 1;
     }
+
     if (ev.type === 'tier_exit') {
       tiers.push({ tier: ev.tier, dwellSec: ev.dwellSec || 0 });
     }
   }
 
   const topSections = [...bySection.entries()]
-    .sort((a,b)=>b[1]-a[1])
-    .slice(0,4)
-    .map(([k,v]) => `${k.replace(/_/g,' ')} (${Math.round(v/60)}m)`);
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 4)
+    .map(([k, v]) => `${k.replace(/_/g, ' ')} (${Math.round(v / 60)}m)`);
 
   const tierBits = tiers
-    .sort((a,b)=>b.dwellSec-a.dwellSec)
-    .map(t => `${t.tier} (${Math.round((t.dwellSec||0)/60)}m)`)
-    .slice(0,3);
+    .sort((a, b) => b.dwellSec - a.dwellSec)
+    .slice(0, 3)
+    .map(t => `${t.tier} (${Math.round((t.dwellSec || 0) / 60)}m)`);
 
-  const videoBits = videos.map(v => v.title || v.id).slice(0,4);
+  const videoBits = Array.from(videos.values()).slice(0, 4);
 
   const parts = [];
-  if (topSections.length) parts.push(`Most time in: ${topSections.join(', ')}.`);
-  if (tierBits.length) parts.push(`Looked at tiers: ${tierBits.join(', ')}.`);
-  if (videoBits.length) parts.push(`Watched/opened videos: ${videoBits.join(', ')}.`);
-  if (openMorningClicks) parts.push(`Clicked “Book an Open Morning” ${openMorningClicks} time${openMorningClicks>1?'s':''}.`);
+  if (topSections.length) {
+    parts.push(`Most time in: ${topSections.join(', ')}.`);
+  }
+  if (tierBits.length) {
+    parts.push(`Looked at tiers: ${tierBits.join(', ')}.`);
+  }
+  if (videoBits.length) {
+    parts.push(`Watched/opened videos: ${videoBits.join(', ')}.`);
+  }
+  if (openMorningClicks) {
+    parts.push(
+      `Clicked “Book an Open Morning” ${openMorningClicks} time${openMorningClicks > 1 ? 's' : ''}.`
+    );
+  }
 
   return parts.join(' ');
 }
+
 
 // === Per-session AI-style summary (rule-based) ===
 app.get('/api/visits/:inquiryId/:sessionId/summary', async (req,res)=>{
@@ -1997,6 +2016,31 @@ app.get('/api/visits/:inquiryId/:sessionId/summary', async (req,res)=>{
     res.status(500).json({ ok:false, error:e.message });
   }
 });
+
+app.get('/api/analytics/inquiries/:id/video_rollup', async (req, res) => {
+  try {
+    const inquiryId = req.params.id;
+    const q = await db.query(`
+      SELECT video_id, MAX(video_title) AS title, COUNT(DISTINCT session_id) AS sessions,
+             SUM(COALESCE(watched_sec,0)) AS watch_sec
+      FROM video_engagement_tracking
+      WHERE inquiry_id = $1 AND video_id IS NOT NULL
+      GROUP BY video_id
+      ORDER BY watch_sec DESC
+    `, [inquiryId]);
+
+    res.json({
+      inquiry_id: inquiryId,
+      distinct_videos: q.rows.length,
+      total_watch_sec: q.rows.reduce((s,r)=>s+Number(r.watch_sec||0),0),
+      videos: q.rows
+    });
+  } catch (e) {
+    console.error('video_rollup error', e);
+    res.status(500).json({ error: 'Failed to compute video roll-up' });
+  }
+});
+
 
 // === Overall AI-style summary across all sessions ===
 app.get('/api/inquiry/:inquiryId/summary', async (req,res)=>{
@@ -2181,17 +2225,104 @@ app.put('/api/analytics/inquiries/:id/overall_summary', async (req, res) => {
 app.get('/api/analytics/inquiries/:id/overall_summary', async (req, res) => {
   try {
     const inquiryId = req.params.id;
-    const { rows } = await db.query(
-      `SELECT overview, recommendations, strategy, generated_at, updated_at
-         FROM inquiry_ai_summary
-        WHERE inquiry_id = $1`,
+
+    // 1) Stored free-text (keep for narrative only)
+    let stored = null;
+    try {
+      const r = await db.query(
+        `SELECT overview, recommendations, strategy, generated_at, updated_at
+           FROM inquiry_ai_summary
+          WHERE inquiry_id = $1`,
+        [inquiryId]
+      );
+      stored = r.rows[0] || null;
+    } catch (_) {}
+
+    // 2) Computed engagement from tracking + inquiries (ground truth)
+    // Sections + dwell
+    const sectionsQ = await db.query(`
+      SELECT
+        COALESCE(event_data->>'currentSection','unknown') AS section_id,
+        SUM(COALESCE((event_data->>'timeInSectionSec')::int,0)) AS dwell_sec
+      FROM tracking_events
+      WHERE inquiry_id = $1 AND event_type = 'section_exit'
+      GROUP BY 1
+    `, [inquiryId]);
+
+    // Visits (distinct sessions)
+    const visitsQ = await db.query(`
+      SELECT COUNT(DISTINCT session_id) AS visits
+      FROM tracking_events
+      WHERE inquiry_id = $1 AND session_id IS NOT NULL
+    `, [inquiryId]);
+
+    // Total dwell (prefer inquiries.dwell_ms if populated; else sum of sections)
+    const dwellQ = await db.query(
+      `SELECT dwell_ms, return_visits FROM inquiries WHERE id = $1`,
       [inquiryId]
     );
-    if (!rows.length) return res.status(204).end();
-    res.json(rows[0]);
+
+    const fallbackDwellMs = sectionsQ.rows.reduce((sum, r) => sum + (Number(r.dwell_sec || 0) * 1000), 0);
+    const dwellMs = Math.max(Number(dwellQ.rows[0]?.dwell_ms || 0), fallbackDwellMs);
+    const visits = Math.max(Number(visitsQ.rows[0]?.visits || 0), Number(dwellQ.rows[0]?.return_visits || 0) || 0);
+
+    // Distinct videos watched (prefer video_engagement_tracking if present; else from tracking_events youtube ids)
+    const vidsFromTable = await db.query(`
+      SELECT COUNT(DISTINCT video_id) AS vids
+      FROM video_engagement_tracking
+      WHERE inquiry_id = $1 AND video_id IS NOT NULL
+    `, [inquiryId]);
+
+    let distinctVideos = Number(vidsFromTable.rows[0]?.vids || 0);
+    if (!distinctVideos) {
+      const vidsFromEvents = await db.query(`
+        SELECT COUNT(DISTINCT event_data->>'youtubeId') AS vids
+        FROM tracking_events
+        WHERE inquiry_id = $1
+          AND event_type LIKE 'youtube_video_%'
+          AND event_data ? 'youtubeId'
+      `, [inquiryId]);
+      distinctVideos = Number(vidsFromEvents.rows[0]?.vids || 0);
+    }
+
+    // Top sections by dwell
+    const topSections = sectionsQ.rows
+      .map(r => ({ section: (r.section_id || 'unknown'), dwell_ms: Number(r.dwell_sec || 0) * 1000 }))
+      .sort((a,b) => b.dwell_ms - a.dwell_ms)
+      .slice(0, 5);
+
+    // Deterministic, factual narrative (no guessing)
+    const minutes = Math.round(dwellMs / 60000);
+    const secCount = sectionsQ.rows.filter(r => r.section_id !== 'unknown').length;
+    const topNames = topSections.map(s => s.section.replace(/_/g,' ')).slice(0,3);
+    const parts = [];
+    parts.push(`${visits || 1} visit${visits === 1 ? '' : 's'} with ${minutes} minute${minutes === 1 ? '' : 's'} total engagement across ${secCount} section${secCount === 1 ? '' : 's'}.`);
+    if (distinctVideos > 0) parts.push(`Watched ${distinctVideos} video${distinctVideos === 1 ? '' : 's'}.`);
+    if (topNames.length) parts.push(`Most time in: ${topNames.join(', ')}.`);
+    const computedNarrative = parts.join(' ');
+
+    // 3) Response combines stored text (if you still want it) with computed facts
+    return res.json({
+      inquiry_id: inquiryId,
+      computed: {
+        visits,
+        dwell_ms: dwellMs,
+        dwell_minutes: minutes,
+        distinct_sections: secCount,
+        videos_watched: distinctVideos,
+        top_sections: topSections
+      },
+      // keep the legacy fields so your UI doesn’t break
+      overview: stored?.overview || computedNarrative,
+      recommendations: stored?.recommendations || [],
+      strategy: stored?.strategy || null,
+      generated_at: stored?.generated_at || null,
+      updated_at: stored?.updated_at || null,
+      source: 'computed+stored'
+    });
   } catch (err) {
     console.error('GET overall_summary error:', err);
-    res.status(500).json({ error: 'Failed to load overall AI summary' });
+    res.status(500).json({ error: 'Failed to compute overall AI summary' });
   }
 });
 
