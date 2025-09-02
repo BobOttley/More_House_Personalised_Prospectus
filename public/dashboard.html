@@ -1289,20 +1289,11 @@
                   class="status-badge ${'status-' + (familyStatuses[f.id] || 'new')}"
                   title="Pipeline status"
                 >
-                  ${statusToLabel(familyStatuses[f.id] || 'new')}
-                </span>
+                        ${statusToLabel(familyStatuses[f.id] || 'new')}
+                      </span>
               </div>
 
-              <!-- Status summary badge (ALWAYS VISIBLE) -->
-              <div class="status-summary" style="margin-top:.35rem;">
-                <span
-                  id="status-badge-summary-${f.id}"
-                  class="status-badge ${'status-' + (familyStatuses[f.id] || 'new')}"
-                  title="Pipeline status"
-                >
-                  ${statusToLabel(familyStatuses[f.id] || 'new')}
-                </span>
-              </div>
+              
             </div>
             <div class="family-details">
               <div class="details-grid">
