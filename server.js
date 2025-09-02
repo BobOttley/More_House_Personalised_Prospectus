@@ -819,11 +819,12 @@ async function buildEngagementSnapshot(db, inquiryId) {
       time_on_page_ms: totalDwellMs,
       video_ms: sections.reduce((sum, s) => sum + s.video_ms, 0),
       clicks: sections.reduce((sum, s) => sum + s.clicks, 0),
-      total_visits: parseInt(visitCount.rows[0]?.total_visits || 1),
+      total_visits: parseInt(visitCount.rows[0]?.total_visits || 0),
       scroll_depth: sections.length > 0 
         ? Math.round(sections.reduce((sum, s) => sum + s.max_scroll_pct, 0) / sections.length)
         : 0
     };
+    
     
     return {
       sections,
@@ -2080,24 +2081,44 @@ app.get('/api/analytics/inquiries', async (req, res) => {
     console.log('Analytics inquiries request...');
     let inquiries = [];
     const base = getBaseUrl(req);
-    
+
     if (db) {
       try {
         console.log('Reading inquiries from DATABASE...');
         const result = await db.query(`
-          SELECT i.*,
-                 -- Use the REAL data from inquiries table, not engagement_metrics
-                 i.dwell_ms as actual_dwell_ms,
-                 i.return_visits as actual_return_visits,
-                 -- Get AI insights
-                 afi.insights_json as ai_engagement
+          SELECT 
+            i.*,
+
+            /* Visits: derive from tracking_events distinct sessions; fallback to stored value */
+            COALESCE((
+              SELECT COUNT(DISTINCT te.session_id)
+              FROM tracking_events te
+              WHERE te.inquiry_id = i.id
+                AND te.session_id IS NOT NULL
+            ), i.return_visits, 0) AS actual_return_visits,
+
+            /* Dwell: prefer inquiries.dwell_ms; else sum section_exit(_enhanced) seconds */
+            COALESCE(
+              i.dwell_ms,
+              (
+                SELECT SUM(COALESCE((te.event_data->>'timeInSectionSec')::int, 0)) * 1000
+                FROM tracking_events te
+                WHERE te.inquiry_id = i.id
+                  AND te.event_type IN ('section_exit_enhanced','section_exit')
+              ),
+              0
+            ) AS actual_dwell_ms,
+
+            /* Latest AI engagement summary */
+            afi.insights_json AS ai_engagement
+
           FROM inquiries i
           LEFT JOIN ai_family_insights afi 
             ON i.id = afi.inquiry_id 
-            AND afi.analysis_type = 'engagement_summary'
+           AND afi.analysis_type = 'engagement_summary'
           ORDER BY i.received_at DESC
         `);
-        
+
         inquiries = result.rows.map(row => ({
           id: row.id,
           first_name: row.first_name,
@@ -2116,28 +2137,32 @@ app.get('/api/analytics/inquiries', async (req, res) => {
           prospectus_pretty_path: row.slug ? `/${row.slug}` : null,
           prospectus_pretty_url: row.slug ? `${base}/${row.slug}` : null,
           prospectus_direct_url: row.prospectus_url ? `${base}${row.prospectus_url}` : null,
-          
-          // USE THE REAL DATA FROM INQUIRIES TABLE
-          dwell_ms: row.actual_dwell_ms || 0,
-          return_visits: row.actual_return_visits || 1,
+
+          /* FIXED: no more forced “1 visit” */
+          dwell_ms: Number(row.actual_dwell_ms || 0),
+          return_visits: Number(row.actual_return_visits || 0),
+
           engagement: {
-            timeOnPage: row.actual_dwell_ms || 0,
-            scrollDepth: 100, // Assume good scroll for families with dwell time
-            clickCount: Math.floor((row.actual_dwell_ms || 0) / 10000), // Estimate
-            totalVisits: row.actual_return_visits || 1,
+            timeOnPage: Number(row.actual_dwell_ms || 0),
+            scrollDepth: 100,
+            clickCount: Math.floor(Number(row.actual_dwell_ms || 0) / 10000),
+            totalVisits: Number(row.actual_return_visits || 0),
             lastVisit: row.prospectus_generated_at || row.received_at,
             engagementScore: calculateEngagementScore({
-              timeOnPage: row.actual_dwell_ms || 0,
+              timeOnPage: Number(row.actual_dwell_ms || 0),
               scrollDepth: 100,
-              totalVisits: row.actual_return_visits || 1,
-              clickCount: Math.floor((row.actual_dwell_ms || 0) / 10000)
+              totalVisits: Number(row.actual_return_visits || 0),
+              clickCount: Math.floor(Number(row.actual_dwell_ms || 0) / 10000)
             })
           },
-          
-          // Include AI insights
-          aiEngagement: row.ai_engagement ? (typeof row.ai_engagement === 'string' ? JSON.parse(row.ai_engagement) : row.ai_engagement) : null,
-          
-          // Subject interests
+
+          aiEngagement: row.ai_engagement
+            ? (typeof row.ai_engagement === 'string'
+                ? JSON.parse(row.ai_engagement)
+                : row.ai_engagement)
+            : null,
+
+          /* Subject interests (unchanged) */
           sciences: row.sciences,
           mathematics: row.mathematics,
           english: row.english,
@@ -2159,19 +2184,13 @@ app.get('/api/analytics/inquiries', async (req, res) => {
           career_guidance: row.career_guidance,
           extracurricular_opportunities: row.extracurricular_opportunities
         }));
-        
+
         console.log(`Loaded ${inquiries.length} inquiries with REAL data`);
-        
-        // Debug log for Barbara
-        const barbara = inquiries.find(i => i.first_name === 'Barbara');
-        if (barbara) {
-          console.log(`Barbara's REAL data: ${barbara.dwell_ms}ms, ${barbara.return_visits} visits, score: ${barbara.engagement.engagementScore}`);
-        }
       } catch (dbError) {
         console.warn('Database read failed:', dbError.message);
       }
     }
-    
+
     console.log(`Returning ${inquiries.length} inquiries with corrected data`);
     res.json(inquiries);
   } catch (e) {
@@ -2180,46 +2199,6 @@ app.get('/api/analytics/inquiries', async (req, res) => {
   }
 });
 
-// Save (upsert) Overall AI Summary
-app.put('/api/analytics/inquiries/:id/overall_summary', async (req, res) => {
-  try {
-    const inquiryId = req.params.id;
-    const { overview, recommendations = [], strategy = null } = req.body || {};
-
-    if (typeof overview !== 'string' || !overview.trim()) {
-      return res.status(400).json({ error: 'overview (string) is required' });
-    }
-    const recs = Array.isArray(recommendations) ? recommendations.slice(0, 50) : [];
-    if (recs.some(r => typeof r !== 'string')) {
-      return res.status(400).json({ error: 'recommendations must be an array of strings' });
-    }
-    if (strategy !== null && typeof strategy !== 'string') {
-      return res.status(400).json({ error: 'strategy must be a string or null' });
-    }
-
-    const upsertSql = `
-      INSERT INTO inquiry_ai_summary (inquiry_id, overview, recommendations, strategy)
-      VALUES ($1, $2, $3::jsonb, $4)
-      ON CONFLICT (inquiry_id)
-      DO UPDATE SET
-        overview        = EXCLUDED.overview,
-        recommendations = EXCLUDED.recommendations,
-        strategy        = EXCLUDED.strategy,
-        updated_at      = now()
-      RETURNING inquiry_id, overview, recommendations, strategy, generated_at, updated_at
-    `;
-    const { rows } = await db.query(upsertSql, [
-      inquiryId,
-      overview,
-      JSON.stringify(recs),
-      strategy
-    ]);
-    res.json(rows[0]);
-  } catch (err) {
-    console.error('PUT overall_summary error:', err);
-    res.status(500).json({ error: 'Failed to save overall AI summary' });
-  }
-});
 
 // Fetch Overall AI Summary
 app.get('/api/analytics/inquiries/:id/overall_summary', async (req, res) => {
