@@ -4240,6 +4240,54 @@ app.get('/', (req, res) => {
 </body></html>`);
 });
 
+// Allowed pipeline statuses (single source of truth)
+const PIPELINE_STATUSES = [
+  'new_inquiry',
+  'contacted',
+  'high_interest',
+  'tour_booked',
+  'open_day_booked',
+  'application_started',
+  'application_complete',
+  'not_interested'
+];
+
+// Update an inquiry's status
+app.put('/api/inquiries/:id/status', express.json(), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body || {};
+
+    if (!id) return res.status(400).json({ ok:false, error:'Missing inquiry id' });
+    if (!status || !PIPELINE_STATUSES.includes(status)) {
+      return res.status(400).json({ ok:false, error:`Invalid status. Allowed: ${PIPELINE_STATUSES.join(', ')}` });
+    }
+    if (!db) return res.status(503).json({ ok:false, error:'DB unavailable' });
+
+    const q = await db.query(
+      `UPDATE inquiries
+         SET status = $1,
+             updated_at = NOW()
+       WHERE id = $2
+       RETURNING id, status, updated_at`,
+      [status, id]
+    );
+
+    if (q.rowCount === 0) return res.status(404).json({ ok:false, error:'Inquiry not found' });
+    res.json({ ok:true, inquiry: q.rows[0] });
+  } catch (e) {
+    console.error('PUT /api/inquiries/:id/status error:', e);
+    res.status(500).json({ ok:false, error:'Failed to update status' });
+  }
+});
+
+// (Optional) expose allowed statuses to the front-end
+app.get('/api/inquiries/statuses', (_req, res) => {
+  res.json({ statuses: PIPELINE_STATUSES });
+});
+
+
+
 // 404 handler
 app.use((req, res) => {
   res.status(404).json({ 

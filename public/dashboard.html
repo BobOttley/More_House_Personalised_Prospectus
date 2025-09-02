@@ -1,174 +1,873 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>More House School - SMART Analytics</title>
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap"
+    rel="stylesheet">
 
   <style>
-    :root{
-      --blazer-navy:#091825;--award-gold:#FF9F1C;--sport-blue:#034674;
-      --text-primary:#2C3E50;--white:#FFFFFF;--light-grey:#F8FAFC;--border-grey:#E5E7EB;
-      --success:#10B981;--warning:#F59E0B;--error:#EF4444;
-      --hot-lead:#FF4444;--warm-lead:#FF9F1C;--cold-lead:#034674;
-      --font-heading:'Playfair Display',serif;--font-body:'Inter',sans-serif
+    :root {
+      --blazer-navy: #091825;
+      --award-gold: #FF9F1C;
+      --sport-blue: #034674;
+      --text-primary: #2C3E50;
+      --white: #FFFFFF;
+      --light-grey: #F8FAFC;
+      --border-grey: #E5E7EB;
+      --success: #10B981;
+      --warning: #F59E0B;
+      --error: #EF4444;
+      --hot-lead: #FF4444;
+      --warm-lead: #FF9F1C;
+      --cold-lead: #034674;
+      --font-heading: 'Playfair Display', serif;
+      --font-body: 'Inter', sans-serif
     }
-    *{margin:0;padding:0;box-sizing:border-box}
-    body{font-family:var(--font-body);background:linear-gradient(135deg,var(--light-grey) 0%,#f1f5f9 100%);min-height:100vh;color:var(--text-primary);font-size:14px}
 
-    .header{background:linear-gradient(135deg,#091825 0%,#034674 100%);color:#fff;padding:2rem;box-shadow:0 4px 20px rgba(9,24,37,.3);position:relative}
-    .header-controls{position:absolute;top:2rem;right:2rem;display:flex;gap:0.75rem}
-    .refresh-btn,.ai-btn{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#fff;padding:.5rem 1rem;border-radius:8px;cursor:pointer;transition:.3s;font-size:.9rem}
-    .refresh-btn:hover,.ai-btn:hover{background:rgba(255,255,255,.2)}
-    .ai-btn{background:var(--award-gold);color:var(--blazer-navy);border-color:var(--award-gold);font-weight:600}
-    .header-brand{text-align:center}
-    .brand-glow{position:absolute;inset:0;border-radius:50%;background:linear-gradient(135deg,var(--award-gold),#FFB84D);opacity:.3;filter:blur(20px)}
-    .header h1{position:relative;font-family:var(--font-heading);font-size:3.5rem;font-weight:700;margin-bottom:0.5rem}
-    .smart-text{background:linear-gradient(135deg,var(--award-gold),#FFB84D);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
-    .analytics-text{color:#fff}
-    .header p{font-size:1.1rem;font-weight:300;color:rgba(255,255,255,.9)}
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box
+    }
 
-    .dashboard{max-width:1500px;margin:-2rem auto 2rem;position:relative;z-index:10}
-    
+    body {
+      font-family: var(--font-body);
+      background: linear-gradient(135deg, var(--light-grey) 0%, #f1f5f9 100%);
+      min-height: 100vh;
+      color: var(--text-primary);
+      font-size: 14px
+    }
+
+    .header {
+      background: linear-gradient(135deg, #091825 0%, #034674 100%);
+      color: #fff;
+      padding: 2rem;
+      box-shadow: 0 4px 20px rgba(9, 24, 37, .3);
+      position: relative
+    }
+
+    .header-controls {
+      position: absolute;
+      top: 2rem;
+      right: 2rem;
+      display: flex;
+      gap: 0.75rem
+    }
+
+    .refresh-btn,
+    .ai-btn {
+      background: rgba(255, 255, 255, .1);
+      border: 1px solid rgba(255, 255, 255, .2);
+      color: #fff;
+      padding: .5rem 1rem;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: .3s;
+      font-size: .9rem
+    }
+
+    .refresh-btn:hover,
+    .ai-btn:hover {
+      background: rgba(255, 255, 255, .2)
+    }
+
+    .ai-btn {
+      background: var(--award-gold);
+      color: var(--blazer-navy);
+      border-color: var(--award-gold);
+      font-weight: 600
+    }
+
+    .header-brand {
+      text-align: center
+    }
+
+    .brand-glow {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--award-gold), #FFB84D);
+      opacity: .3;
+      filter: blur(20px)
+    }
+
+    .header h1 {
+      position: relative;
+      font-family: var(--font-heading);
+      font-size: 3.5rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem
+    }
+
+    .smart-text {
+      background: linear-gradient(135deg, var(--award-gold), #FFB84D);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent
+    }
+
+    .analytics-text {
+      color: #fff
+    }
+
+    .header p {
+      font-size: 1.1rem;
+      font-weight: 300;
+      color: rgba(255, 255, 255, .9)
+    }
+
+    .dashboard {
+      max-width: 1500px;
+      margin: -2rem auto 2rem;
+      position: relative;
+      z-index: 10
+    }
+
     /* Metrics */
-    .metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1.5rem;padding:2rem}
-    .metric-card{background:#fff;border-radius:16px;padding:1.75rem;box-shadow:0 4px 16px rgba(9,24,37,.08);border:1px solid var(--border-grey);transition:.3s;position:relative;overflow:hidden}
-    .metric-card:hover{box-shadow:0 8px 25px rgba(9,24,37,.12);transform:translateY(-2px)}
-    .metric-card::before{content:'';position:absolute;top:0;left:0;right:0;height:4px}
-    .metric-card.hot::before{background:linear-gradient(90deg,var(--hot-lead),#ff6666)}
-    .metric-card.warm::before{background:linear-gradient(90deg,var(--warm-lead),#ffb347)}
-    .metric-card.engagement::before{background:linear-gradient(90deg,var(--success),#34d399)}
-    .metric-card.total::before{background:linear-gradient(90deg,var(--sport-blue),#0ea5e9)}
-    .metric-card.ai::before{background:linear-gradient(90deg,var(--award-gold),#FFB84D)}
-    .metric-icon{width:56px;height:56px;border-radius:12px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.75rem;margin-bottom:1rem}
-    .metric-icon.hot{background:linear-gradient(135deg,var(--hot-lead),#ff6666)}
-    .metric-icon.warm{background:linear-gradient(135deg,var(--warm-lead),#ffb347)}
-    .metric-icon.engagement{background:linear-gradient(135deg,var(--success),#34d399)}
-    .metric-icon.total{background:linear-gradient(135deg,var(--sport-blue),#0ea5e9)}
-    .metric-icon.ai{background:linear-gradient(135deg,var(--award-gold),#FFB84D)}
-    .metric-title{font-size:.85rem;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:#64748b;margin-bottom:.5rem}
-    .metric-value{font-size:2.5rem;font-weight:700;color:var(--blazer-navy);margin-bottom:.25rem;font-family:var(--font-heading)}
-    .metric-subtitle{font-size:.875rem;font-weight:500;color:#64748b}
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 1.5rem;
+      padding: 2rem
+    }
+
+    .metric-card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 1.75rem;
+      box-shadow: 0 4px 16px rgba(9, 24, 37, .08);
+      border: 1px solid var(--border-grey);
+      transition: .3s;
+      position: relative;
+      overflow: hidden
+    }
+
+    .metric-card:hover {
+      box-shadow: 0 8px 25px rgba(9, 24, 37, .12);
+      transform: translateY(-2px)
+    }
+
+    .metric-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px
+    }
+
+    .metric-card.hot::before {
+      background: linear-gradient(90deg, var(--hot-lead), #ff6666)
+    }
+
+    .metric-card.warm::before {
+      background: linear-gradient(90deg, var(--warm-lead), #ffb347)
+    }
+
+    .metric-card.engagement::before {
+      background: linear-gradient(90deg, var(--success), #34d399)
+    }
+
+    .metric-card.total::before {
+      background: linear-gradient(90deg, var(--sport-blue), #0ea5e9)
+    }
+
+    .metric-card.ai::before {
+      background: linear-gradient(90deg, var(--award-gold), #FFB84D)
+    }
+
+    .metric-icon {
+      width: 56px;
+      height: 56px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 1.75rem;
+      margin-bottom: 1rem
+    }
+
+    .metric-icon.hot {
+      background: linear-gradient(135deg, var(--hot-lead), #ff6666)
+    }
+
+    .metric-icon.warm {
+      background: linear-gradient(135deg, var(--warm-lead), #ffb347)
+    }
+
+    .metric-icon.engagement {
+      background: linear-gradient(135deg, var(--success), #34d399)
+    }
+
+    .metric-icon.total {
+      background: linear-gradient(135deg, var(--sport-blue), #0ea5e9)
+    }
+
+    .metric-icon.ai {
+      background: linear-gradient(135deg, var(--award-gold), #FFB84D)
+    }
+
+    .metric-title {
+      font-size: .85rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      color: #64748b;
+      margin-bottom: .5rem
+    }
+
+    .metric-value {
+      font-size: 2.5rem;
+      font-weight: 700;
+      color: var(--blazer-navy);
+      margin-bottom: .25rem;
+      font-family: var(--font-heading)
+    }
+
+    .metric-subtitle {
+      font-size: .875rem;
+      font-weight: 500;
+      color: #64748b
+    }
 
     /* Main Layout */
-    .main-content{padding:0 2rem 2rem}
-    .filters{background:#fff;padding:1.25rem;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.05);margin-bottom:1.5rem;display:flex;gap:1rem;align-items:center;flex-wrap:wrap}
-    .filter-select,.search-box{padding:.625rem 1rem;border:1px solid #d1d5db;border-radius:8px;font-size:.875rem;transition:border-color .2s}
-    .filter-select:focus,.search-box:focus{outline:none;border-color:var(--sport-blue);box-shadow:0 0 0 3px rgba(3,70,116,.1)}
-    .search-box{flex:1;min-width:250px}
+    .main-content {
+      padding: 0 2rem 2rem
+    }
+
+    .filters {
+      background: #fff;
+      padding: 1.25rem;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, .05);
+      margin-bottom: 1.5rem;
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      flex-wrap: wrap
+    }
+
+    .filter-select,
+    .search-box {
+      padding: .625rem 1rem;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      font-size: .875rem;
+      transition: border-color .2s
+    }
+
+    .filter-select:focus,
+    .search-box:focus {
+      outline: none;
+      border-color: var(--sport-blue);
+      box-shadow: 0 0 0 3px rgba(3, 70, 116, .1)
+    }
+
+    .search-box {
+      flex: 1;
+      min-width: 250px
+    }
 
     /* Status Management */
-    .status-selector { position: relative; display: inline-block; }
-    .status-dropdown{padding:.5rem 2rem .5rem .75rem;border:1px solid var(--border-grey);border-radius:8px;background:#fff;font-size:.875rem;font-weight:500;cursor:pointer;min-width:180px;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 9L1 4h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right .75rem center}
-    .status-dropdown:hover{border-color:var(--sport-blue)}
-    .status-dropdown:focus{outline:none;border-color:var(--sport-blue);box-shadow:0 0 0 3px rgba(3,70,116,.1)}
-    .status-badge{padding:.375rem .75rem;border-radius:6px;font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.5px;display:inline-block}
-    .status-new{background:#F3F4F6;color:#6B7280}
-    .status-contacted{background:#DBEAFE;color:#1E40AF}
-    .status-high-interest{background:#FEE2E2;color:#DC2626}
-    .status-tour-booked{background:#D1FAE5;color:#065F46}
-    .status-open-day-booked{background:#E9D5FF;color:#6B21A8}
-    .status-application-started{background:#FED7AA;color:#C2410C}
-    .status-not-interested{background:#F3F4F6;color:#6B7280}
-    .status-enrolled{background:#10B981;color:#fff}
-    .status-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.75rem;padding:1rem;background:var(--light-grey);border-radius:8px;margin-bottom:1rem}
-    .status-summary-item{background:#fff;padding:.75rem;border-radius:6px;border:1px solid var(--border-grey);text-align:center}
-    .status-summary-count{font-size:1.5rem;font-weight:700;color:var(--navy);margin-bottom:.25rem}
-    .status-summary-label{font-size:.75rem;color:var(--dark-grey);text-transform:uppercase;letter-spacing:.5px}
+    .status-selector {
+      position: relative;
+      display: inline-block;
+    }
+
+    .status-dropdown {
+      padding: .5rem 2rem .5rem .75rem;
+      border: 1px solid var(--border-grey);
+      border-radius: 8px;
+      background: #fff;
+      font-size: .875rem;
+      font-weight: 500;
+      cursor: pointer;
+      min-width: 180px;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right .75rem center
+    }
+
+    .status-dropdown:hover {
+      border-color: var(--sport-blue)
+    }
+
+    .status-dropdown:focus {
+      outline: none;
+      border-color: var(--sport-blue);
+      box-shadow: 0 0 0 3px rgba(3, 70, 116, .1)
+    }
+
+    .status-badge {
+      padding: .375rem .75rem;
+      border-radius: 6px;
+      font-size: .75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      display: inline-block
+    }
+
+    .status-new {
+      background: #F3F4F6;
+      color: #6B7280
+    }
+
+    .status-contacted {
+      background: #DBEAFE;
+      color: #1E40AF
+    }
+
+    .status-high-interest {
+      background: #FEE2E2;
+      color: #DC2626
+    }
+
+    .status-tour-booked {
+      background: #D1FAE5;
+      color: #065F46
+    }
+
+    .status-open-day-booked {
+      background: #E9D5FF;
+      color: #6B21A8
+    }
+
+    .status-application-started {
+      background: #FED7AA;
+      color: #C2410C
+    }
+
+    .status-not-interested {
+      background: #F3F4F6;
+      color: #6B7280
+    }
+
+    .status-enrolled {
+      background: #10B981;
+      color: #fff
+    }
+
+    .status-summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: .75rem;
+      padding: 1rem;
+      background: var(--light-grey);
+      border-radius: 8px;
+      margin-bottom: 1rem
+    }
+
+    .status-summary-item {
+      background: #fff;
+      padding: .75rem;
+      border-radius: 6px;
+      border: 1px solid var(--border-grey);
+      text-align: center
+    }
+
+    .status-summary-count {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--navy);
+      margin-bottom: .25rem
+    }
+
+    .status-summary-label {
+      font-size: .75rem;
+      color: var(--dark-grey);
+      text-transform: uppercase;
+      letter-spacing: .5px
+    }
 
     /* Family Cards */
-    .family-card{background:#fff;border:1px solid var(--border-grey);border-radius:12px;margin-bottom:1rem;overflow:hidden;transition:box-shadow .3s}
-    .family-card:hover{box-shadow:0 4px 12px rgba(0,0,0,.08)}
-    .family-header{padding:1.25rem;display:flex;justify-content:space-between;align-items:flex-start;background:#fff;cursor:pointer;transition:background .2s}
-    .family-header:hover{background:#f8fafc}
-    .family-info{flex:1}
-    .family-info h3{font-size:1.25rem;font-weight:600;margin-bottom:.5rem;color:var(--blazer-navy)}
-    .family-meta{font-size:.875rem;color:#64748b;display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:.75rem}
-    .family-meta span{display:inline-flex;align-items:center;gap:.25rem}
-    .interests-container{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.75rem}
-    .interest-pill{font-size:.75rem;padding:.25rem .75rem;background:var(--light-grey);border:1px solid var(--border-grey);border-radius:999px;color:var(--text-primary)}
-    .interest-pill.academic{background:#E0F2FE;border-color:#0EA5E9;color:#0C4A6E}
-    .interest-pill.creative{background:#FCE7F3;border-color:#EC4899;color:#831843}
-    .interest-pill.sport{background:#DBEAFE;border-color:#3B82F6;color:#1E3A8A}
-    .interest-pill.priority{background:#FEF3C7;border-color:#F59E0B;color:#78350F}
-    .family-stats{display:flex;align-items:center;gap:1.5rem}
-    .score-badge{padding:.5rem 1rem;border-radius:8px;font-weight:600;font-size:1.125rem;text-align:center;min-width:60px}
-    .score-badge.hot{background:rgba(255,68,68,.1);color:var(--hot-lead);border:1px solid rgba(255,68,68,.2)}
-    .score-badge.warm{background:rgba(255,159,28,.1);color:var(--warm-lead);border:1px solid rgba(255,159,28,.2)}
-    .score-badge.cold{background:rgba(3,70,116,.1);color:var(--sport-blue);border:1px solid rgba(3,70,116,.2)}
-    .expand-icon{transition:transform .2s;color:#64748b}
-    .family-card.expanded .expand-icon{transform:rotate(180deg)}
+    .family-card {
+      background: #fff;
+      border: 1px solid var(--border-grey);
+      border-radius: 12px;
+      margin-bottom: 1rem;
+      overflow: hidden;
+      transition: box-shadow .3s
+    }
 
-    .family-details{display:none;background:#f8fafc;border-top:1px solid var(--border-grey)}
-    .family-card.expanded .family-details{display:block}
-    .details-grid{display:grid;grid-template-columns:1fr 2fr;gap:1.5rem;padding:1.25rem}
-    .detail-section{background:#fff;padding:1rem;border-radius:8px;border:1px solid var(--border-grey)}
-    .detail-section h4{font-size:.875rem;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:#64748b;margin-bottom:.75rem}
+    .family-card:hover {
+      box-shadow: 0 4px 12px rgba(0, 0, 0, .08)
+    }
 
-    .family-actions{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:1rem}
-    .btn{padding:.5rem .875rem;border:1px solid var(--border-grey);border-radius:8px;background:#fff;cursor:pointer;font-size:.875rem;transition:all .2s;font-weight:500}
-    .btn:hover{background:#f8fafc;transform:translateY(-1px);box-shadow:0 2px 4px rgba(0,0,0,.05)}
-    .btn.primary{background:var(--sport-blue);border-color:var(--sport-blue);color:#fff}
-    .btn.primary:hover{background:#025090}
-    .btn.ai{background:var(--award-gold);border-color:var(--award-gold);color:var(--blazer-navy)}
-    .btn.ai:hover{background:#e88f1a}
-    .btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+    .family-header {
+      padding: 1.25rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      background: #fff;
+      cursor: pointer;
+      transition: background .2s
+    }
+
+    .family-header:hover {
+      background: #f8fafc
+    }
+
+    .family-info {
+      flex: 1
+    }
+
+    .family-info h3 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-bottom: .5rem;
+      color: var(--blazer-navy)
+    }
+
+    .family-meta {
+      font-size: .875rem;
+      color: #64748b;
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-bottom: .75rem
+    }
+
+    .family-meta span {
+      display: inline-flex;
+      align-items: center;
+      gap: .25rem
+    }
+
+    .interests-container {
+      display: flex;
+      gap: .5rem;
+      flex-wrap: wrap;
+      margin-top: .75rem
+    }
+
+    .interest-pill {
+      font-size: .75rem;
+      padding: .25rem .75rem;
+      background: var(--light-grey);
+      border: 1px solid var(--border-grey);
+      border-radius: 999px;
+      color: var(--text-primary)
+    }
+
+    .interest-pill.academic {
+      background: #E0F2FE;
+      border-color: #0EA5E9;
+      color: #0C4A6E
+    }
+
+    .interest-pill.creative {
+      background: #FCE7F3;
+      border-color: #EC4899;
+      color: #831843
+    }
+
+    .interest-pill.sport {
+      background: #DBEAFE;
+      border-color: #3B82F6;
+      color: #1E3A8A
+    }
+
+    .interest-pill.priority {
+      background: #FEF3C7;
+      border-color: #F59E0B;
+      color: #78350F
+    }
+
+    .family-stats {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem
+    }
+
+    .score-badge {
+      padding: .5rem 1rem;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 1.125rem;
+      text-align: center;
+      min-width: 60px
+    }
+
+    .score-badge.hot {
+      background: rgba(255, 68, 68, .1);
+      color: var(--hot-lead);
+      border: 1px solid rgba(255, 68, 68, .2)
+    }
+
+    .score-badge.warm {
+      background: rgba(255, 159, 28, .1);
+      color: var(--warm-lead);
+      border: 1px solid rgba(255, 159, 28, .2)
+    }
+
+    .score-badge.cold {
+      background: rgba(3, 70, 116, .1);
+      color: var(--sport-blue);
+      border: 1px solid rgba(3, 70, 116, .2)
+    }
+
+    .expand-icon {
+      transition: transform .2s;
+      color: #64748b
+    }
+
+    .family-card.expanded .expand-icon {
+      transform: rotate(180deg)
+    }
+
+    .family-details {
+      display: none;
+      background: #f8fafc;
+      border-top: 1px solid var(--border-grey)
+    }
+
+    .family-card.expanded .family-details {
+      display: block
+    }
+
+    .details-grid {
+      display: grid;
+      grid-template-columns: 1fr 2fr;
+      gap: 1.5rem;
+      padding: 1.25rem
+    }
+
+    .detail-section {
+      background: #fff;
+      padding: 1rem;
+      border-radius: 8px;
+      border: 1px solid var(--border-grey)
+    }
+
+    .detail-section h4 {
+      font-size: .875rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      color: #64748b;
+      margin-bottom: .75rem
+    }
+
+    .family-actions {
+      display: flex;
+      gap: .5rem;
+      flex-wrap: wrap;
+      margin-top: 1rem
+    }
+
+    .btn {
+      padding: .5rem .875rem;
+      border: 1px solid var(--border-grey);
+      border-radius: 8px;
+      background: #fff;
+      cursor: pointer;
+      font-size: .875rem;
+      transition: all .2s;
+      font-weight: 500
+    }
+
+    .btn:hover {
+      background: #f8fafc;
+      transform: translateY(-1px);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, .05)
+    }
+
+    .btn.primary {
+      background: var(--sport-blue);
+      border-color: var(--sport-blue);
+      color: #fff
+    }
+
+    .btn.primary:hover {
+      background: #025090
+    }
+
+    .btn.ai {
+      background: var(--award-gold);
+      border-color: var(--award-gold);
+      color: var(--blazer-navy)
+    }
+
+    .btn.ai:hover {
+      background: #e88f1a
+    }
+
+    .btn:disabled {
+      opacity: .5;
+      cursor: not-allowed;
+      transform: none
+    }
 
     /* AI Summary */
-    .ai-summary{background:linear-gradient(135deg,#FEF3C7,#FDE68A);border:1px solid #F59E0B;border-radius:8px;padding:1rem;margin:1rem 0}
-    .ai-summary-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem}
-    .ai-summary-title{font-weight:600;color:var(--blazer-navy);display:flex;align-items:center;gap:.5rem}
-    .ai-badge{font-size:.75rem;padding:.125rem .5rem;background:var(--award-gold);color:#fff;border-radius:4px;font-weight:600}
-    .ai-summary-content{color:var(--text-primary);line-height:1.6}
-    .ai-recommendations{margin-top:.75rem;padding-top:.75rem;border-top:1px solid rgba(245,158,11,.3)}
-    .ai-recommendations h5{font-size:.875rem;font-weight:600;color:var(--blazer-navy);margin-bottom:.5rem}
-    .ai-recommendations ul{margin:0;padding-left:1.25rem}
-    .ai-recommendations li{font-size:.875rem;margin-bottom:.25rem}
+    .ai-summary {
+      background: linear-gradient(135deg, #FEF3C7, #FDE68A);
+      border: 1px solid #F59E0B;
+      border-radius: 8px;
+      padding: 1rem;
+      margin: 1rem 0
+    }
+
+    .ai-summary-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: .75rem
+    }
+
+    .ai-summary-title {
+      font-weight: 600;
+      color: var(--blazer-navy);
+      display: flex;
+      align-items: center;
+      gap: .5rem
+    }
+
+    .ai-badge {
+      font-size: .75rem;
+      padding: .125rem .5rem;
+      background: var(--award-gold);
+      color: #fff;
+      border-radius: 4px;
+      font-weight: 600
+    }
+
+    .ai-summary-content {
+      color: var(--text-primary);
+      line-height: 1.6
+    }
+
+    .ai-recommendations {
+      margin-top: .75rem;
+      padding-top: .75rem;
+      border-top: 1px solid rgba(245, 158, 11, .3)
+    }
+
+    .ai-recommendations h5 {
+      font-size: .875rem;
+      font-weight: 600;
+      color: var(--blazer-navy);
+      margin-bottom: .5rem
+    }
+
+    .ai-recommendations ul {
+      margin: 0;
+      padding-left: 1.25rem
+    }
+
+    .ai-recommendations li {
+      font-size: .875rem;
+      margin-bottom: .25rem
+    }
 
     /* Sessions */
-    .sessions-container{padding:1rem}
-    .session-card{background:#fff;border:1px solid var(--border-grey);border-radius:8px;margin-bottom:.75rem;overflow:hidden}
-    .session-header{padding:.875rem;background:#f8fafc;display:flex;justify-content:space-between;align-items:center;cursor:pointer;transition:background .2s}
-    .session-header:hover{background:#f1f5f9}
-    .session-info{flex:1}
-    .session-title{font-weight:600;color:var(--blazer-navy);margin-bottom:.25rem}
-    .session-meta{font-size:.875rem;color:#64748b}
-    .session-body{display:none;padding:1rem;background:#fff}
-    .session-card.open .session-body{display:block}
+    .sessions-container {
+      padding: 1rem
+    }
+
+    .session-card {
+      background: #fff;
+      border: 1px solid var(--border-grey);
+      border-radius: 8px;
+      margin-bottom: .75rem;
+      overflow: hidden
+    }
+
+    .session-header {
+      padding: .875rem;
+      background: #f8fafc;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      transition: background .2s
+    }
+
+    .session-header:hover {
+      background: #f1f5f9
+    }
+
+    .session-info {
+      flex: 1
+    }
+
+    .session-title {
+      font-weight: 600;
+      color: var(--blazer-navy);
+      margin-bottom: .25rem
+    }
+
+    .session-meta {
+      font-size: .875rem;
+      color: #64748b
+    }
+
+    .session-body {
+      display: none;
+      padding: 1rem;
+      background: #fff
+    }
+
+    .session-card.open .session-body {
+      display: block
+    }
 
     /* Journey */
-    .journey-timeline{margin-top:1rem}
-    .journey-item{display:flex;gap:1rem;padding:.75rem;background:#f8fafc;border-radius:6px;margin-bottom:.5rem;align-items:center}
-    .journey-icon{width:32px;height:32px;border-radius:50%;background:var(--sport-blue);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.875rem;flex-shrink:0}
-    .journey-icon.section{background:var(--sport-blue)}
-    .journey-icon.video{background:var(--error)}
-    .journey-icon.tier{background:var(--warning)}
-    .journey-icon.cta{background:var(--success)}
-    .journey-content{flex:1}
-    .journey-title{font-weight:500;color:var(--blazer-navy);margin-bottom:.25rem}
-    .journey-meta{font-size:.875rem;color:#64748b}
-    .journey-progress{height:4px;background:var(--border-grey);border-radius:2px;margin-top:.5rem;overflow:hidden}
-    .journey-progress-fill{height:100%;background:var(--award-gold);transition:width .3s}
+    .journey-timeline {
+      margin-top: 1rem
+    }
+
+    .journey-item {
+      display: flex;
+      gap: 1rem;
+      padding: .75rem;
+      background: #f8fafc;
+      border-radius: 6px;
+      margin-bottom: .5rem;
+      align-items: center
+    }
+
+    .journey-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--sport-blue);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: .875rem;
+      flex-shrink: 0
+    }
+
+    .journey-icon.section {
+      background: var(--sport-blue)
+    }
+
+    .journey-icon.video {
+      background: var(--error)
+    }
+
+    .journey-icon.tier {
+      background: var(--warning)
+    }
+
+    .journey-icon.cta {
+      background: var(--success)
+    }
+
+    .journey-content {
+      flex: 1
+    }
+
+    .journey-title {
+      font-weight: 500;
+      color: var(--blazer-navy);
+      margin-bottom: .25rem
+    }
+
+    .journey-meta {
+      font-size: .875rem;
+      color: #64748b
+    }
+
+    .journey-progress {
+      height: 4px;
+      background: var(--border-grey);
+      border-radius: 2px;
+      margin-top: .5rem;
+      overflow: hidden
+    }
+
+    .journey-progress-fill {
+      height: 100%;
+      background: var(--award-gold);
+      transition: width .3s
+    }
 
     /* Loading & Error */
-    .loading{display:flex;align-items:center;justify-content:center;padding:2rem;color:#64748b}
-    .spinner{width:20px;height:20px;border:2px solid var(--border-grey);border-top:2px solid var(--sport-blue);border-radius:50%;animation:spin 1s linear infinite;margin-right:.75rem}
-    @keyframes spin{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
-    .error{background:#fef2f2;border:1px solid #fecaca;color:#dc2626;padding:1rem;border-radius:8px;margin:1rem 0}
-    .no-data{text-align:center;color:#64748b;padding:3rem;font-size:1rem}
+    .loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      color: #64748b
+    }
+
+    .spinner {
+      width: 20px;
+      height: 20px;
+      border: 2px solid var(--border-grey);
+      border-top: 2px solid var(--sport-blue);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-right: .75rem
+    }
+
+    @keyframes spin {
+      0% {
+        transform: rotate(0)
+      }
+
+      100% {
+        transform: rotate(360deg)
+      }
+    }
+
+    .error {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      color: #dc2626;
+      padding: 1rem;
+      border-radius: 8px;
+      margin: 1rem 0
+    }
+
+    .no-data {
+      text-align: center;
+      color: #64748b;
+      padding: 3rem;
+      font-size: 1rem
+    }
 
     /* Responsive */
-    @media (max-width:768px){
-      .header h1{font-size:2.5rem}
-      .metrics{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));padding:1rem}
-      .details-grid{grid-template-columns:1fr}
-      .header-controls{position:static;margin-top:1rem;justify-content:center}
-      .filters{flex-direction:column}
-      .search-box{width:100%}
+    @media (max-width:768px) {
+      .header h1 {
+        font-size: 2.5rem
+      }
+
+      .metrics {
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        padding: 1rem
+      }
+
+      .details-grid {
+        grid-template-columns: 1fr
+      }
+
+      .header-controls {
+        position: static;
+        margin-top: 1rem;
+        justify-content: center
+      }
+
+      .filters {
+        flex-direction: column
+      }
+
+      .search-box {
+        width: 100%
+      }
     }
   </style>
 </head>
+
 <body>
   <header class="header">
     <div class="header-controls">
@@ -239,7 +938,9 @@
       </div>
 
       <div id="familyList">
-        <div class="loading"><div class="spinner"></div> Loading families...</div>
+        <div class="loading">
+          <div class="spinner"></div> Loading families...
+        </div>
       </div>
     </div>
   </div>
@@ -254,17 +955,30 @@
     // Helpers
     const byId = id => document.getElementById(id);
     const setText = (id, v) => { const el = byId(id); if (el) el.textContent = String(v); };
-    const fetchJson = async (url, opts={}) => {
+    const fetchJson = async (url, opts = {}) => {
       const u = url + (url.includes('?') ? '&' : '?') + '_ts=' + Date.now();
       const res = await fetch(u, { cache: 'no-store', ...opts });
       if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
       return res.json();
     };
+    // Status helpers (ADD)
+    const STATUS_LABELS = {
+      'new': 'New Inquiry',
+      'contacted': 'Contacted',
+      'high-interest': 'High Interest',
+      'tour-booked': 'Tour Booked',
+      'open-day-booked': 'Open Day Booked',
+      'application-started': 'Application Started',
+      'application-complete': 'Application Complete',
+      'not-interested': 'Not Interested'
+    };
+    const statusToClass = s => `status-${s}`;
+    const statusToLabel = s => STATUS_LABELS[s] || 'New Inquiry';
 
     // Format helpers
     const formatTimeAgo = (date) => {
       const now = new Date(), diff = now - date;
-      const m = Math.floor(diff/60000), h = Math.floor(diff/3600000), d = Math.floor(diff/86400000);
+      const m = Math.floor(diff / 60000), h = Math.floor(diff / 3600000), d = Math.floor(diff / 86400000);
       if (m < 1) return 'Just now';
       if (m < 60) return `${m}m ago`;
       if (h < 24) return `${h}h ago`;
@@ -348,7 +1062,7 @@
         if (last) {
           const age = Date.now() - new Date(last).getTime();
           if (age <= 86400000) recency = 20;
-          else if (age <= 3*86400000) recency = 10;
+          else if (age <= 3 * 86400000) recency = 10;
         }
         const engagement = Math.round(Math.min(timeScore + visitScore + recency, 100));
         const temperature = engagement >= 80 ? 'hot' : (engagement >= 50 ? 'warm' : 'cold');
@@ -385,7 +1099,7 @@
     async function loadData() {
       if (isLoading) return;
       isLoading = true;
-      
+
       try {
         const data = await fetchJson('/api/analytics/inquiries');
         allFamilies = processRealData(Array.isArray(data) ? data : []);
@@ -410,14 +1124,14 @@
         'open-day-booked': 0,
         'application-started': 0
       };
-      
+
       allFamilies.forEach(family => {
         const status = familyStatuses[family.id] || 'new';
         if (statusCounts.hasOwnProperty(status)) {
           statusCounts[status]++;
         }
       });
-      
+
       setText('contactedCount', statusCounts.contacted);
       setText('highInterestCount', statusCounts['high-interest']);
       setText('bookedCount', statusCounts['tour-booked'] + statusCounts['open-day-booked']);
@@ -430,6 +1144,39 @@
       localStorage.setItem('familyStatuses', JSON.stringify(familyStatuses));
       updateMetrics();
     }
+
+    // Wire the dropdown to storage and badge (ADD)
+    async function onStatusChange(id, val) {
+  try {
+    updateFamilyStatus(id, val); // still update localStorage
+    const badge = document.getElementById(`status-badge-${id}`);
+    if (badge) {
+      badge.className = 'status-badge ' + statusToClass(val);
+      badge.textContent = statusToLabel(val);
+    }
+    const fb = document.getElementById(`status-fb-${id}`);
+    if (fb) {
+      fb.textContent = 'Saving…';
+    }
+
+    // NEW: push change to server
+    await fetch(`/api/inquiries/${encodeURIComponent(id)}/status`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: val })
+    });
+
+    if (fb) {
+      fb.textContent = 'Saved';
+      setTimeout(() => { fb.textContent = ''; }, 1200);
+    }
+  } catch (e) {
+    const fb = document.getElementById(`status-fb-${id}`);
+    if (fb) fb.textContent = 'Failed to save';
+    console.error('Status change failed', e);
+  }
+}
+
 
     // Load saved statuses
     function loadSavedStatuses() {
@@ -499,7 +1246,7 @@
       }
 
       container.innerHTML = list.map(f => {
-        const interestPills = f.interests.map(i => 
+        const interestPills = f.interests.map(i =>
           `<span class="interest-pill ${i.type}">${i.label}</span>`
         ).join('');
 
@@ -535,12 +1282,39 @@
                     <strong>First Contact:</strong> ${f.receivedAt ? new Date(f.receivedAt).toLocaleDateString('en-GB') : 'Unknown'}<br>
                     <strong>Last Activity:</strong> ${f.lastActivity ? formatTimeAgo(new Date(f.lastActivity)) : 'No activity'}
                   </div>
+                  <!-- Status Selector (ADD THIS BLOCK) -->
+                  <div class="status-control" style="margin:.75rem 0;">
+                    <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">
+                      <label for="status-${f.id}" style="font-weight:600;">Status</label>
+                      <select id="status-${f.id}" class="status-dropdown"
+                              onchange="onStatusChange('${f.id}', this.value)">
+                        <option value="new"                 ${(familyStatuses[f.id] || 'new') === 'new' ? 'selected' : ''}>New Inquiry</option>
+                        <option value="contacted"           ${(familyStatuses[f.id] || 'new') === 'contacted' ? 'selected' : ''}>Contacted</option>
+                        <option value="high-interest"       ${(familyStatuses[f.id] || 'new') === 'high-interest' ? 'selected' : ''}>High Interest</option>
+                        <option value="tour-booked"         ${(familyStatuses[f.id] || 'new') === 'tour-booked' ? 'selected' : ''}>Tour Booked</option>
+                        <option value="open-day-booked"     ${(familyStatuses[f.id] || 'new') === 'open-day-booked' ? 'selected' : ''}>Open Day Booked</option>
+                        <option value="application-started" ${(familyStatuses[f.id] || 'new') === 'application-started' ? 'selected' : ''}>Application Started</option>
+                        <option value="application-complete"${(familyStatuses[f.id] || 'new') === 'application-complete' ? 'selected' : ''}>Application Complete</option>
+                        <option value="not-interested"      ${(familyStatuses[f.id] || 'new') === 'not-interested' ? 'selected' : ''}>Not Interested</option>
+                      </select>
+
+                      <span class="status-badge ${'status-' + (familyStatuses[f.id] || 'new')}"
+                            id="status-badge-${f.id}">
+                        ${statusToLabel(familyStatuses[f.id] || 'new')}
+                      </span>
+
+                      <span id="status-fb-${f.id}" class="status-feedback" style="font-size:.85rem;opacity:.8;"></span>
+                    </div>
+                  </div>
+                  <!-- /Status Selector -->
+
+
                   <div class="family-actions">
-                    ${f.prospectusUrl ? 
-                      `<button class="btn primary" onclick="window.open('${f.prospectusUrl}','_blank')">View Prospectus</button>` : 
-                      `<button class="btn" disabled>No Prospectus</button>`}
-                    ${f.parentEmail ? 
-                      `<a class="btn" href="mailto:${f.parentEmail}">Email Family</a>` : ''}
+                    ${f.prospectusUrl ?
+            `<button class="btn primary" onclick="window.open('${f.prospectusUrl}','_blank')">View Prospectus</button>` :
+            `<button class="btn" disabled>No Prospectus</button>`}
+                    ${f.parentEmail ?
+            `<a class="btn" href="mailto:${f.parentEmail}">Email Family</a>` : ''}
                     <button class="btn" onclick="copyInquiryId('${f.id}')">Copy ID</button>
                   </div>
 
@@ -601,7 +1375,7 @@
           container.style.display = 'block';
           container.dataset.loaded = '1';
         }
-      } catch(e) {
+      } catch (e) {
         // If not found/implemented, silently ignore
       }
     }
@@ -610,21 +1384,21 @@
     async function generateOverallSummary(inquiryId) {
       const container = byId(`ai-overall-${inquiryId}`) || byId(`overall-summary-${inquiryId}`);
       if (!container) return;
-      
+
       container.style.display = 'block';
       container.innerHTML = '<div class="loading"><div class="spinner"></div> Analysing all visits...</div>';
-      
+
       const family = allFamilies.find(f => f.id === inquiryId);
       if (!family) {
         container.innerHTML = '<div class="error">Could not find family data</div>';
         return;
       }
-      
+
       const sessionCards = document.querySelectorAll(`#sessions-${inquiryId} .session-card`);
       const actualVisits = sessionCards.length || family.visits || 1;
-      
+
       const summary = generateComprehensiveSummary(family, actualVisits);
-      
+
       container.innerHTML = renderOverallSummaryBlock(summary);
 
       // Persist to DB if your backend route exists
@@ -639,11 +1413,11 @@
           })
         });
         container.dataset.loaded = '1';
-      } catch(e) {
+      } catch (e) {
         // Ignore if not implemented yet
       }
     }
-    
+
     function renderOverallSummaryBlock(summary) {
       return `
         <div class="ai-summary-header">
@@ -667,25 +1441,25 @@
         ` : ''}
       `;
     }
-    
+
     // Generate comprehensive summary for a family
     function generateComprehensiveSummary(family, actualVisits) {
       const engagement = family.engagementScore || 0;
       const visits = actualVisits || family.visits || 0;
       const totalMinutes = family.timeOnPageMinutes || 0;
       const interests = family.interests || [];
-      
+
       let overview = '';
       const recommendations = [];
       let strategy = '';
-      
+
       let adjustedEngagement = engagement;
       if (visits >= 5) {
         adjustedEngagement = Math.min(100, engagement + 20);
       } else if (visits >= 3) {
         adjustedEngagement = Math.min(100, engagement + 10);
       }
-      
+
       if (adjustedEngagement >= 80 || visits >= 5) {
         overview = `Highly engaged prospect with exceptional interest levels. ${visits} visit${visits !== 1 ? 's' : ''} totalling ${totalMinutes || 'multiple'} minutes demonstrates strong intent. `;
         if (visits >= 5) {
@@ -718,7 +1492,7 @@
         recommendations.push('Send general prospectus');
         strategy = 'Nurture early interest with broad information. Focus on building familiarity with the school and encouraging return engagement.';
       }
-      
+
       const added = new Set();
       if (interests.length > 0) {
         overview += `Key interests include ${interests.slice(0, 3).map(i => i.label).join(', ')}. `;
@@ -726,7 +1500,7 @@
         const creativeInterests = interests.filter(i => i.type === 'creative');
         const sportInterests = interests.filter(i => i.type === 'sport');
         const priorityInterests = interests.filter(i => i.type === 'priority');
-        
+
         if (academicInterests.length > 0 && !added.has('academic')) {
           recommendations.push(`Share academic achievements and curriculum for: ${academicInterests.map(i => i.label).join(', ')}`);
           added.add('academic');
@@ -748,7 +1522,7 @@
           added.add('university');
         }
       }
-      
+
       if (family.isActiveToday) {
         overview += 'Recent activity today shows current interest. ';
         const urgentRec = 'Strike while interest is high - contact today';
@@ -756,14 +1530,14 @@
         recommendations.length = 0;
         recommendations.push(urgentRec, ...filteredRecs);
       }
-      
+
       if (visits >= 3) {
         const avgDays = 7 / visits;
         if (avgDays <= 2) {
           overview += 'High visit frequency suggests urgent decision timeline. ';
         }
       }
-      
+
       return { overview, recommendations: recommendations.slice(0, 8), strategy };
     }
 
@@ -786,7 +1560,7 @@
           const data = await fetchJson(url);
           if (Array.isArray(data) && data.length) { sessions = data; break; }
           if (data && Array.isArray(data.sessions) && data.sessions.length) { sessions = data.sessions; break; }
-        } catch(e) {}
+        } catch (e) { }
       }
 
       if (!sessions) {
@@ -801,7 +1575,7 @@
       });
 
       const totalSessions = sessions.length;
-      
+
       const family = allFamilies.find(f => f.id === inquiryId);
       if (family && totalSessions > family.visits) {
         let totalTimeSeconds = 0;
@@ -831,11 +1605,11 @@
         ${sessions.map((s, index) => renderSessionCard(s, index, totalSessions, inquiryId)).join('')}
       `;
     }
-    
+
     function updateFamilyDisplay(inquiryId, visitCount, totalMinutes) {
       const card = document.querySelector(`[data-id="${inquiryId}"]`);
       if (!card) return;
-      
+
       const metaSpans = card.querySelectorAll('.family-meta span');
       metaSpans.forEach(span => {
         if (span.textContent.includes('visit')) {
@@ -861,8 +1635,8 @@
 
     function renderSessionCard(session, index, totalSessions, inquiryId) {
       const sessionId = session.id || session.session_id || `session-${index}`;
-      const visitNumber = totalSessions - index; 
-      
+      const visitNumber = totalSessions - index;
+
       let sessionDate = null;
       if (sessionId.startsWith('S-')) {
         const match = /^S-(\d{13})-/.exec(sessionId);
@@ -874,12 +1648,12 @@
         const dateField = session.start || session.started_at || session.created_at;
         if (dateField) sessionDate = new Date(dateField);
       }
-      
+
       const formatDateTime = (date) => {
         if (!date) return 'Unknown time';
         return date.toLocaleString('en-GB', {
           day: '2-digit',
-          month: '2-digit', 
+          month: '2-digit',
           year: 'numeric',
           hour: '2-digit',
           minute: '2-digit'
@@ -912,9 +1686,9 @@
     async function toggleSession(sessionId, inquiryId) {
       const card = document.querySelector(`[data-session="${sessionId}"]`);
       if (!card) return;
-      
+
       card.classList.toggle('open');
-      
+
       if (card.classList.contains('open')) {
         const container = byId(`journey-${sessionId}`);
         if (container && container.querySelector('.loading')) {
@@ -955,7 +1729,7 @@
             events = data.session.events;
             break;
           }
-        } catch(e) {}
+        } catch (e) { }
       }
 
       if (!events || !events.length) {
@@ -1099,7 +1873,7 @@
         'pastoral_care': 'Pastoral Care',
         'sport': 'Sports Programme'
       };
-      
+
       return nameMap[section] || section.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
     }
 
@@ -1111,7 +1885,7 @@
         'senior': 'Senior (Years 7-11)',
         'sixthform': 'Sixth Form (Years 12-13)'
       };
-      
+
       return tierMap[tier] || tier.replace(/\b\w/g, l => l.toUpperCase());
     }
 
@@ -1162,7 +1936,7 @@
       }
     }
 
-    document.addEventListener('DOMContentLoaded', ()=>{
+    document.addEventListener('DOMContentLoaded', () => {
       byId('sortFilter').addEventListener('change', renderFamilies);
       byId('statusFilter').addEventListener('change', renderFamilies);
       byId('searchBox').addEventListener('input', renderFamilies);
@@ -1170,4 +1944,5 @@
     });
   </script>
 </body>
+
 </html>
