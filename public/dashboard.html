@@ -866,6 +866,10 @@
       }
     }
   </style>
+  <style>
+  .status-summary .status-badge{padding:.15rem .45rem;font-size:.85rem}
+  </style>
+
 </head>
 
 <body>
@@ -985,6 +989,20 @@
       if (d < 7) return `${d}d ago`;
       return date.toLocaleDateString('en-GB');
     };
+
+    // Status helpers
+    const STATUS_LABELS = {
+      'new': 'New Inquiry',
+      'contacted': 'Contacted',
+      'high-interest': 'High Interest',
+      'tour-booked': 'Tour Booked',
+      'open-day-booked': 'Open Day Booked',
+      'application-started': 'Application Started',
+      'application-complete': 'Application Complete',
+      'not-interested': 'Not Interested'
+    };
+    const statusToClass = s => `status-${s}`;
+    const statusToLabel = s => STATUS_LABELS[s] || 'New Inquiry';
 
     const formatDuration = (ms) => {
       const mins = Math.floor(ms / 60000);
@@ -1148,18 +1166,28 @@
     // Wire the dropdown to storage and badge (ADD)
     async function onStatusChange(id, val) {
   try {
-    updateFamilyStatus(id, val); // still update localStorage
+    // 1) update local storage + any local counters
+    updateFamilyStatus(id, val);
+
+    // 2) update the badge inside the expanded card
     const badge = document.getElementById(`status-badge-${id}`);
     if (badge) {
       badge.className = 'status-badge ' + statusToClass(val);
       badge.textContent = statusToLabel(val);
     }
-    const fb = document.getElementById(`status-fb-${id}`);
-    if (fb) {
-      fb.textContent = 'Saving…';
+
+    // 3) update the ALWAYS-VISIBLE summary badge in the header
+    const summary = document.getElementById(`status-badge-summary-${id}`);
+    if (summary) {
+      summary.className = 'status-badge ' + statusToClass(val);
+      summary.textContent = statusToLabel(val);
     }
 
-    // NEW: push change to server
+    // 4) show inline feedback
+    const fb = document.getElementById(`status-fb-${id}`);
+    if (fb) fb.textContent = 'Saving…';
+
+    // 5) persist to server (you already added this endpoint)
     await fetch(`/api/inquiries/${encodeURIComponent(id)}/status`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -1176,7 +1204,6 @@
     console.error('Status change failed', e);
   }
 }
-
 
     // Load saved statuses
     function loadSavedStatuses() {
@@ -1268,6 +1295,27 @@
               <div class="family-stats">
                 <div class="score-badge ${f.temperature}">${f.engagementScore}</div>
                 <div class="expand-icon">▼</div>
+              </div>
+              <!-- Status summary badge (ALWAYS VISIBLE) -->
+              <div class="status-summary" style="margin-top:.35rem;">
+                <span
+                  id="status-badge-summary-${f.id}"
+                  class="status-badge ${'status-' + (familyStatuses[f.id] || 'new')}"
+                  title="Pipeline status"
+                >
+                  ${statusToLabel(familyStatuses[f.id] || 'new')}
+                </span>
+              </div>
+
+              <!-- Status summary badge (ALWAYS VISIBLE) -->
+              <div class="status-summary" style="margin-top:.35rem;">
+                <span
+                  id="status-badge-summary-${f.id}"
+                  class="status-badge ${'status-' + (familyStatuses[f.id] || 'new')}"
+                  title="Pipeline status"
+                >
+                  ${statusToLabel(familyStatuses[f.id] || 'new')}
+                </span>
               </div>
             </div>
             <div class="family-details">
@@ -1538,7 +1586,7 @@
         }
       }
 
-      return { overview, recommendations: recommendations.slice(0, 8), strategy };
+      return { overview, recommendations: recommendations.slice(0, 8), strategy };onStatusChange
     }
 
     // Load session history (no per-visit AI summary)
