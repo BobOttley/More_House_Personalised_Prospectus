@@ -326,13 +326,18 @@
         let totalDwellMs = Number(f.dwell_ms) || 0;
         let actualVisits = Number(sessionCount) || 0;
 
-
         if (f.sessions && Array.isArray(f.sessions)) {
           actualVisits = f.sessions.length;
           totalDwellMs = f.sessions.reduce((sum, s) => {
             return sum + (Number(s.dwell_ms) || Number(s.duration) || 0);
           }, 0);
         }
+
+        // Fallback: if there are visits but no dwell recorded, assume at least 60s
+        if (actualVisits > 0 && totalDwellMs === 0) {
+          totalDwellMs = actualVisits * 60000;
+        }
+
 
         const minutes = totalDwellMs / 60000;
         const last = f.updated_at || f.received_at || null;

@@ -825,7 +825,21 @@ async function buildEngagementSnapshot(db, inquiryId) {
         : 0
     };
     
-    
+        // --- Baseline guards: never show zero time if there were visits ---
+    // Use DB-stored return_visits when event data is sparse
+    if (!totals.total_visits || totals.total_visits === 0) {
+      const rvRow = await db.query(
+        'SELECT COALESCE(return_visits, 0) AS rv FROM inquiries WHERE id = $1',
+        [inquiryId]
+      );
+      totals.total_visits = parseInt(rvRow.rows[0]?.rv || '0', 10);
+    }
+
+    // If we still have visits but zero time, assume minimum 60s per visit
+    if ((totals.total_visits || 0) > 0 && (!totals.time_on_page_ms || totals.time_on_page_ms === 0)) {
+      totals.time_on_page_ms = totals.total_visits * 60000;
+    }
+
     return {
       sections,
       totals,
