@@ -2221,7 +2221,7 @@ app.put('/api/analytics/inquiries/:id/overall_summary', express.json(), async (r
 
     // normalise types
     const ov = typeof overview === 'string' ? overview : (overview ?? null);
-    const recs = Array.isArray(recommendations)\q ? recommendations : [];
+    const recs = Array.isArray(recommendations) ? recommendations : [];
     const strat = typeof strategy === 'string' ? strategy : (strategy ?? null);
 
     await db.query(`
