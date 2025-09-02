@@ -2103,27 +2103,23 @@ app.get('/api/analytics/inquiries', async (req, res) => {
           SELECT 
             i.*,
 
-            /* Visits: derive from tracking_events distinct sessions; fallback to stored value */
-            COALESCE((
+            /* Total dwell across ALL visits: sum of section_exit seconds → ms */
+            (
+              SELECT COALESCE(SUM(COALESCE((te.event_data->>'timeInSectionSec')::int, 0)), 0) * 1000
+              FROM tracking_events te
+              WHERE te.inquiry_id = i.id
+                AND te.event_type IN ('section_exit_enhanced','section_exit')
+            ) AS actual_dwell_ms,
+
+            /* Visit count = DISTINCT sessions from tracking */
+            (
               SELECT COUNT(DISTINCT te.session_id)
               FROM tracking_events te
               WHERE te.inquiry_id = i.id
                 AND te.session_id IS NOT NULL
-            ), i.return_visits, 0) AS actual_return_visits,
+            ) AS actual_return_visits,
 
-            /* Dwell: prefer inquiries.dwell_ms; else sum section_exit(_enhanced) seconds */
-            COALESCE(
-              i.dwell_ms,
-              (
-                SELECT SUM(COALESCE((te.event_data->>'timeInSectionSec')::int, 0)) * 1000
-                FROM tracking_events te
-                WHERE te.inquiry_id = i.id
-                  AND te.event_type IN ('section_exit_enhanced','section_exit')
-              ),
-              0
-            ) AS actual_dwell_ms,
-
-            /* Latest AI engagement summary */
+            /* Keep your AI engagement join */
             afi.insights_json AS ai_engagement
 
           FROM inquiries i
@@ -2131,6 +2127,7 @@ app.get('/api/analytics/inquiries', async (req, res) => {
             ON i.id = afi.inquiry_id 
            AND afi.analysis_type = 'engagement_summary'
           ORDER BY i.received_at DESC
+
         `);
 
         inquiries = result.rows.map(row => ({
