@@ -13,6 +13,9 @@ const PORT = process.env.PORT || 3000;
 let db = null;
 let slugIndex = {};
 
+app.use(require('express').json({ limit: '1mb' }));
+
+
 // ===== GEO/IP helpers =====================================
 app.set("trust proxy", true);
 
@@ -2132,6 +2135,66 @@ app.get('/api/analytics/inquiries', async (req, res) => {
     res.status(500).json({ error: 'Failed to get inquiries' });
   }
 });
+
+// Save (upsert) Overall AI Summary
+app.put('/api/analytics/inquiries/:id/overall_summary', async (req, res) => {
+  try {
+    const inquiryId = req.params.id;
+    const { overview, recommendations = [], strategy = null } = req.body || {};
+
+    if (typeof overview !== 'string' || !overview.trim()) {
+      return res.status(400).json({ error: 'overview (string) is required' });
+    }
+    const recs = Array.isArray(recommendations) ? recommendations.slice(0, 50) : [];
+    if (recs.some(r => typeof r !== 'string')) {
+      return res.status(400).json({ error: 'recommendations must be an array of strings' });
+    }
+    if (strategy !== null && typeof strategy !== 'string') {
+      return res.status(400).json({ error: 'strategy must be a string or null' });
+    }
+
+    const upsertSql = `
+      INSERT INTO inquiry_ai_summary (inquiry_id, overview, recommendations, strategy)
+      VALUES ($1, $2, $3::jsonb, $4)
+      ON CONFLICT (inquiry_id)
+      DO UPDATE SET
+        overview        = EXCLUDED.overview,
+        recommendations = EXCLUDED.recommendations,
+        strategy        = EXCLUDED.strategy,
+        updated_at      = now()
+      RETURNING inquiry_id, overview, recommendations, strategy, generated_at, updated_at
+    `;
+    const { rows } = await db.query(upsertSql, [
+      inquiryId,
+      overview,
+      JSON.stringify(recs),
+      strategy
+    ]);
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('PUT overall_summary error:', err);
+    res.status(500).json({ error: 'Failed to save overall AI summary' });
+  }
+});
+
+// Fetch Overall AI Summary
+app.get('/api/analytics/inquiries/:id/overall_summary', async (req, res) => {
+  try {
+    const inquiryId = req.params.id;
+    const { rows } = await db.query(
+      `SELECT overview, recommendations, strategy, generated_at, updated_at
+         FROM inquiry_ai_summary
+        WHERE inquiry_id = $1`,
+      [inquiryId]
+    );
+    if (!rows.length) return res.status(204).end();
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('GET overall_summary error:', err);
+    res.status(500).json({ error: 'Failed to load overall AI summary' });
+  }
+});
+
 
 // AI endpoints
 app.post('/api/ai/engagement-summary/all', (req, res) => {
