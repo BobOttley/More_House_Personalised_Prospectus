@@ -1149,47 +1149,57 @@
       updateMetrics();
     }
 
-    // Wire the dropdown to storage and badge (ADD)
-    async function onStatusChange(id, val) {
+
+  
+// Wire the dropdown to storage, badge, server save, and summary recalc (REPLACEMENT)
+async function onStatusChange(id, val) {
   try {
-    // 1) update local storage + any local counters
+    // 1) Update local state + counters
     updateFamilyStatus(id, val);
 
-    // 2) update the badge inside the expanded card
-    const badge = document.getElementById(`status-badge-${id}`);
-    if (badge) {
-      badge.className = 'status-badge ' + statusToClass(val);
-      badge.textContent = statusToLabel(val);
+    // 2) Update badges (details + header)
+    const summaryBadge = document.getElementById(`status-badge-summary-${id}`);
+    const detailBadge  = document.getElementById(`status-badge-${id}`);
+    if (summaryBadge) {
+      summaryBadge.className = `status-badge status-${val}`;
+      summaryBadge.textContent = statusToLabel(val);
+    }
+    if (detailBadge) {
+      detailBadge.className = `status-badge status-${val}`;
+      detailBadge.textContent = statusToLabel(val);
     }
 
-    // 3) update the ALWAYS-VISIBLE summary badge in the header
-    const summary = document.getElementById(`status-badge-summary-${id}`);
-    if (summary) {
-      summary.className = 'status-badge ' + statusToClass(val);
-      summary.textContent = statusToLabel(val);
-    }
-
-    // 4) show inline feedback
+    // 3) Inline feedback
     const fb = document.getElementById(`status-fb-${id}`);
     if (fb) fb.textContent = 'Saving…';
 
-    // 5) persist to server (you already added this endpoint)
-    await fetch(`/api/inquiries/${encodeURIComponent(id)}/status`, {
+    // 4) Persist status to server (match your server route)
+    // If you added the route under /api/analytics/... use that line and remove the other.
+    const res = await fetch(`/api/analytics/inquiries/${encodeURIComponent(id)}/status`, {
+    // const res = await fetch(`/api/inquiries/${encodeURIComponent(id)}/status`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status: val })
     });
+    if (!res.ok) throw new Error(`Status save failed (${res.status})`);
 
-    if (fb) {
-      fb.textContent = 'Saved';
-      setTimeout(() => { fb.textContent = ''; }, 1200);
+    if (fb) fb.textContent = 'Saved ✓';
+
+    // 5) Recalculate & persist the Overall AI Summary (uses your existing generator which does a PUT to /overall_summary)
+    if (typeof generateOverallSummary === 'function') {
+      await generateOverallSummary(id);
     }
-  } catch (e) {
+
+    // 6) Clear feedback
+    setTimeout(() => { if (fb) fb.textContent = ''; }, 2000);
+  } catch (err) {
+    console.error('onStatusChange error:', err);
     const fb = document.getElementById(`status-fb-${id}`);
-    if (fb) fb.textContent = 'Failed to save';
-    console.error('Status change failed', e);
+    if (fb) fb.textContent = 'Save failed';
+    setTimeout(() => { if (fb) fb.textContent = ''; }, 3500);
   }
 }
+
 
     // Load saved statuses
     function loadSavedStatuses() {

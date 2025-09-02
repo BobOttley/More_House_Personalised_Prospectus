@@ -2221,7 +2221,7 @@ app.put('/api/analytics/inquiries/:id/overall_summary', express.json(), async (r
 
     // normalise types
     const ov = typeof overview === 'string' ? overview : (overview ?? null);
-    const recs = Array.isArray(recommendations) ? recommendations : [];
+    const recs = Array.isArray(recommendations)\q ? recommendations : [];
     const strat = typeof strategy === 'string' ? strategy : (strategy ?? null);
 
     await db.query(`
@@ -2239,6 +2239,29 @@ app.put('/api/analytics/inquiries/:id/overall_summary', express.json(), async (r
   } catch (err) {
     console.error('PUT overall_summary error:', err);
     res.status(500).json({ ok: false, error: 'Failed to save overall AI summary' });
+  }
+});
+
+// Save/Update inquiry pipeline status
+app.put('/api/analytics/inquiries/:id/status', express.json(), async (req, res) => {
+  try {
+    const id = req.params.id;
+    const { status } = req.body || {};
+    if (!id || !status) return res.status(400).json({ ok: false, error: 'Missing id or status' });
+    if (!db) return res.status(503).json({ ok: false, error: 'Database not available' });
+
+    await db.query(
+      `UPDATE inquiries
+         SET status = $1,
+             updated_at = NOW()
+       WHERE id = $2`,
+      [status, id]
+    );
+
+    return res.json({ ok: true, id, status });
+  } catch (err) {
+    console.error('PUT /inquiries/:id/status error:', err);
+    res.status(500).json({ ok: false, error: 'Failed to save status' });
   }
 });
 
