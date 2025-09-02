@@ -31,7 +31,7 @@
 
     .dashboard{max-width:1500px;margin:-2rem auto 2rem;position:relative;z-index:10}
     
-    /* Enhanced Metrics */
+    /* Metrics */
     .metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1.5rem;padding:2rem}
     .metric-card{background:#fff;border-radius:16px;padding:1.75rem;box-shadow:0 4px 16px rgba(9,24,37,.08);border:1px solid var(--border-grey);transition:.3s;position:relative;overflow:hidden}
     .metric-card:hover{box-shadow:0 8px 25px rgba(9,24,37,.12);transform:translateY(-2px)}
@@ -59,90 +59,25 @@
     .search-box{flex:1;min-width:250px}
 
     /* Status Management */
-    .status-selector {
-      position: relative;
-      display: inline-block;
-    }
-    
-    .status-dropdown {
-      padding: 0.5rem 2rem 0.5rem 0.75rem;
-      border: 1px solid var(--border-grey);
-      border-radius: 8px;
-      background: white;
-      font-size: 0.875rem;
-      font-weight: 500;
-      cursor: pointer;
-      min-width: 180px;
-      appearance: none;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
-      background-repeat: no-repeat;
-      background-position: right 0.75rem center;
-    }
-    
-    .status-dropdown:hover {
-      border-color: var(--sport-blue);
-    }
-    
-    .status-dropdown:focus {
-      outline: none;
-      border-color: var(--sport-blue);
-      box-shadow: 0 0 0 3px rgba(3,70,116,.1);
-    }
-    
-    /* Status badge colours */
-    .status-badge {
-      padding: 0.375rem 0.75rem;
-      border-radius: 6px;
-      font-size: 0.75rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      display: inline-block;
-    }
-    
-    .status-new { background: #F3F4F6; color: #6B7280; }
-    .status-contacted { background: #DBEAFE; color: #1E40AF; }
-    .status-high-interest { background: #FEE2E2; color: #DC2626; }
-    .status-tour-booked { background: #D1FAE5; color: #065F46; }
-    .status-open-day-booked { background: #E9D5FF; color: #6B21A8; }
-    .status-application-started { background: #FED7AA; color: #C2410C; }
-    .status-not-interested { background: #F3F4F6; color: #6B7280; }
-    .status-enrolled { background: #10B981; color: white; }
-    
-    /* Status Summary Cards */
-    .status-summary {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-      gap: 0.75rem;
-      padding: 1rem;
-      background: var(--light-grey);
-      border-radius: 8px;
-      margin-bottom: 1rem;
-    }
-    
-    .status-summary-item {
-      background: white;
-      padding: 0.75rem;
-      border-radius: 6px;
-      border: 1px solid var(--border-grey);
-      text-align: center;
-    }
-    
-    .status-summary-count {
-      font-size: 1.5rem;
-      font-weight: 700;
-      color: var(--navy);
-      margin-bottom: 0.25rem;
-    }
-    
-    .status-summary-label {
-      font-size: 0.75rem;
-      color: var(--dark-grey);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
+    .status-selector { position: relative; display: inline-block; }
+    .status-dropdown{padding:.5rem 2rem .5rem .75rem;border:1px solid var(--border-grey);border-radius:8px;background:#fff;font-size:.875rem;font-weight:500;cursor:pointer;min-width:180px;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 9L1 4h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right .75rem center}
+    .status-dropdown:hover{border-color:var(--sport-blue)}
+    .status-dropdown:focus{outline:none;border-color:var(--sport-blue);box-shadow:0 0 0 3px rgba(3,70,116,.1)}
+    .status-badge{padding:.375rem .75rem;border-radius:6px;font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.5px;display:inline-block}
+    .status-new{background:#F3F4F6;color:#6B7280}
+    .status-contacted{background:#DBEAFE;color:#1E40AF}
+    .status-high-interest{background:#FEE2E2;color:#DC2626}
+    .status-tour-booked{background:#D1FAE5;color:#065F46}
+    .status-open-day-booked{background:#E9D5FF;color:#6B21A8}
+    .status-application-started{background:#FED7AA;color:#C2410C}
+    .status-not-interested{background:#F3F4F6;color:#6B7280}
+    .status-enrolled{background:#10B981;color:#fff}
+    .status-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.75rem;padding:1rem;background:var(--light-grey);border-radius:8px;margin-bottom:1rem}
+    .status-summary-item{background:#fff;padding:.75rem;border-radius:6px;border:1px solid var(--border-grey);text-align:center}
+    .status-summary-count{font-size:1.5rem;font-weight:700;color:var(--navy);margin-bottom:.25rem}
+    .status-summary-label{font-size:.75rem;color:var(--dark-grey);text-transform:uppercase;letter-spacing:.5px}
 
-    /* Enhanced Family Cards */
+    /* Family Cards */
     .family-card{background:#fff;border:1px solid var(--border-grey);border-radius:12px;margin-bottom:1rem;overflow:hidden;transition:box-shadow .3s}
     .family-card:hover{box-shadow:0 4px 12px rgba(0,0,0,.08)}
     .family-header{padding:1.25rem;display:flex;justify-content:space-between;align-items:flex-start;background:#fff;cursor:pointer;transition:background .2s}
@@ -151,16 +86,12 @@
     .family-info h3{font-size:1.25rem;font-weight:600;margin-bottom:.5rem;color:var(--blazer-navy)}
     .family-meta{font-size:.875rem;color:#64748b;display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:.75rem}
     .family-meta span{display:inline-flex;align-items:center;gap:.25rem}
-    
-    /* Interest Pills */
     .interests-container{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.75rem}
     .interest-pill{font-size:.75rem;padding:.25rem .75rem;background:var(--light-grey);border:1px solid var(--border-grey);border-radius:999px;color:var(--text-primary)}
     .interest-pill.academic{background:#E0F2FE;border-color:#0EA5E9;color:#0C4A6E}
     .interest-pill.creative{background:#FCE7F3;border-color:#EC4899;color:#831843}
     .interest-pill.sport{background:#DBEAFE;border-color:#3B82F6;color:#1E3A8A}
     .interest-pill.priority{background:#FEF3C7;border-color:#F59E0B;color:#78350F}
-
-    /* Engagement Badge */
     .family-stats{display:flex;align-items:center;gap:1.5rem}
     .score-badge{padding:.5rem 1rem;border-radius:8px;font-weight:600;font-size:1.125rem;text-align:center;min-width:60px}
     .score-badge.hot{background:rgba(255,68,68,.1);color:var(--hot-lead);border:1px solid rgba(255,68,68,.2)}
@@ -169,14 +100,12 @@
     .expand-icon{transition:transform .2s;color:#64748b}
     .family-card.expanded .expand-icon{transform:rotate(180deg)}
 
-    /* Enhanced Details Section */
     .family-details{display:none;background:#f8fafc;border-top:1px solid var(--border-grey)}
     .family-card.expanded .family-details{display:block}
     .details-grid{display:grid;grid-template-columns:1fr 2fr;gap:1.5rem;padding:1.25rem}
     .detail-section{background:#fff;padding:1rem;border-radius:8px;border:1px solid var(--border-grey)}
     .detail-section h4{font-size:.875rem;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:#64748b;margin-bottom:.75rem}
-    
-    /* Actions */
+
     .family-actions{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:1rem}
     .btn{padding:.5rem .875rem;border:1px solid var(--border-grey);border-radius:8px;background:#fff;cursor:pointer;font-size:.875rem;transition:all .2s;font-weight:500}
     .btn:hover{background:#f8fafc;transform:translateY(-1px);box-shadow:0 2px 4px rgba(0,0,0,.05)}
@@ -186,7 +115,7 @@
     .btn.ai:hover{background:#e88f1a}
     .btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
 
-    /* AI Summary Section */
+    /* AI Summary */
     .ai-summary{background:linear-gradient(135deg,#FEF3C7,#FDE68A);border:1px solid #F59E0B;border-radius:8px;padding:1rem;margin:1rem 0}
     .ai-summary-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem}
     .ai-summary-title{font-weight:600;color:var(--blazer-navy);display:flex;align-items:center;gap:.5rem}
@@ -197,7 +126,7 @@
     .ai-recommendations ul{margin:0;padding-left:1.25rem}
     .ai-recommendations li{font-size:.875rem;margin-bottom:.25rem}
 
-    /* Enhanced Sessions */
+    /* Sessions */
     .sessions-container{padding:1rem}
     .session-card{background:#fff;border:1px solid var(--border-grey);border-radius:8px;margin-bottom:.75rem;overflow:hidden}
     .session-header{padding:.875rem;background:#f8fafc;display:flex;justify-content:space-between;align-items:center;cursor:pointer;transition:background .2s}
@@ -212,7 +141,7 @@
     .session-body{display:none;padding:1rem;background:#fff}
     .session-card.open .session-body{display:block}
 
-    /* Journey Visualisation */
+    /* Journey */
     .journey-timeline{margin-top:1rem}
     .journey-item{display:flex;gap:1rem;padding:.75rem;background:#f8fafc;border-radius:6px;margin-bottom:.5rem;align-items:center}
     .journey-icon{width:32px;height:32px;border-radius:50%;background:var(--sport-blue);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.875rem;flex-shrink:0}
@@ -226,7 +155,7 @@
     .journey-progress{height:4px;background:var(--border-grey);border-radius:2px;margin-top:.5rem;overflow:hidden}
     .journey-progress-fill{height:100%;background:var(--award-gold);transition:width .3s}
 
-    /* Loading & Error States */
+    /* Loading & Error */
     .loading{display:flex;align-items:center;justify-content:center;padding:2rem;color:#64748b}
     .spinner{width:20px;height:20px;border:2px solid var(--border-grey);border-top:2px solid var(--sport-blue);border-radius:50%;animation:spin 1s linear infinite;margin-right:.75rem}
     @keyframes spin{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
@@ -310,7 +239,7 @@
           <option value="application-started">Application Started</option>
           <option value="not-interested">Not Interested</option>
         </select>
-        <input type="text" class="search-box" placeholder="Search by family name..." id="searchBox">
+        <input type="text" class="search-box" placeholder="Search by family name..." id="searchBox" autocomplete="off">
       </div>
 
       <div id="familyList">
@@ -324,15 +253,14 @@
 
     let familyStatuses = {};
     let allFamilies = [];
-    let aiSummaries = {};
     let isLoading = false;
 
     // Helpers
     const byId = id => document.getElementById(id);
     const setText = (id, v) => { const el = byId(id); if (el) el.textContent = String(v); };
-    const fetchJson = async (url) => {
+    const fetchJson = async (url, opts={}) => {
       const u = url + (url.includes('?') ? '&' : '?') + '_ts=' + Date.now();
-      const res = await fetch(u, { cache: 'no-store' });
+      const res = await fetch(u, { cache: 'no-store', ...opts });
       if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
       return res.json();
     };
@@ -398,28 +326,22 @@
     // Process and enrich family data
     function processRealData(raw) {
       return raw.map(f => {
-        // Get the actual session count if available
         const sessionCount = f.session_count || f.sessions_count || f.total_sessions || f.return_visits || 0;
-        
-        // Calculate total time from all sessions if we have session data
         let totalDwellMs = Number(f.dwell_ms) || 0;
         let actualVisits = Math.max(1, Number(sessionCount));
-        
-        // If we have sessions array, count them directly
+
         if (f.sessions && Array.isArray(f.sessions)) {
           actualVisits = f.sessions.length;
-          // Sum up time from sessions if available
           totalDwellMs = f.sessions.reduce((sum, s) => {
             return sum + (Number(s.dwell_ms) || Number(s.duration) || 0);
           }, 0);
         }
-        
+
         const minutes = totalDwellMs / 60000;
         const last = f.updated_at || f.received_at || null;
 
-        // Calculate engagement score based on actual visits
         const timeScore = Math.min(Math.max(minutes, 0), 25) * 2;
-        const visitScore = Math.min(Math.max(actualVisits, 0), 10) * 5; // Higher weight for visits
+        const visitScore = Math.min(Math.max(actualVisits, 0), 10) * 5;
         let recency = 0;
         if (last) {
           const age = Date.now() - new Date(last).getTime();
@@ -443,15 +365,16 @@
           timeOnPageMs: totalDwellMs,
           timeOnPageMinutes: Math.max(0, Math.round(minutes)),
           visits: actualVisits,
-          sessionCount: actualVisits, // Store actual session count
+          sessionCount: actualVisits,
           engagementScore: engagement,
           temperature,
           isActiveToday,
           hasProspectus: !!f.prospectus_generated,
           prospectusUrl: f.prospectus_pretty_url || null,
+          city: f.city || null,
           country: f.country || null,
           interests: extractInterests(f),
-          rawData: f // Keep original data for other fields
+          rawData: f
         };
       }).filter(x => x.name.length);
     }
@@ -464,7 +387,7 @@
       try {
         const data = await fetchJson('/api/analytics/inquiries');
         allFamilies = processRealData(Array.isArray(data) ? data : []);
-        loadSavedStatuses(); // Load saved statuses from localStorage
+        loadSavedStatuses();
         updateMetrics();
         renderFamilies();
       } catch (e) {
@@ -478,8 +401,6 @@
     // Update metrics based on statuses
     function updateMetrics() {
       setText('totalFamilies', allFamilies.length);
-      
-      // Count by status
       const statusCounts = {
         contacted: 0,
         'high-interest': 0,
@@ -504,16 +425,7 @@
     // Update family status
     function updateFamilyStatus(familyId, newStatus) {
       familyStatuses[familyId] = newStatus;
-      
-      // In production, you'd save this to the database
-      // await fetch('/api/families/' + familyId + '/status', {
-      //   method: 'PUT',
-      //   body: JSON.stringify({ status: newStatus })
-      // });
-      
-      // Store in localStorage for now
       localStorage.setItem('familyStatuses', JSON.stringify(familyStatuses));
-      
       updateMetrics();
     }
 
@@ -550,7 +462,6 @@
       } else if (sortBy === 'visits') {
         families.sort((a, b) => b.visits - a.visits);
       } else if (sortBy === 'status') {
-        // Sort by status priority
         const statusPriority = {
           'high-interest': 1,
           'tour-booked': 2,
@@ -586,7 +497,6 @@
       }
 
       container.innerHTML = list.map(f => {
-        const aiSummary = aiSummaries[f.id];
         const interestPills = f.interests.map(i => 
           `<span class="interest-pill ${i.type}">${i.label}</span>`
         ).join('');
@@ -600,7 +510,7 @@
                   <span>📧 ${f.parentEmail || 'No email'}</span>
                   <span>📅 Entry ${f.entryYear || 'TBC'}</span>
                   <span>🎂 ${f.ageGroup || 'Unknown'}</span>
-                  <span>📍 ${formatLocation(f.country)}</span>
+                  <span>📍 ${formatLocation(f.city, f.country)}</span>
                   <span>⏱ ${f.timeOnPageMinutes} min total</span>
                   <span>👁 ${f.visits} visit${f.visits !== 1 ? 's' : ''}</span>
                 </div>
@@ -617,7 +527,7 @@
                   <h4>Contact & Profile</h4>
                   <div style="font-size:.875rem;line-height:1.6">
                     <strong>Email:</strong> ${f.parentEmail || 'Not provided'}<br>
-                    <strong>Location:</strong> ${f.city}, ${f.country}<br>
+                    <strong>Location:</strong> ${formatLocation(f.city, f.country)}<br>
                     <strong>Age Group:</strong> ${f.ageGroup || 'Not specified'}<br>
                     <strong>Entry Year:</strong> ${f.entryYear || 'TBC'}<br>
                     <strong>First Contact:</strong> ${f.receivedAt ? new Date(f.receivedAt).toLocaleDateString('en-GB') : 'Unknown'}<br>
@@ -631,34 +541,14 @@
                       `<a class="btn" href="mailto:${f.parentEmail}">Email Family</a>` : ''}
                     <button class="btn" onclick="copyInquiryId('${f.id}')">Copy ID</button>
                   </div>
+
+                  <!-- Overall AI Summary renders here (under Contact & Profile) -->
+                  <div id="ai-overall-${f.id}" class="ai-summary" style="display:none; margin-top: 1rem;"></div>
                 </div>
+
                 <div>
-                  ${aiSummary ? `
-                    <div class="ai-summary">
-                      <div class="ai-summary-header">
-                        <div class="ai-summary-title">
-                          <span class="ai-badge">AI</span>
-                          Engagement Analysis
-                        </div>
-                        <button class="btn ai" onclick="generateSummary('${f.id}')">Regenerate</button>
-                      </div>
-                      <div class="ai-summary-content">${aiSummary.summary}</div>
-                      ${aiSummary.recommendations ? `
-                        <div class="ai-recommendations">
-                          <h5>Recommended Actions</h5>
-                          <ul>
-                            ${aiSummary.recommendations.map(r => `<li>${r}</li>`).join('')}
-                          </ul>
-                        </div>
-                      ` : ''}
-                    </div>
-                  ` : `
-                    <div class="detail-section">
-                      <h4>AI Analysis</h4>
-                      <p style="color:#64748b;margin-bottom:1rem">No AI summary generated yet</p>
-                      <button class="btn ai" onclick="generateSummary('${f.id}')">Generate AI Summary</button>
-                    </div>
-                  `}
+                  <!-- AI Analysis tablet removed per request -->
+
                   <div class="sessions-container">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem">
                       <h4 style="font-size:.875rem;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:#64748b">Session History</h4>
@@ -677,14 +567,38 @@
     // Toggle family card
     function toggleFamily(id) {
       const card = document.querySelector(`[data-id="${id}"]`);
-      if (card) card.classList.toggle('expanded');
+      if (card) {
+        card.classList.toggle('expanded');
+        if (card.classList.contains('expanded')) {
+          // Try to load any saved overall summary from DB on first open
+          maybeLoadSavedOverallSummary(id);
+        }
+      }
     }
 
     // Copy inquiry ID
     function copyInquiryId(id) {
-      navigator.clipboard.writeText(id).then(() => {
-        // Could add a toast notification here
-      }).catch(console.error);
+      navigator.clipboard.writeText(id).catch(console.error);
+    }
+
+    // Try to fetch and render saved overall summary under Contact & Profile
+    async function maybeLoadSavedOverallSummary(inquiryId) {
+      const container = byId(`ai-overall-${inquiryId}`);
+      if (!container || container.dataset.loaded === '1') return;
+      try {
+        const data = await fetchJson(`/api/analytics/inquiries/${encodeURIComponent(inquiryId)}/overall_summary`);
+        if (data && (data.overview || data.summary)) {
+          container.innerHTML = renderOverallSummaryBlock({
+            overview: data.overview || data.summary,
+            recommendations: data.recommendations || [],
+            strategy: data.strategy || ''
+          });
+          container.style.display = 'block';
+          container.dataset.loaded = '1';
+        }
+      } catch(e) {
+        // If not found/implemented, silently ignore
+      }
     }
 
     // Generate AI summary for a single session/visit
@@ -692,11 +606,9 @@
       const summaryContainer = byId(`ai-summary-${sessionId}`);
       if (!summaryContainer) return;
       
-      // Show loading state
       summaryContainer.style.display = 'block';
       summaryContainer.innerHTML = '<div class="loading"><div class="spinner"></div> Generating AI summary...</div>';
       
-      // Load the session events first
       const urls = [
         `/api/visits/session/${encodeURIComponent(sessionId)}`,
         `/api/sessions/${encodeURIComponent(sessionId)}`
@@ -717,11 +629,9 @@
         return;
       }
       
-      // Process events to extract insights
       const processedJourney = processEvents(events);
       const summary = generateSessionInsights(processedJourney, sessionId);
       
-      // Display the summary
       summaryContainer.innerHTML = `
         <div class="ai-summary-header">
           <div class="ai-summary-title">
@@ -741,8 +651,7 @@
       `;
     }
     
-    // Generate insights from session data
-    function generateSessionInsights(journey, sessionId) {
+    function generateSessionInsights(journey) {
       const sections = journey.filter(j => j.type === 'section');
       const videos = journey.filter(j => j.type === 'video');
       const tiers = journey.filter(j => j.type === 'tier');
@@ -754,7 +663,6 @@
       let text = '';
       const insights = [];
       
-      // Analyze engagement level
       if (totalMinutes >= 10) {
         text = `High engagement visit with ${totalMinutes} minutes spent exploring ${sections.length} sections. `;
         insights.push('Strong interest shown - priority follow-up recommended');
@@ -769,7 +677,6 @@
         insights.push('Low engagement - consider different outreach approach');
       }
       
-      // Analyze content interests
       const topSections = sections
         .sort((a, b) => b.duration - a.duration)
         .slice(0, 3);
@@ -777,7 +684,6 @@
       if (topSections.length > 0) {
         text += `Primary interest in ${topSections.map(s => s.title).join(', ')}. `;
         
-        // Specific insights based on sections viewed
         topSections.forEach(section => {
           if (section.title.includes('Academic')) {
             insights.push('Academic programme is a key priority');
@@ -793,19 +699,14 @@
         });
       }
       
-      // Video engagement
       if (videos.length > 0) {
         text += `Watched ${videos.length} video${videos.length > 1 ? 's' : ''}. `;
         insights.push('Video content is engaging - share more multimedia');
       }
-      
-      // Tier exploration (age groups)
       if (tiers.length > 0) {
         const tierNames = [...new Set(tiers.map(t => t.title))];
         text += `Explored ${tierNames.join(', ')}. `;
       }
-      
-      // CTA clicks
       if (ctas.length > 0) {
         insights.push('Ready for next step - clicked CTA');
       }
@@ -813,29 +714,46 @@
       return { text, insights };
     }
     
-    // Generate overall AI summary for all sessions
+    // Generate overall AI summary for all sessions → now renders under Contact & Profile
     async function generateOverallSummary(inquiryId) {
-      const container = byId(`overall-summary-${inquiryId}`);
+      const container = byId(`ai-overall-${inquiryId}`) || byId(`overall-summary-${inquiryId}`);
       if (!container) return;
       
       container.style.display = 'block';
       container.innerHTML = '<div class="loading"><div class="spinner"></div> Analysing all visits...</div>';
       
-      // Get family data
       const family = allFamilies.find(f => f.id === inquiryId);
       if (!family) {
         container.innerHTML = '<div class="error">Could not find family data</div>';
         return;
       }
       
-      // Get actual session count from the DOM or API
       const sessionCards = document.querySelectorAll(`#sessions-${inquiryId} .session-card`);
       const actualVisits = sessionCards.length || family.visits || 1;
       
-      // Generate comprehensive summary with correct visit count
       const summary = generateComprehensiveSummary(family, actualVisits);
       
-      container.innerHTML = `
+      container.innerHTML = renderOverallSummaryBlock(summary);
+
+      // Persist to DB if your backend route exists
+      try {
+        await fetch(`/api/analytics/inquiries/${encodeURIComponent(inquiryId)}/overall_summary`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            overview: summary.overview,
+            recommendations: summary.recommendations,
+            strategy: summary.strategy
+          })
+        });
+        container.dataset.loaded = '1';
+      } catch(e) {
+        // Ignore if not implemented yet
+      }
+    }
+    
+    function renderOverallSummaryBlock(summary) {
+      return `
         <div class="ai-summary-header">
           <div class="ai-summary-title">
             <span class="ai-badge">AI</span>
@@ -844,10 +762,10 @@
         </div>
         <div class="ai-summary-content">${summary.overview}</div>
         <div class="ai-recommendations">
-          <h5>Recommended Actions</h5>
-          <ul>
-            ${summary.recommendations.map(r => `<li>${r}</li>`).join('')}
-          </ul>
+          ${summary.recommendations && summary.recommendations.length ? `
+            <h5>Recommended Actions</h5>
+            <ul>${summary.recommendations.map(r => `<li>${r}</li>`).join('')}</ul>
+          ` : ''}
         </div>
         ${summary.strategy ? `
           <div class="ai-recommendations">
@@ -861,7 +779,7 @@
     // Generate comprehensive summary for a family
     function generateComprehensiveSummary(family, actualVisits) {
       const engagement = family.engagementScore || 0;
-      const visits = actualVisits || family.visits || 0;  // Use actual visit count
+      const visits = actualVisits || family.visits || 0;
       const totalMinutes = family.timeOnPageMinutes || 0;
       const interests = family.interests || [];
       
@@ -869,18 +787,15 @@
       const recommendations = [];
       let strategy = '';
       
-      // Recalculate engagement based on actual visits
       let adjustedEngagement = engagement;
       if (visits >= 5) {
-        adjustedEngagement = Math.min(100, engagement + 20);  // Boost score for high visit count
+        adjustedEngagement = Math.min(100, engagement + 20);
       } else if (visits >= 3) {
         adjustedEngagement = Math.min(100, engagement + 10);
       }
       
-      // Determine engagement level and base strategy
       if (adjustedEngagement >= 80 || visits >= 5) {
         overview = `Highly engaged prospect with exceptional interest levels. ${visits} visit${visits !== 1 ? 's' : ''} totalling ${totalMinutes || 'multiple'} minutes demonstrates strong intent. `;
-        
         if (visits >= 5) {
           overview += 'Exceptional return rate with multiple visits shows serious consideration. ';
           recommendations.push('URGENT: Immediate personal outreach required');
@@ -894,107 +809,79 @@
           recommendations.push('Schedule call within 48 hours');
           recommendations.push('Send personalised prospectus highlights');
         }
-        
         strategy = 'This family shows high engagement through repeated visits. Focus on personal connection and converting interest to application. Address specific programme interests directly.';
-        
       } else if (adjustedEngagement >= 50 || visits >= 2) {
         overview = `Moderately engaged prospect showing sustained interest. ${visits} visit${visits !== 1 ? 's' : ''} with ${totalMinutes || 'consistent'} minutes of engagement. `;
-        
         if (visits >= 2) {
           overview += 'Return visit shows continued consideration. ';
         }
-        
         recommendations.push('Send tailored information pack within 3 days');
         recommendations.push('Add to priority nurture sequence');
         recommendations.push('Invite to next open event');
-        
         strategy = 'Build on demonstrated interest with targeted follow-up. Focus on addressing potential concerns and showcasing programmes matching their interests.';
-        
       } else {
         overview = `Early-stage prospect in research phase. ${visits} visit${visits !== 1 ? 's' : ''} with initial exploration. `;
-        
         recommendations.push('Add to welcome campaign');
         recommendations.push('Monitor for return visits');
         recommendations.push('Send general prospectus');
-        
         strategy = 'Nurture early interest with broad information. Focus on building familiarity with the school and encouraging return engagement.';
       }
       
-      // Add interest-specific recommendations (but avoid duplicates)
-      const addedRecommendations = new Set();
-      
+      const added = new Set();
       if (interests.length > 0) {
         overview += `Key interests include ${interests.slice(0, 3).map(i => i.label).join(', ')}. `;
-        
-        // Group interests by type to avoid repetition
         const academicInterests = interests.filter(i => i.type === 'academic');
         const creativeInterests = interests.filter(i => i.type === 'creative');
         const sportInterests = interests.filter(i => i.type === 'sport');
         const priorityInterests = interests.filter(i => i.type === 'priority');
         
-        if (academicInterests.length > 0) {
-          const subjects = academicInterests.map(i => i.label).join(', ');
-          const rec = `Share academic achievements and curriculum for: ${subjects}`;
-          if (!addedRecommendations.has('academic')) {
-            recommendations.push(rec);
-            addedRecommendations.add('academic');
-          }
+        if (academicInterests.length > 0 && !added.has('academic')) {
+          recommendations.push(`Share academic achievements and curriculum for: ${academicInterests.map(i => i.label).join(', ')}`);
+          added.add('academic');
         }
-        
-        if (creativeInterests.length > 0) {
-          const arts = creativeInterests.map(i => i.label).join(', ');
-          const rec = `Showcase creative programmes: ${arts}`;
-          if (!addedRecommendations.has('creative')) {
-            recommendations.push(rec);
-            addedRecommendations.add('creative');
-          }
+        if (creativeInterests.length > 0 && !added.has('creative')) {
+          recommendations.push(`Showcase creative programmes: ${creativeInterests.map(i => i.label).join(', ')}`);
+          added.add('creative');
         }
-        
-        if (sportInterests.length > 0 && !addedRecommendations.has('sport')) {
+        if (sportInterests.length > 0 && !added.has('sport')) {
           recommendations.push('Share sports facilities and team achievements');
-          addedRecommendations.add('sport');
+          added.add('sport');
         }
-        
-        if (priorityInterests.find(i => i.label === 'Pastoral Care') && !addedRecommendations.has('pastoral')) {
+        if (priorityInterests.find(i => i.label === 'Pastoral Care') && !added.has('pastoral')) {
           recommendations.push('Emphasise wellbeing support and house system');
-          addedRecommendations.add('pastoral');
+          added.add('pastoral');
         }
-        
-        if (priorityInterests.find(i => i.label === 'University Prep') && !addedRecommendations.has('university')) {
+        if (priorityInterests.find(i => i.label === 'University Prep') && !added.has('university')) {
           recommendations.push('Share university destinations and preparation programme');
-          addedRecommendations.add('university');
+          added.add('university');
         }
       }
       
-      // Time-based insights
       if (family.isActiveToday) {
         overview += 'Recent activity today shows current interest. ';
-        // Move time-sensitive recommendation to top
         const urgentRec = 'Strike while interest is high - contact today';
-        const filteredRecs = recommendations.filter(r => !r.includes('Strike while'));
+        const filteredRecs = recommendations.filter(r => r !== urgentRec);
         recommendations.length = 0;
         recommendations.push(urgentRec, ...filteredRecs);
       }
       
-      // Visit frequency insights
       if (visits >= 3) {
-        const avgDays = 7 / visits; // Rough estimate
+        const avgDays = 7 / visits;
         if (avgDays <= 2) {
           overview += 'High visit frequency suggests urgent decision timeline. ';
         }
       }
       
-      return { overview, recommendations: recommendations.slice(0, 8), strategy };  // Limit to 8 recommendations
+      return { overview, recommendations: recommendations.slice(0, 8), strategy };
     }
 
-    // Load session history - matching original dashboard functionality
+    // Load session history and keep the existing “Generate Overall AI Summary” button
     async function loadSessionHistory(inquiryId) {
       const container = byId(`sessions-${inquiryId}`);
       if (!container) return;
 
       container.innerHTML = '<div class="loading"><div class="spinner"></div> Loading visits...</div>';
 
-      // Try multiple endpoints as the original does
       const endpoints = [
         `/api/visits/${encodeURIComponent(inquiryId)}/history`,
         `/api/visits/${encodeURIComponent(inquiryId)}/sessions`,
@@ -1005,17 +892,9 @@
       for (const url of endpoints) {
         try {
           const data = await fetchJson(url);
-          if (Array.isArray(data) && data.length) {
-            sessions = data;
-            break;
-          }
-          if (data && Array.isArray(data.sessions) && data.sessions.length) {
-            sessions = data.sessions;
-            break;
-          }
-        } catch(e) {
-          console.log(`Tried ${url}:`, e.message);
-        }
+          if (Array.isArray(data) && data.length) { sessions = data; break; }
+          if (data && Array.isArray(data.sessions) && data.sessions.length) { sessions = data.sessions; break; }
+        } catch(e) {}
       }
 
       if (!sessions) {
@@ -1023,7 +902,6 @@
         return;
       }
 
-      // Sort sessions by date (newest first)
       sessions = sessions.slice().sort((a, b) => {
         const aDate = extractSessionDate(a);
         const bDate = extractSessionDate(b);
@@ -1032,40 +910,25 @@
 
       const totalSessions = sessions.length;
       
-      // Update the family's visit count with actual session count
       const family = allFamilies.find(f => f.id === inquiryId);
       if (family && totalSessions > family.visits) {
+        let totalTimeSeconds = 0;
+        for (const session of sessions) {
+          let sessionDuration = 0;
+          if (session.duration_seconds) sessionDuration = Number(session.duration_seconds);
+          else if (session.dwell_seconds) sessionDuration = Number(session.dwell_seconds);
+          else if (session.duration) sessionDuration = Number(session.duration);
+          else if (session.total_dwell_seconds) sessionDuration = Number(session.total_dwell_seconds);
+          else if (session.dwell_ms) sessionDuration = Number(session.dwell_ms) / 1000;
+          totalTimeSeconds += sessionDuration;
+        }
+
         family.visits = totalSessions;
         family.sessionCount = totalSessions;
-        
-        // Calculate total time from sessions - need to load actual events for each session
-let totalTimeSeconds = 0;
-for (const session of sessions) {
-  // Try to get duration from session object first
-  let sessionDuration = 0;
-  
-  if (session.duration_seconds) {
-    sessionDuration = Number(session.duration_seconds);
-  } else if (session.dwell_seconds) {
-    sessionDuration = Number(session.dwell_seconds);
-  } else if (session.duration) {
-    sessionDuration = Number(session.duration);
-  } else if (session.total_dwell_seconds) {
-    sessionDuration = Number(session.total_dwell_seconds);
-  } else if (session.dwell_ms) {
-    sessionDuration = Number(session.dwell_ms) / 1000; // Convert ms to seconds
-  }
-  
-  totalTimeSeconds += sessionDuration;
-}
-
-// Update family object with correct totals
-if (totalTimeSeconds > 0) {
-  family.timeOnPageMs = totalTimeSeconds * 1000; // Convert to ms
-  family.timeOnPageMinutes = Math.round(totalTimeSeconds / 60);
-}
-        
-        // Re-render the family card to show updated counts
+        if (totalTimeSeconds > 0) {
+          family.timeOnPageMs = totalTimeSeconds * 1000;
+          family.timeOnPageMinutes = Math.round(totalTimeSeconds / 60);
+        }
         updateFamilyDisplay(inquiryId, totalSessions, family.timeOnPageMinutes);
       }
 
@@ -1076,17 +939,14 @@ if (totalTimeSeconds > 0) {
             Generate Overall AI Summary
           </button>
         </div>
-        <div id="overall-summary-${inquiryId}" class="ai-summary" style="display:none; margin-bottom: 1rem;"></div>
         ${sessions.map((s, index) => renderSessionCard(s, index, totalSessions, inquiryId)).join('')}
       `;
     }
     
-    // Update family display with correct counts
     function updateFamilyDisplay(inquiryId, visitCount, totalMinutes) {
       const card = document.querySelector(`[data-id="${inquiryId}"]`);
       if (!card) return;
       
-      // Update the visit count in the header
       const metaSpans = card.querySelectorAll('.family-meta span');
       metaSpans.forEach(span => {
         if (span.textContent.includes('visit')) {
@@ -1098,29 +958,22 @@ if (totalTimeSeconds > 0) {
       });
     }
 
-    // Extract date from session object
     function extractSessionDate(session) {
       const sessionId = session.id || session.session_id || '';
-      
-      // Try to extract from session ID first
       if (sessionId.startsWith('S-')) {
         const match = /^S-(\d{13})-/.exec(sessionId);
         if (match) {
           return new Date(Number(match[1]));
         }
       }
-      
-      // Fallback to date fields
       const dateField = session.start || session.started_at || session.created_at;
       return dateField ? new Date(dateField) : new Date(0);
     }
 
-    // Render individual session card with proper visit numbering and dates
     function renderSessionCard(session, index, totalSessions, inquiryId) {
       const sessionId = session.id || session.session_id || `session-${index}`;
-      const visitNumber = totalSessions - index; // Reverse numbering so newest is highest
+      const visitNumber = totalSessions - index; 
       
-      // Extract timestamp from session ID format: S-1756641694973-xxxxx
       let sessionDate = null;
       if (sessionId.startsWith('S-')) {
         const match = /^S-(\d{13})-/.exec(sessionId);
@@ -1128,8 +981,6 @@ if (totalTimeSeconds > 0) {
           sessionDate = new Date(Number(match[1]));
         }
       }
-      
-      // Fallback to other date fields
       if (!sessionDate) {
         const dateField = session.start || session.started_at || session.created_at;
         if (dateField) sessionDate = new Date(dateField);
@@ -1175,68 +1026,12 @@ if (totalTimeSeconds > 0) {
       `;
     }
 
-    // Render mock journey
-    function renderMockJourney() {
-      const sections = [
-        { name: 'Welcome & Introduction', icon: '🏠', duration: 120, scroll: 85 },
-        { name: 'Academic Programme', icon: '📚', duration: 300, scroll: 70 },
-        { name: 'Pastoral Care', icon: '💝', duration: 180, scroll: 60 },
-        { name: 'Co-curricular Activities', icon: '🎨', duration: 150, scroll: 50 }
-      ];
-
-      return sections.map(s => `
-        <div class="journey-item">
-          <div class="journey-icon section">${s.icon}</div>
-          <div class="journey-content">
-            <div class="journey-title">${s.name}</div>
-            <div class="journey-meta">${Math.floor(s.duration / 60)} min • ${s.scroll}% scroll depth</div>
-            <div class="journey-progress">
-              <div class="journey-progress-fill" style="width: ${s.scroll}%"></div>
-            </div>
-          </div>
-        </div>
-      `).join('');
-    }
-
-    // Render real sessions
-    function renderSessions(sessions) {
-      if (!sessions || !sessions.length) {
-        return '<div class="no-data">No sessions found</div>';
-      }
-
-      return sessions.map((s, index) => {
-        const sessionId = s.id || s.session_id || `session-${index}`;
-        const visitNumber = sessions.length - index;
-        
-        return `
-          <div class="session-card" data-session="${sessionId}">
-            <div class="session-header" onclick="toggleSession('${sessionId}')">
-              <div class="session-info">
-                <div class="session-title">Visit ${visitNumber}</div>
-                <div class="session-meta">
-                  ${s.start ? formatTimeAgo(new Date(s.start)) : 'Unknown time'}
-                  ${s.duration ? ` • ${formatDuration(s.duration * 1000)}` : ''}
-                </div>
-              </div>
-            </div>
-            <div class="session-body">
-              <div class="journey-timeline" id="journey-${sessionId}">
-                <button class="btn" onclick="loadSessionEvents('${sessionId}')">Load Session Details</button>
-              </div>
-            </div>
-          </div>
-        `;
-      }).join('');
-    }
-
-    // Toggle session and load events if needed
     async function toggleSession(sessionId, inquiryId) {
       const card = document.querySelector(`[data-session="${sessionId}"]`);
       if (!card) return;
       
       card.classList.toggle('open');
       
-      // Load events on first open
       if (card.classList.contains('open')) {
         const container = byId(`journey-${sessionId}`);
         if (container && container.querySelector('.loading')) {
@@ -1245,14 +1040,12 @@ if (totalTimeSeconds > 0) {
       }
     }
 
-    // Load events for a specific session and clean up the data
     async function loadSessionEvents(sessionId, inquiryId) {
       const container = byId(`journey-${sessionId}`);
       if (!container) return;
 
       container.innerHTML = '<div class="loading"><div class="spinner"></div> Loading journey...</div>';
 
-      // Try multiple endpoints as the original does
       const urls = [
         `/api/visits/session/${encodeURIComponent(sessionId)}`,
         `/api/visits/session/${encodeURIComponent(sessionId)}/events`,
@@ -1263,29 +1056,23 @@ if (totalTimeSeconds > 0) {
       ];
 
       let events = null;
-      let hitUrl = null;
 
       for (const url of urls) {
         try {
           const data = await fetchJson(url);
           if (Array.isArray(data) && data.length && (data[0].type || data[0].name)) {
             events = data;
-            hitUrl = url;
             break;
           }
           if (data && Array.isArray(data.events)) {
             events = data.events;
-            hitUrl = url;
             break;
           }
           if (data && data.session && Array.isArray(data.session.events)) {
             events = data.session.events;
-            hitUrl = url;
             break;
           }
-        } catch(e) {
-          console.log(`Tried ${url}:`, e.message);
-        }
+        } catch(e) {}
       }
 
       if (!events || !events.length) {
@@ -1293,96 +1080,52 @@ if (totalTimeSeconds > 0) {
         return;
       }
 
-      // Process and clean events
       const processedEvents = processEvents(events);
-      
-      // Render cleaned journey
       container.innerHTML = renderCleanJourney(processedEvents);
     }
 
-    // Process events to extract meaningful journey data
     function processEvents(events) {
       const journey = [];
-      const sectionTimes = {};
-      let currentSection = null;
-      let sectionStartTime = null;
+      let lastSection = null;
 
-      // Filter out noise and process meaningful events
       events.forEach(ev => {
-        // Skip heartbeats and page visibility events
         if (ev.type === 'heartbeat' || ev.type === 'page_hidden' || ev.type === 'page_visible' || ev.type === 'click') {
           return;
         }
 
         if (ev.type === 'page_load' || ev.type === '✓ Visit start') {
-          journey.push({
-            type: 'start',
-            title: 'Started visit',
-            icon: '🚀'
-          });
-        } else if (ev.type === 'section_enter') {
-          currentSection = ev.section;
-          sectionStartTime = Date.now();
+          journey.push({ type: 'start', title: 'Started visit', icon: '🚀' });
         } else if (ev.type === 'section_exit' && ev.section) {
           const dwellTime = ev.dwellSec || ev.dwell_seconds || 0;
-          if (dwellTime > 0) { // Only show sections where time was spent
+          if (dwellTime > 0) {
             const sectionName = formatSectionName(ev.section);
-            if (!sectionTimes[sectionName]) {
-              sectionTimes[sectionName] = 0;
-            }
-            sectionTimes[sectionName] += dwellTime;
-            
-            journey.push({
-              type: 'section',
-              title: sectionName,
-              duration: dwellTime,
-              icon: getSectionIcon(ev.section)
-            });
+            journey.push({ type: 'section', title: sectionName, duration: dwellTime, icon: getSectionIcon(ev.section) });
           }
         } else if (ev.type === 'video_open') {
-          journey.push({
-            type: 'video',
-            title: ev.title || 'Video',
-            videoId: ev.youtubeId,
-            icon: '▶️'
-          });
+          journey.push({ type: 'video', title: ev.title || 'Video', videoId: ev.youtubeId, icon: '▶️' });
         } else if (ev.type === 'tier_expand') {
-          journey.push({
-            type: 'tier',
-            title: formatTierName(ev.tier),
-            icon: '📂'
-          });
+          journey.push({ type: 'tier', title: formatTierName(ev.tier), icon: '📂' });
         } else if (ev.type === 'cta_openmorning_click') {
-          journey.push({
-            type: 'cta',
-            title: 'Clicked Open Morning CTA',
-            icon: '⭐'
-          });
+          journey.push({ type: 'cta', title: 'Clicked Open Morning CTA', icon: '⭐' });
         }
       });
 
-      // Remove duplicates and merge consecutive same sections
       const cleaned = [];
-      let lastSection = null;
-      
       journey.forEach(item => {
         if (item.type === 'section') {
-          if (lastSection && lastSection.title === item.title) {
-            lastSection.duration += item.duration;
+          if (cleaned.length && cleaned[cleaned.length - 1].type === 'section' && cleaned[cleaned.length - 1].title === item.title) {
+            cleaned[cleaned.length - 1].duration += item.duration;
           } else {
             cleaned.push(item);
-            lastSection = item;
           }
         } else {
           cleaned.push(item);
-          lastSection = null;
         }
       });
 
       return cleaned;
     }
 
-    // Render clean journey visualization
     function renderCleanJourney(journey) {
       if (!journey.length) {
         return '<div class="no-data">No meaningful activity recorded</div>';
@@ -1393,65 +1136,55 @@ if (totalTimeSeconds > 0) {
         .reduce((sum, j) => sum + (j.duration || 0), 0);
 
       const journeyHTML = journey.map(item => {
-        let content = '';
-        
         if (item.type === 'start') {
-          content = `
+          return `
             <div class="journey-item" style="background: linear-gradient(135deg, #E0F2FE, #DBEAFE);">
               <div class="journey-icon" style="background: var(--sport-blue);">${item.icon}</div>
-              <div class="journey-content">
-                <div class="journey-title">${item.title}</div>
-              </div>
+              <div class="journey-content"><div class="journey-title">${item.title}</div></div>
             </div>
           `;
-        } else if (item.type === 'section') {
+        }
+        if (item.type === 'section') {
           const minutes = Math.floor(item.duration / 60);
           const seconds = item.duration % 60;
           const timeStr = minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
-          const percentage = Math.min((item.duration / 120) * 100, 100); // Max 2 min for full bar
-          
-          content = `
+          const percentage = Math.min((item.duration / 120) * 100, 100);
+          return `
             <div class="journey-item">
-              <div class="journey-icon section">${item.icon}</div>
+              <div class="journey-icon section">📖</div>
               <div class="journey-content">
                 <div class="journey-title">${item.title}</div>
                 <div class="journey-meta">Time spent: ${timeStr}</div>
-                <div class="journey-progress">
-                  <div class="journey-progress-fill" style="width: ${percentage}%"></div>
-                </div>
-              </div>
-            </div>
-          `;
-        } else if (item.type === 'video') {
-          content = `
-            <div class="journey-item" style="background: #FEF3C7;">
-              <div class="journey-icon video" style="background: var(--warning);">${item.icon}</div>
-              <div class="journey-content">
-                <div class="journey-title">Watched: ${item.title}</div>
-              </div>
-            </div>
-          `;
-        } else if (item.type === 'tier') {
-          content = `
-            <div class="journey-item">
-              <div class="journey-icon tier">${item.icon}</div>
-              <div class="journey-content">
-                <div class="journey-title">Explored: ${item.title}</div>
-              </div>
-            </div>
-          `;
-        } else if (item.type === 'cta') {
-          content = `
-            <div class="journey-item" style="background: #D1FAE5;">
-              <div class="journey-icon cta" style="background: var(--success);">${item.icon}</div>
-              <div class="journey-content">
-                <div class="journey-title">${item.title}</div>
+                <div class="journey-progress"><div class="journey-progress-fill" style="width: ${percentage}%"></div></div>
               </div>
             </div>
           `;
         }
-        
-        return content;
+        if (item.type === 'video') {
+          return `
+            <div class="journey-item" style="background: #FEF3C7;">
+              <div class="journey-icon video" style="background: var(--warning);">▶️</div>
+              <div class="journey-content"><div class="journey-title">Watched: ${item.title}</div></div>
+            </div>
+          `;
+        }
+        if (item.type === 'tier') {
+          return `
+            <div class="journey-item">
+              <div class="journey-icon tier">📂</div>
+              <div class="journey-content"><div class="journey-title">Explored: ${item.title}</div></div>
+            </div>
+          `;
+        }
+        if (item.type === 'cta') {
+          return `
+            <div class="journey-item" style="background: #D1FAE5;">
+              <div class="journey-icon cta" style="background: var(--success);">⭐</div>
+              <div class="journey-content"><div class="journey-title">${item.title}</div></div>
+            </div>
+          `;
+        }
+        return '';
       }).join('');
 
       const totalMinutes = Math.floor(totalTime / 60);
@@ -1466,7 +1199,6 @@ if (totalTimeSeconds > 0) {
       `;
     }
 
-    // Format section names to be more readable
     function formatSectionName(section) {
       const nameMap = {
         'cover_page': 'Welcome Page',
@@ -1489,29 +1221,8 @@ if (totalTimeSeconds > 0) {
       return nameMap[section] || section.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
     }
 
-    // Get appropriate icon for section
-    function getSectionIcon(section) {
-      const iconMap = {
-        'cover_page': '🏠',
-        'heads_welcome': '👋',
-        'academic_excellence': '🎓',
-        'about_more_house': 'ℹ️',
-        'day_in_the_life': '📅',
-        'creative_arts_hero': '🎨',
-        'your_journey': '🗺️',
-        'london_extended_classroom': '🏛️',
-        'city_curriculum_days': '🌆',
-        'values_hero': '💎',
-        'ethical_leaders': '🌟',
-        'discover_video': '🎬',
-        'pastoral_care': '💝',
-        'sport': '⚽'
-      };
-      
-      return iconMap[section] || '📖';
-    }
+    function getSectionIcon() { return '📖'; }
 
-    // Format tier names
     function formatTierName(tier) {
       const tierMap = {
         'presenior': 'Pre-Senior (Years 5-6)',
@@ -1522,47 +1233,8 @@ if (totalTimeSeconds > 0) {
       return tierMap[tier] || tier.replace(/\b\w/g, l => l.toUpperCase());
     }
 
-    // Render journey events
-    function renderJourneyEvents(events) {
-      if (!events || !events.length) {
-        return '<div class="no-data">No events recorded</div>';
-      }
-
-      return events.map(e => {
-        let icon = '📍';
-        let title = e.type || e.name || 'Event';
-        let meta = '';
-
-        if (e.type === 'section_enter') {
-          icon = '📖';
-          title = `Entered: ${e.section}`;
-        } else if (e.type === 'section_exit') {
-          icon = '✓';
-          title = `Completed: ${e.section}`;
-          meta = e.dwellSec ? `${Math.floor(e.dwellSec / 60)} min` : '';
-        } else if (e.type === 'video_open') {
-          icon = '▶️';
-          title = 'Watched video';
-          meta = e.title || '';
-        } else if (e.type === 'tier_expand') {
-          icon = '📂';
-          title = `Explored: ${e.tier}`;
-        }
-
-        return `
-          <div class="journey-item">
-            <div class="journey-icon">${icon}</div>
-            <div class="journey-content">
-              <div class="journey-title">${title}</div>
-              ${meta ? `<div class="journey-meta">${meta}</div>` : ''}
-            </div>
-          </div>
-        `;
-      }).join('');
-    }
-
     // Format location for display
-    function formatLocation(country) {
+    function formatLocation(city, country) {
       const countryNames = {
         'GB': 'United Kingdom',
         'UK': 'United Kingdom',
@@ -1578,36 +1250,42 @@ if (totalTimeSeconds > 0) {
         'CH': 'Switzerland',
         'AU': 'Australia',
         'NZ': 'New Zealand',
-        'CA': 'Canada',
-        'IN': 'India',
+        'AE': 'United Arab Emirates',
         'CN': 'China',
-        'JP': 'Japan',
-        'AE': 'UAE',
-        'SA': 'Saudi Arabia',
+        'HK': 'Hong Kong',
         'SG': 'Singapore',
-        'HK': 'Hong Kong'
+        'IN': 'India',
+        'CA': 'Canada'
       };
-      
-      if (!country) return 'Not specified';
-      return countryNames[country] || country;
+      const niceCountry = countryNames[country] || country || 'Unknown';
+      const niceCity = city || 'Unknown';
+      if (niceCity === 'Unknown' && niceCountry === 'Unknown') return 'Unknown';
+      if (niceCity === 'Unknown') return niceCountry;
+      if (niceCountry === 'Unknown') return niceCity;
+      return `${niceCity}, ${niceCountry}`;
     }
 
-    
-    // Show error
-    function showError(message) {
-      byId('familyList').innerHTML = `<div class="error">${message}</div>`;
+    function showError(msg) {
+      const list = byId('familyList');
+      list.innerHTML = `<div class="error">${msg}</div>`;
     }
 
+    async function generateAllSummaries() {
+      // Generate overall summaries for all expanded cards only (non-intrusive)
+      for (const f of allFamilies) {
+        const card = document.querySelector(`[data-id="${f.id}"]`);
+        if (card && card.classList.contains('expanded')) {
+          await generateOverallSummary(f.id);
+        }
+      }
+    }
 
-    // Initialise
-    document.addEventListener('DOMContentLoaded', () => {
-      byId('sortFilter')?.addEventListener('change', renderFamilies);
-      byId('statusFilter')?.addEventListener('change', renderFamilies);
-      byId('searchBox')?.addEventListener('input', renderFamilies);
+    document.addEventListener('DOMContentLoaded', ()=>{
+      byId('sortFilter').addEventListener('change', renderFamilies);
+      byId('statusFilter').addEventListener('change', renderFamilies);
+      byId('searchBox').addEventListener('input', renderFamilies);
       loadData();
     });
   </script>
 </body>
 </html>
-
-
