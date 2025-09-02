@@ -2210,6 +2210,38 @@ app.get('/api/analytics/inquiries', async (req, res) => {
   }
 });
 
+// Save/Upsert Overall AI Summary
+app.put('/api/analytics/inquiries/:id/overall_summary', express.json(), async (req, res) => {
+  try {
+    const inquiryId = req.params.id;
+    const { overview, recommendations, strategy } = req.body || {};
+
+    if (!db) return res.status(503).json({ ok: false, error: 'Database not available' });
+    if (!inquiryId) return res.status(400).json({ ok: false, error: 'Missing inquiry id' });
+
+    // normalise types
+    const ov = typeof overview === 'string' ? overview : (overview ?? null);
+    const recs = Array.isArray(recommendations) ? recommendations : [];
+    const strat = typeof strategy === 'string' ? strategy : (strategy ?? null);
+
+    await db.query(`
+      INSERT INTO inquiry_ai_summary (inquiry_id, overview, recommendations, strategy, generated_at, updated_at)
+      VALUES ($1, $2, $3::jsonb, $4, NOW(), NOW())
+      ON CONFLICT (inquiry_id)
+      DO UPDATE SET
+        overview       = EXCLUDED.overview,
+        recommendations= EXCLUDED.recommendations,
+        strategy       = EXCLUDED.strategy,
+        updated_at     = NOW()
+    `, [inquiryId, ov, JSON.stringify(recs), strat]);
+
+    return res.json({ ok: true, inquiry_id: inquiryId });
+  } catch (err) {
+    console.error('PUT overall_summary error:', err);
+    res.status(500).json({ ok: false, error: 'Failed to save overall AI summary' });
+  }
+});
+
 
 // Fetch Overall AI Summary
 app.get('/api/analytics/inquiries/:id/overall_summary', async (req, res) => {
