@@ -236,6 +236,12 @@
           <option value="not-interested">Not Interested</option>
         </select>
         <input type="text" class="search-box" placeholder="Search by family name..." id="searchBox" autocomplete="off">
+        
+        <div class="filter-bar" style="display:flex; gap:0.5rem;">
+          <button onclick="setEntryYearFilter(null)">Show All</button>
+          <button onclick="setEntryYearFilter(2025)">Show 2025</button>
+          <button onclick="setEntryYearFilter(2026)">Show 2026</button>
+        </div>
       </div>
 
       <div id="familyList">
@@ -250,6 +256,13 @@
     let familyStatuses = {};
     let allFamilies = [];
     let isLoading = false;
+    let entryYearFilter = null;
+
+    function setEntryYearFilter(year) {
+      entryYearFilter = year;
+      renderFamilies();
+    }
+
 
     // Helpers
     const byId = id => document.getElementById(id);
@@ -436,6 +449,10 @@
     // Get filtered families
     function getFilteredFamilies() {
       let families = [...allFamilies];
+      if (entryYearFilter) {
+        families = families.filter(f => String(f.entryYear) === String(entryYearFilter));
+      }
+
 
       const status = byId('statusFilter')?.value || 'all';
       if (status !== 'all') {

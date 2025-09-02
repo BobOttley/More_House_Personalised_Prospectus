@@ -114,6 +114,16 @@ async function initializeDatabase() {
   }
 }
 
+function loadInquiries(year) {
+  let url = '/api/analytics/inquiries';
+  if (year) url += '?entry_year=' + year;
+
+  fetch(url)
+    .then(res => res.json())
+    .then(data => renderInquiries(data));
+}
+
+
 // ===================== UTILITY FUNCTIONS =====================
 function getBaseUrl(req) {
   if (process.env.PUBLIC_BASE_URL) return process.env.PUBLIC_BASE_URL.replace(/\/+$/, '');
@@ -2695,6 +2705,27 @@ app.get('/api/analytics/video-metrics', async (req, res) => {
     });
   }
 });
+
+app.get('/api/analytics/inquiries', async (req, res) => {
+  try {
+    const entryYear = req.query.entry_year ? parseInt(req.query.entry_year, 10) : null;
+
+    let sql = `SELECT * FROM inquiries ORDER BY last_activity DESC`;
+    const params = [];
+
+    if (entryYear) {
+      sql = `SELECT * FROM inquiries WHERE entry_year = $1 ORDER BY last_activity DESC`;
+      params.push(entryYear);
+    }
+
+    const r = await db.query(sql, params);
+    res.json(r.rows);
+  } catch (err) {
+    console.error('Error fetching inquiries:', err);
+    res.status(500).json({ error: 'Failed to fetch inquiries' });
+  }
+});
+
 
 // AI narrative route
 app.get('/api/family/:inquiryId/ai-summary', async (req, res) => {
