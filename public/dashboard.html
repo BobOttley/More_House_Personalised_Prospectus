@@ -1794,7 +1794,23 @@ async function onStatusChange(id, val) {
         } else if (ev.type === 'video_open') {
           journey.push({ type: 'video', title: ev.title || 'Video', videoId: ev.youtubeId, icon: '▶️' });
         } else if (ev.type === 'tier_expand') {
-          journey.push({ type: 'tier', title: formatTierName(ev.tier), icon: '📂' });
+          // Find if we already have an expand for this tier without a duration
+          const existingTier = journey.find(j => j.type === 'tier' && j.tier === ev.tier && !j.duration);
+          if (!existingTier) {
+            journey.push({ type: 'tier', title: formatTierName(ev.tier), tier: ev.tier, icon: '📂' });
+          }
+        } else if (ev.type === 'tier_exit') {
+          // Find the corresponding tier expand and add duration
+          const tierItem = journey.find(j => j.type === 'tier' && j.tier === ev.tier);
+          if (tierItem) {
+            tierItem.duration = ev.dwellSec || 0;
+          }
+        } else if (ev.type === 'entry_point_interaction' && ev.action === 'exit') {
+          // Also handle entry_point_interaction events for compatibility
+          const tierItem = journey.find(j => j.type === 'tier' && j.tier === ev.tier);
+          if (tierItem && !tierItem.duration) {
+            tierItem.duration = ev.dwellSec || 0;
+          }
         } else if (ev.type === 'cta_openmorning_click') {
           journey.push({ type: 'cta', title: 'Clicked Open Morning CTA', icon: '⭐' });
         }
@@ -1859,10 +1875,16 @@ async function onStatusChange(id, val) {
           `;
         }
         if (item.type === 'tier') {
+          const minutes = Math.floor((item.duration || 0) / 60);
+          const seconds = (item.duration || 0) % 60;
+          const timeStr = minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
           return `
             <div class="journey-item">
               <div class="journey-icon tier">📂</div>
-              <div class="journey-content"><div class="journey-title">Explored: ${item.title}</div></div>
+              <div class="journey-content">
+                <div class="journey-title">Explored: ${item.title}</div>
+                ${item.duration ? `<div class="journey-meta">Time spent: ${timeStr}</div>` : ''}
+              </div>
             </div>
           `;
         }
