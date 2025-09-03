@@ -1,5 +1,6 @@
-/* public/tracking.js — Lean tracker with hysteresis + idle timeout + CTA tracking
-   Tracks: visit start/end, section enter/exit, tier expand/exit (inferred), video open/close, Open Morning clicks
+/* public/tracking.js — Lean tracker with tier tracking fix + idle timeout + CTA tracking
+   Tracks: visit start/end, section enter/exit, tier expand/exit (with analytics compatibility), video open/close, Open Morning clicks
+   FIXED: Tier events now send both tier_* and entry_point_interaction for analytics compatibility
 */
 
 (function () {
@@ -43,11 +44,23 @@
 
   // Idle detection
   let idleTimer = null;
-  const resetIdle = () => { if (idleTimer) clearTimeout(idleTimer); idleTimer = setTimeout(onIdleTimeout, IDLE_TIMEOUT_MS); };
+  const resetIdle = () => { 
+    if (idleTimer) clearTimeout(idleTimer); 
+    idleTimer = setTimeout(onIdleTimeout, IDLE_TIMEOUT_MS); 
+  };
 
   // ===== Helpers =====
   const nowIso = () => new Date().toISOString();
-  const throttle = (fn, ms) => { let t = 0; return () => { const n = Date.now(); if (n - t > ms) { t = n; fn(); } }; };
+  const throttle = (fn, ms) => { 
+    let t = 0; 
+    return () => { 
+      const n = Date.now(); 
+      if (n - t > ms) { 
+        t = n; 
+        fn(); 
+      } 
+    }; 
+  };
   const nameFor = (kind, action, tail) => `pp.v1.${kind}.${action}${tail ? '.' + tail : ''}`;
 
   function track(eventType, data = {}) {
@@ -70,13 +83,23 @@
     flushTimer = null;
     if (!queue.length) return;
     const batch = queue.splice(0, queue.length);
-    const payload = JSON.stringify({ events: batch, sessionInfo: { inquiryId: INQUIRY_ID, sessionId: SESSION_ID } });
+    const payload = JSON.stringify({ 
+      events: batch, 
+      sessionInfo: { 
+        inquiryId: INQUIRY_ID, 
+        sessionId: SESSION_ID 
+      } 
+    });
 
     try {
       if (navigator.sendBeacon && document.visibilityState === 'hidden') {
         navigator.sendBeacon(POST_URL, payload);
       } else {
-        await fetch(POST_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload });
+        await fetch(POST_URL, { 
+          method: 'POST', 
+          headers: { 'Content-Type': 'application/json' }, 
+          body: payload 
+        });
       }
     } catch {
       // Best-effort retry: put events back to the front of the queue
@@ -86,11 +109,31 @@
     }
   }
 
+  // FIXED: endActiveTier now sends both event types for analytics compatibility
   function endActiveTier(reason) {
     if (!activeTier || !activeTierEnterTs) return;
     const dwellSec = Math.max(0, Math.round((Date.now() - activeTierEnterTs) / 1000));
-    track('tier_exit', { name: nameFor('tier','exit',activeTier), tier: activeTier, dwellSec, reason });
-    activeTier = null; activeTierEnterTs = null;
+    
+    // Send existing tier event (backward compatibility)
+    track('tier_exit', { 
+      name: nameFor('tier','exit',activeTier), 
+      tier: activeTier, 
+      dwellSec, 
+      reason 
+    });
+    
+    // ALSO send what analytics expects
+    track('entry_point_interaction', { 
+      name: nameFor('entry','exit',activeTier), 
+      entryPoint: activeTier,
+      action: 'exit',
+      tier: activeTier,
+      dwellSec: dwellSec,
+      reason: reason
+    });
+    
+    activeTier = null; 
+    activeTierEnterTs = null;
   }
 
   function endCurrentSection(reason) {
@@ -98,8 +141,14 @@
     const dwellSecRaw = Math.max(0, Math.round((Date.now() - lastSectionEnterTs) / 1000));
     const dwellSec    = Math.max(MIN_SECTION_DWELL_SEC, dwellSecRaw);
     lastExitAt.set(currentSection, Date.now());
-    track('section_exit', { name: nameFor('section','exit',currentSection), section: currentSection, dwellSec, reason });
-    currentSection = null; lastSectionEnterTs = null;
+    track('section_exit', { 
+      name: nameFor('section','exit',currentSection), 
+      section: currentSection, 
+      dwellSec, 
+      reason 
+    });
+    currentSection = null; 
+    lastSectionEnterTs = null;
   }
 
   function detectDominantSection() {
@@ -110,7 +159,10 @@
       const r = sec.getBoundingClientRect();
       const visible = Math.max(0, Math.min(r.bottom, window.innerHeight) - Math.max(r.top, 0));
       const ratio = r.height > 0 ? (visible / r.height) : 0;
-      if (ratio > SECTION_VIS_RATIO && ratio > bestRatio) { bestRatio = ratio; bestKey = key; }
+      if (ratio > SECTION_VIS_RATIO && ratio > bestRatio) { 
+        bestRatio = ratio; 
+        bestKey = key; 
+      }
     }
     return bestKey;
   }
@@ -120,11 +172,19 @@
     const next = detectDominantSection();
 
     // If we leave 'your_journey' whilst a tier is active, infer its end
-    if (activeTier && next && next !== 'your_journey' && currentSection === 'your_journey') endActiveTier('left_section');
+    if (activeTier && next && next !== 'your_journey' && currentSection === 'your_journey') {
+      endActiveTier('left_section');
+    }
 
     // Debounce: require the new candidate to be dominant for a short period
-    if (next !== candidateSection) { candidateSection = next; candidateSince = Date.now(); return; }
-    if (next && next !== currentSection && (Date.now() - candidateSince) < SECTION_ENTER_STICKY_MS) return;
+    if (next !== candidateSection) { 
+      candidateSection = next; 
+      candidateSince = Date.now(); 
+      return; 
+    }
+    if (next && next !== currentSection && (Date.now() - candidateSince) < SECTION_ENTER_STICKY_MS) {
+      return;
+    }
 
     // Enforce re-entry cooldown to prevent oscillation spam
     if (next && lastExitAt.has(next)) {
@@ -136,7 +196,10 @@
       endCurrentSection('left_section');            // Exit old (clamped)
       currentSection = next;                        // Enter new
       lastSectionEnterTs = Date.now();
-      track('section_enter', { name: nameFor('section','enter',currentSection), section: currentSection });
+      track('section_enter', { 
+        name: nameFor('section','enter',currentSection), 
+        section: currentSection 
+      });
     }
   }
 
@@ -158,13 +221,18 @@
   ['mousemove','keydown','touchstart','wheel'].forEach(ev =>
     window.addEventListener(ev, throttle(resetIdle, 500), { passive: true })
   );
+  
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') { flush(); }
-    else { resetIdle(); handleSectionChange(); }
+    if (document.visibilityState === 'hidden') { 
+      flush(); 
+    } else { 
+      resetIdle(); 
+      handleSectionChange(); 
+    }
   });
   resetIdle();
 
-  // ===== Tier cards (pre-senior / senior / sixth form) =====
+  // ===== FIXED Tier cards (pre-senior / senior / sixth form) =====
   const originalToggle = window.toggleCard;
   window.toggleCard = function (cardId) {
     resetIdle();
@@ -180,8 +248,23 @@
 
     if (!wasExpanded && isExpanded) {
       if (activeTier && activeTier !== tier) endActiveTier('next_tier');
-      activeTier = tier; activeTierEnterTs = Date.now();
-      track('tier_expand', { name: nameFor('tier','expand',tier), tier });
+      activeTier = tier; 
+      activeTierEnterTs = Date.now();
+      
+      // Send existing tier event (backward compatibility)
+      track('tier_expand', { 
+        name: nameFor('tier','expand',tier), 
+        tier 
+      });
+      
+      // ALSO send what analytics expects
+      track('entry_point_interaction', { 
+        name: nameFor('entry','expand',tier), 
+        entryPoint: tier,
+        action: 'expand',
+        tier: tier,
+        cardId: cardId
+      });
     }
   };
 
@@ -191,7 +274,11 @@
 
   window.openVideo = function (youtubeId, title) {
     resetIdle();
-    track('video_open',  { name: nameFor('video','open', youtubeId), youtubeId, title });
+    track('video_open',  { 
+      name: nameFor('video','open', youtubeId), 
+      youtubeId, 
+      title 
+    });
     if (typeof originalOpenVideo === 'function') return originalOpenVideo(youtubeId, title);
   };
 
@@ -204,7 +291,10 @@
       const m = src.match(/\/embed\/([A-Za-z0-9_\-]+)/);
       if (m) youtubeId = m[1];
     } catch {}
-    track('video_close', { name: nameFor('video','close', youtubeId || 'unknown'), youtubeId });
+    track('video_close', { 
+      name: nameFor('video','close', youtubeId || 'unknown'), 
+      youtubeId 
+    });
     if (typeof originalCloseVideo === 'function') return originalCloseVideo();
   };
 
@@ -238,7 +328,13 @@
     track('page_unload', { name: nameFor('visit','end') });
 
     if (queue.length) {
-      const payload = JSON.stringify({ events: queue, sessionInfo: { inquiryId: INQUIRY_ID, sessionId: SESSION_ID } });
+      const payload = JSON.stringify({ 
+        events: queue, 
+        sessionInfo: { 
+          inquiryId: INQUIRY_ID, 
+          sessionId: SESSION_ID 
+        } 
+      });
       if (navigator.sendBeacon) navigator.sendBeacon(POST_URL, payload);
     }
   });
