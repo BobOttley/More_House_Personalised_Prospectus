@@ -2442,9 +2442,18 @@ app.get('/api/ai/engagement-summary/:inquiryId', async (req, res) => {
       ORDER BY 2 DESC
     `, [inquiryId]);
     
-    const dwellMs = Number(inquiryData.rows[0]?.dwell_ms || 0);
-    const visits = Number(inquiryData.rows[0]?.return_visits || 1);
-    const score = Math.min(100, Math.round((dwellMs / 1000) / 10) + 50);
+    // Calculate total time by summing ALL session durations - FIX FOR TOTAL TIME
+    const sessionTotals = await db.query(`
+      SELECT 
+        COALESCE(SUM(duration_seconds), 0) as total_seconds,
+        COUNT(*) as session_count
+      FROM session_summaries 
+      WHERE inquiry_id = $1
+    `, [inquiryId]);
+
+    const totalSeconds = parseInt(sessionTotals.rows[0]?.total_seconds || 0);
+    const dwellMs = totalSeconds * 1000; // Convert to milliseconds
+    const visitCount = Math.max(parseInt(sessionTotals.rows[0]?.session_count || 0), 1);    const score = Math.min(100, Math.round((dwellMs / 1000) / 10) + 50);
     
     let summaryText = 'No summary available';
     let highlights = [];
@@ -2471,7 +2480,7 @@ app.get('/api/ai/engagement-summary/:inquiryId', async (req, res) => {
     
     res.json({
       dwellMs,
-      visits,
+      visits: visitCount,
       score,
       sections: sectionData.rows,
       summaryText,
@@ -3358,7 +3367,7 @@ app.get('/api/section-data/:inquiryId', async (req, res) => {
 
     const totalSeconds = parseInt(sessionTotals.rows[0]?.total_seconds || 0);
     const totalDwellMs = totalSeconds * 1000; // Convert to milliseconds
-    const visits = Math.max(parseInt(sessionTotals.rows[0]?.session_count || 0), 1);
+    const visitCount = Math.max(parseInt(sessionTotals.rows[0]?.session_count || 0), 1);
     
     // Calculate comprehensive engagement score
     const engagementScore = calculateEngagementScore({
