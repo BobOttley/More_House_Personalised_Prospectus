@@ -3347,11 +3347,18 @@ app.get('/api/section-data/:inquiryId', async (req, res) => {
       return res.status(404).json({ error: 'Inquiry not found' });
     }
     
-    const totalDwellMs = parseInt(inquiry.dwell_ms || '0');
-    const visitCount = Math.max(
-      parseInt(visits.rows[0]?.visit_count || '1'),
-      parseInt(inquiry.return_visits || '1')
-    );
+    // Calculate total time by summing ALL session durations - FIX FOR TOTAL TIME
+    const sessionTotals = await db.query(`
+      SELECT 
+        COALESCE(SUM(duration_seconds), 0) as total_seconds,
+        COUNT(*) as session_count
+      FROM session_summaries 
+      WHERE inquiry_id = $1
+    `, [inquiryId]);
+
+    const totalSeconds = parseInt(sessionTotals.rows[0]?.total_seconds || 0);
+    const totalDwellMs = totalSeconds * 1000; // Convert to milliseconds
+    const visits = Math.max(parseInt(sessionTotals.rows[0]?.session_count || 0), 1);
     
     // Calculate comprehensive engagement score
     const engagementScore = calculateEngagementScore({
