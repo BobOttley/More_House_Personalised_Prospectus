@@ -486,33 +486,6 @@
       gap: 1.5rem
     }
 
-    .score-badge {
-      padding: .5rem 1rem;
-      border-radius: 8px;
-      font-weight: 600;
-      font-size: 1.125rem;
-      text-align: center;
-      min-width: 60px
-    }
-
-    .score-badge.hot {
-      background: rgba(255, 68, 68, .1);
-      color: var(--hot-lead);
-      border: 1px solid rgba(255, 68, 68, .2)
-    }
-
-    .score-badge.warm {
-      background: rgba(255, 159, 28, .1);
-      color: var(--warm-lead);
-      border: 1px solid rgba(255, 159, 28, .2)
-    }
-
-    .score-badge.cold {
-      background: rgba(3, 70, 116, .1);
-      color: var(--sport-blue);
-      border: 1px solid rgba(3, 70, 116, .2)
-    }
-
     .expand-icon {
       transition: transform .2s;
       color: #64748b
@@ -1056,20 +1029,7 @@
           totalDwellMs = actualVisits * 60000;
         }
 
-
-        const minutes = totalDwellMs / 60000;
         const last = f.updated_at || f.received_at || null;
-
-        const timeScore = Math.min(Math.max(minutes, 0), 25) * 2;
-        const visitScore = Math.min(Math.max(actualVisits, 0), 10) * 5;
-        let recency = 0;
-        if (last) {
-          const age = Date.now() - new Date(last).getTime();
-          if (age <= 86400000) recency = 20;
-          else if (age <= 3 * 86400000) recency = 10;
-        }
-        const engagement = Math.round(Math.min(timeScore + visitScore + recency, 100));
-        const temperature = engagement >= 80 ? 'hot' : (engagement >= 50 ? 'warm' : 'cold');
         const isActiveToday = !!(last && (Date.now() - new Date(last).getTime()) <= 86400000);
 
         return {
@@ -1083,11 +1043,9 @@
           receivedAt: f.received_at,
           lastActivity: last,
           timeOnPageMs: totalDwellMs,
-          timeOnPageMinutes: Math.max(0, Math.round(minutes)),
+          timeOnPageMinutes: Math.max(0, Math.round(totalDwellMs / 60000)),
           visits: actualVisits,
           sessionCount: actualVisits,
-          engagementScore: engagement,
-          temperature,
           isActiveToday,
           hasProspectus: !!f.prospectus_generated,
           prospectusUrl: f.prospectus_pretty_url || null,
@@ -1149,8 +1107,6 @@
       updateMetrics();
     }
 
-
-  
 // Wire the dropdown to storage, badge, server save, and summary recalc (REPLACEMENT)
 async function onStatusChange(id, val) {
   try {
@@ -1199,7 +1155,6 @@ async function onStatusChange(id, val) {
     setTimeout(() => { if (fb) fb.textContent = ''; }, 3500);
   }
 }
-
 
     // Load saved statuses
     function loadSavedStatuses() {
@@ -1289,7 +1244,6 @@ async function onStatusChange(id, val) {
                 ${interestPills ? `<div class="interests-container">${interestPills}</div>` : ''}
               </div>
               <div class="family-stats">
-                <div class="score-badge ${f.temperature}">${f.engagementScore}</div>
                 <div class="expand-icon">▼</div>
               </div>
               <!-- Status summary badge (ALWAYS VISIBLE) -->
@@ -1479,7 +1433,6 @@ async function onStatusChange(id, val) {
 
     // Generate comprehensive summary for a family
     function generateComprehensiveSummary(family, actualVisits) {
-      const engagement = family.engagementScore || 0;
       const visits = actualVisits || family.visits || 0;
       const totalMinutes = family.timeOnPageMinutes || 0;
       const interests = family.interests || [];
@@ -1488,40 +1441,27 @@ async function onStatusChange(id, val) {
       const recommendations = [];
       let strategy = '';
 
-      let adjustedEngagement = engagement;
+      // Base analysis on actual data without artificial scoring
       if (visits >= 5) {
-        adjustedEngagement = Math.min(100, engagement + 20);
+        overview = `Exceptional engagement with ${visits} visits totalling ${totalMinutes} minutes. Multiple return visits demonstrate serious consideration and strong intent. `;
+        recommendations.push('URGENT: Immediate personal outreach required');
+        recommendations.push('Schedule in-person tour this week');
+        recommendations.push('Assign dedicated admissions officer');
+        strategy = 'This family shows exceptional engagement through repeated visits. Focus on personal connection and converting interest to application. Address specific programme interests directly.';
       } else if (visits >= 3) {
-        adjustedEngagement = Math.min(100, engagement + 10);
-      }
-
-      if (adjustedEngagement >= 80 || visits >= 5) {
-        overview = `Highly engaged prospect with exceptional interest levels. ${visits} visit${visits !== 1 ? 's' : ''} totalling ${totalMinutes || 'multiple'} minutes demonstrates strong intent. `;
-        if (visits >= 5) {
-          overview += 'Exceptional return rate with multiple visits shows serious consideration. ';
-          recommendations.push('URGENT: Immediate personal outreach required');
-          recommendations.push('Schedule in-person tour this week');
-          recommendations.push('Assign dedicated admissions officer');
-        } else if (visits >= 3) {
-          overview += 'Multiple return visits indicate growing interest. ';
-          recommendations.push('Priority follow-up within 24 hours');
-          recommendations.push('Personalised video message from Head');
-        } else {
-          recommendations.push('Schedule call within 48 hours');
-          recommendations.push('Send personalised prospectus highlights');
-        }
-        strategy = 'This family shows high engagement through repeated visits. Focus on personal connection and converting interest to application. Address specific programme interests directly.';
-      } else if (adjustedEngagement >= 50 || visits >= 2) {
-        overview = `Moderately engaged prospect showing sustained interest. ${visits} visit${visits !== 1 ? 's' : ''} with ${totalMinutes || 'consistent'} minutes of engagement. `;
-        if (visits >= 2) {
-          overview += 'Return visit shows continued consideration. ';
-        }
+        overview = `Strong engagement with ${visits} visits and ${totalMinutes} minutes spent exploring. Multiple return visits indicate growing interest. `;
+        recommendations.push('Priority follow-up within 24 hours');
+        recommendations.push('Personalised video message from Head');
+        recommendations.push('Schedule call within 48 hours');
+        strategy = 'Build on demonstrated interest with targeted follow-up. Focus on addressing potential concerns and showcasing programmes matching their interests.';
+      } else if (visits >= 2) {
+        overview = `Moderate engagement with ${visits} visits totalling ${totalMinutes} minutes. Return visit shows continued consideration. `;
         recommendations.push('Send tailored information pack within 3 days');
         recommendations.push('Add to priority nurture sequence');
         recommendations.push('Invite to next open event');
         strategy = 'Build on demonstrated interest with targeted follow-up. Focus on addressing potential concerns and showcasing programmes matching their interests.';
       } else {
-        overview = `Early-stage prospect in research phase. ${visits} visit${visits !== 1 ? 's' : ''} with initial exploration. `;
+        overview = `Initial engagement with ${visits} visit and ${totalMinutes} minutes of exploration. Early-stage prospect in research phase. `;
         recommendations.push('Add to welcome campaign');
         recommendations.push('Monitor for return visits');
         recommendations.push('Send general prospectus');
@@ -1566,15 +1506,9 @@ async function onStatusChange(id, val) {
         recommendations.push(urgentRec, ...filteredRecs);
       }
 
-      if (visits >= 3) {
-        const avgDays = 7 / visits;
-        if (avgDays <= 2) {
-          overview += 'High visit frequency suggests urgent decision timeline. ';
-        }
-      }
-
       return { overview, recommendations: recommendations.slice(0, 8), strategy };
-}
+    }
+
     // Load session history (no per-visit AI summary)
     async function loadSessionHistory(inquiryId) {
       const container = byId(`sessions-${inquiryId}`);
