@@ -2454,6 +2454,7 @@ app.get('/api/ai/engagement-summary/:inquiryId', async (req, res) => {
     const totalSeconds = parseInt(sessionTotals.rows[0]?.total_seconds || 0);
     const dwellMs = totalSeconds * 1000; // For location 1
     const totalDwellMs = totalSeconds * 1000; // For location 2
+    const score = Math.min(100, Math.round((dwellMs / 1000) / 10) + 50);
     const visitCount = Math.max(parseInt(sessionTotals.rows[0]?.session_count || 0), 1);
     
     let summaryText = 'No summary available';
