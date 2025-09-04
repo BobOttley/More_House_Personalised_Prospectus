@@ -3898,6 +3898,77 @@ const RESERVED = new Set([
   'download'  // ADD THIS LINE
 ]);
 
+app.get('/download/:slug', async (req, res) => {
+  try {
+    const slug = String(req.params.slug || '').toLowerCase();
+    console.log(`📥 Download request for slug: ${slug}`);
+
+    // Find the inquiry by slug (using your existing function)
+    const inquiry = await findInquiryBySlug(slug);
+    if (!inquiry) {
+      return res.status(404).send('Prospectus not found');
+    }
+
+    // Use your EXISTING generateProspectus function to create the HTML
+    const prospectusInfo = await generateProspectus(inquiry);
+    
+    // Instead of saving to disk, read the generated file and send as download
+    const filePath = path.join(__dirname, 'prospectuses', prospectusInfo.filename);
+    const html = await fs.readFile(filePath, 'utf8');
+    
+    // Set headers for download
+    const filename = `${inquiry.firstName}-${inquiry.familySurname}-Prospectus-${inquiry.entryYear}-OFFLINE.html`;
+    res.setHeader('Content-Type', 'text/html');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Cache-Control', 'no-cache');
+    
+    console.log(`✅ Sending download: ${filename}`);
+    res.send(html);
+
+  } catch (error) {
+    console.error('❌ Download failed:', error);
+    res.status(500).send('Failed to generate download');
+  }
+});
+
+// Download route via inquiry ID - for dashboard use
+app.get('/api/download/:inquiryId', async (req, res) => {
+  try {
+    const inquiryId = req.params.inquiryId;
+    console.log(`📥 API Download request for inquiry: ${inquiryId}`);
+
+    // Find the inquiry data (add this helper function if you don't have it)
+    const inquiry = await findInquiryById(inquiryId);
+    if (!inquiry) {
+      return res.status(404).json({ error: 'Inquiry not found' });
+    }
+
+    // Use your EXISTING generateProspectus function
+    const prospectusInfo = await generateProspectus(inquiry);
+    
+    // Read the generated file and send as download
+    const filePath = path.join(__dirname, 'prospectuses', prospectusInfo.filename);
+    const html = await fs.readFile(filePath, 'utf8');
+    
+    // Set headers for download
+    const filename = `${inquiry.firstName}-${inquiry.familySurname}-Prospectus-${inquiry.entryYear}-OFFLINE.html`;
+    res.setHeader('Content-Type', 'text/html');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Cache-Control', 'no-cache');
+    
+    console.log(`✅ Sending API download: ${filename}`);
+    res.send(html);
+
+  } catch (error) {
+    console.error('❌ API Download failed:', error);
+    res.status(500).json({ error: 'Failed to generate download' });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════
+// ADD THIS HELPER FUNCTION (if you don't already have it)
+// ═══════════════════════════════════════════════════════════════════════════════════════════
+
 app.get('/:slug', async (req, res, next) => {
   const slug = String(req.params.slug || '').toLowerCase();
   
@@ -4422,77 +4493,6 @@ app.get('/api/debug/sessions/:inquiryId', async (req, res) => {
 // ═══════════════════════════════════════════════════════════════════════════════════════════
 
 // Download route via slug - generates and downloads instead of saving to disk
-app.get('/download/:slug', async (req, res) => {
-  try {
-    const slug = String(req.params.slug || '').toLowerCase();
-    console.log(`📥 Download request for slug: ${slug}`);
-
-    // Find the inquiry by slug (using your existing function)
-    const inquiry = await findInquiryBySlug(slug);
-    if (!inquiry) {
-      return res.status(404).send('Prospectus not found');
-    }
-
-    // Use your EXISTING generateProspectus function to create the HTML
-    const prospectusInfo = await generateProspectus(inquiry);
-    
-    // Instead of saving to disk, read the generated file and send as download
-    const filePath = path.join(__dirname, 'prospectuses', prospectusInfo.filename);
-    const html = await fs.readFile(filePath, 'utf8');
-    
-    // Set headers for download
-    const filename = `${inquiry.firstName}-${inquiry.familySurname}-Prospectus-${inquiry.entryYear}-OFFLINE.html`;
-    res.setHeader('Content-Type', 'text/html');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    res.setHeader('Cache-Control', 'no-cache');
-    
-    console.log(`✅ Sending download: ${filename}`);
-    res.send(html);
-
-  } catch (error) {
-    console.error('❌ Download failed:', error);
-    res.status(500).send('Failed to generate download');
-  }
-});
-
-// Download route via inquiry ID - for dashboard use
-app.get('/api/download/:inquiryId', async (req, res) => {
-  try {
-    const inquiryId = req.params.inquiryId;
-    console.log(`📥 API Download request for inquiry: ${inquiryId}`);
-
-    // Find the inquiry data (add this helper function if you don't have it)
-    const inquiry = await findInquiryById(inquiryId);
-    if (!inquiry) {
-      return res.status(404).json({ error: 'Inquiry not found' });
-    }
-
-    // Use your EXISTING generateProspectus function
-    const prospectusInfo = await generateProspectus(inquiry);
-    
-    // Read the generated file and send as download
-    const filePath = path.join(__dirname, 'prospectuses', prospectusInfo.filename);
-    const html = await fs.readFile(filePath, 'utf8');
-    
-    // Set headers for download
-    const filename = `${inquiry.firstName}-${inquiry.familySurname}-Prospectus-${inquiry.entryYear}-OFFLINE.html`;
-    res.setHeader('Content-Type', 'text/html');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    res.setHeader('Cache-Control', 'no-cache');
-    
-    console.log(`✅ Sending API download: ${filename}`);
-    res.send(html);
-
-  } catch (error) {
-    console.error('❌ API Download failed:', error);
-    res.status(500).json({ error: 'Failed to generate download' });
-  }
-});
-
-// ═══════════════════════════════════════════════════════════════════════════════════════════
-// ADD THIS HELPER FUNCTION (if you don't already have it)
-// ═══════════════════════════════════════════════════════════════════════════════════════════
-
 async function findInquiryById(inquiryId) {
   try {
     const files = await fs.readdir(path.join(__dirname, 'data'));
