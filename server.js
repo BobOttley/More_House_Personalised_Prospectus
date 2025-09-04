@@ -3902,7 +3902,7 @@ const RESERVED = new Set([
 app.get('/download/:slug', async (req, res) => {
   try {
     const slug = String(req.params.slug || '').toLowerCase();
-    console.log(`📥 Download request for slug: ${slug}`);
+    console.log(`Download request for slug: ${slug}`);
 
     const inquiry = await findInquiryBySlug(slug);
     if (!inquiry) {
@@ -3943,7 +3943,6 @@ app.get('/api/download/:inquiryId', async (req, res) => {
     res.status(500).json({ error: 'Failed to generate download' });
   }
 });
-
 
 app.get('/:slug', async (req, res, next) => {
   const slug = String(req.params.slug || '').toLowerCase();
