@@ -87,6 +87,12 @@
 
         <form id="inquiryForm">
             <span class="section-label">Family Information</span>
+            
+            <div class="form-group">
+                <label for="parentName">Parent/Guardian Name <span class="required">*</span></label>
+                <input type="text" id="parentName" required placeholder="e.g. Mrs Sarah Smith">
+            </div>
+            
             <div class="form-row">
                 <div class="form-group">
                     <label for="firstName">Daughter's First Name <span class="required">*</span></label>
@@ -104,6 +110,13 @@
                     <input type="email" id="parentEmail" required>
                 </div>
                 <div class="form-group">
+                    <label for="contactNumber">Contact Number <span class="required">*</span></label>
+                    <input type="tel" id="contactNumber" required placeholder="e.g. 020 7235 2855">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
                     <label for="ageGroup">Current Age Group <span class="required">*</span></label>
                     <select id="ageGroup" required>
                         <option value="">Select age group...</option>
@@ -112,17 +125,29 @@
                         <option value="16-18">Ages 16–18 (Sixth Form)</option>
                     </select>
                 </div>
+                <div class="form-group">
+                    <label for="entryYear">Planned Entry Year <span class="required">*</span></label>
+                    <select id="entryYear" required>
+                        <option value="">Select entry year...</option>
+                        <option value="2025">September 2025</option>
+                        <option value="2026">September 2026</option>
+                        <option value="2027">September 2027</option>
+                        <option value="2028">September 2028</option>
+                        <option value="2029">September 2029</option>
+                    </select>
+                </div>
             </div>
 
             <div class="form-group">
-                <label for="entryYear">Planned Entry Year <span class="required">*</span></label>
-                <select id="entryYear" required>
-                    <option value="">Select entry year...</option>
-                    <option value="2025">September 2025</option>
-                    <option value="2026">September 2026</option>
-                    <option value="2027">September 2027</option>
-                    <option value="2028">September 2028</option>
-                    <option value="2029">September 2029</option>
+                <label for="hearAboutUs">How did you hear about More House School? <span class="required">*</span></label>
+                <select id="hearAboutUs" required>
+                    <option value="">Please select...</option>
+                    <option value="current-school">Current School</option>
+                    <option value="friend-family">Friend or Family</option>
+                    <option value="google-search">Google or Search Engine</option>
+                    <option value="publication">Publication</option>
+                    <option value="social-media">Social Media</option>
+                    <option value="other">Other</option>
                 </select>
             </div>
 
@@ -290,11 +315,14 @@
             try {
                 // Collect form data
                 const formData = {
+                    parentName: document.getElementById('parentName').value.trim(),
                     firstName: document.getElementById('firstName').value.trim(),
                     familySurname: document.getElementById('familySurname').value.trim(),
                     parentEmail: document.getElementById('parentEmail').value.trim(),
+                    contactNumber: document.getElementById('contactNumber').value.trim(),
                     ageGroup: document.getElementById('ageGroup').value,
                     entryYear: document.getElementById('entryYear').value,
+                    hearAboutUs: document.getElementById('hearAboutUs').value,
                     sciences: document.getElementById('sciences').checked,
                     mathematics: document.getElementById('mathematics').checked,
                     english: document.getElementById('english').checked,
@@ -415,6 +443,12 @@
             const emailField = document.getElementById('parentEmail');
             emailField.addEventListener('blur', function() {
                 const ok = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.value);
+                this.style.borderColor = this.value && !ok ? '#dc3545' : (this.value ? '#28a745' : '#ddd');
+            });
+
+            const phoneField = document.getElementById('contactNumber');
+            phoneField.addEventListener('blur', function() {
+                const ok = /^[\d\s\+\-\(\)]{10,}$/.test(this.value);
                 this.style.borderColor = this.value && !ok ? '#dc3545' : (this.value ? '#28a745' : '#ddd');
             });
         });

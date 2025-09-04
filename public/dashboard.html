@@ -1177,7 +1177,10 @@ async function onStatusChange(id, val) {
       if (q) {
         families = families.filter(f =>
           f.name.toLowerCase().includes(q) ||
-          (f.parentEmail || '').toLowerCase().includes(q)
+          (f.parentName || '').toLowerCase().includes(q) ||
+          (f.parentEmail || '').toLowerCase().includes(q) ||
+          (f.contactNumber || '').includes(q) ||
+          (f.hearAboutUs || '').toLowerCase().includes(q)
         );
       }
 
