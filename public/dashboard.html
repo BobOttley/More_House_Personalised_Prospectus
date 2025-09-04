@@ -1349,6 +1349,72 @@ async function onStatusChange(id, val) {
       navigator.clipboard.writeText(id).catch(console.error);
     }
 
+    // Delete inquiry with confirmation
+    async function deleteInquiry(inquiryId) {
+      const family = allFamilies.find(f => f.id === inquiryId);
+      const familyName = family ? family.name : 'this inquiry';
+      
+      // Two-step confirmation for safety
+      const confirmMessage = `Are you sure you want to delete ${familyName}?\n\nThis will permanently remove:\n• All inquiry data\n• Visit history and sessions\n• AI summaries\n• Status information\n\nThis action cannot be undone.`;
+      
+      if (!confirm(confirmMessage)) {
+        return;
+      }
+      
+      // Second confirmation
+      const finalConfirm = `Final confirmation: Type "DELETE" to permanently remove ${familyName}`;
+      const userInput = prompt(finalConfirm);
+      
+      if (userInput !== 'DELETE') {
+        alert('Deletion cancelled - you must type "DELETE" exactly to confirm.');
+        return;
+      }
+
+      try {
+        // Show loading state
+        const card = document.querySelector(`[data-id="${inquiryId}"]`);
+        if (card) {
+          card.style.opacity = '0.5';
+          card.style.pointerEvents = 'none';
+        }
+
+        // Call delete endpoint
+        const res = await fetch(`/api/analytics/inquiries/${encodeURIComponent(inquiryId)}`, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (!res.ok) {
+          throw new Error(`Delete failed: ${res.status} ${res.statusText}`);
+        }
+
+        // Remove from local data
+        allFamilies = allFamilies.filter(f => f.id !== inquiryId);
+        delete familyStatuses[inquiryId];
+        localStorage.setItem('familyStatuses', JSON.stringify(familyStatuses));
+        
+        // Update UI
+        updateMetrics();
+        renderFamilies();
+        
+        // Show success message
+        alert(`Successfully deleted ${familyName}`);
+        
+      } catch (error) {
+        console.error('Delete error:', error);
+        
+        // Restore card if it exists
+        if (card) {
+          card.style.opacity = '1';
+          card.style.pointerEvents = 'auto';
+        }
+        
+        alert(`Failed to delete inquiry: ${error.message}\n\nThe inquiry data has not been removed.`);
+      }
+    }
+
     // Try to fetch and render saved overall summary under Contact & Profile
     async function maybeLoadSavedOverallSummary(inquiryId) {
       const container = byId(`ai-overall-${inquiryId}`);

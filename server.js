@@ -4404,6 +4404,154 @@ app.get('/api/debug/sessions/:inquiryId', async (req, res) => {
   }
 });
 
+
+// Delete inquiry endpoint
+app.delete('/api/analytics/inquiries/:id', async (req, res) => {
+  try {
+    const inquiryId = req.params.id;
+    
+    if (!inquiryId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Missing inquiry ID' 
+      });
+    }
+
+    // Start transaction if database is available
+    if (db) {
+      try {
+        await db.query('BEGIN');
+        
+        // Check if inquiry exists
+        const existsResult = await db.query(
+          'SELECT id, first_name, family_surname FROM inquiries WHERE id = $1',
+          [inquiryId]
+        );
+        
+        if (existsResult.rows.length === 0) {
+          await db.query('ROLLBACK');
+          return res.status(404).json({ 
+            success: false, 
+            error: 'Inquiry not found' 
+          });
+        }
+        
+        const inquiry = existsResult.rows[0];
+        
+        // Delete related data in correct order (foreign key constraints)
+        
+        // 1. Delete AI insights
+        await db.query('DELETE FROM ai_family_insights WHERE inquiry_id = $1', [inquiryId]);
+        
+        // 2. Delete video engagement tracking
+        await db.query('DELETE FROM video_engagement_tracking WHERE inquiry_id = $1', [inquiryId]);
+        
+        // 3. Delete tracking events
+        await db.query('DELETE FROM tracking_events WHERE inquiry_id = $1', [inquiryId]);
+        
+        // 4. Delete engagement metrics
+        await db.query('DELETE FROM engagement_metrics WHERE inquiry_id = $1', [inquiryId]);
+        
+        // 5. Delete inquiry AI summary (if exists)
+        await db.query('DELETE FROM inquiry_ai_summary WHERE inquiry_id = $1', [inquiryId]);
+        
+        // 6. Finally delete the main inquiry record
+        const deleteResult = await db.query('DELETE FROM inquiries WHERE id = $1', [inquiryId]);
+        
+        await db.query('COMMIT');
+        
+        console.log(`Successfully deleted inquiry ${inquiryId} (${inquiry.first_name} ${inquiry.family_surname}) and all related data`);
+        
+        return res.json({ 
+          success: true, 
+          message: `Successfully deleted inquiry for ${inquiry.first_name} ${inquiry.family_surname}`,
+          deletedId: inquiryId
+        });
+        
+      } catch (dbError) {
+        await db.query('ROLLBACK');
+        console.error('Database deletion failed:', dbError);
+        return res.status(500).json({ 
+          success: false, 
+          error: 'Failed to delete from database',
+          details: dbError.message 
+        });
+      }
+    }
+    
+    // Fallback: JSON file deletion (if no database)
+    try {
+      const files = await fs.readdir(path.join(__dirname, 'data'));
+      let found = false;
+      
+      for (const f of files.filter(x => x.startsWith('inquiry-') && x.endsWith('.json'))) {
+        try {
+          const filePath = path.join(__dirname, 'data', f);
+          const content = await fs.readFile(filePath, 'utf8');
+          const inquiry = JSON.parse(content);
+          
+          if (inquiry.id === inquiryId) {
+            // Delete the JSON file
+            await fs.unlink(filePath);
+            
+            // Try to delete the prospectus file if it exists
+            if (inquiry.prospectusFilename) {
+              try {
+                const prospectusPath = path.join(__dirname, 'prospectuses', inquiry.prospectusFilename);
+                await fs.unlink(prospectusPath);
+                console.log(`Deleted prospectus file: ${inquiry.prospectusFilename}`);
+              } catch (prospectusError) {
+                console.warn(`Failed to delete prospectus file: ${prospectusError.message}`);
+              }
+            }
+            
+            // Remove from slug index
+            if (inquiry.slug && slugIndex[inquiry.slug]) {
+              delete slugIndex[inquiry.slug];
+              await saveSlugIndex();
+              console.log(`Removed slug mapping: ${inquiry.slug}`);
+            }
+            
+            found = true;
+            console.log(`Successfully deleted inquiry ${inquiryId} from JSON files`);
+            
+            return res.json({ 
+              success: true, 
+              message: `Successfully deleted inquiry for ${inquiry.firstName} ${inquiry.familySurname}`,
+              deletedId: inquiryId,
+              source: 'json'
+            });
+          }
+        } catch (fileError) {
+          console.warn(`Failed to process ${f}:`, fileError.message);
+        }
+      }
+      
+      if (!found) {
+        return res.status(404).json({ 
+          success: false, 
+          error: 'Inquiry not found in JSON files' 
+        });
+      }
+      
+    } catch (jsonError) {
+      console.error('JSON deletion failed:', jsonError);
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Failed to delete from JSON files',
+        details: jsonError.message 
+      });
+    }
+    
+  } catch (error) {
+    console.error('Delete inquiry error:', error);
+    return res.status(500).json({ 
+      success: false, 
+      error: 'Internal server error during deletion',
+      details: error.message 
+    });
+  }
+});
 // 404 handler
 app.use((req, res) => {
   res.status(404).json({ 
