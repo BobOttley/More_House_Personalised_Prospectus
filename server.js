@@ -4148,6 +4148,34 @@ app.get('/api/test/section-data/:inquiryId', async (req, res) => {
   }
 });
 
+app.get('/api/debug/visit-times/:inquiryId', async (req, res) => {
+  try {
+    // Calculate duration for each session from tracking_events
+    const result = await db.query(`
+      SELECT 
+        session_id,
+        MIN(timestamp) as start_time,
+        MAX(timestamp) as end_time,
+        EXTRACT(EPOCH FROM (MAX(timestamp) - MIN(timestamp))) as duration_seconds,
+        COUNT(*) as events
+      FROM tracking_events 
+      WHERE inquiry_id = $1 AND session_id IS NOT NULL
+      GROUP BY session_id
+      ORDER BY start_time DESC
+    `, [req.params.inquiryId]);
+    
+    const totalSeconds = result.rows.reduce((sum, row) => sum + parseFloat(row.duration_seconds || 0), 0);
+    
+    res.json({
+      sessions: result.rows,
+      total_seconds: totalSeconds,
+      total_minutes: Math.round(totalSeconds / 60)
+    });
+  } catch (err) {
+    res.json({ error: err.message });
+  }
+});
+
 app.get('/api/debug/barbara', async (req, res) => {
   try {
     const inquiryId = 'INQ-1756192540364116'; // Barbara's ID
