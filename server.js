@@ -4357,7 +4357,20 @@ app.get('/api/inquiries/statuses', (_req, res) => {
   res.json({ statuses: PIPELINE_STATUSES });
 });
 
-
+app.get('/api/debug/sessions/:inquiryId', async (req, res) => {
+  try {
+    const sessionSummaries = await db.query('SELECT COUNT(*) as count, SUM(duration_seconds) as total FROM session_summaries WHERE inquiry_id = $1', [req.params.inquiryId]);
+    const trackingEvents = await db.query('SELECT COUNT(*) as count, COUNT(DISTINCT session_id) as sessions FROM tracking_events WHERE inquiry_id = $1', [req.params.inquiryId]);
+    
+    res.json({
+      session_summaries: sessionSummaries.rows[0],
+      tracking_events: trackingEvents.rows[0],
+      inquiry_id: req.params.inquiryId
+    });
+  } catch (err) {
+    res.json({ error: err.message });
+  }
+});
 
 // 404 handler
 app.use((req, res) => {
