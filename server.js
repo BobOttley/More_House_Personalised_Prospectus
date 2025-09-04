@@ -4518,7 +4518,6 @@ async function findInquiryById(inquiryId) {
 // ═══════════════════════════════════════════════════════════════════════════════════════════
 
 // Find this line and add 'download' to it:
-]);
 
 // Delete inquiry endpoint
 app.delete('/api/analytics/inquiries/:id', async (req, res) => {
