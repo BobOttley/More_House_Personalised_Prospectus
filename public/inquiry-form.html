@@ -57,26 +57,22 @@
         /* NEW: Access Options Styles */
         .access-options{display:none;animation:slideUp 0.6s ease-out}
         .access-options.show{display:block}
-        .access-header{text-align:center;margin-bottom:30px}
-        .access-header h2{color:var(--morehouse-navy);margin-bottom:15px;font-size:2.2em}
-        .access-header p{color:#666;font-size:1.1em;line-height:1.6}
-        .options-container{display:grid;grid-template-columns:1fr 1fr;gap:30px;margin-top:30px}
-        .option-card{padding:30px;border-radius:15px;text-align:center;transition:all 0.3s ease;border:2px solid transparent;cursor:pointer}
-        .option-card:hover{transform:translateY(-5px);box-shadow:0 15px 30px rgba(0,0,0,0.1)}
-        .online-option{background:linear-gradient(135deg,#74b9ff,#0984e3);color:white}
-        .online-option:hover{border-color:#0984e3}
-        .offline-option{background:linear-gradient(135deg,#fd79a8,#e84393);color:white}
-        .offline-option:hover{border-color:#e84393}
-        .option-title{font-size:1.8em;font-weight:bold;margin-bottom:20px;color:white}
-        .option-description{margin-bottom:30px;opacity:0.9;line-height:1.6;font-size:1.1em}
-        .btn-access{display:inline-block;padding:18px 40px;border:none;border-radius:50px;font-weight:bold;font-size:1.2em;cursor:pointer;text-decoration:none;transition:all 0.3s ease;min-width:220px;background:rgba(255,255,255,0.9);color:var(--morehouse-navy);border:3px solid white}
+        .access-header{text-align:center;margin-bottom:40px}
+        .access-header h2{color:var(--morehouse-navy);margin-bottom:15px;font-size:2.5em;font-weight:400}
+        .access-header p{color:#666;font-size:1.2em;line-height:1.6}
+        .options-container{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:40px}
+        .option-card{padding:40px;border-radius:20px;text-align:center;transition:all 0.3s ease;cursor:pointer;min-height:280px;display:flex;flex-direction:column;justify-content:space-between}
+        .option-card:hover{transform:translateY(-8px);box-shadow:0 20px 40px rgba(0,0,0,0.15)}
+        .online-option{background:linear-gradient(135deg,#667eea,#764ba2);color:white}
+        .offline-option{background:linear-gradient(135deg,#f093fb,#f5576c);color:white}
+        .option-title{font-size:2em;font-weight:bold;margin-bottom:20px;color:white}
+        .option-description{font-size:1.1em;opacity:0.95;line-height:1.6;margin-bottom:30px;flex-grow:1}
+        .btn-access{display:inline-block;padding:18px 40px;border:none;border-radius:50px;font-weight:bold;font-size:1.2em;cursor:pointer;text-decoration:none;transition:all 0.3s ease;background:rgba(255,255,255,0.9);color:#333;border:3px solid white;width:100%}
         .btn-access:hover{background:white;transform:translateY(-3px);box-shadow:0 8px 25px rgba(0,0,0,0.2)}
-        .btn-online:hover{color:#0984e3}
-        .btn-offline:hover{color:#e84393}
-        .back-btn{background:var(--morehouse-light-grey);color:var(--morehouse-navy);border:2px solid var(--morehouse-navy);padding:10px 20px;border-radius:25px;cursor:pointer;margin-top:20px;font-weight:bold;transition:all 0.3s ease}
+        .back-btn{background:transparent;color:var(--morehouse-navy);border:2px solid var(--morehouse-navy);padding:12px 30px;border-radius:50px;cursor:pointer;font-weight:bold;transition:all 0.3s ease;font-size:1em}
         .back-btn:hover{background:var(--morehouse-navy);color:white}
         @keyframes slideUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
-        @media (max-width:768px){.options-container{grid-template-columns:1fr}.comparison-grid{grid-template-columns:1fr;gap:10px}}
+        @media (max-width:768px){.options-container{grid-template-columns:1fr;gap:20px}.option-card{padding:30px;min-height:240px}}
     </style>
 </head>
 <body>
