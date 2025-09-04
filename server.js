@@ -2105,7 +2105,7 @@ app.get('/api/analytics/inquiries', async (req, res) => {
 
             /* Total dwell across ALL visits: sum of section_exit seconds → ms */
             (
-              SELECT COALESCE(SUM(COALESCE((te.event_data->>'timeInSectionSec')::int, 0)), 0) * 1000
+              SELECT COALESCE(SUM(COALESCE((te.event_data->>'dwellSec')::int, 0)), 0) * 1000
               FROM tracking_events te
               WHERE te.inquiry_id = i.id
                 AND te.event_type IN ('section_exit_enhanced','section_exit')
