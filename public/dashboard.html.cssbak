@@ -1,0 +1,1997 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>More House School - SMART Analytics</title>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap"
+    rel="stylesheet">
+
+  <style>
+    :root {
+      --blazer-navy: #091825;
+      --award-gold: #FF9F1C;
+      --sport-blue: #034674;
+      --text-primary: #2C3E50;
+      --white: #FFFFFF;
+      --light-grey: #F8FAFC;
+      --border-grey: #E5E7EB;
+      --success: #10B981;
+      --warning: #F59E0B;
+      --error: #EF4444;
+      --hot-lead: #FF4444;
+      --warm-lead: #FF9F1C;
+      --cold-lead: #034674;
+      --font-heading: 'Playfair Display', serif;
+      --font-body: 'Inter', sans-serif
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box
+    }
+
+    body {
+      font-family: var(--font-body);
+      background: linear-gradient(135deg, var(--light-grey) 0%, #f1f5f9 100%);
+      min-height: 100vh;
+      color: var(--text-primary);
+      font-size: 14px
+    }
+
+    .header {
+      background: linear-gradient(135deg, #091825 0%, #034674 100%);
+      color: #fff;
+      padding: 2rem;
+      box-shadow: 0 4px 20px rgba(9, 24, 37, .3);
+      position: relative
+    }
+
+    .header-controls {
+      position: absolute;
+      top: 2rem;
+      right: 2rem;
+      display: flex;
+      gap: 0.75rem
+    }
+
+    .refresh-btn,
+    .ai-btn {
+      background: rgba(255, 255, 255, .1);
+      border: 1px solid rgba(255, 255, 255, .2);
+      color: #fff;
+      padding: .5rem 1rem;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: .3s;
+      font-size: .9rem
+    }
+
+    .refresh-btn:hover,
+    .ai-btn:hover {
+      background: rgba(255, 255, 255, .2)
+    }
+
+    .ai-btn {
+      background: var(--award-gold);
+      color: var(--blazer-navy);
+      border-color: var(--award-gold);
+      font-weight: 600
+    }
+
+    .header-brand {
+      text-align: center
+    }
+
+    .brand-glow {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--award-gold), #FFB84D);
+      opacity: .3;
+      filter: blur(20px)
+    }
+
+    .header h1 {
+      position: relative;
+      font-family: var(--font-heading);
+      font-size: 3.5rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem
+    }
+
+    .smart-text {
+      background: linear-gradient(135deg, var(--award-gold), #FFB84D);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent
+    }
+
+    .analytics-text {
+      color: #fff
+    }
+
+    .header p {
+      font-size: 1.1rem;
+      font-weight: 300;
+      color: rgba(255, 255, 255, .9)
+    }
+
+    .dashboard {
+      max-width: 1500px;
+      margin: -2rem auto 2rem;
+      position: relative;
+      z-index: 10
+    }
+
+    /* Metrics */
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 1.5rem;
+      padding: 2rem
+    }
+
+    .metric-card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 1.75rem;
+      box-shadow: 0 4px 16px rgba(9, 24, 37, .08);
+      border: 1px solid var(--border-grey);
+      transition: .3s;
+      position: relative;
+      overflow: hidden
+    }
+
+    .metric-card:hover {
+      box-shadow: 0 8px 25px rgba(9, 24, 37, .12);
+      transform: translateY(-2px)
+    }
+
+    .metric-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px
+    }
+
+    .metric-card.hot::before {
+      background: linear-gradient(90deg, var(--hot-lead), #ff6666)
+    }
+
+    .metric-card.warm::before {
+      background: linear-gradient(90deg, var(--warm-lead), #ffb347)
+    }
+
+    .metric-card.engagement::before {
+      background: linear-gradient(90deg, var(--success), #34d399)
+    }
+
+    .metric-card.total::before {
+      background: linear-gradient(90deg, var(--sport-blue), #0ea5e9)
+    }
+
+    .metric-card.ai::before {
+      background: linear-gradient(90deg, var(--award-gold), #FFB84D)
+    }
+
+    .metric-icon {
+      width: 56px;
+      height: 56px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 1.75rem;
+      margin-bottom: 1rem
+    }
+
+    .metric-icon.hot {
+      background: linear-gradient(135deg, var(--hot-lead), #ff6666)
+    }
+
+    .metric-icon.warm {
+      background: linear-gradient(135deg, var(--warm-lead), #ffb347)
+    }
+
+    .metric-icon.engagement {
+      background: linear-gradient(135deg, var(--success), #34d399)
+    }
+
+    .metric-icon.total {
+      background: linear-gradient(135deg, var(--sport-blue), #0ea5e9)
+    }
+
+    .metric-icon.ai {
+      background: linear-gradient(135deg, var(--award-gold), #FFB84D)
+    }
+
+    .metric-title {
+      font-size: .85rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      color: #64748b;
+      margin-bottom: .5rem
+    }
+
+    .metric-value {
+      font-size: 2.5rem;
+      font-weight: 700;
+      color: var(--blazer-navy);
+      margin-bottom: .25rem;
+      font-family: var(--font-heading)
+    }
+
+    .metric-subtitle {
+      font-size: .875rem;
+      font-weight: 500;
+      color: #64748b
+    }
+
+    /* Main Layout */
+    .main-content {
+      padding: 0 2rem 2rem
+    }
+
+    .filters {
+      background: #fff;
+      padding: 1.25rem;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, .05);
+      margin-bottom: 1.5rem;
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      flex-wrap: wrap
+    }
+
+    .filter-select,
+    .search-box {
+      padding: .625rem 1rem;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      font-size: .875rem;
+      transition: border-color .2s
+    }
+
+    .filter-select:focus,
+    .search-box:focus {
+      outline: none;
+      border-color: var(--sport-blue);
+      box-shadow: 0 0 0 3px rgba(3, 70, 116, .1)
+    }
+
+    .search-box {
+      flex: 1;
+      min-width: 250px
+    }
+
+    /* Status Management */
+    .status-selector {
+      position: relative;
+      display: inline-block;
+    }
+
+    .status-dropdown {
+      padding: .5rem 2rem .5rem .75rem;
+      border: 1px solid var(--border-grey);
+      border-radius: 8px;
+      background: #fff;
+      font-size: .875rem;
+      font-weight: 500;
+      cursor: pointer;
+      min-width: 180px;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right .75rem center
+    }
+
+    .status-dropdown:hover {
+      border-color: var(--sport-blue)
+    }
+
+    .status-dropdown:focus {
+      outline: none;
+      border-color: var(--sport-blue);
+      box-shadow: 0 0 0 3px rgba(3, 70, 116, .1)
+    }
+
+    .status-badge {
+      padding: .375rem .75rem;
+      border-radius: 6px;
+      font-size: .75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      display: inline-block
+    }
+
+    .status-new {
+      background: #F3F4F6;
+      color: #6B7280
+    }
+
+    .status-contacted {
+      background: #DBEAFE;
+      color: #1E40AF
+    }
+
+    .status-high-interest {
+      background: #FEE2E2;
+      color: #DC2626
+    }
+
+    .status-tour-booked {
+      background: #D1FAE5;
+      color: #065F46
+    }
+
+    .status-open-day-booked {
+      background: #E9D5FF;
+      color: #6B21A8
+    }
+
+    .status-application-started {
+      background: #FED7AA;
+      color: #C2410C
+    }
+
+    .status-not-interested {
+      background: #F3F4F6;
+      color: #6B7280
+    }
+
+    .status-enrolled {
+      background: #10B981;
+      color: #fff
+    }
+
+    .status-summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: .75rem;
+      padding: 1rem;
+      background: var(--light-grey);
+      border-radius: 8px;
+      margin-bottom: 1rem
+    }
+
+    .status-summary-item {
+      background: #fff;
+      padding: .75rem;
+      border-radius: 6px;
+      border: 1px solid var(--border-grey);
+      text-align: center
+    }
+
+    .status-summary-count {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--navy);
+      margin-bottom: .25rem
+    }
+
+    .status-summary-label {
+      font-size: .75rem;
+      color: var(--dark-grey);
+      text-transform: uppercase;
+      letter-spacing: .5px
+    }
+
+    /* Family Cards */
+    .family-card {
+      background: #fff;
+      border: 1px solid var(--border-grey);
+      border-radius: 12px;
+      margin-bottom: 1rem;
+      overflow: hidden;
+      transition: box-shadow .3s
+    }
+
+    .family-card:hover {
+      box-shadow: 0 4px 12px rgba(0, 0, 0, .08)
+    }
+
+    .family-header {
+      padding: 1.25rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      background: #fff;
+      cursor: pointer;
+      transition: background .2s
+    }
+
+    .family-header:hover {
+      background: #f8fafc
+    }
+
+    .family-info {
+      flex: 1
+    }
+
+    .family-info h3 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-bottom: .5rem;
+      color: var(--blazer-navy)
+    }
+
+    .family-meta {
+      font-size: .875rem;
+      color: #64748b;
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-bottom: .75rem
+    }
+
+    .family-meta span {
+      display: inline-flex;
+      align-items: center;
+      gap: .25rem
+    }
+
+    .interests-container {
+      display: flex;
+      gap: .5rem;
+      flex-wrap: wrap;
+      margin-top: .75rem
+    }
+
+    .interest-pill {
+      font-size: .75rem;
+      padding: .25rem .75rem;
+      background: var(--light-grey);
+      border: 1px solid var(--border-grey);
+      border-radius: 999px;
+      color: var(--text-primary)
+    }
+
+    .interest-pill.academic {
+      background: #E0F2FE;
+      border-color: #0EA5E9;
+      color: #0C4A6E
+    }
+
+    .interest-pill.creative {
+      background: #FCE7F3;
+      border-color: #EC4899;
+      color: #831843
+    }
+
+    .interest-pill.sport {
+      background: #DBEAFE;
+      border-color: #3B82F6;
+      color: #1E3A8A
+    }
+
+    .interest-pill.priority {
+      background: #FEF3C7;
+      border-color: #F59E0B;
+      color: #78350F
+    }
+
+    .family-stats {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem
+    }
+
+    .score-badge {
+      padding: .5rem 1rem;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 1.125rem;
+      text-align: center;
+      min-width: 60px
+    }
+
+    .score-badge.hot {
+      background: rgba(255, 68, 68, .1);
+      color: var(--hot-lead);
+      border: 1px solid rgba(255, 68, 68, .2)
+    }
+
+    .score-badge.warm {
+      background: rgba(255, 159, 28, .1);
+      color: var(--warm-lead);
+      border: 1px solid rgba(255, 159, 28, .2)
+    }
+
+    .score-badge.cold {
+      background: rgba(3, 70, 116, .1);
+      color: var(--sport-blue);
+      border: 1px solid rgba(3, 70, 116, .2)
+    }
+
+    .expand-icon {
+      transition: transform .2s;
+      color: #64748b
+    }
+
+    .family-card.expanded .expand-icon {
+      transform: rotate(180deg)
+    }
+
+    .family-details {
+      display: none;
+      background: #f8fafc;
+      border-top: 1px solid var(--border-grey)
+    }
+
+    .family-card.expanded .family-details {
+      display: block
+    }
+
+    .details-grid {
+      display: grid;
+      grid-template-columns: 1fr 2fr;
+      gap: 1.5rem;
+      padding: 1.25rem
+    }
+
+    .detail-section {
+      background: #fff;
+      padding: 1rem;
+      border-radius: 8px;
+      border: 1px solid var(--border-grey)
+    }
+
+    .detail-section h4 {
+      font-size: .875rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      color: #64748b;
+      margin-bottom: .75rem
+    }
+
+    .family-actions {
+      display: flex;
+      gap: .5rem;
+      flex-wrap: wrap;
+      margin-top: 1rem
+    }
+
+    .btn {
+      padding: .5rem .875rem;
+      border: 1px solid var(--border-grey);
+      border-radius: 8px;
+      background: #fff;
+      cursor: pointer;
+      font-size: .875rem;
+      transition: all .2s;
+      font-weight: 500
+    }
+
+    .btn:hover {
+      background: #f8fafc;
+      transform: translateY(-1px);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, .05)
+    }
+
+    .btn.primary {
+      background: var(--sport-blue);
+      border-color: var(--sport-blue);
+      color: #fff
+    }
+
+    .btn.primary:hover {
+      background: #025090
+    }
+
+    .btn.ai {
+      background: var(--award-gold);
+      border-color: var(--award-gold);
+      color: var(--blazer-navy)
+    }
+
+    .btn.ai:hover {
+      background: #e88f1a
+    }
+
+    .btn:disabled {
+      opacity: .5;
+      cursor: not-allowed;
+      transform: none
+    }
+
+    /* AI Summary */
+    .ai-summary {
+      background: linear-gradient(135deg, #FEF3C7, #FDE68A);
+      border: 1px solid #F59E0B;
+      border-radius: 8px;
+      padding: 1rem;
+      margin: 1rem 0
+    }
+
+    .ai-summary-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: .75rem
+    }
+
+    .ai-summary-title {
+      font-weight: 600;
+      color: var(--blazer-navy);
+      display: flex;
+      align-items: center;
+      gap: .5rem
+    }
+
+    .ai-badge {
+      font-size: .75rem;
+      padding: .125rem .5rem;
+      background: var(--award-gold);
+      color: #fff;
+      border-radius: 4px;
+      font-weight: 600
+    }
+
+    .ai-summary-content {
+      color: var(--text-primary);
+      line-height: 1.6
+    }
+
+    .ai-recommendations {
+      margin-top: .75rem;
+      padding-top: .75rem;
+      border-top: 1px solid rgba(245, 158, 11, .3)
+    }
+
+    .ai-recommendations h5 {
+      font-size: .875rem;
+      font-weight: 600;
+      color: var(--blazer-navy);
+      margin-bottom: .5rem
+    }
+
+    .ai-recommendations ul {
+      margin: 0;
+      padding-left: 1.25rem
+    }
+
+    .ai-recommendations li {
+      font-size: .875rem;
+      margin-bottom: .25rem
+    }
+
+    /* Sessions */
+    .sessions-container {
+      padding: 1rem
+    }
+
+    .session-card {
+      background: #fff;
+      border: 1px solid var(--border-grey);
+      border-radius: 8px;
+      margin-bottom: .75rem;
+      overflow: hidden
+    }
+
+    .session-header {
+      padding: .875rem;
+      background: #f8fafc;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      transition: background .2s
+    }
+
+    .session-header:hover {
+      background: #f1f5f9
+    }
+
+    .session-info {
+      flex: 1
+    }
+
+    .session-title {
+      font-weight: 600;
+      color: var(--blazer-navy);
+      margin-bottom: .25rem
+    }
+
+    .session-meta {
+      font-size: .875rem;
+      color: #64748b
+    }
+
+    .session-body {
+      display: none;
+      padding: 1rem;
+      background: #fff
+    }
+
+    .session-card.open .session-body {
+      display: block
+    }
+
+    /* Journey */
+    .journey-timeline {
+      margin-top: 1rem
+    }
+
+    .journey-item {
+      display: flex;
+      gap: 1rem;
+      padding: .75rem;
+      background: #f8fafc;
+      border-radius: 6px;
+      margin-bottom: .5rem;
+      align-items: center
+    }
+
+    .journey-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--sport-blue);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: .875rem;
+      flex-shrink: 0
+    }
+
+    .journey-icon.section {
+      background: var(--sport-blue)
+    }
+
+    .journey-icon.video {
+      background: var(--error)
+    }
+
+    .journey-icon.tier {
+      background: var(--warning)
+    }
+
+    .journey-icon.cta {
+      background: var(--success)
+    }
+
+    .journey-content {
+      flex: 1
+    }
+
+    .journey-title {
+      font-weight: 500;
+      color: var(--blazer-navy);
+      margin-bottom: .25rem
+    }
+
+    .journey-meta {
+      font-size: .875rem;
+      color: #64748b
+    }
+
+    .journey-progress {
+      height: 4px;
+      background: var(--border-grey);
+      border-radius: 2px;
+      margin-top: .5rem;
+      overflow: hidden
+    }
+
+    .journey-progress-fill {
+      height: 100%;
+      background: var(--award-gold);
+      transition: width .3s
+    }
+
+    /* Loading & Error */
+    .loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      color: #64748b
+    }
+
+    .spinner {
+      width: 20px;
+      height: 20px;
+      border: 2px solid var(--border-grey);
+      border-top: 2px solid var(--sport-blue);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-right: .75rem
+    }
+
+    @keyframes spin {
+      0% {
+        transform: rotate(0)
+      }
+
+      100% {
+        transform: rotate(360deg)
+      }
+    }
+
+    .error {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      color: #dc2626;
+      padding: 1rem;
+      border-radius: 8px;
+      margin: 1rem 0
+    }
+
+    .no-data {
+      text-align: center;
+      color: #64748b;
+      padding: 3rem;
+      font-size: 1rem
+    }
+
+    /* Responsive */
+    @media (max-width:768px) {
+      .header h1 {
+        font-size: 2.5rem
+      }
+
+      .metrics {
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        padding: 1rem
+      }
+
+      .details-grid {
+        grid-template-columns: 1fr
+      }
+
+      .header-controls {
+        position: static;
+        margin-top: 1rem;
+        justify-content: center
+      }
+
+      .filters {
+        flex-direction: column
+      }
+
+      .search-box {
+        width: 100%
+      }
+    }
+  </style>
+  <style>
+  .status-summary .status-badge{padding:.15rem .45rem;font-size:.85rem}
+  </style>
+
+</head>
+
+<body>
+  <header class="header">
+    <div class="header-controls">
+      <button class="refresh-btn" onclick="loadData(true)">↻ Refresh</button>
+      <button class="ai-btn" onclick="generateAllSummaries()">Generate All AI Summaries</button>
+    </div>
+    <div class="header-brand">
+      <h1><span class="smart-text">SMART</span> <span class="analytics-text">Analytics</span></h1>
+      <p>More House School • Real-time Engagement Tracking</p>
+    </div>
+  </header>
+
+  <div class="dashboard">
+    <!-- Metrics -->
+    <div class="metrics">
+      <div class="metric-card total">
+        <div class="metric-icon total">👨‍👩‍👧‍👦</div>
+        <div class="metric-title">Total Enquiries</div>
+        <div class="metric-value" id="totalFamilies">-</div>
+        <div class="metric-subtitle">Active prospects</div>
+      </div>
+      <div class="metric-card hot">
+        <div class="metric-icon hot">📞</div>
+        <div class="metric-title">Contacted</div>
+        <div class="metric-value" id="contactedCount">-</div>
+        <div class="metric-subtitle">Families reached</div>
+      </div>
+      <div class="metric-card warm">
+        <div class="metric-icon warm">⭐</div>
+        <div class="metric-title">High Interest</div>
+        <div class="metric-value" id="highInterestCount">-</div>
+        <div class="metric-subtitle">Priority families</div>
+      </div>
+      <div class="metric-card engagement">
+        <div class="metric-icon engagement">🎓</div>
+        <div class="metric-title">Tours/Open Days</div>
+        <div class="metric-value" id="bookedCount">-</div>
+        <div class="metric-subtitle">Visits scheduled</div>
+      </div>
+      <div class="metric-card ai">
+        <div class="metric-icon ai">📝</div>
+        <div class="metric-title">Applications</div>
+        <div class="metric-value" id="applicationCount">-</div>
+        <div class="metric-subtitle">In progress</div>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+      <div class="filters">
+        <select class="filter-select" id="sortFilter">
+          <option value="recent">Sort by Most Recent</option>
+          <option value="visits">Sort by Visit Count</option>
+          <option value="time">Sort by Time Spent</option>
+          <option value="status">Sort by Status</option>
+        </select>
+        <select class="filter-select" id="statusFilter">
+          <option value="all">All Statuses</option>
+          <option value="new">New Enquiries</option>
+          <option value="contacted">Contacted</option>
+          <option value="high-interest">High Interest</option>
+          <option value="tour-booked">Tour Booked</option>
+          <option value="open-day-booked">Open Day Booked</option>
+          <option value="application-started">Application Started</option>
+          <option value="not-interested">Not Interested</option>
+        </select>
+        <input type="text" class="search-box" placeholder="Search by family name..." id="searchBox" autocomplete="off">
+      </div>
+
+      <div id="familyList">
+        <div class="loading">
+          <div class="spinner"></div> Loading families...
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    'use strict';
+
+    let familyStatuses = {};
+    let allFamilies = [];
+    let isLoading = false;
+
+    // Helpers
+    const byId = id => document.getElementById(id);
+    const setText = (id, v) => { const el = byId(id); if (el) el.textContent = String(v); };
+    const fetchJson = async (url, opts = {}) => {
+      const u = url + (url.includes('?') ? '&' : '?') + '_ts=' + Date.now();
+      const res = await fetch(u, { cache: 'no-store', ...opts });
+      if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+      return res.json();
+    };
+    // Status helpers (ADD)
+    const STATUS_LABELS = {
+      'new': 'New Inquiry',
+      'contacted': 'Contacted',
+      'high-interest': 'High Interest',
+      'tour-booked': 'Tour Booked',
+      'open-day-booked': 'Open Day Booked',
+      'application-started': 'Application Started',
+      'application-complete': 'Application Complete',
+      'not-interested': 'Not Interested'
+    };
+    const statusToClass = s => `status-${s}`;
+    const statusToLabel = s => STATUS_LABELS[s] || 'New Inquiry';
+
+    // Format helpers
+    const formatTimeAgo = (date) => {
+      const now = new Date(), diff = now - date;
+      const m = Math.floor(diff / 60000), h = Math.floor(diff / 3600000), d = Math.floor(diff / 86400000);
+      if (m < 1) return 'Just now';
+      if (m < 60) return `${m}m ago`;
+      if (h < 24) return `${h}h ago`;
+      if (d < 7) return `${d}d ago`;
+      return date.toLocaleDateString('en-GB');
+    };
+
+    // Status helpers
+    const STATUS_LABELS = {
+      'new': 'New Inquiry',
+      'contacted': 'Contacted',
+      'high-interest': 'High Interest',
+      'tour-booked': 'Tour Booked',
+      'open-day-booked': 'Open Day Booked',
+      'application-started': 'Application Started',
+      'application-complete': 'Application Complete',
+      'not-interested': 'Not Interested'
+    };
+    const statusToClass = s => `status-${s}`;
+    const statusToLabel = s => STATUS_LABELS[s] || 'New Inquiry';
+
+    const formatDuration = (ms) => {
+      const mins = Math.floor(ms / 60000);
+      if (mins < 1) return '< 1 min';
+      if (mins < 60) return `${mins} min`;
+      const hours = Math.floor(mins / 60);
+      return `${hours}h ${mins % 60}m`;
+    };
+
+    // Extract interests from enquiry data
+    const extractInterests = (family) => {
+      const interests = [];
+      const interestMap = {
+        // Academic
+        sciences: { label: 'Sciences', type: 'academic' },
+        mathematics: { label: 'Maths', type: 'academic' },
+        english: { label: 'English', type: 'academic' },
+        languages: { label: 'Languages', type: 'academic' },
+        humanities: { label: 'Humanities', type: 'academic' },
+        business: { label: 'Business', type: 'academic' },
+        // Creative
+        drama: { label: 'Drama', type: 'creative' },
+        music: { label: 'Music', type: 'creative' },
+        art: { label: 'Art', type: 'creative' },
+        creative_writing: { label: 'Creative Writing', type: 'creative' },
+        // Sport & Activities
+        sport: { label: 'Sport', type: 'sport' },
+        leadership: { label: 'Leadership', type: 'sport' },
+        community_service: { label: 'Community Service', type: 'sport' },
+        outdoor_education: { label: 'Outdoor Education', type: 'sport' },
+        // Priorities
+        academic_excellence: { label: 'Academic Excellence', type: 'priority' },
+        pastoral_care: { label: 'Pastoral Care', type: 'priority' },
+        university_preparation: { label: 'University Prep', type: 'priority' },
+        personal_development: { label: 'Personal Development', type: 'priority' },
+        career_guidance: { label: 'Career Guidance', type: 'priority' },
+        extracurricular_opportunities: { label: 'Extracurriculars', type: 'priority' }
+      };
+
+      Object.keys(interestMap).forEach(key => {
+        if (family[key] === true || family[key] === 'true' || family[key] === 1) {
+          interests.push(interestMap[key]);
+        }
+      });
+
+      return interests;
+    };
+
+    // Process and enrich family data
+    function processRealData(raw) {
+      return raw.map(f => {
+        const sessionCount = f.session_count || f.sessions_count || f.total_sessions || f.return_visits || 0;
+        let totalDwellMs = Number(f.dwell_ms) || 0;
+        let actualVisits = Number(sessionCount) || 0;
+
+        if (f.sessions && Array.isArray(f.sessions)) {
+          actualVisits = f.sessions.length;
+          totalDwellMs = f.sessions.reduce((sum, s) => {
+            return sum + (Number(s.dwell_ms) || Number(s.duration) || 0);
+          }, 0);
+        }
+
+        // Fallback: if there are visits but no dwell recorded, assume at least 60s
+        if (actualVisits > 0 && totalDwellMs === 0) {
+          totalDwellMs = actualVisits * 60000;
+        }
+
+
+        const minutes = totalDwellMs / 60000;
+        const last = f.updated_at || f.received_at || null;
+
+        const timeScore = Math.min(Math.max(minutes, 0), 25) * 2;
+        const visitScore = Math.min(Math.max(actualVisits, 0), 10) * 5;
+        let recency = 0;
+        if (last) {
+          const age = Date.now() - new Date(last).getTime();
+          if (age <= 86400000) recency = 20;
+          else if (age <= 3 * 86400000) recency = 10;
+        }
+        const engagement = Math.round(Math.min(timeScore + visitScore + recency, 100));
+        const temperature = engagement >= 80 ? 'hot' : (engagement >= 50 ? 'warm' : 'cold');
+        const isActiveToday = !!(last && (Date.now() - new Date(last).getTime()) <= 86400000);
+
+        return {
+          id: f.id || f.inquiry_id,
+          name: `${f.first_name || ''} ${f.family_surname || ''}`.trim(),
+          firstName: f.first_name,
+          familySurname: f.family_surname,
+          parentEmail: f.parent_email,
+          entryYear: f.entry_year,
+          ageGroup: f.age_group,
+          receivedAt: f.received_at,
+          lastActivity: last,
+          timeOnPageMs: totalDwellMs,
+          timeOnPageMinutes: Math.max(0, Math.round(minutes)),
+          visits: actualVisits,
+          sessionCount: actualVisits,
+          engagementScore: engagement,
+          temperature,
+          isActiveToday,
+          hasProspectus: !!f.prospectus_generated,
+          prospectusUrl: f.prospectus_pretty_url || null,
+          city: f.city || null,
+          country: f.country || null,
+          interests: extractInterests(f),
+          rawData: f
+        };
+      }).filter(x => x.name.length);
+    }
+
+    // Load main data
+    async function loadData() {
+      if (isLoading) return;
+      isLoading = true;
+
+      try {
+        const data = await fetchJson('/api/analytics/inquiries');
+        allFamilies = processRealData(Array.isArray(data) ? data : []);
+        loadSavedStatuses();
+        updateMetrics();
+        renderFamilies();
+      } catch (e) {
+        showError('Failed to load data: ' + e.message);
+        console.error('loadData:', e);
+      } finally {
+        isLoading = false;
+      }
+    }
+
+    // Update metrics based on statuses
+    function updateMetrics() {
+      setText('totalFamilies', allFamilies.length);
+      const statusCounts = {
+        contacted: 0,
+        'high-interest': 0,
+        'tour-booked': 0,
+        'open-day-booked': 0,
+        'application-started': 0
+      };
+
+      allFamilies.forEach(family => {
+        const status = familyStatuses[family.id] || 'new';
+        if (statusCounts.hasOwnProperty(status)) {
+          statusCounts[status]++;
+        }
+      });
+
+      setText('contactedCount', statusCounts.contacted);
+      setText('highInterestCount', statusCounts['high-interest']);
+      setText('bookedCount', statusCounts['tour-booked'] + statusCounts['open-day-booked']);
+      setText('applicationCount', statusCounts['application-started']);
+    }
+
+    // Update family status
+    function updateFamilyStatus(familyId, newStatus) {
+      familyStatuses[familyId] = newStatus;
+      localStorage.setItem('familyStatuses', JSON.stringify(familyStatuses));
+      updateMetrics();
+    }
+
+    // Wire the dropdown to storage and badge (ADD)
+    async function onStatusChange(id, val) {
+  try {
+    // 1) update local storage + any local counters
+    updateFamilyStatus(id, val);
+
+    // 2) update the badge inside the expanded card
+    const badge = document.getElementById(`status-badge-${id}`);
+    if (badge) {
+      badge.className = 'status-badge ' + statusToClass(val);
+      badge.textContent = statusToLabel(val);
+    }
+
+    // 3) update the ALWAYS-VISIBLE summary badge in the header
+    const summary = document.getElementById(`status-badge-summary-${id}`);
+    if (summary) {
+      summary.className = 'status-badge ' + statusToClass(val);
+      summary.textContent = statusToLabel(val);
+    }
+
+    // 4) show inline feedback
+    const fb = document.getElementById(`status-fb-${id}`);
+    if (fb) fb.textContent = 'Saving…';
+
+    // 5) persist to server (you already added this endpoint)
+    await fetch(`/api/inquiries/${encodeURIComponent(id)}/status`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: val })
+    });
+
+    if (fb) {
+      fb.textContent = 'Saved';
+      setTimeout(() => { fb.textContent = ''; }, 1200);
+    }
+  } catch (e) {
+    const fb = document.getElementById(`status-fb-${id}`);
+    if (fb) fb.textContent = 'Failed to save';
+    console.error('Status change failed', e);
+  }
+}
+
+    // Load saved statuses
+    function loadSavedStatuses() {
+      const saved = localStorage.getItem('familyStatuses');
+      if (saved) {
+        familyStatuses = JSON.parse(saved);
+      }
+    }
+
+    // Get filtered families
+    function getFilteredFamilies() {
+      let families = [...allFamilies];
+
+      const status = byId('statusFilter')?.value || 'all';
+      if (status !== 'all') {
+        families = families.filter(f => (familyStatuses[f.id] || 'new') === status);
+      }
+
+      const q = (byId('searchBox')?.value || '').toLowerCase();
+      if (q) {
+        families = families.filter(f =>
+          f.name.toLowerCase().includes(q) ||
+          (f.parentEmail || '').toLowerCase().includes(q)
+        );
+      }
+
+      const sortBy = byId('sortFilter')?.value || 'recent';
+      if (sortBy === 'recent') {
+        families.sort((a, b) => new Date(b.lastActivity || b.receivedAt) - new Date(a.lastActivity || a.receivedAt));
+      } else if (sortBy === 'time') {
+        families.sort((a, b) => b.timeOnPageMs - a.timeOnPageMs);
+      } else if (sortBy === 'visits') {
+        families.sort((a, b) => b.visits - a.visits);
+      } else if (sortBy === 'status') {
+        const statusPriority = {
+          'high-interest': 1,
+          'tour-booked': 2,
+          'open-day-booked': 3,
+          'application-started': 4,
+          'contacted': 5,
+          'new': 6,
+          'not-interested': 7,
+          'enrolled': 8
+        };
+        families.sort((a, b) => {
+          const aPriority = statusPriority[familyStatuses[a.id] || 'new'] || 99;
+          const bPriority = statusPriority[familyStatuses[b.id] || 'new'] || 99;
+          return aPriority - bPriority;
+        });
+      }
+
+      return families;
+    }
+
+    // Render families
+    function renderFamilies() {
+      const container = byId('familyList');
+      const list = getFilteredFamilies();
+
+      if (!allFamilies.length) {
+        container.innerHTML = '<div class="no-data">No enquiries yet</div>';
+        return;
+      }
+      if (!list.length) {
+        container.innerHTML = '<div class="no-data">No families found matching filters</div>';
+        return;
+      }
+
+      container.innerHTML = list.map(f => {
+        const interestPills = f.interests.map(i =>
+          `<span class="interest-pill ${i.type}">${i.label}</span>`
+        ).join('');
+
+        return `
+          <div class="family-card" data-id="${f.id}">
+            <div class="family-header" onclick="toggleFamily('${f.id}')">
+              <div class="family-info">
+                <h3>${f.name}</h3>
+                <div class="family-meta">
+                  <span>📧 ${f.parentEmail || 'No email'}</span>
+                  <span>📅 Entry ${f.entryYear || 'TBC'}</span>
+                  <span>🎂 ${f.ageGroup || 'Unknown'}</span>
+                  <span>📍 ${formatLocation(f.city, f.country)}</span>
+                  <span>⏱ ${f.timeOnPageMinutes} min total</span>
+                  <span>👁 ${f.visits} visit${f.visits !== 1 ? 's' : ''}</span>
+                </div>
+                ${interestPills ? `<div class="interests-container">${interestPills}</div>` : ''}
+              </div>
+              <div class="family-stats">
+                <div class="score-badge ${f.temperature}">${f.engagementScore}</div>
+                <div class="expand-icon">▼</div>
+              </div>
+              <!-- Status summary badge (ALWAYS VISIBLE) -->
+              <div class="status-summary" style="margin-top:.35rem;">
+                <span
+                  id="status-badge-summary-${f.id}"
+                  class="status-badge ${'status-' + (familyStatuses[f.id] || 'new')}"
+                  title="Pipeline status"
+                >
+                  ${statusToLabel(familyStatuses[f.id] || 'new')}
+                </span>
+              </div>
+
+              <!-- Status summary badge (ALWAYS VISIBLE) -->
+              <div class="status-summary" style="margin-top:.35rem;">
+                <span
+                  id="status-badge-summary-${f.id}"
+                  class="status-badge ${'status-' + (familyStatuses[f.id] || 'new')}"
+                  title="Pipeline status"
+                >
+                  ${statusToLabel(familyStatuses[f.id] || 'new')}
+                </span>
+              </div>
+            </div>
+            <div class="family-details">
+              <div class="details-grid">
+                <div class="detail-section">
+                  <h4>Contact & Profile</h4>
+                  <div style="font-size:.875rem;line-height:1.6">
+                    <strong>Email:</strong> ${f.parentEmail || 'Not provided'}<br>
+                    <strong>Location:</strong> ${formatLocation(f.city, f.country)}<br>
+                    <strong>Age Group:</strong> ${f.ageGroup || 'Not specified'}<br>
+                    <strong>Entry Year:</strong> ${f.entryYear || 'TBC'}<br>
+                    <strong>First Contact:</strong> ${f.receivedAt ? new Date(f.receivedAt).toLocaleDateString('en-GB') : 'Unknown'}<br>
+                    <strong>Last Activity:</strong> ${f.lastActivity ? formatTimeAgo(new Date(f.lastActivity)) : 'No activity'}
+                  </div>
+                  <!-- Status Selector (ADD THIS BLOCK) -->
+                  <div class="status-control" style="margin:.75rem 0;">
+                    <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">
+                      <label for="status-${f.id}" style="font-weight:600;">Status</label>
+                      <select id="status-${f.id}" class="status-dropdown"
+                              onchange="onStatusChange('${f.id}', this.value)">
+                        <option value="new"                 ${(familyStatuses[f.id] || 'new') === 'new' ? 'selected' : ''}>New Inquiry</option>
+                        <option value="contacted"           ${(familyStatuses[f.id] || 'new') === 'contacted' ? 'selected' : ''}>Contacted</option>
+                        <option value="high-interest"       ${(familyStatuses[f.id] || 'new') === 'high-interest' ? 'selected' : ''}>High Interest</option>
+                        <option value="tour-booked"         ${(familyStatuses[f.id] || 'new') === 'tour-booked' ? 'selected' : ''}>Tour Booked</option>
+                        <option value="open-day-booked"     ${(familyStatuses[f.id] || 'new') === 'open-day-booked' ? 'selected' : ''}>Open Day Booked</option>
+                        <option value="application-started" ${(familyStatuses[f.id] || 'new') === 'application-started' ? 'selected' : ''}>Application Started</option>
+                        <option value="application-complete"${(familyStatuses[f.id] || 'new') === 'application-complete' ? 'selected' : ''}>Application Complete</option>
+                        <option value="not-interested"      ${(familyStatuses[f.id] || 'new') === 'not-interested' ? 'selected' : ''}>Not Interested</option>
+                      </select>
+
+                      <span class="status-badge ${'status-' + (familyStatuses[f.id] || 'new')}"
+                            id="status-badge-${f.id}">
+                        ${statusToLabel(familyStatuses[f.id] || 'new')}
+                      </span>
+
+                      <span id="status-fb-${f.id}" class="status-feedback" style="font-size:.85rem;opacity:.8;"></span>
+                    </div>
+                  </div>
+                  <!-- /Status Selector -->
+
+
+                  <div class="family-actions">
+                    ${f.prospectusUrl ?
+            `<button class="btn primary" onclick="window.open('${f.prospectusUrl}','_blank')">View Prospectus</button>` :
+            `<button class="btn" disabled>No Prospectus</button>`}
+                    ${f.parentEmail ?
+            `<a class="btn" href="mailto:${f.parentEmail}">Email Family</a>` : ''}
+                    <button class="btn" onclick="copyInquiryId('${f.id}')">Copy ID</button>
+                  </div>
+
+                  <!-- Overall AI Summary renders here (under Contact & Profile) -->
+                  <div id="ai-overall-${f.id}" class="ai-summary" style="display:none; margin-top: 1rem;"></div>
+                </div>
+
+                <div>
+                  <div class="sessions-container">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem">
+                      <h4 style="font-size:.875rem;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:#64748b">Session History</h4>
+                      <button class="btn ai" onclick="generateOverallSummary('${f.id}')" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">
+                        Generate Overall AI Summary
+                      </button>
+                    </div>
+                    <div id="sessions-${f.id}"></div>
+                    <div style="margin-top:.5rem">
+                      <button class="btn" onclick="loadSessionHistory('${f.id}')">Load All Sessions</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Toggle family card
+    function toggleFamily(id) {
+      const card = document.querySelector(`[data-id="${id}"]`);
+      if (card) {
+        card.classList.toggle('expanded');
+        if (card.classList.contains('expanded')) {
+          // Try to load any saved overall summary from DB on first open
+          maybeLoadSavedOverallSummary(id);
+        }
+      }
+    }
+
+    // Copy inquiry ID
+    function copyInquiryId(id) {
+      navigator.clipboard.writeText(id).catch(console.error);
+    }
+
+    // Try to fetch and render saved overall summary under Contact & Profile
+    async function maybeLoadSavedOverallSummary(inquiryId) {
+      const container = byId(`ai-overall-${inquiryId}`);
+      if (!container || container.dataset.loaded === '1') return;
+      try {
+        const data = await fetchJson(`/api/analytics/inquiries/${encodeURIComponent(inquiryId)}/overall_summary`);
+        if (data && (data.overview || data.summary)) {
+          container.innerHTML = renderOverallSummaryBlock({
+            overview: data.overview || data.summary,
+            recommendations: data.recommendations || [],
+            strategy: data.strategy || ''
+          });
+          container.style.display = 'block';
+          container.dataset.loaded = '1';
+        }
+      } catch (e) {
+        // If not found/implemented, silently ignore
+      }
+    }
+
+    // Generate overall AI summary for all sessions → renders under Contact & Profile
+    async function generateOverallSummary(inquiryId) {
+      const container = byId(`ai-overall-${inquiryId}`) || byId(`overall-summary-${inquiryId}`);
+      if (!container) return;
+
+      container.style.display = 'block';
+      container.innerHTML = '<div class="loading"><div class="spinner"></div> Analysing all visits...</div>';
+
+      const family = allFamilies.find(f => f.id === inquiryId);
+      if (!family) {
+        container.innerHTML = '<div class="error">Could not find family data</div>';
+        return;
+      }
+
+      const sessionCards = document.querySelectorAll(`#sessions-${inquiryId} .session-card`);
+      const actualVisits = sessionCards.length || family.visits || 1;
+
+      const summary = generateComprehensiveSummary(family, actualVisits);
+
+      container.innerHTML = renderOverallSummaryBlock(summary);
+
+      // Persist to DB if your backend route exists
+      try {
+        await fetch(`/api/analytics/inquiries/${encodeURIComponent(inquiryId)}/overall_summary`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            overview: summary.overview,
+            recommendations: summary.recommendations,
+            strategy: summary.strategy
+          })
+        });
+        container.dataset.loaded = '1';
+      } catch (e) {
+        // Ignore if not implemented yet
+      }
+    }
+
+    function renderOverallSummaryBlock(summary) {
+      return `
+        <div class="ai-summary-header">
+          <div class="ai-summary-title">
+            <span class="ai-badge">AI</span>
+            Comprehensive Engagement Analysis
+          </div>
+        </div>
+        <div class="ai-summary-content">${summary.overview}</div>
+        <div class="ai-recommendations">
+          ${summary.recommendations && summary.recommendations.length ? `
+            <h5>Recommended Actions</h5>
+            <ul>${summary.recommendations.map(r => `<li>${r}</li>`).join('')}</ul>
+          ` : ''}
+        </div>
+        ${summary.strategy ? `
+          <div class="ai-recommendations">
+            <h5>Engagement Strategy</h5>
+            <p style="font-size: 0.875rem; line-height: 1.6;">${summary.strategy}</p>
+          </div>
+        ` : ''}
+      `;
+    }
+
+    // Generate comprehensive summary for a family
+    function generateComprehensiveSummary(family, actualVisits) {
+      const engagement = family.engagementScore || 0;
+      const visits = actualVisits || family.visits || 0;
+      const totalMinutes = family.timeOnPageMinutes || 0;
+      const interests = family.interests || [];
+
+      let overview = '';
+      const recommendations = [];
+      let strategy = '';
+
+      let adjustedEngagement = engagement;
+      if (visits >= 5) {
+        adjustedEngagement = Math.min(100, engagement + 20);
+      } else if (visits >= 3) {
+        adjustedEngagement = Math.min(100, engagement + 10);
+      }
+
+      if (adjustedEngagement >= 80 || visits >= 5) {
+        overview = `Highly engaged prospect with exceptional interest levels. ${visits} visit${visits !== 1 ? 's' : ''} totalling ${totalMinutes || 'multiple'} minutes demonstrates strong intent. `;
+        if (visits >= 5) {
+          overview += 'Exceptional return rate with multiple visits shows serious consideration. ';
+          recommendations.push('URGENT: Immediate personal outreach required');
+          recommendations.push('Schedule in-person tour this week');
+          recommendations.push('Assign dedicated admissions officer');
+        } else if (visits >= 3) {
+          overview += 'Multiple return visits indicate growing interest. ';
+          recommendations.push('Priority follow-up within 24 hours');
+          recommendations.push('Personalised video message from Head');
+        } else {
+          recommendations.push('Schedule call within 48 hours');
+          recommendations.push('Send personalised prospectus highlights');
+        }
+        strategy = 'This family shows high engagement through repeated visits. Focus on personal connection and converting interest to application. Address specific programme interests directly.';
+      } else if (adjustedEngagement >= 50 || visits >= 2) {
+        overview = `Moderately engaged prospect showing sustained interest. ${visits} visit${visits !== 1 ? 's' : ''} with ${totalMinutes || 'consistent'} minutes of engagement. `;
+        if (visits >= 2) {
+          overview += 'Return visit shows continued consideration. ';
+        }
+        recommendations.push('Send tailored information pack within 3 days');
+        recommendations.push('Add to priority nurture sequence');
+        recommendations.push('Invite to next open event');
+        strategy = 'Build on demonstrated interest with targeted follow-up. Focus on addressing potential concerns and showcasing programmes matching their interests.';
+      } else {
+        overview = `Early-stage prospect in research phase. ${visits} visit${visits !== 1 ? 's' : ''} with initial exploration. `;
+        recommendations.push('Add to welcome campaign');
+        recommendations.push('Monitor for return visits');
+        recommendations.push('Send general prospectus');
+        strategy = 'Nurture early interest with broad information. Focus on building familiarity with the school and encouraging return engagement.';
+      }
+
+      const added = new Set();
+      if (interests.length > 0) {
+        overview += `Key interests include ${interests.slice(0, 3).map(i => i.label).join(', ')}. `;
+        const academicInterests = interests.filter(i => i.type === 'academic');
+        const creativeInterests = interests.filter(i => i.type === 'creative');
+        const sportInterests = interests.filter(i => i.type === 'sport');
+        const priorityInterests = interests.filter(i => i.type === 'priority');
+
+        if (academicInterests.length > 0 && !added.has('academic')) {
+          recommendations.push(`Share academic achievements and curriculum for: ${academicInterests.map(i => i.label).join(', ')}`);
+          added.add('academic');
+        }
+        if (creativeInterests.length > 0 && !added.has('creative')) {
+          recommendations.push(`Showcase creative programmes: ${creativeInterests.map(i => i.label).join(', ')}`);
+          added.add('creative');
+        }
+        if (sportInterests.length > 0 && !added.has('sport')) {
+          recommendations.push('Share sports facilities and team achievements');
+          added.add('sport');
+        }
+        if (priorityInterests.find(i => i.label === 'Pastoral Care') && !added.has('pastoral')) {
+          recommendations.push('Emphasise wellbeing support and house system');
+          added.add('pastoral');
+        }
+        if (priorityInterests.find(i => i.label === 'University Prep') && !added.has('university')) {
+          recommendations.push('Share university destinations and preparation programme');
+          added.add('university');
+        }
+      }
+
+      if (family.isActiveToday) {
+        overview += 'Recent activity today shows current interest. ';
+        const urgentRec = 'Strike while interest is high - contact today';
+        const filteredRecs = recommendations.filter(r => r !== urgentRec);
+        recommendations.length = 0;
+        recommendations.push(urgentRec, ...filteredRecs);
+      }
+
+      if (visits >= 3) {
+        const avgDays = 7 / visits;
+        if (avgDays <= 2) {
+          overview += 'High visit frequency suggests urgent decision timeline. ';
+        }
+      }
+
+      return { overview, recommendations: recommendations.slice(0, 8), strategy };
+}
+    }
+
+    // Load session history (no per-visit AI summary)
+    async function loadSessionHistory(inquiryId) {
+      const container = byId(`sessions-${inquiryId}`);
+      if (!container) return;
+
+      container.innerHTML = '<div class="loading"><div class="spinner"></div> Loading visits...</div>';
+
+      const endpoints = [
+        `/api/visits/${encodeURIComponent(inquiryId)}/history`,
+        `/api/visits/${encodeURIComponent(inquiryId)}/sessions`,
+        `/api/visits/${encodeURIComponent(inquiryId)}?limit=20`
+      ];
+
+      let sessions = null;
+      for (const url of endpoints) {
+        try {
+          const data = await fetchJson(url);
+          if (Array.isArray(data) && data.length) { sessions = data; break; }
+          if (data && Array.isArray(data.sessions) && data.sessions.length) { sessions = data.sessions; break; }
+        } catch (e) { }
+      }
+
+      if (!sessions) {
+        container.innerHTML = '<div class="no-data">No visits found</div>';
+        return;
+      }
+
+      sessions = sessions.slice().sort((a, b) => {
+        const aDate = extractSessionDate(a);
+        const bDate = extractSessionDate(b);
+        return bDate - aDate;
+      });
+
+      const totalSessions = sessions.length;
+
+      const family = allFamilies.find(f => f.id === inquiryId);
+      if (family && totalSessions > family.visits) {
+        let totalTimeSeconds = 0;
+        for (const session of sessions) {
+          let sessionDuration = 0;
+          if (session.duration_seconds) sessionDuration = Number(session.duration_seconds);
+          else if (session.dwell_seconds) sessionDuration = Number(session.dwell_seconds);
+          else if (session.duration) sessionDuration = Number(session.duration);
+          else if (session.total_dwell_seconds) sessionDuration = Number(session.total_dwell_seconds);
+          else if (session.dwell_ms) sessionDuration = Number(session.dwell_ms) / 1000;
+          totalTimeSeconds += sessionDuration;
+        }
+
+        family.visits = totalSessions;
+        family.sessionCount = totalSessions;
+        if (totalTimeSeconds > 0) {
+          family.timeOnPageMs = totalTimeSeconds * 1000;
+          family.timeOnPageMinutes = Math.round(totalTimeSeconds / 60);
+        }
+        updateFamilyDisplay(inquiryId, totalSessions, family.timeOnPageMinutes);
+      }
+
+      container.innerHTML = `
+        <div class="session-meta" style="margin-bottom:1rem;color:#64748b;">
+          <strong>${totalSessions}</strong> visit${totalSessions === 1 ? '' : 's'} recorded
+        </div>
+        ${sessions.map((s, index) => renderSessionCard(s, index, totalSessions, inquiryId)).join('')}
+      `;
+    }
+
+    function updateFamilyDisplay(inquiryId, visitCount, totalMinutes) {
+      const card = document.querySelector(`[data-id="${inquiryId}"]`);
+      if (!card) return;
+
+      const metaSpans = card.querySelectorAll('.family-meta span');
+      metaSpans.forEach(span => {
+        if (span.textContent.includes('visit')) {
+          span.innerHTML = `👁 ${visitCount} visit${visitCount !== 1 ? 's' : ''}`;
+        }
+        if (span.textContent.includes('min total')) {
+          span.innerHTML = `⏱ ${totalMinutes} min total`;
+        }
+      });
+    }
+
+    function extractSessionDate(session) {
+      const sessionId = session.id || session.session_id || '';
+      if (sessionId.startsWith('S-')) {
+        const match = /^S-(\d{13})-/.exec(sessionId);
+        if (match) {
+          return new Date(Number(match[1]));
+        }
+      }
+      const dateField = session.start || session.started_at || session.created_at;
+      return dateField ? new Date(dateField) : new Date(0);
+    }
+
+    function renderSessionCard(session, index, totalSessions, inquiryId) {
+      const sessionId = session.id || session.session_id || `session-${index}`;
+      const visitNumber = totalSessions - index;
+
+      let sessionDate = null;
+      if (sessionId.startsWith('S-')) {
+        const match = /^S-(\d{13})-/.exec(sessionId);
+        if (match) {
+          sessionDate = new Date(Number(match[1]));
+        }
+      }
+      if (!sessionDate) {
+        const dateField = session.start || session.started_at || session.created_at;
+        if (dateField) sessionDate = new Date(dateField);
+      }
+
+      const formatDateTime = (date) => {
+        if (!date) return 'Unknown time';
+        return date.toLocaleString('en-GB', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+      };
+
+      const timeAgo = sessionDate ? formatTimeAgo(sessionDate) : '';
+
+      return `
+        <div class="session-card" data-session="${sessionId}" data-visit="${visitNumber}">
+          <div class="session-header" onclick="toggleSession('${sessionId}', '${inquiryId}')">
+            <div class="session-info">
+              <div class="session-title">Visit ${visitNumber}</div>
+              <div class="session-meta">
+                ${formatDateTime(sessionDate)}
+                ${timeAgo ? ` • ${timeAgo}` : ''}
+              </div>
+            </div>
+            <div class="expand-icon">▼</div>
+          </div>
+          <div class="session-body">
+            <div class="journey-timeline" id="journey-${sessionId}">
+              <div class="loading"><div class="spinner"></div> Click to load journey...</div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    async function toggleSession(sessionId, inquiryId) {
+      const card = document.querySelector(`[data-session="${sessionId}"]`);
+      if (!card) return;
+
+      card.classList.toggle('open');
+
+      if (card.classList.contains('open')) {
+        const container = byId(`journey-${sessionId}`);
+        if (container && container.querySelector('.loading')) {
+          await loadSessionEvents(sessionId, inquiryId);
+        }
+      }
+    }
+
+    async function loadSessionEvents(sessionId, inquiryId) {
+      const container = byId(`journey-${sessionId}`);
+      if (!container) return;
+
+      container.innerHTML = '<div class="loading"><div class="spinner"></div> Loading journey...</div>';
+
+      const urls = [
+        `/api/visits/session/${encodeURIComponent(sessionId)}`,
+        `/api/visits/session/${encodeURIComponent(sessionId)}/events`,
+        `/api/sessions/${encodeURIComponent(sessionId)}`,
+        `/api/session/${encodeURIComponent(sessionId)}`,
+        `/api/visits/${encodeURIComponent(inquiryId)}/sessions/${encodeURIComponent(sessionId)}`,
+        `/api/visits/${encodeURIComponent(inquiryId)}/session/${encodeURIComponent(sessionId)}`
+      ];
+
+      let events = null;
+
+      for (const url of urls) {
+        try {
+          const data = await fetchJson(url);
+          if (Array.isArray(data) && data.length && (data[0].type || data[0].name)) {
+            events = data;
+            break;
+          }
+          if (data && Array.isArray(data.events)) {
+            events = data.events;
+            break;
+          }
+          if (data && data.session && Array.isArray(data.session.events)) {
+            events = data.session.events;
+            break;
+          }
+        } catch (e) { }
+      }
+
+      if (!events || !events.length) {
+        container.innerHTML = '<div class="no-data">No journey data available for this visit</div>';
+        return;
+      }
+
+      const processedEvents = processEvents(events);
+      container.innerHTML = renderCleanJourney(processedEvents);
+    }
+
+    function processEvents(events) {
+      const journey = [];
+
+      events.forEach(ev => {
+        if (ev.type === 'heartbeat' || ev.type === 'page_hidden' || ev.type === 'page_visible' || ev.type === 'click') {
+          return;
+        }
+
+        if (ev.type === 'page_load' || ev.type === '✓ Visit start') {
+          journey.push({ type: 'start', title: 'Started visit', icon: '🚀' });
+        } else if (ev.type === 'section_exit' && ev.section) {
+          const dwellTime = ev.dwellSec || ev.dwell_seconds || 0;
+          if (dwellTime > 0) {
+            const sectionName = formatSectionName(ev.section);
+            journey.push({ type: 'section', title: sectionName, duration: dwellTime, icon: getSectionIcon(ev.section) });
+          }
+        } else if (ev.type === 'video_open') {
+          journey.push({ type: 'video', title: ev.title || 'Video', videoId: ev.youtubeId, icon: '▶️' });
+        } else if (ev.type === 'tier_expand') {
+          journey.push({ type: 'tier', title: formatTierName(ev.tier), icon: '📂' });
+        } else if (ev.type === 'cta_openmorning_click') {
+          journey.push({ type: 'cta', title: 'Clicked Open Morning CTA', icon: '⭐' });
+        }
+      });
+
+      const cleaned = [];
+      journey.forEach(item => {
+        if (item.type === 'section') {
+          if (cleaned.length && cleaned[cleaned.length - 1].type === 'section' && cleaned[cleaned.length - 1].title === item.title) {
+            cleaned[cleaned.length - 1].duration += item.duration;
+          } else {
+            cleaned.push(item);
+          }
+        } else {
+          cleaned.push(item);
+        }
+      });
+
+      return cleaned;
+    }
+
+    function renderCleanJourney(journey) {
+      if (!journey.length) {
+        return '<div class="no-data">No meaningful activity recorded</div>';
+      }
+
+      const totalTime = journey
+        .filter(j => j.type === 'section')
+        .reduce((sum, j) => sum + (j.duration || 0), 0);
+
+      const journeyHTML = journey.map(item => {
+        if (item.type === 'start') {
+          return `
+            <div class="journey-item" style="background: linear-gradient(135deg, #E0F2FE, #DBEAFE);">
+              <div class="journey-icon" style="background: var(--sport-blue);">${item.icon}</div>
+              <div class="journey-content"><div class="journey-title">${item.title}</div></div>
+            </div>
+          `;
+        }
+        if (item.type === 'section') {
+          const minutes = Math.floor(item.duration / 60);
+          const seconds = item.duration % 60;
+          const timeStr = minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
+          const percentage = Math.min((item.duration / 120) * 100, 100);
+          return `
+            <div class="journey-item">
+              <div class="journey-icon section">📖</div>
+              <div class="journey-content">
+                <div class="journey-title">${item.title}</div>
+                <div class="journey-meta">Time spent: ${timeStr}</div>
+                <div class="journey-progress"><div class="journey-progress-fill" style="width: ${percentage}%"></div></div>
+              </div>
+            </div>
+          `;
+        }
+        if (item.type === 'video') {
+          return `
+            <div class="journey-item" style="background: #FEF3C7;">
+              <div class="journey-icon video" style="background: var(--warning);">▶️</div>
+              <div class="journey-content"><div class="journey-title">Watched: ${item.title}</div></div>
+            </div>
+          `;
+        }
+        if (item.type === 'tier') {
+          return `
+            <div class="journey-item">
+              <div class="journey-icon tier">📂</div>
+              <div class="journey-content"><div class="journey-title">Explored: ${item.title}</div></div>
+            </div>
+          `;
+        }
+        if (item.type === 'cta') {
+          return `
+            <div class="journey-item" style="background: #D1FAE5;">
+              <div class="journey-icon cta" style="background: var(--success);">⭐</div>
+              <div class="journey-content"><div class="journey-title">${item.title}</div></div>
+            </div>
+          `;
+        }
+        return '';
+      }).join('');
+
+      const totalMinutes = Math.floor(totalTime / 60);
+      const totalSeconds = totalTime % 60;
+      const totalTimeStr = totalMinutes > 0 ? `${totalMinutes}m ${totalSeconds}s` : `${totalSeconds}s`;
+
+      return `
+        <div style="padding: 0.75rem; background: #f8fafc; border-radius: 6px; margin-bottom: 1rem;">
+          <strong>Visit Summary:</strong> ${journey.filter(j => j.type === 'section').length} sections viewed • Total time: ${totalTimeStr}
+        </div>
+        ${journeyHTML}
+      `;
+    }
+
+    function formatSectionName(section) {
+      const nameMap = {
+        'cover_page': 'Welcome Page',
+        'heads_welcome': "Head's Welcome",
+        'academic_excellence': 'Academic Excellence',
+        'about_more_house': 'About More House',
+        'day_in_the_life': 'Day in the Life',
+        'creative_arts_hero': 'Creative Arts',
+        'your_journey': 'Your Journey',
+        'london_extended_classroom': 'London as Classroom',
+        'city_curriculum_days': 'City Curriculum Days',
+        'values_hero': 'Our Values',
+        'ethical_leaders': 'Ethical Leaders',
+        'discover_video': 'Discover More House',
+        'cta_begin_your_journey': 'Begin Your Journey',
+        'pastoral_care': 'Pastoral Care',
+        'sport': 'Sports Programme'
+      };
+
+      return nameMap[section] || section.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    }
+
+    function getSectionIcon() { return '📖'; }
+
+    function formatTierName(tier) {
+      const tierMap = {
+        'presenior': 'Pre-Senior (Years 5-6)',
+        'senior': 'Senior (Years 7-11)',
+        'sixthform': 'Sixth Form (Years 12-13)'
+      };
+
+      return tierMap[tier] || tier.replace(/\b\w/g, l => l.toUpperCase());
+    }
+
+    // Format location for display
+    function formatLocation(city, country) {
+      const countryNames = {
+        'GB': 'United Kingdom',
+        'UK': 'United Kingdom',
+        'US': 'United States',
+        'USA': 'United States',
+        'FR': 'France',
+        'DE': 'Germany',
+        'ES': 'Spain',
+        'IT': 'Italy',
+        'IE': 'Ireland',
+        'NL': 'Netherlands',
+        'BE': 'Belgium',
+        'CH': 'Switzerland',
+        'AU': 'Australia',
+        'NZ': 'New Zealand',
+        'AE': 'United Arab Emirates',
+        'CN': 'China',
+        'HK': 'Hong Kong',
+        'SG': 'Singapore',
+        'IN': 'India',
+        'CA': 'Canada'
+      };
+      const niceCountry = countryNames[country] || country || 'Unknown';
+      const niceCity = city || 'Unknown';
+      if (niceCity === 'Unknown' && niceCountry === 'Unknown') return 'Unknown';
+      if (niceCity === 'Unknown') return niceCountry;
+      if (niceCountry === 'Unknown') return niceCity;
+      return `${niceCity}, ${niceCountry}`;
+    }
+
+    function showError(msg) {
+      const list = byId('familyList');
+      list.innerHTML = `<div class="error">${msg}</div>`;
+    }
+
+    async function generateAllSummaries() {
+      // Generate overall summaries for all expanded cards only (non-intrusive)
+      for (const f of allFamilies) {
+        const card = document.querySelector(`[data-id="${f.id}"]`);
+        if (card && card.classList.contains('expanded')) {
+          await generateOverallSummary(f.id);
+        }
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      byId('sortFilter').addEventListener('change', renderFamilies);
+      byId('statusFilter').addEventListener('change', renderFamilies);
+      byId('searchBox').addEventListener('input', renderFamilies);
+      loadData();
+    });
+  </script>
+</body>
+
+</html>
