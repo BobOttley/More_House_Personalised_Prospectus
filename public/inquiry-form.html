@@ -54,25 +54,165 @@
         .webhook-config-toggle{background:var(--morehouse-navy);color:white;border:none;padding:8px 15px;border-radius:5px;cursor:pointer;font-size:.8rem;margin-bottom:15px;display:none}
         .debug-info{background:#f8f9fa;padding:10px;border-radius:5px;margin-top:10px;font-size:12px;color:#666;border:1px solid #dee2e6}
 
-        /* NEW: Access Options Styles */
-        .access-options{display:none;animation:slideUp 0.6s ease-out}
-        .access-options.show{display:block}
-        .access-header{text-align:center;margin-bottom:40px}
-        .access-header h2{color:var(--morehouse-navy);margin-bottom:15px;font-size:2.5em;font-weight:400}
-        .access-header p{color:#666;font-size:1.2em;line-height:1.6}
-        .options-container{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:40px}
-        .option-card{padding:40px;border-radius:20px;text-align:center;transition:all 0.3s ease;cursor:pointer;min-height:280px;display:flex;flex-direction:column;justify-content:space-between}
-        .option-card:hover{transform:translateY(-8px);box-shadow:0 20px 40px rgba(0,0,0,0.15)}
-        .online-option{background:linear-gradient(135deg,#667eea,#764ba2);color:white}
-        .offline-option{background:linear-gradient(135deg,#f093fb,#f5576c);color:white}
-        .option-title{font-size:2em;font-weight:bold;margin-bottom:20px;color:white}
-        .option-description{font-size:1.1em;opacity:0.95;line-height:1.6;margin-bottom:30px;flex-grow:1}
-        .btn-access{display:inline-block;padding:18px 40px;border:none;border-radius:50px;font-weight:bold;font-size:1.2em;cursor:pointer;text-decoration:none;transition:all 0.3s ease;background:rgba(255,255,255,0.9);color:#333;border:3px solid white;width:100%}
-        .btn-access:hover{background:white;transform:translateY(-3px);box-shadow:0 8px 25px rgba(0,0,0,0.2)}
-        .back-btn{background:transparent;color:var(--morehouse-navy);border:2px solid var(--morehouse-navy);padding:12px 30px;border-radius:50px;cursor:pointer;font-weight:bold;transition:all 0.3s ease;font-size:1em}
-        .back-btn:hover{background:var(--morehouse-navy);color:white}
-        @keyframes slideUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
-        @media (max-width:768px){.options-container{grid-template-columns:1fr;gap:20px}.option-card{padding:30px;min-height:240px}}
+        /* NEW: SIMPLIFIED Access Options Styles */
+        .access-options {
+            display: none;
+            animation: slideUp 0.6s ease-out;
+        }
+
+        .access-options.show {
+            display: block;
+        }
+
+        .access-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .access-header h2 {
+            color: var(--morehouse-navy);
+            margin-bottom: 15px;
+            font-size: 2.2em;
+            font-weight: 400;
+        }
+
+        .access-header p {
+            color: #666;
+            font-size: 1.1em;
+            line-height: 1.6;
+        }
+
+        .options-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin: 40px 0;
+        }
+
+        .option-card {
+            padding: 30px 25px;
+            border-radius: 12px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            border: 2px solid transparent;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .option-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+            border-color: var(--morehouse-deep-pink);
+        }
+
+        .online-option:hover {
+            border-color: var(--morehouse-navy);
+        }
+
+        .option-title {
+            font-size: 1.5em;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: var(--morehouse-navy);
+        }
+
+        .option-description {
+            font-size: 1em;
+            color: #666;
+            line-height: 1.5;
+            margin-bottom: 25px;
+        }
+
+        .btn-access {
+            display: inline-block;
+            padding: 12px 30px;
+            border: 2px solid var(--morehouse-navy);
+            border-radius: 25px;
+            font-weight: bold;
+            font-size: 1em;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            background: white;
+            color: var(--morehouse-navy);
+            width: 100%;
+        }
+
+        .btn-access:hover {
+            background: var(--morehouse-navy);
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .offline-option .btn-access {
+            border-color: var(--morehouse-deep-pink);
+            color: var(--morehouse-deep-pink);
+        }
+
+        .offline-option .btn-access:hover {
+            background: var(--morehouse-deep-pink);
+            color: white;
+        }
+
+        .simple-tip {
+            text-align: center;
+            background: var(--morehouse-light-pink);
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid var(--morehouse-deep-pink);
+            margin: 30px 0;
+        }
+
+        .simple-tip p {
+            margin: 0;
+            color: var(--morehouse-text);
+            font-size: 0.95em;
+            line-height: 1.5;
+        }
+
+        .back-btn {
+            background: transparent;
+            color: var(--morehouse-navy);
+            border: 2px solid var(--morehouse-navy);
+            padding: 10px 25px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            font-size: 0.95em;
+        }
+
+        .back-btn:hover {
+            background: var(--morehouse-navy);
+            color: white;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .options-container {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+            
+            .option-card {
+                padding: 25px 20px;
+            }
+            
+            .access-header h2 {
+                font-size: 1.8em;
+            }
+        }
     </style>
 </head>
 <body>
@@ -99,7 +239,7 @@
             </div>
 
             <!-- Webhook Configuration (hidden except on localhost or with ?debug=1) -->
-            <button type="button" class="webhook-config-toggle" id="webhookToggle">⚙️ Webhook Configuration</button>
+            <button type="button" class="webhook-config-toggle" id="webhookToggle">Webhook Configuration</button>
             <div class="webhook-config" id="webhookConfig" style="display:none;">
                 <div class="form-group">
                     <label for="webhookUrl">Webhook URL (testing only)</label>
@@ -142,9 +282,9 @@
                         <label for="ageGroup">Current Age Group <span class="required">*</span></label>
                         <select id="ageGroup" required>
                             <option value="">Select age group...</option>
-                            <option value="9-11">Ages 9–11 (Years 5–6)</option>
-                            <option value="11-16">Ages 11–16 (Years 7–11)</option>
-                            <option value="16-18">Ages 16–18 (Sixth Form)</option>
+                            <option value="9-11">Ages 9-11 (Years 5-6)</option>
+                            <option value="11-16">Ages 11-16 (Years 7-11)</option>
+                            <option value="16-18">Ages 16-18 (Sixth Form)</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -216,13 +356,13 @@
             </form>
 
             <div class="success-message" id="successMessage">
-                <h3>🎉 Thank you for your enquiry!</h3>
+                <h3>Thank you for your enquiry!</h3>
                 <p>Your personalised prospectus request has been submitted successfully.</p>
                 <p id="prospectusLink"></p>
             </div>
 
             <div class="error-message" id="errorMessage">
-                <h3>⚠️ Submission Error</h3>
+                <h3>Submission Error</h3>
                 <p id="errorText">There was an issue submitting your form. Please try again.</p>
             </div>
 
@@ -231,11 +371,11 @@
             </div>
 
             <div class="footer-text">
-                <p><strong>More House School</strong><br>22–24 Pont Street, Knightsbridge, London SW1X 0AA</p>
+                <p><strong>More House School</strong><br>22-24 Pont Street, Knightsbridge, London SW1X 0AA</p>
             </div>
         </div>
 
-        <!-- NEW: ACCESS OPTIONS SECTION -->
+        <!-- SIMPLIFIED ACCESS OPTIONS SECTION -->
         <div id="accessOptions" class="access-options">
             <div class="school-logo">
                 <img src="https://yt3.googleusercontent.com/_BXVh2JJHQb3ViHUH-hDR_G1YU44EFmu3JSbyhsj5Qmnfy-niQEoIjynQd4Voo8el0RjUm_wUDo=s160-c-k-c0x00ffffff-no-rj" alt="More House School Logo">
@@ -243,66 +383,37 @@
 
             <div class="access-header">
                 <h2>Your Prospectus is Ready!</h2>
-                <p>Choose how you'd like to access your personalized prospectus:</p>
+                <p>Choose how you'd like to access your personalised prospectus:</p>
             </div>
             
             <div class="options-container">
                 <div class="option-card online-option" onclick="viewOnlineProspectus()">
                     <div class="option-title">View Online</div>
                     <div class="option-description">
-                        Access your prospectus instantly with interactive features
+                        Interactive prospectus with videos and dynamic content
                     </div>
-                    <a href="javascript:void(0)" class="btn-access btn-online" id="onlineBtn">
+                    <a href="javascript:void(0)" class="btn-access" id="onlineBtn">
                         View Online Now
                     </a>
                 </div>
                 
                 <div class="option-card offline-option" onclick="downloadOfflineProspectus()">
-                    <span class="option-icon">📱</span>
                     <div class="option-title">Download Offline</div>
                     <div class="option-description">
-                        Download a complete version that works perfectly without internet connection.
+                        Complete prospectus file for offline viewing and printing
                     </div>
-                    <ul class="option-features">
-                        <li>Works without internet</li>
-                        <li>Save to any device</li>
-                        <li>Print-friendly format</li>
-                        <li>Never expires</li>
-                    </ul>
-                    <a href="javascript:void(0)" class="btn-access btn-offline" id="offlineBtn">
-                        📱 Download Offline
+                    <a href="javascript:void(0)" class="btn-access" id="offlineBtn">
+                        Download Offline
                     </a>
                 </div>
             </div>
             
-            <div class="comparison-table">
-                <h3>🤔 Not sure which option to choose?</h3>
-                <div class="comparison-grid">
-                    <div class="comparison-header">Feature</div>
-                    <div class="comparison-header">🌐 Online</div>
-                    <div class="comparison-header">📱 Offline</div>
-                    
-                    <div class="comparison-row">Internet Required</div>
-                    <div class="comparison-row check">✓ Yes</div>
-                    <div class="comparison-row cross">✗ No</div>
-                    
-                    <div class="comparison-row">Always Updated</div>
-                    <div class="comparison-row check">✓ Yes</div>
-                    <div class="comparison-row cross">✗ Fixed Version</div>
-                    
-                    <div class="comparison-row">Works Anywhere</div>
-                    <div class="comparison-row cross">✗ Need WiFi</div>
-                    <div class="comparison-row check">✓ Everywhere</div>
-                    
-                    <div class="comparison-row">Print Quality</div>
-                    <div class="comparison-row">Good</div>
-                    <div class="comparison-row check">✓ Excellent</div>
-                </div>
+            <div class="simple-tip">
+                <p><strong>Tip:</strong> You can use both options - view online for the full experience, then download for offline reference.</p>
             </div>
 
             <div style="text-align:center;margin-top:30px;">
-                <p style="color:#666;margin-bottom:15px;"><strong>💡 Pro Tip:</strong> You can use both! View online for updates, download offline for reference.</p>
-                <button class="back-btn" onclick="showFormSection()">← Create Another Prospectus</button>
+                <button class="back-btn" onclick="showFormSection()">Create Another Prospectus</button>
             </div>
         </div>
     </div>
@@ -370,14 +481,14 @@
                 });
                 
                 if (response.ok) {
-                    connectionStatusSpan.textContent = '✅ Connected';
+                    connectionStatusSpan.textContent = 'Connected';
                     connectionStatusSpan.style.color = '#28a745';
                 } else {
-                    connectionStatusSpan.textContent = `⚠️ Server responded with ${response.status}`;
+                    connectionStatusSpan.textContent = `Server responded with ${response.status}`;
                     connectionStatusSpan.style.color = '#ffc107';
                 }
             } catch (error) {
-                connectionStatusSpan.textContent = `❌ Connection failed: ${error.message}`;
+                connectionStatusSpan.textContent = `Connection failed: ${error.message}`;
                 connectionStatusSpan.style.color = '#dc3545';
                 console.error('Webhook connectivity test failed:', error);
             }
@@ -402,7 +513,7 @@
             if (!currentProspectusData) return;
             
             const onlineBtn = document.getElementById('onlineBtn');
-            onlineBtn.innerHTML = '⏳ Loading...';
+            onlineBtn.innerHTML = 'Loading...';
             
             // Open online version
             if (currentProspectusData.slug) {
@@ -412,7 +523,7 @@
             }
             
             setTimeout(() => {
-                onlineBtn.innerHTML = '🌐 View Online Now';
+                onlineBtn.innerHTML = 'View Online Now';
             }, 2000);
         }
 
@@ -420,7 +531,7 @@
             if (!currentProspectusData) return;
             
             const offlineBtn = document.getElementById('offlineBtn');
-            offlineBtn.innerHTML = '📥 Preparing Download...';
+            offlineBtn.innerHTML = 'Preparing Download...';
             
             // Create download link
             let downloadUrl;
@@ -443,7 +554,7 @@
             }
             
             setTimeout(() => {
-                offlineBtn.innerHTML = '📱 Download Offline';
+                offlineBtn.innerHTML = 'Download Offline';
             }, 3000);
         }
 
