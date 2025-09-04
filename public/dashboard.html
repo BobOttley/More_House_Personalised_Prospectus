@@ -808,7 +808,18 @@
       padding: 3rem;
       font-size: 1rem
     }
+    
+    .btn.danger {
+      background: #EF4444;
+      border-color: #EF4444;
+      color: #fff;
+    }
 
+    .btn.danger:hover {
+      background: #DC2626;
+      border-color: #DC2626;
+    }
+    
     /* Responsive */
     @media (max-width:768px) {
       .header h1 {
@@ -1300,15 +1311,20 @@ async function onStatusChange(id, val) {
                   </div>
                   <!-- /Status Selector -->
 
-
                   <div class="family-actions">
                     ${f.prospectusUrl ?
-            `<button class="btn primary" onclick="window.open('${f.prospectusUrl}','_blank')">View Prospectus</button>` :
-            `<button class="btn" disabled>No Prospectus</button>`}
+                      `<button class="btn primary" onclick="window.open('${f.prospectusUrl}','_blank')">View Prospectus</button>` :
+                      `<button class="btn" disabled>No Prospectus</button>`}
                     ${f.parentEmail ?
-            `<a class="btn" href="mailto:${f.parentEmail}">Email Family</a>` : ''}
+                      `<a class="btn" href="mailto:${f.parentEmail}">Email Family</a>` : ''}
                     <button class="btn" onclick="copyInquiryId('${f.id}')">Copy ID</button>
+                    <button class="btn" onclick="deleteInquiry('${f.id}')" 
+                            style="background: #EF4444; color: white; border-color: #EF4444; margin-left: 0.5rem;"
+                            title="Permanently delete this inquiry">
+                      🗑️ Delete
+                    </button>
                   </div>
+                  
 
                   <!-- Overall AI Summary renders here (under Contact & Profile) -->
                   <div id="ai-overall-${f.id}" class="ai-summary" style="display:none; margin-top: 1rem;"></div>
