@@ -3898,49 +3898,108 @@ const RESERVED = new Set([
   'download'  // ADD THIS LINE
 ]);
 
-// Download routes - MUST come before /:slug
+// Download routes - MUST come before /:slug to avoid route conflicts
 app.get('/download/:slug', async (req, res) => {
   try {
     const slug = String(req.params.slug || '').toLowerCase();
-    console.log(`Download request for slug: ${slug}`);
+    console.log(`📥 Download request for slug: ${slug}`);
 
     const inquiry = await findInquiryBySlug(slug);
     if (!inquiry) {
       return res.status(404).send('Prospectus not found');
     }
 
-    const prospectusInfo = await generateProspectus(inquiry);
-    const filePath = path.join(__dirname, 'prospectuses', prospectusInfo.filename);
-    const html = await fs.readFile(filePath, 'utf8');
+    console.log(`Found inquiry for download: ${inquiry.firstName} ${inquiry.familySurname}`);
+
+    // Generate prospectus if needed
+    let prospectusInfo;
+    try {
+      prospectusInfo = await generateProspectus(inquiry);
+    } catch (genError) {
+      console.error('Failed to generate prospectus for download:', genError);
+      return res.status(500).send('Failed to generate prospectus');
+    }
     
-    const filename = `${inquiry.firstName}-${inquiry.familySurname}-Prospectus-${inquiry.entryYear}-OFFLINE.html`;
-    res.setHeader('Content-Type', 'text/html');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    // Read the generated file
+    const filePath = path.join(__dirname, 'prospectuses', prospectusInfo.filename);
+    let html;
+    
+    try {
+      html = await fs.readFile(filePath, 'utf8');
+    } catch (readError) {
+      console.error('Failed to read prospectus file:', readError);
+      return res.status(500).send('Failed to read prospectus file');
+    }
+    
+    // Create download filename
+    const downloadFilename = `${inquiry.firstName}-${inquiry.familySurname}-Prospectus-${inquiry.entryYear}-OFFLINE.html`;
+    
+    // Set headers for download
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${downloadFilename}"`);
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    
+    console.log(`✅ Sending download: ${downloadFilename}`);
     res.send(html);
+
   } catch (error) {
-    console.error('Download failed:', error);
-    res.status(500).send('Failed to generate download');
+    console.error('❌ Download via slug failed:', error);
+    res.status(500).send(`Download failed: ${error.message}`);
   }
 });
 
+// Download route via inquiry ID - for dashboard use
 app.get('/api/download/:inquiryId', async (req, res) => {
   try {
     const inquiryId = req.params.inquiryId;
-    const inquiry = await findInquiryById(inquiryId);
+    console.log(`📥 API Download request for inquiry: ${inquiryId}`);
+
+    // Find the inquiry data
+    const inquiry = await findInquiryByIdFixed(inquiryId);
     if (!inquiry) {
       return res.status(404).json({ error: 'Inquiry not found' });
     }
 
-    const prospectusInfo = await generateProspectus(inquiry);
-    const filePath = path.join(__dirname, 'prospectuses', prospectusInfo.filename);
-    const html = await fs.readFile(filePath, 'utf8');
+    console.log(`Found inquiry for API download: ${inquiry.firstName} ${inquiry.familySurname}`);
+
+    // Generate prospectus if needed
+    let prospectusInfo;
+    try {
+      prospectusInfo = await generateProspectus(inquiry);
+    } catch (genError) {
+      console.error('Failed to generate prospectus for API download:', genError);
+      return res.status(500).json({ error: 'Failed to generate prospectus' });
+    }
     
-    const filename = `${inquiry.firstName}-${inquiry.familySurname}-Prospectus-${inquiry.entryYear}-OFFLINE.html`;
-    res.setHeader('Content-Type', 'text/html');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    // Read the generated file
+    const filePath = path.join(__dirname, 'prospectuses', prospectusInfo.filename);
+    let html;
+    
+    try {
+      html = await fs.readFile(filePath, 'utf8');
+    } catch (readError) {
+      console.error('Failed to read prospectus file for API:', readError);
+      return res.status(500).json({ error: 'Failed to read prospectus file' });
+    }
+    
+    // Create download filename
+    const downloadFilename = `${inquiry.firstName}-${inquiry.familySurname}-Prospectus-${inquiry.entryYear}-OFFLINE.html`;
+    
+    // Set headers for download
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${downloadFilename}"`);
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    
+    console.log(`✅ Sending API download: ${downloadFilename}`);
     res.send(html);
+
   } catch (error) {
-    res.status(500).json({ error: 'Failed to generate download' });
+    console.error('❌ API Download failed:', error);
+    res.status(500).json({ error: `Download failed: ${error.message}` });
   }
 });
 
@@ -4463,77 +4522,81 @@ app.get('/api/debug/sessions/:inquiryId', async (req, res) => {
   }
 });
 
-// ═══════════════════════════════════════════════════════════════════════════════════════════
-// ADD THESE TWO ROUTES TO YOUR EXISTING server.js (they use your existing generateProspectus function)
-// ═══════════════════════════════════════════════════════════════════════════════════════════
 
-// Download route via slug - generates and downloads instead of saving to disk
-app.get('/download/:slug', async (req, res) => {
+// ===================== IMPROVED HELPER FUNCTION =====================
+async function findInquiryByIdFixed(inquiryId) {
   try {
-    const slug = String(req.params.slug || '').toLowerCase();
-    console.log(`📥 Download request for slug: ${slug}`);
-
-    // Find the inquiry by slug (using your existing function)
-    const inquiry = await findInquiryBySlug(slug);
-    if (!inquiry) {
-      return res.status(404).send('Prospectus not found');
+    // First try database if available
+    if (db) {
+      const result = await db.query('SELECT * FROM inquiries WHERE id = $1', [inquiryId]);
+      if (result.rows.length > 0) {
+        const row = result.rows[0];
+        // Convert database format to expected format
+        return {
+          id: row.id,
+          firstName: row.first_name,
+          familySurname: row.family_surname,
+          parentName: row.parent_name,
+          parentEmail: row.parent_email,
+          contactNumber: row.contact_number,
+          ageGroup: row.age_group,
+          entryYear: row.entry_year,
+          hearAboutUs: row.hear_about_us,
+          receivedAt: row.received_at,
+          status: row.status,
+          slug: row.slug,
+          // Include all the boolean fields for interests
+          sciences: row.sciences,
+          mathematics: row.mathematics,
+          english: row.english,
+          languages: row.languages,
+          humanities: row.humanities,
+          business: row.business,
+          drama: row.drama,
+          music: row.music,
+          art: row.art,
+          creative_writing: row.creative_writing,
+          sport: row.sport,
+          leadership: row.leadership,
+          community_service: row.community_service,
+          outdoor_education: row.outdoor_education,
+          academic_excellence: row.academic_excellence,
+          pastoral_care: row.pastoral_care,
+          university_preparation: row.university_preparation,
+          personal_development: row.personal_development,
+          career_guidance: row.career_guidance,
+          extracurricular_opportunities: row.extracurricular_opportunities
+        };
+      }
     }
-
-    // Use your EXISTING generateProspectus function to create the HTML
-    const prospectusInfo = await generateProspectus(inquiry);
     
-    // Instead of saving to disk, read the generated file and send as download
-    const filePath = path.join(__dirname, 'prospectuses', prospectusInfo.filename);
-    const html = await fs.readFile(filePath, 'utf8');
+    // Fallback to JSON files
+    const dataDir = path.join(__dirname, 'data');
+    const files = await fs.readdir(dataDir);
     
-    // Set headers for download
-    const filename = `${inquiry.firstName}-${inquiry.familySurname}-Prospectus-${inquiry.entryYear}-OFFLINE.html`;
-    res.setHeader('Content-Type', 'text/html');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    res.setHeader('Cache-Control', 'no-cache');
-    
-    console.log(`✅ Sending download: ${filename}`);
-    res.send(html);
-
-  } catch (error) {
-    console.error('❌ Download failed:', error);
-    res.status(500).send('Failed to generate download');
-  }
-});
-
-// Download route via inquiry ID - for dashboard use
-app.get('/api/download/:inquiryId', async (req, res) => {
-  try {
-    const inquiryId = req.params.inquiryId;
-    console.log(`📥 API Download request for inquiry: ${inquiryId}`);
-
-    // Find the inquiry data (add this helper function if you don't have it)
-    const inquiry = await findInquiryById(inquiryId);
-    if (!inquiry) {
-      return res.status(404).json({ error: 'Inquiry not found' });
+    for (const f of files.filter(x => x.startsWith('inquiry-') && x.endsWith('.json'))) {
+      try {
+        const filePath = path.join(dataDir, f);
+        const content = await fs.readFile(filePath, 'utf8');
+        const inquiry = JSON.parse(content);
+        
+        if (inquiry.id === inquiryId) {
+          console.log(`Found inquiry in JSON file: ${f}`);
+          return inquiry;
+        }
+      } catch (fileError) {
+        console.warn(`Failed to parse ${f}:`, fileError.message);
+        continue;
+      }
     }
-
-    // Use your EXISTING generateProspectus function
-    const prospectusInfo = await generateProspectus(inquiry);
     
-    // Read the generated file and send as download
-    const filePath = path.join(__dirname, 'prospectuses', prospectusInfo.filename);
-    const html = await fs.readFile(filePath, 'utf8');
-    
-    // Set headers for download
-    const filename = `${inquiry.firstName}-${inquiry.familySurname}-Prospectus-${inquiry.entryYear}-OFFLINE.html`;
-    res.setHeader('Content-Type', 'text/html');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    res.setHeader('Cache-Control', 'no-cache');
-    
-    console.log(`✅ Sending API download: ${filename}`);
-    res.send(html);
-
+    console.log(`No inquiry found with ID: ${inquiryId}`);
+    return null;
   } catch (error) {
-    console.error('❌ API Download failed:', error);
-    res.status(500).json({ error: 'Failed to generate download' });
+    console.error('Error finding inquiry by ID:', error);
+    return null;
   }
-});
+}
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════
 // ADD THIS HELPER FUNCTION (if you don't already have it)
