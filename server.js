@@ -333,9 +333,12 @@ async function findInquiryBySlug(slug) {
           id: row.id,
           firstName: row.first_name,
           familySurname: row.family_surname,
+          parentName: row.parent_name,        // ADD THIS
           parentEmail: row.parent_email,
+          contactNumber: row.contact_number,  // ADD THIS
           ageGroup: row.age_group,
           entryYear: row.entry_year,
+          hearAboutUs: row.hear_about_us,    // ADD THIS
           receivedAt: row.received_at,
           status: row.status,
           slug: row.slug
@@ -1297,7 +1300,7 @@ app.use('/prospectuses', express.static(path.join(__dirname, 'prospectuses')));
 app.post(['/webhook', '/api/inquiry'], async (req, res) => {
   try {
     const data = req.body || {};
-    const required = ['firstName','familySurname','parentEmail','ageGroup','entryYear'];
+    const required = ['firstName','familySurname','parentEmail','contactNumber','parentName','ageGroup','entryYear','hearAboutUs'];
     const missing = required.filter(k => !data[k]);
     
     if (missing.length) {
@@ -1318,6 +1321,9 @@ app.post(['/webhook', '/api/inquiry'], async (req, res) => {
       receivedAt: now,
       status: 'received',
       prospectusGenerated: false,
+      parentName: data.parentName,          // ADD THIS
+      contactNumber: data.contactNumber,    // ADD THIS
+      hearAboutUs: data.hearAboutUs,   
       userAgent: req.headers['user-agent'],
       referrer: req.headers.referer,
       ip: clientIP,
@@ -1338,7 +1344,7 @@ app.post(['/webhook', '/api/inquiry'], async (req, res) => {
       try {
         await db.query(`
           INSERT INTO inquiries (
-            id, first_name, family_surname, parent_email, age_group, entry_year,
+            id, parent_name, first_name, family_surname, parent_email, contact_number, age_group, entry_year, hear_about_us,
             sciences, mathematics, english, languages, humanities, business,
             drama, music, art, creative_writing,
             sport, leadership, community_service, outdoor_education,
@@ -1347,17 +1353,17 @@ app.post(['/webhook', '/api/inquiry'], async (req, res) => {
             received_at, status, user_agent, referrer, ip_address,
             country, region, city, latitude, longitude, timezone, isp
           ) VALUES (
-            $1,$2,$3,$4,$5,$6,
-            $7,$8,$9,$10,$11,$12,
-            $13,$14,$15,$16,
-            $17,$18,$19,$20,
-            $21,$22,$23,$24,$25,$26,
-            $27,$28,$29,$30,$31,
-            $32,$33,$34,$35,$36,$37,$38
+            $1,$2,$3,$4,$5,$6,$7,$8,$9,
+            $10,$11,$12,$13,$14,$15,
+            $16,$17,$18,$19,
+            $20,$21,$22,$23,
+            $24,$25,$26,$27,$28,$29,
+            $30,$31,$32,$33,$34,
+            $35,$36,$37,$38,$39,$40,$41
           )
           ON CONFLICT (id) DO NOTHING
         `, [
-          record.id, record.firstName, record.familySurname, record.parentEmail, record.ageGroup, record.entryYear,
+          record.id, record.parentName, record.firstName, record.familySurname, record.parentEmail, record.contactNumber, record.ageGroup, record.entryYear, record.hearAboutUs,
           !!record.sciences, !!record.mathematics, !!record.english, !!record.languages, !!record.humanities, !!record.business,
           !!record.drama, !!record.music, !!record.art, !!record.creative_writing,
           !!record.sport, !!record.leadership, !!record.community_service, !!record.outdoor_education,
@@ -1665,8 +1671,11 @@ app.get('/api/dashboard-data', async (req, res) => {
           id: row.id,
           firstName: row.first_name,
           familySurname: row.family_surname,
+          parent_name: row.parent_name,
           parentEmail: row.parent_email,
+          contact_number: row.contact_number,
           ageGroup: row.age_group,
+          hear_about_us: row.hear_about_us,
           entryYear: row.entry_year,
           receivedAt: row.received_at,
           status: row.status,
@@ -2597,9 +2606,12 @@ app.post('/api/ai/analyze-family/:inquiryId', async (req, res) => {
       id: inquiry.id,
       firstName: inquiry.firstName || inquiry.first_name,
       familySurname: inquiry.familySurname || inquiry.family_surname,
+      parentName: inquiry.parentName || inquiry.parent_name,  
       parentEmail: inquiry.parentEmail || inquiry.parent_email,
+      contactNumber: inquiry.contactNumber || inquiry.contact_number, 
       ageGroup: inquiry.ageGroup || inquiry.age_group,
       entryYear: inquiry.entryYear || inquiry.entry_year,
+      hearAboutUs: inquiry.hearAboutUs || inquiry.hear_about_us,
       sciences: inquiry.sciences,
       mathematics: inquiry.mathematics,
       english: inquiry.english,
