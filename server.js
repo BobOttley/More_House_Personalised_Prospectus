@@ -2442,18 +2442,19 @@ app.get('/api/ai/engagement-summary/:inquiryId', async (req, res) => {
       ORDER BY 2 DESC
     `, [inquiryId]);
     
-    // Calculate total time by summing ALL session durations - FIX FOR TOTAL TIME
+    // Sum actual section engagement time from section_exit events
     const sessionTotals = await db.query(`
       SELECT 
-        COALESCE(SUM(duration_seconds), 0) as total_seconds,
-        COUNT(*) as session_count
-      FROM session_summaries 
-      WHERE inquiry_id = $1
+        COUNT(DISTINCT session_id) as session_count,
+        SUM(COALESCE((event_data->>'dwellSec')::int, 0)) as total_seconds
+      FROM tracking_events 
+      WHERE inquiry_id = $1 AND event_type = 'section_exit'
     `, [inquiryId]);
 
     const totalSeconds = parseInt(sessionTotals.rows[0]?.total_seconds || 0);
-    const dwellMs = totalSeconds * 1000; // Convert to milliseconds
-    const visitCount = Math.max(parseInt(sessionTotals.rows[0]?.session_count || 0), 1);    const score = Math.min(100, Math.round((dwellMs / 1000) / 10) + 50);
+    const dwellMs = totalSeconds * 1000; // For location 1
+    const totalDwellMs = totalSeconds * 1000; // For location 2
+    const visitCount = Math.max(parseInt(sessionTotals.rows[0]?.session_count || 0), 1);
     
     let summaryText = 'No summary available';
     let highlights = [];
@@ -3356,19 +3357,21 @@ app.get('/api/section-data/:inquiryId', async (req, res) => {
       return res.status(404).json({ error: 'Inquiry not found' });
     }
     
-    // Calculate total time by summing ALL session durations - FIX FOR TOTAL TIME
+    // Sum actual section engagement time from section_exit events
     const sessionTotals = await db.query(`
       SELECT 
-        COALESCE(SUM(duration_seconds), 0) as total_seconds,
-        COUNT(*) as session_count
-      FROM session_summaries 
-      WHERE inquiry_id = $1
+        COUNT(DISTINCT session_id) as session_count,
+        SUM(COALESCE((event_data->>'dwellSec')::int, 0)) as total_seconds
+      FROM tracking_events 
+      WHERE inquiry_id = $1 AND event_type = 'section_exit'
     `, [inquiryId]);
 
     const totalSeconds = parseInt(sessionTotals.rows[0]?.total_seconds || 0);
-    const totalDwellMs = totalSeconds * 1000; // Convert to milliseconds
+    const dwellMs = totalSeconds * 1000; // For location 1
+    const totalDwellMs = totalSeconds * 1000; // For location 2
     const visitCount = Math.max(parseInt(sessionTotals.rows[0]?.session_count || 0), 1);
     
+        
     // Calculate comprehensive engagement score
     const engagementScore = calculateEngagementScore({
       timeOnPage: totalDwellMs,
