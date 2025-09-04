@@ -53,188 +53,300 @@
         .webhook-config input{font-size:14px;padding:8px}
         .webhook-config-toggle{background:var(--morehouse-navy);color:white;border:none;padding:8px 15px;border-radius:5px;cursor:pointer;font-size:.8rem;margin-bottom:15px;display:none}
         .debug-info{background:#f8f9fa;padding:10px;border-radius:5px;margin-top:10px;font-size:12px;color:#666;border:1px solid #dee2e6}
+
+        /* NEW: Access Options Styles */
+        .access-options{display:none;animation:slideUp 0.6s ease-out}
+        .access-options.show{display:block}
+        .access-header{text-align:center;margin-bottom:30px}
+        .access-header h2{color:var(--morehouse-navy);margin-bottom:15px;font-size:2.2em}
+        .access-header p{color:#666;font-size:1.1em;line-height:1.6}
+        .options-container{display:grid;grid-template-columns:1fr 1fr;gap:30px;margin-top:30px}
+        .option-card{padding:30px;border-radius:15px;text-align:center;transition:all 0.3s ease;border:2px solid transparent;cursor:pointer}
+        .option-card:hover{transform:translateY(-5px);box-shadow:0 15px 30px rgba(0,0,0,0.1)}
+        .online-option{background:linear-gradient(135deg,#74b9ff,#0984e3);color:white}
+        .online-option:hover{border-color:#0984e3}
+        .offline-option{background:linear-gradient(135deg,#fd79a8,#e84393);color:white}
+        .offline-option:hover{border-color:#e84393}
+        .option-icon{font-size:3em;margin-bottom:20px;display:block}
+        .option-title{font-size:1.5em;font-weight:bold;margin-bottom:15px}
+        .option-description{margin-bottom:25px;opacity:0.9;line-height:1.5}
+        .option-features{list-style:none;margin-bottom:25px;text-align:left}
+        .option-features li{margin-bottom:8px;padding-left:20px;position:relative}
+        .option-features li::before{content:"✓";position:absolute;left:0;font-weight:bold}
+        .btn-access{display:inline-block;padding:15px 30px;border:none;border-radius:25px;font-weight:bold;font-size:1.1em;cursor:pointer;text-decoration:none;transition:all 0.3s ease;min-width:200px;background:rgba(255,255,255,0.2);color:white;border:2px solid rgba(255,255,255,0.5)}
+        .btn-access:hover{background:white;transform:translateY(-2px)}
+        .btn-online:hover{color:#0984e3}
+        .btn-offline:hover{color:#e84393}
+        .comparison-table{margin-top:30px;background:#f8f9fa;border-radius:15px;padding:25px}
+        .comparison-table h3{text-align:center;margin-bottom:20px;color:var(--morehouse-navy)}
+        .comparison-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:15px;text-align:center;font-size:0.9em}
+        .comparison-header{font-weight:bold;color:var(--morehouse-navy);padding-bottom:10px;border-bottom:2px solid #ddd}
+        .comparison-row{padding:8px 0;border-bottom:1px solid #eee}
+        .check{color:#27ae60;font-weight:bold}
+        .cross{color:#e74c3c;font-weight:bold}
+        .back-btn{background:var(--morehouse-light-grey);color:var(--morehouse-navy);border:2px solid var(--morehouse-navy);padding:10px 20px;border-radius:25px;cursor:pointer;margin-top:20px;font-weight:bold;transition:all 0.3s ease}
+        .back-btn:hover{background:var(--morehouse-navy);color:white}
+        @keyframes slideUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
+        @media (max-width:768px){.options-container{grid-template-columns:1fr}.comparison-grid{grid-template-columns:1fr;gap:10px}}
     </style>
 </head>
 <body>
     <div class="form-container">
-        <div class="school-logo">
-            <img src="https://yt3.googleusercontent.com/_BXVh2JJHQb3ViHUH-hDR_G1YU44EFmu3JSbyhsj5Qmnfy-niQEoIjynQd4Voo8el0RjUm_wUDo=s160-c-k-c0x00ffffff-no-rj" alt="More House School Logo">
-        </div>
-
-        <h1>More House School</h1>
-        <p class="subtitle">Create Your Personalised Prospectus</p>
-
-        <div class="intro-text">
-            <p><strong>Welcome to More House School's personalised prospectus experience.</strong> Please complete this form to receive a bespoke prospectus tailored to your daughter's interests and your family's priorities.</p>
-        </div>
-
-        <!-- Debug Information Panel -->
-        <div class="debug-info" id="debugInfo">
-            <strong>Connection Info:</strong><br>
-            Current URL: <span id="currentUrl"></span><br>
-            Webhook Target: <span id="webhookTarget"></span><br>
-            Status: <span id="connectionStatus">Checking...</span>
-        </div>
-
-        <!-- Webhook Configuration (hidden except on localhost or with ?debug=1) -->
-        <button type="button" class="webhook-config-toggle" id="webhookToggle">⚙️ Webhook Configuration</button>
-        <div class="webhook-config" id="webhookConfig" style="display:none;">
-            <div class="form-group">
-                <label for="webhookUrl">Webhook URL (testing only)</label>
-                <input type="url" id="webhookUrl" value="" placeholder="https://your-service.onrender.com/webhook">
+        <!-- ORIGINAL FORM SECTION -->
+        <div id="formSection">
+            <div class="school-logo">
+                <img src="https://yt3.googleusercontent.com/_BXVh2JJHQb3ViHUH-hDR_G1YU44EFmu3JSbyhsj5Qmnfy-niQEoIjynQd4Voo8el0RjUm_wUDo=s160-c-k-c0x00ffffff-no-rj" alt="More House School Logo">
             </div>
-        </div>
 
-        <form id="inquiryForm">
-            <span class="section-label">Family Information</span>
-            
-            <div class="form-group">
-                <label for="parentName">Parent/Guardian Name <span class="required">*</span></label>
-                <input type="text" id="parentName" required placeholder="e.g. Mrs Sarah Smith">
+            <h1>More House School</h1>
+            <p class="subtitle">Create Your Personalised Prospectus</p>
+
+            <div class="intro-text">
+                <p><strong>Welcome to More House School's personalised prospectus experience.</strong> Please complete this form to receive a bespoke prospectus tailored to your daughter's interests and your family's priorities.</p>
             </div>
-            
-            <div class="form-row">
+
+            <!-- Debug Information Panel -->
+            <div class="debug-info" id="debugInfo">
+                <strong>Connection Info:</strong><br>
+                Current URL: <span id="currentUrl"></span><br>
+                Webhook Target: <span id="webhookTarget"></span><br>
+                Status: <span id="connectionStatus">Checking...</span>
+            </div>
+
+            <!-- Webhook Configuration (hidden except on localhost or with ?debug=1) -->
+            <button type="button" class="webhook-config-toggle" id="webhookToggle">⚙️ Webhook Configuration</button>
+            <div class="webhook-config" id="webhookConfig" style="display:none;">
                 <div class="form-group">
-                    <label for="firstName">Daughter's First Name <span class="required">*</span></label>
-                    <input type="text" id="firstName" required>
-                </div>
-                <div class="form-group">
-                    <label for="familySurname">Family Surname <span class="required">*</span></label>
-                    <input type="text" id="familySurname" required>
+                    <label for="webhookUrl">Webhook URL (testing only)</label>
+                    <input type="url" id="webhookUrl" value="" placeholder="https://your-service.onrender.com/webhook">
                 </div>
             </div>
 
-            <div class="form-row">
+            <form id="inquiryForm">
+                <span class="section-label">Family Information</span>
+                
                 <div class="form-group">
-                    <label for="parentEmail">Parent Email Address <span class="required">*</span></label>
-                    <input type="email" id="parentEmail" required>
+                    <label for="parentName">Parent/Guardian Name <span class="required">*</span></label>
+                    <input type="text" id="parentName" required placeholder="e.g. Mrs Sarah Smith">
                 </div>
-                <div class="form-group">
-                    <label for="contactNumber">Contact Number <span class="required">*</span></label>
-                    <input type="tel" id="contactNumber" required placeholder="e.g. 020 7235 2855">
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="firstName">Daughter's First Name <span class="required">*</span></label>
+                        <input type="text" id="firstName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="familySurname">Family Surname <span class="required">*</span></label>
+                        <input type="text" id="familySurname" required>
+                    </div>
                 </div>
-            </div>
 
-            <div class="form-row">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="parentEmail">Parent Email Address <span class="required">*</span></label>
+                        <input type="email" id="parentEmail" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="contactNumber">Contact Number <span class="required">*</span></label>
+                        <input type="tel" id="contactNumber" required placeholder="e.g. 020 7235 2855">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="ageGroup">Current Age Group <span class="required">*</span></label>
+                        <select id="ageGroup" required>
+                            <option value="">Select age group...</option>
+                            <option value="9-11">Ages 9–11 (Years 5–6)</option>
+                            <option value="11-16">Ages 11–16 (Years 7–11)</option>
+                            <option value="16-18">Ages 16–18 (Sixth Form)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="entryYear">Planned Entry Year <span class="required">*</span></label>
+                        <select id="entryYear" required>
+                            <option value="">Select entry year...</option>
+                            <option value="2025">September 2025</option>
+                            <option value="2026">September 2026</option>
+                            <option value="2027">September 2027</option>
+                            <option value="2028">September 2028</option>
+                            <option value="2029">September 2029</option>
+                        </select>
+                    </div>
+                </div>
+
                 <div class="form-group">
-                    <label for="ageGroup">Current Age Group <span class="required">*</span></label>
-                    <select id="ageGroup" required>
-                        <option value="">Select age group...</option>
-                        <option value="9-11">Ages 9–11 (Years 5–6)</option>
-                        <option value="11-16">Ages 11–16 (Years 7–11)</option>
-                        <option value="16-18">Ages 16–18 (Sixth Form)</option>
+                    <label for="hearAboutUs">How did you hear about More House School? <span class="required">*</span></label>
+                    <select id="hearAboutUs" required>
+                        <option value="">Please select...</option>
+                        <option value="current-school">Current School</option>
+                        <option value="friend-family">Friend or Family</option>
+                        <option value="google-search">Google or Search Engine</option>
+                        <option value="publication">Publication</option>
+                        <option value="social-media">Social Media</option>
+                        <option value="other">Other</option>
                     </select>
                 </div>
-                <div class="form-group">
-                    <label for="entryYear">Planned Entry Year <span class="required">*</span></label>
-                    <select id="entryYear" required>
-                        <option value="">Select entry year...</option>
-                        <option value="2025">September 2025</option>
-                        <option value="2026">September 2026</option>
-                        <option value="2027">September 2027</option>
-                        <option value="2028">September 2028</option>
-                        <option value="2029">September 2029</option>
-                    </select>
+
+                <span class="section-label">Academic Interests</span>
+                <div class="checkbox-group">
+                    <div class="checkbox-item"><input type="checkbox" id="sciences"><label for="sciences">Sciences</label></div>
+                    <div class="checkbox-item"><input type="checkbox" id="mathematics"><label for="mathematics">Mathematics</label></div>
+                    <div class="checkbox-item"><input type="checkbox" id="english"><label for="english">English & Literature</label></div>
+                    <div class="checkbox-item"><input type="checkbox" id="languages"><label for="languages">Modern Languages</label></div>
+                    <div class="checkbox-item"><input type="checkbox" id="humanities"><label for="humanities">History & Geography</label></div>
+                    <div class="checkbox-item"><input type="checkbox" id="business"><label for="business">Business Studies</label></div>
+                </div>
+
+                <span class="section-label">Creative & Performance Interests</span>
+                <div class="checkbox-group">
+                    <div class="checkbox-item"><input type="checkbox" id="drama"><label for="drama">Drama & Theatre</label></div>
+                    <div class="checkbox-item"><input type="checkbox" id="music"><label for="music">Music & Singing</label></div>
+                    <div class="checkbox-item"><input type="checkbox" id="art"><label for="art">Art & Design</label></div>
+                    <div class="checkbox-item"><input type="checkbox" id="creative_writing"><label for="creative_writing">Creative Writing</label></div>
+                </div>
+
+                <span class="section-label">Co-curricular Interests</span>
+                <div class="checkbox-group">
+                    <div class="checkbox-item"><input type="checkbox" id="sport"><label for="sport">Sport & Physical Education</label></div>
+                    <div class="checkbox-item"><input type="checkbox" id="leadership"><label for="leadership">Leadership & Student Voice</label></div>
+                    <div class="checkbox-item"><input type="checkbox" id="community_service"><label for="community_service">Community Service</label></div>
+                    <div class="checkbox-item"><input type="checkbox" id="outdoor_education"><label for="outdoor_education">Outdoor Education</label></div>
+                </div>
+
+                <span class="section-label">What matters most to your family?</span>
+                <div class="checkbox-group">
+                    <div class="checkbox-item"><input type="checkbox" id="academic_excellence"><label for="academic_excellence">Academic Excellence</label></div>
+                    <div class="checkbox-item"><input type="checkbox" id="pastoral_care"><label for="pastoral_care">Outstanding Pastoral Care</label></div>
+                    <div class="checkbox-item"><input type="checkbox" id="university_preparation"><label for="university_preparation">University Preparation</label></div>
+                    <div class="checkbox-item"><input type="checkbox" id="personal_development"><label for="personal_development">Personal Development</label></div>
+                    <div class="checkbox-item"><input type="checkbox" id="career_guidance"><label for="career_guidance">Career Guidance</label></div>
+                    <div class="checkbox-item"><input type="checkbox" id="extracurricular_opportunities"><label for="extracurricular_opportunities">Extracurricular Opportunities</label></div>
+                </div>
+
+                <button type="submit" class="submit-btn" id="submitBtn">
+                    <span class="loading-spinner" id="loadingSpinner"></span>
+                    <span id="submitText">Create My Personalised Prospectus</span>
+                </button>
+            </form>
+
+            <div class="success-message" id="successMessage">
+                <h3>🎉 Thank you for your enquiry!</h3>
+                <p>Your personalised prospectus request has been submitted successfully.</p>
+                <p id="prospectusLink"></p>
+            </div>
+
+            <div class="error-message" id="errorMessage">
+                <h3>⚠️ Submission Error</h3>
+                <p id="errorText">There was an issue submitting your form. Please try again.</p>
+            </div>
+
+            <div class="privacy-notice">
+                <strong>Privacy Notice:</strong> The information you provide will be used solely for creating your personalised prospectus and supporting your admissions journey.
+            </div>
+
+            <div class="footer-text">
+                <p><strong>More House School</strong><br>22–24 Pont Street, Knightsbridge, London SW1X 0AA</p>
+            </div>
+        </div>
+
+        <!-- NEW: ACCESS OPTIONS SECTION -->
+        <div id="accessOptions" class="access-options">
+            <div class="school-logo">
+                <img src="https://yt3.googleusercontent.com/_BXVh2JJHQb3ViHUH-hDR_G1YU44EFmu3JSbyhsj5Qmnfy-niQEoIjynQd4Voo8el0RjUm_wUDo=s160-c-k-c0x00ffffff-no-rj" alt="More House School Logo">
+            </div>
+
+            <div class="access-header">
+                <h2>Your Prospectus is Ready!</h2>
+                <p>Choose how you'd like to access your personalized prospectus:</p>
+            </div>
+            
+            <div class="options-container">
+                <div class="option-card online-option" onclick="viewOnlineProspectus()">
+                    <span class="option-icon">🌐</span>
+                    <div class="option-title">View Online</div>
+                    <div class="option-description">
+                        Access your prospectus instantly with interactive features and the latest updates.
+                    </div>
+                    <ul class="option-features">
+                        <li>Always up-to-date content</li>
+                        <li>Interactive elements</li>
+                        <li>Mobile optimized</li>
+                        <li>Quick loading</li>
+                    </ul>
+                    <a href="javascript:void(0)" class="btn-access btn-online" id="onlineBtn">
+                        🌐 View Online Now
+                    </a>
+                </div>
+                
+                <div class="option-card offline-option" onclick="downloadOfflineProspectus()">
+                    <span class="option-icon">📱</span>
+                    <div class="option-title">Download Offline</div>
+                    <div class="option-description">
+                        Download a complete version that works perfectly without internet connection.
+                    </div>
+                    <ul class="option-features">
+                        <li>Works without internet</li>
+                        <li>Save to any device</li>
+                        <li>Print-friendly format</li>
+                        <li>Never expires</li>
+                    </ul>
+                    <a href="javascript:void(0)" class="btn-access btn-offline" id="offlineBtn">
+                        📱 Download Offline
+                    </a>
+                </div>
+            </div>
+            
+            <div class="comparison-table">
+                <h3>🤔 Not sure which option to choose?</h3>
+                <div class="comparison-grid">
+                    <div class="comparison-header">Feature</div>
+                    <div class="comparison-header">🌐 Online</div>
+                    <div class="comparison-header">📱 Offline</div>
+                    
+                    <div class="comparison-row">Internet Required</div>
+                    <div class="comparison-row check">✓ Yes</div>
+                    <div class="comparison-row cross">✗ No</div>
+                    
+                    <div class="comparison-row">Always Updated</div>
+                    <div class="comparison-row check">✓ Yes</div>
+                    <div class="comparison-row cross">✗ Fixed Version</div>
+                    
+                    <div class="comparison-row">Works Anywhere</div>
+                    <div class="comparison-row cross">✗ Need WiFi</div>
+                    <div class="comparison-row check">✓ Everywhere</div>
+                    
+                    <div class="comparison-row">Print Quality</div>
+                    <div class="comparison-row">Good</div>
+                    <div class="comparison-row check">✓ Excellent</div>
                 </div>
             </div>
 
-            <div class="form-group">
-                <label for="hearAboutUs">How did you hear about More House School? <span class="required">*</span></label>
-                <select id="hearAboutUs" required>
-                    <option value="">Please select...</option>
-                    <option value="current-school">Current School</option>
-                    <option value="friend-family">Friend or Family</option>
-                    <option value="google-search">Google or Search Engine</option>
-                    <option value="publication">Publication</option>
-                    <option value="social-media">Social Media</option>
-                    <option value="other">Other</option>
-                </select>
+            <div style="text-align:center;margin-top:30px;">
+                <p style="color:#666;margin-bottom:15px;"><strong>💡 Pro Tip:</strong> You can use both! View online for updates, download offline for reference.</p>
+                <button class="back-btn" onclick="showFormSection()">← Create Another Prospectus</button>
             </div>
-
-            <span class="section-label">Academic Interests</span>
-            <div class="checkbox-group">
-                <div class="checkbox-item"><input type="checkbox" id="sciences"><label for="sciences">Sciences</label></div>
-                <div class="checkbox-item"><input type="checkbox" id="mathematics"><label for="mathematics">Mathematics</label></div>
-                <div class="checkbox-item"><input type="checkbox" id="english"><label for="english">English & Literature</label></div>
-                <div class="checkbox-item"><input type="checkbox" id="languages"><label for="languages">Modern Languages</label></div>
-                <div class="checkbox-item"><input type="checkbox" id="humanities"><label for="humanities">History & Geography</label></div>
-                <div class="checkbox-item"><input type="checkbox" id="business"><label for="business">Business Studies</label></div>
-            </div>
-
-            <span class="section-label">Creative & Performance Interests</span>
-            <div class="checkbox-group">
-                <div class="checkbox-item"><input type="checkbox" id="drama"><label for="drama">Drama & Theatre</label></div>
-                <div class="checkbox-item"><input type="checkbox" id="music"><label for="music">Music & Singing</label></div>
-                <div class="checkbox-item"><input type="checkbox" id="art"><label for="art">Art & Design</label></div>
-                <div class="checkbox-item"><input type="checkbox" id="creative_writing"><label for="creative_writing">Creative Writing</label></div>
-            </div>
-
-            <span class="section-label">Co-curricular Interests</span>
-            <div class="checkbox-group">
-                <div class="checkbox-item"><input type="checkbox" id="sport"><label for="sport">Sport & Physical Education</label></div>
-                <div class="checkbox-item"><input type="checkbox" id="leadership"><label for="leadership">Leadership & Student Voice</label></div>
-                <div class="checkbox-item"><input type="checkbox" id="community_service"><label for="community_service">Community Service</label></div>
-                <div class="checkbox-item"><input type="checkbox" id="outdoor_education"><label for="outdoor_education">Outdoor Education</label></div>
-            </div>
-
-            <span class="section-label">What matters most to your family?</span>
-            <div class="checkbox-group">
-                <div class="checkbox-item"><input type="checkbox" id="academic_excellence"><label for="academic_excellence">Academic Excellence</label></div>
-                <div class="checkbox-item"><input type="checkbox" id="pastoral_care"><label for="pastoral_care">Outstanding Pastoral Care</label></div>
-                <div class="checkbox-item"><input type="checkbox" id="university_preparation"><label for="university_preparation">University Preparation</label></div>
-                <div class="checkbox-item"><input type="checkbox" id="personal_development"><label for="personal_development">Personal Development</label></div>
-                <div class="checkbox-item"><input type="checkbox" id="career_guidance"><label for="career_guidance">Career Guidance</label></div>
-                <div class="checkbox-item"><input type="checkbox" id="extracurricular_opportunities"><label for="extracurricular_opportunities">Extracurricular Opportunities</label></div>
-            </div>
-
-            <button type="submit" class="submit-btn" id="submitBtn">
-                <span class="loading-spinner" id="loadingSpinner"></span>
-                <span id="submitText">Create My Personalised Prospectus</span>
-            </button>
-        </form>
-
-        <div class="success-message" id="successMessage">
-            <h3>🎉 Thank you for your enquiry!</h3>
-            <p>Your personalised prospectus request has been submitted successfully.</p>
-            <p id="prospectusLink"></p>
-        </div>
-
-        <div class="error-message" id="errorMessage">
-            <h3>⚠️ Submission Error</h3>
-            <p id="errorText">There was an issue submitting your form. Please try again.</p>
-        </div>
-
-        <div class="privacy-notice">
-            <strong>Privacy Notice:</strong> The information you provide will be used solely for creating your personalised prospectus and supporting your admissions journey.
-        </div>
-
-        <div class="footer-text">
-            <p><strong>More House School</strong><br>22–24 Pont Street, Knightsbridge, London SW1X 0AA</p>
         </div>
     </div>
 
     <script>
-        // --- FIXED WEBHOOK CONFIGURATION ---
-        
-        // Auto-detect the webhook URL based on current location
+        // Global variables to store prospectus data
+        let currentProspectusData = null;
+
+        // --- EXISTING WEBHOOK CONFIGURATION (unchanged) ---
         function getWebhookUrl() {
             const currentHost = window.location.hostname;
             
-            // If on localhost, use local webhook
             if (currentHost === 'localhost' || currentHost === '127.0.0.1') {
                 return 'http://localhost:3000/webhook';
             }
             
-            // **IMPORTANT: Replace this with your actual Render service URL**
-            // Check your Render dashboard for the correct URL
             const RENDER_URL = 'https://more-house-personalised-prospectus.onrender.com';
             
-            // Try to use same-origin first (if form is served from same domain)
             if (window.location.origin.includes('onrender.com')) {
                 return `${window.location.origin}/webhook`;
             }
             
-            // Fallback to specified Render URL
             return `${RENDER_URL}/webhook`;
         }
 
@@ -276,7 +388,7 @@
                 const response = await fetch(testUrl, {
                     method: 'GET',
                     mode: 'cors',
-                    signal: AbortSignal.timeout(5000) // 5 second timeout
+                    signal: AbortSignal.timeout(5000)
                 });
                 
                 if (response.ok) {
@@ -293,10 +405,71 @@
             }
         }
 
-        // Run connectivity test
         testWebhookConnectivity();
 
-        // Form submission handler with improved error handling
+        // --- NEW: ACCESS OPTIONS FUNCTIONS ---
+        function showAccessOptions(prospectusData) {
+            currentProspectusData = prospectusData;
+            document.getElementById('formSection').style.display = 'none';
+            document.getElementById('accessOptions').classList.add('show');
+        }
+
+        function showFormSection() {
+            document.getElementById('accessOptions').classList.remove('show');
+            document.getElementById('formSection').style.display = 'block';
+            currentProspectusData = null;
+        }
+
+        function viewOnlineProspectus() {
+            if (!currentProspectusData) return;
+            
+            const onlineBtn = document.getElementById('onlineBtn');
+            onlineBtn.innerHTML = '⏳ Loading...';
+            
+            // Open online version
+            if (currentProspectusData.slug) {
+                window.open(`/${currentProspectusData.slug}`, '_blank');
+            } else if (currentProspectusData.prospectus && currentProspectusData.prospectus.url) {
+                window.open(currentProspectusData.prospectus.url, '_blank');
+            }
+            
+            setTimeout(() => {
+                onlineBtn.innerHTML = '🌐 View Online Now';
+            }, 2000);
+        }
+
+        function downloadOfflineProspectus() {
+            if (!currentProspectusData) return;
+            
+            const offlineBtn = document.getElementById('offlineBtn');
+            offlineBtn.innerHTML = '📥 Preparing Download...';
+            
+            // Create download link
+            let downloadUrl;
+            if (currentProspectusData.slug) {
+                downloadUrl = `/download/${currentProspectusData.slug}`;
+            } else if (currentProspectusData.id) {
+                downloadUrl = `/api/download/${currentProspectusData.id}`;
+            }
+            
+            if (downloadUrl) {
+                const link = document.createElement('a');
+                link.href = downloadUrl;
+                const firstName = currentProspectusData.firstName || 'Student';
+                const surname = currentProspectusData.familySurname || 'Family';
+                const year = currentProspectusData.entryYear || '2025';
+                link.download = `${firstName}-${surname}-Prospectus-${year}-OFFLINE.html`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+            
+            setTimeout(() => {
+                offlineBtn.innerHTML = '📱 Download Offline';
+            }, 3000);
+        }
+
+        // --- ENHANCED FORM SUBMISSION HANDLER ---
         document.getElementById('inquiryForm').addEventListener('submit', async function(e) {
             e.preventDefault();
 
@@ -313,7 +486,7 @@
             errorMessage.style.display = 'none';
 
             try {
-                // Collect form data
+                // Collect form data (unchanged)
                 const formData = {
                     parentName: document.getElementById('parentName').value.trim(),
                     firstName: document.getElementById('firstName').value.trim(),
@@ -350,15 +523,13 @@
 
                 console.log('Form data collected:', formData);
 
-                // Use configured webhook URL or detected URL
                 const finalWebhookUrl = (showWebhookUI && webhookUrlInput.value) ? 
                     webhookUrlInput.value : webhookUrl;
 
                 console.log('Submitting to:', finalWebhookUrl);
 
-                // Submit with timeout and better error handling
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+                const timeoutId = setTimeout(() => controller.abort(), 30000);
 
                 const response = await fetch(finalWebhookUrl, {
                     method: 'POST',
@@ -380,18 +551,11 @@
                 const result = await response.json();
                 console.log('Webhook response:', result);
 
-                // Show success message
-                successMessage.style.display = 'block';
-                
-                // Add prospectus link if provided
-                if (result?.prospectus?.url) {
-                    document.getElementById('prospectusLink').innerHTML = 
-                        `<a href="${result.prospectus.url}" target="_blank" style="color: #1a2b5c; font-weight: bold;">View Your Personalised Prospectus</a>`;
-                }
-
                 // Reset form
                 document.getElementById('inquiryForm').reset();
-                successMessage.scrollIntoView({ behavior: 'smooth' });
+
+                // Show access options instead of just success message
+                showAccessOptions(result);
 
             } catch (error) {
                 console.error('Form submission error:', error);
@@ -418,7 +582,7 @@
             }
         });
 
-        // Click-to-toggle checkbox containers
+        // --- EXISTING FORM FUNCTIONALITY (unchanged) ---
         document.querySelectorAll('.checkbox-item').forEach(item => {
             item.addEventListener('click', function(e) {
                 if (e.target.type !== 'checkbox') {
@@ -428,7 +592,6 @@
             });
         });
 
-        // Simple validation cues
         document.addEventListener('DOMContentLoaded', function() {
             const requiredFields = document.querySelectorAll('input[required], select[required]');
             requiredFields.forEach(field => {
