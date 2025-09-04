@@ -3894,7 +3894,8 @@ app.post('/api/deepl', async (req, res) => {
 // Slug-based routing
 const RESERVED = new Set([
   'api','prospectuses','health','tracking','dashboard','favicon','robots',
-  'sitemap','metrics','config','webhook','admin','smart_analytics_dashboard.html'
+  'sitemap','metrics','config','webhook','admin','smart_analytics_dashboard.html',
+  'download'  // ADD THIS LINE
 ]);
 
 app.get('/:slug', async (req, res, next) => {
