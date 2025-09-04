@@ -4518,10 +4518,6 @@ async function findInquiryById(inquiryId) {
 // ═══════════════════════════════════════════════════════════════════════════════════════════
 
 // Find this line and add 'download' to it:
-const RESERVED = new Set([
-  'api','prospectuses','health','tracking','dashboard','favicon','robots',
-  'sitemap','metrics','config','webhook','admin','smart_analytics_dashboard.html',
-  'download'  // ADD THIS
 ]);
 
 // Delete inquiry endpoint
