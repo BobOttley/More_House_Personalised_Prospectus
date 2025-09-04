@@ -528,35 +528,37 @@
         }
 
         function downloadOfflineProspectus() {
-            if (!currentProspectusData) return;
-            
-            const offlineBtn = document.getElementById('offlineBtn');
-            offlineBtn.innerHTML = 'Preparing Download...';
-            
-            // Create download link
-            let downloadUrl;
-            if (currentProspectusData.slug) {
-                downloadUrl = `/download/${currentProspectusData.slug}`;
-            } else if (currentProspectusData.id) {
-                downloadUrl = `/api/download/${currentProspectusData.id}`;
-            }
-            
-            if (downloadUrl) {
-                const link = document.createElement('a');
-                link.href = downloadUrl;
-                const firstName = currentProspectusData.firstName || 'Student';
-                const surname = currentProspectusData.familySurname || 'Family';
-                const year = currentProspectusData.entryYear || '2025';
-                link.download = `${firstName}-${surname}-Prospectus-${year}-OFFLINE.html`;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-            }
-            
-            setTimeout(() => {
-                offlineBtn.innerHTML = 'Download Offline';
-            }, 3000);
-        }
+    if (!currentProspectusData) return;
+    
+    const offlineBtn = document.getElementById('offlineBtn');
+    offlineBtn.innerHTML = '📥 Preparing Download...';
+    
+    // Create download link using the slug from the prospectus response
+    let downloadUrl;
+    if (currentProspectusData.prospectus && currentProspectusData.prospectus.slug) {
+        downloadUrl = `/download/${currentProspectusData.prospectus.slug}`;
+    } else if (currentProspectusData.inquiryId) {
+        downloadUrl = `/api/download/${currentProspectusData.inquiryId}`;
+    }
+    
+    if (downloadUrl) {
+        // Create a temporary link and click it to trigger download
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    } else {
+        console.error('No download URL available');
+        offlineBtn.innerHTML = '❌ Download Failed';
+        return;
+    }
+    
+    setTimeout(() => {
+        offlineBtn.innerHTML = '📱 Download Offline';
+    }, 3000);
+}
 
         // --- ENHANCED FORM SUBMISSION HANDLER ---
         document.getElementById('inquiryForm').addEventListener('submit', async function(e) {
