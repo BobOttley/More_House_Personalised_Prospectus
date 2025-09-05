@@ -268,6 +268,43 @@
             font-weight: bold;
             font-size: 1.2rem;
         }
+        
+        /* Enhanced stats styling for GCSE and A-Level sections */
+        .gcse-results, .a-level-results {
+            background: var(--morehouse-navy);
+            color: white;
+            padding: 3rem;
+            border-radius: 15px;
+            margin-bottom: 2rem;
+        }
+
+        .gcse-results:last-child, .a-level-results:last-child {
+            margin-bottom: 0;
+        }
+
+        .gcse-results h3, .a-level-results h3 {
+            color: var(--morehouse-pink);
+        }
+
+        /* Ensure stat items work in both sections */
+        .gcse-results .stat-item, .a-level-results .stat-item {
+            text-align: center;
+        }
+
+        .gcse-results .stat-number, .a-level-results .stat-number {
+            font-size: 3rem;
+            font-weight: bold;
+            color: var(--morehouse-pink);
+            display: block;
+        }
+
+        .gcse-results .stat-label, .a-level-results .stat-label {
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 0.5rem;
+            color: white;
+        }
 
         /* Photo Gallery Styles */
         .photo-gallery {
@@ -1304,25 +1341,50 @@
                 excellence meets pastoral care second to none.
             </p>
 
-            <!-- Enhanced Stats Section -->
-            <div class="stats-container">
-                <div class="stat-item">
-                    <span class="stat-number">100%</span>
-                    <span class="stat-label">Girls to chosen universities</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-number">82%</span>
-                    <span class="stat-label">A*-B at A Level 2024</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-number">51%</span>
-                    <span class="stat-label">A*-A Grades 2024</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-number">+1</span>
-                    <span class="stat-label">Grade value-added average</span>
-                </div>
+            <!-- Enhanced Stats Section with GCSE and A-Level Results -->
+            <div class="stats-container" id="enhancedStatsContainer">
+                <!-- GCSE Results (shown for all except Sixth Form only students) -->
+                <div class="gcse-results" id="gcseResults" style="display: none; background: var(--morehouse-navy); color: white; padding: 3rem; border-radius: 15px; margin-bottom: 2rem;">
+                    <h3 style="color: var(--morehouse-pink); text-align: center; margin-bottom: 2rem; font-size: 1.8rem;">GCSE Results 2024</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 2rem;">
+                        <div class="stat-item">
+                <span class="stat-number">22%</span>
+                <span class="stat-label">Grades 7-9 (A*-A equivalent)</span>
             </div>
+            <div class="stat-item">
+                <span class="stat-number">64.2%</span>
+                <span class="stat-label">Grades 5-9 (C-A* equivalent)</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-number">100%</span>
+                <span class="stat-label">Grade 8 in Music</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- A-Level Results (always shown) -->
+    <div class="a-level-results" style="background: var(--morehouse-navy); color: white; padding: 3rem; border-radius: 15px;">
+        <h3 style="color: var(--morehouse-pink); text-align: center; margin-bottom: 2rem; font-size: 1.8rem;">A Level Results 2024</h3>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 2rem;">
+            <div class="stat-item">
+                <span class="stat-number">100%</span>
+                <span class="stat-label">Girls to chosen universities</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-number">82%</span>
+                <span class="stat-label">A*-B at A Level</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-number">51%</span>
+                <span class="stat-label">A*-A Grades</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-number">+1</span>
+                <span class="stat-label">Grade value-added average</span>
+            </div>
+        </div>
+    </div>
+</div>
 
             <!-- Interest-Based Photo Reveals -->
             <div class="interest-reveal" id="musicReveal">
@@ -1954,7 +2016,29 @@
         clearInterval(progTimer); progTimer=null; lastPct=0;
       }
     }
-  
+    
+    function personalizeStatsSection(data) {
+    const gcseResults = document.getElementById('gcseResults');
+    
+    // Hide GCSE results only if student is ONLY applying for Sixth Form (16-18)
+    if (data.ageGroup === '16-18') {
+        gcseResults.style.display = 'none';
+    } else {
+        gcseResults.style.display = 'block';
+    }
+    
+    // Optional: Highlight music statistic if student selected music
+    if (data.music) {
+        const musicStats = document.querySelectorAll('.stat-label');
+        musicStats.forEach(label => {
+            if (label.textContent.includes('Music')) {
+                label.style.fontWeight = 'bold';
+                label.style.color = 'var(--morehouse-pink)';
+            }
+        });
+    }
+}
+
     function trackProgress(){
       if(!ytPlayer || typeof ytPlayer.getDuration !== 'function') return;
       const dur = ytPlayer.getDuration() || 0;
@@ -1973,6 +2057,8 @@
       catch { return null; }
     }
   })();
+
+
 </script>
   
     
@@ -2020,6 +2106,7 @@
         function initializeProspectus(data) {
             prospectusData = data;
             personalizeProspectus(data);
+            personalizeStatsSection(data);
             initializeScrollAnimations();
         }
 
