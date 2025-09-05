@@ -2076,34 +2076,6 @@
         clearInterval(progTimer); progTimer=null; lastPct=0;
       }
     }
-    
-    function personalizeStatsSection(data) {
-    const gcseResults = document.getElementById('gcseResults');
-    
-    // Check for various possible sixth form values
-    if (data && (
-        data.ageGroup === '16-18' || 
-        data.ageGroup === 'sixthform' ||
-        data.ageGroup === 'sixth-form' ||
-        data.ageGroup === '16+'
-    )) {
-        gcseResults.style.display = 'none';
-    } else {
-        gcseResults.style.display = 'block';
-    }
-}
-    
-    // Optional: Highlight music statistic if student selected music
-    if (data.music) {
-        const musicStats = document.querySelectorAll('.stat-label');
-        musicStats.forEach(label => {
-            if (label.textContent.includes('Music')) {
-                label.style.fontWeight = 'bold';
-                label.style.color = 'var(--morehouse-pink)';
-            }
-        });
-    }
-}
 
     function trackProgress(){
         if(!ytPlayer || typeof ytPlayer.getDuration !== 'function') return;
@@ -2167,6 +2139,40 @@
 
     <script>
         let prospectusData = {};
+
+        // Define personalizeStatsSection in global scope
+        function personalizeStatsSection(data) {
+            const gcseResults = document.getElementById('gcseResults');
+            
+            // Check for various possible sixth form values
+            if (data && (
+                data.ageGroup === '16-18' || 
+                data.ageGroup === 'sixthform' ||
+                data.ageGroup === 'sixth-form' ||
+                data.ageGroup === '16+'
+            )) {
+                // Hide GCSE results for sixth form only students
+                if (gcseResults) {
+                    gcseResults.style.display = 'none';
+                }
+            } else {
+                // Show GCSE results for other age groups
+                if (gcseResults) {
+                    gcseResults.style.display = 'block';
+                }
+            }
+            
+            // Optional: Highlight music statistic if student selected music
+            if (data && data.music) {
+                const musicStats = document.querySelectorAll('.stat-label');
+                musicStats.forEach(label => {
+                    if (label.textContent.includes('Music')) {
+                        label.style.fontWeight = 'bold';
+                        label.style.color = 'var(--morehouse-pink)';
+                    }
+                });
+            }
+        }
 
         function initializeProspectus(data) {
             prospectusData = data;
