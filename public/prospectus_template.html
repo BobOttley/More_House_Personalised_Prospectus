@@ -305,7 +305,70 @@
             margin-top: 0.5rem;
             color: white;
         }
+        
+        /* Animated circle styles for GCSE stats */
+        .loop-statistic-animated_circle {
+            text-align: center;
+            padding: 1rem;
+        }
 
+        .circle-container {
+            position: relative;
+            width: 200px;
+            height: 200px;
+            margin: 0 auto 1rem;
+        }
+
+        .circle-svg {
+            width: 100%;
+            height: 100%;
+            transform: rotate(-90deg);
+        }
+
+        .bg-circle {
+            fill: none;
+            stroke: rgba(255, 179, 193, 0.2);
+            stroke-width: 6;
+        }
+
+        .fg-circle {
+            fill: none;
+            stroke: var(--morehouse-pink);
+            stroke-width: 6;
+            stroke-linecap: round;
+            stroke-dasharray: 283;
+            stroke-dashoffset: 283;
+            transition: stroke-dashoffset 2s ease-in-out;
+        }
+
+        .percentage-container {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            width: 160px;
+        }
+
+        .percentage {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: var(--morehouse-pink);
+            margin-bottom: 0.5rem;
+            line-height: 1;
+        }
+
+        .percentage-container .content p {
+            font-size: 0.85rem;
+            color: white;
+            margin: 0;
+            line-height: 1.2;
+            font-weight: 500;
+        }
+
+        .circle-container.animate .fg-circle {
+            stroke-dashoffset: calc(283 - (283 * var(--percent) / 100));
+        }
         /* Photo Gallery Styles */
         .photo-gallery {
             display: grid;
@@ -1341,50 +1404,77 @@
                 excellence meets pastoral care second to none.
             </p>
 
-            <!-- Enhanced Stats Section with GCSE and A-Level Results -->
-            <div class="stats-container" id="enhancedStatsContainer">
-                <!-- GCSE Results (shown for all except Sixth Form only students) -->
-                <div class="gcse-results" id="gcseResults" style="display: none; background: var(--morehouse-navy); color: white; padding: 3rem; border-radius: 15px; margin-bottom: 2rem;">
-                    <h3 style="color: var(--morehouse-pink); text-align: center; margin-bottom: 2rem; font-size: 1.8rem;">GCSE Results 2024</h3>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 2rem;">
-                        <div class="stat-item">
-                <span class="stat-number">22%</span>
-                <span class="stat-label">Grades 7-9 (A*-A equivalent)</span>
+            <!-- GCSE Results Section with Animated Circles -->
+            <div class="gcse-results" id="gcseResults" style="display: block; background: var(--morehouse-navy); color: white; padding: 3rem; border-radius: 15px; margin-bottom: 2rem;">
+                <h3 style="color: var(--morehouse-pink); text-align: center; margin-bottom: 2rem; font-size: 1.8rem;">GCSE Results 2024</h3>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 2rem;">
+                    <div class="loop-statistic-animated_circle">
+                        <div class="circle-container">
+                            <svg class="circle-svg" viewBox="0 0 100 100">
+                                <circle class="bg-circle" cx="50" cy="50" r="45"/>
+                                <circle class="fg-circle" cx="50" cy="50" r="45"/>
+                            </svg>
+                            <div class="percentage-container">
+                                <div class="percentage" data-percent="22">0%</div>
+                                <div class="content">
+                                    <p>of girls achieved grade 7-9 (GCSE 2024)</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="loop-statistic-animated_circle">
+                        <div class="circle-container">
+                            <svg class="circle-svg" viewBox="0 0 100 100">
+                                <circle class="bg-circle" cx="50" cy="50" r="45"/>
+                                <circle class="fg-circle" cx="50" cy="50" r="45"/>
+                            </svg>
+                            <div class="percentage-container">
+                                <div class="percentage" data-percent="64.2">0%</div>
+                                <div class="content">
+                                    <p>of girls achieved grade 5-9 (GCSE 2024)</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="loop-statistic-animated_circle">
+                        <div class="circle-container">
+                            <svg class="circle-svg" viewBox="0 0 100 100">
+                                <circle class="bg-circle" cx="50" cy="50" r="45"/>
+                                <circle class="fg-circle" cx="50" cy="50" r="45"/>
+                            </svg>
+                            <div class="percentage-container">
+                                <div class="percentage" data-percent="100">0%</div>
+                                <div class="content">
+                                    <p>of girls achieved grade 8 in Music (GCSE 2024)</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="stat-item">
-                <span class="stat-number">64.2%</span>
-                <span class="stat-label">Grades 5-9 (C-A* equivalent)</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-number">100%</span>
-                <span class="stat-label">Grade 8 in Music</span>
-            </div>
-        </div>
-    </div>
 
-    <!-- A-Level Results (always shown) -->
-    <div class="a-level-results" style="background: var(--morehouse-navy); color: white; padding: 3rem; border-radius: 15px;">
-        <h3 style="color: var(--morehouse-pink); text-align: center; margin-bottom: 2rem; font-size: 1.8rem;">A Level Results 2024</h3>
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 2rem;">
-            <div class="stat-item">
-                <span class="stat-number">100%</span>
-                <span class="stat-label">Girls to chosen universities</span>
+            <!-- A-Level Results Section (with heading) -->
+            <div class="a-level-results" style="background: var(--morehouse-navy); color: white; padding: 3rem; border-radius: 15px; margin-bottom: 2rem;">
+                <h3 style="color: var(--morehouse-pink); text-align: center; margin-bottom: 2rem; font-size: 1.8rem;">A Level Results 2024</h3>
+                <div class="stats-container">
+                    <div class="stat-item">
+                        <span class="stat-number">100%</span>
+                        <span class="stat-label">Girls to chosen universities</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number">82%</span>
+                        <span class="stat-label">A*-B at A Level</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number">51%</span>
+                        <span class="stat-label">A*-A Grades</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number">+1</span>
+                        <span class="stat-label">Grade value-added average</span>
+                    </div>
+                </div>
             </div>
-            <div class="stat-item">
-                <span class="stat-number">82%</span>
-                <span class="stat-label">A*-B at A Level</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-number">51%</span>
-                <span class="stat-label">A*-A Grades</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-number">+1</span>
-                <span class="stat-label">Grade value-added average</span>
-            </div>
-        </div>
-    </div>
-</div>
 
             <!-- Interest-Based Photo Reveals -->
             <div class="interest-reveal" id="musicReveal">
@@ -2017,14 +2107,52 @@
       }
     }
     
-    function personalizeStatsSection(data) {
-    const gcseResults = document.getElementById('gcseResults');
+    function animateGCSECircles() {
+    const circles = document.querySelectorAll('.gcse-results .circle-container');
     
-    // Hide GCSE results only if student is ONLY applying for Sixth Form (16-18)
-    if (data.ageGroup === '16-18') {
-        gcseResults.style.display = 'none';
-    } else {
-        gcseResults.style.display = 'block';
+    circles.forEach((container, index) => {
+        const percentage = container.querySelector('.percentage');
+        const circle = container.querySelector('.fg-circle');
+        const targetPercent = parseFloat(percentage.getAttribute('data-percent'));
+        
+        // Set CSS variable for animation
+        circle.style.setProperty('--percent', targetPercent);
+        
+        // Animate the number counting up
+        let current = 0;
+        const increment = targetPercent / 60;
+        
+        const countUp = () => {
+            current += increment;
+            if (current >= targetPercent) {
+                current = targetPercent;
+                percentage.textContent = targetPercent + '%';
+                container.classList.add('animate');
+            } else {
+                percentage.textContent = Math.round(current * 10) / 10 + '%';
+                requestAnimationFrame(countUp);
+            }
+        };
+        
+        // Stagger the animations
+        setTimeout(() => {
+            countUp();
+        }, index * 300);
+    });
+}
+
+    function personalizeStatsSection(data) {
+        const gcseResults = document.getElementById('gcseResults');
+        
+        if (data && data.ageGroup === '16-18') {
+            gcseResults.style.display = 'none';
+        } else {
+            gcseResults.style.display = 'block';
+            // Animate the circles when shown
+            setTimeout(() => {
+                animateGCSECircles();
+            }, 500);
+        }
     }
     
     // Optional: Highlight music statistic if student selected music
