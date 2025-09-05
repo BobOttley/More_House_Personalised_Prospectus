@@ -19,7 +19,7 @@
         body{font-family:'Georgia','Times New Roman',serif;line-height:1.6;color:var(--morehouse-text);background:linear-gradient(135deg,var(--morehouse-navy) 0%,#2c3e6b 100%);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
         .form-container{max-width:700px;width:100%;margin:0 auto;background:white;color:var(--morehouse-text);padding:40px;border-radius:15px;box-shadow:0 20px 60px rgba(0,0,0,0.3);position:relative}
 
-        /* ONLY NEW ADDITION - Language Switcher */
+        /* Language Switcher */
         .language-switcher {
             position: absolute;
             top: 15px;
@@ -76,14 +76,13 @@
         .footer-text{text-align:center;margin-top:30px;font-size:.9rem;color:var(--morehouse-text);opacity:.8}
         .privacy-notice{background:var(--morehouse-light-grey);padding:15px;border-radius:8px;margin-top:20px;font-size:.85rem;color:var(--morehouse-text);border-left:3px solid var(--morehouse-navy)}
         @media (max-width:768px){.form-container{padding:30px 20px;margin:10px}h1{font-size:2rem}.subtitle{font-size:1rem}.form-row{grid-template-columns:1fr;gap:15px}.checkbox-group{grid-template-columns:1fr}.section-label{font-size:1.1rem}}
-        /* Webhook configuration UI (hidden by default; enabled only in debug/local) */
         .webhook-config{background:var(--morehouse-light-grey);padding:15px;border-radius:8px;margin-bottom:20px;border:1px solid #ddd}
         .webhook-config label{font-size:.9rem;margin-bottom:5px}
         .webhook-config input{font-size:14px;padding:8px}
         .webhook-config-toggle{background:var(--morehouse-navy);color:white;border:none;padding:8px 15px;border-radius:5px;cursor:pointer;font-size:.8rem;margin-bottom:15px;display:none}
         .debug-info{background:#f8f9fa;padding:10px;border-radius:5px;margin-top:10px;font-size:12px;color:#666;border:1px solid #dee2e6}
 
-        /* NEW: SIMPLIFIED Access Options Styles */
+        /* Access Options Styles */
         .access-options {
             display: none;
             animation: slideUp 0.6s ease-out;
@@ -249,7 +248,6 @@
             }
         }
 
-        /* ONLY NEW ADDITION - Light grey placeholder text for name fields */
         .name-field::placeholder {
             color: #999;
             font-style: italic;
@@ -266,11 +264,19 @@
             margin-right: 0;
             margin-left: 10px;
         }
+        [dir="rtl"] .intro-text {
+            border-left: none;
+            border-right: 4px solid var(--morehouse-deep-pink);
+        }
+        [dir="rtl"] .privacy-notice {
+            border-left: none;
+            border-right: 3px solid var(--morehouse-navy);
+        }
     </style>
 </head>
 <body>
     <div class="form-container">
-        <!-- ONLY NEW ADDITION - Language Switcher -->
+        <!-- Language Switcher -->
         <div class="language-switcher" data-no-translate>
             <label for="inquiry-lang">Language:</label>
             <select id="inquiry-lang" aria-label="Select language">
@@ -285,80 +291,80 @@
             </select>
         </div>
 
-        <!-- ORIGINAL FORM SECTION UNCHANGED -->
+        <!-- Form Section -->
         <div id="formSection">
             <div class="school-logo" data-no-translate>
                 <img src="https://yt3.googleusercontent.com/_BXVh2JJHQb3ViHUH-hDR_G1YU44EFmu3JSbyhsj5Qmnfy-niQEoIjynQd4Voo8el0RjUm_wUDo=s160-c-k-c0x00ffffff-no-rj" alt="More House School Logo">
             </div>
 
             <h1 data-no-translate>More House School</h1>
-            <p class="subtitle">Create Your Personalised Prospectus</p>
+            <p class="subtitle" data-translate>Create Your Personalised Prospectus</p>
 
             <div class="intro-text">
-                <p><strong>Welcome to More House School's personalised prospectus experience.</strong> Please complete this form to receive a bespoke prospectus tailored to your daughter's interests and your family's priorities.</p>
+                <p data-translate><strong>Welcome to More House School's personalised prospectus experience.</strong> Please complete this form to receive a bespoke prospectus tailored to your daughter's interests and your family's priorities.</p>
             </div>
 
             <!-- Debug Information Panel -->
             <div class="debug-info" id="debugInfo">
                 <strong>Connection Info:</strong><br>
-                Current URL: <span id="currentUrl"></span><br>
-                Webhook Target: <span id="webhookTarget"></span><br>
-                Status: <span id="connectionStatus">Checking...</span>
+                <span data-translate>Current URL</span>: <span id="currentUrl"></span><br>
+                <span data-translate>Webhook Target</span>: <span id="webhookTarget"></span><br>
+                <span data-translate>Status</span>: <span id="connectionStatus">Checking...</span>
             </div>
 
-            <!-- Webhook Configuration (hidden except on localhost or with ?debug=1) -->
-            <button type="button" class="webhook-config-toggle" id="webhookToggle">Webhook Configuration</button>
+            <!-- Webhook Configuration -->
+            <button type="button" class="webhook-config-toggle" id="webhookToggle" data-translate>Webhook Configuration</button>
             <div class="webhook-config" id="webhookConfig" style="display:none;">
                 <div class="form-group">
-                    <label for="webhookUrl">Webhook URL (testing only)</label>
+                    <label for="webhookUrl" data-translate>Webhook URL (testing only)</label>
                     <input type="url" id="webhookUrl" value="" placeholder="https://your-service.onrender.com/webhook">
                 </div>
             </div>
 
             <form id="inquiryForm">
-                <span class="section-label">Family Information</span>
+                <span class="section-label" data-translate>Family Information</span>
                 
                 <div class="form-group">
-                    <label for="parentName">Parent/Guardian Name <span class="required">*</span></label>
-                    <input type="text" id="parentName" class="name-field" required placeholder="Please use English letters (A-Z)">
+                    <label for="parentName" data-translate>Parent/Guardian Name <span class="required">*</span></label>
+                    <input type="text" id="parentName" class="name-field" required data-placeholder="Please use English letters (A-Z)">
                 </div>
                 
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="firstName">Daughter's First Name <span class="required">*</span></label>
-                        <input type="text" id="firstName" class="name-field" required placeholder="Please use English letters (A-Z)">
+                        <label for="firstName" data-translate>Daughter's First Name <span class="required">*</span></label>
+                        <input type="text" id="firstName" class="name-field" required data-placeholder="Please use English letters (A-Z)">
                     </div>
                     <div class="form-group">
-                        <label for="familySurname">Family Surname <span class="required">*</span></label>
-                        <input type="text" id="familySurname" class="name-field" required placeholder="Please use English letters (A-Z)">
+                        <label for="familySurname" data-translate>Family Surname <span class="required">*</span></label>
+                        <input type="text" id="familySurname" class="name-field" required data-placeholder="Please use English letters (A-Z)">
                     </div>
                 </div>
 
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="parentEmail">Parent Email Address <span class="required">*</span></label>
+                        <label for="parentEmail" data-translate>Parent Email Address <span class="required">*</span></label>
                         <input type="email" id="parentEmail" required>
                     </div>
                     <div class="form-group">
-                        <label for="contactNumber">Contact Number <span class="required">*</span></label>
-                        <input type="tel" id="contactNumber" required placeholder="e.g. 020 7235 2855">
+                        <label for="contactNumber" data-translate>Contact Number <span class="required">*</span></label>
+                        <input type="tel" id="contactNumber" required data-placeholder="e.g. 020 7235 2855">
                     </div>
                 </div>
 
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="ageGroup">Current Age Group <span class="required">*</span></label>
+                        <label for="ageGroup" data-translate>Current Age Group <span class="required">*</span></label>
                         <select id="ageGroup" required>
-                            <option value="">Select age group...</option>
-                            <option value="9-11">Ages 9-11 (Years 5-6)</option>
-                            <option value="11-16">Ages 11-16 (Years 7-11)</option>
-                            <option value="16-18">Ages 16-18 (Sixth Form)</option>
+                            <option value="" data-translate>Select age group...</option>
+                            <option value="9-11" data-translate>Ages 9-11 (Years 5-6)</option>
+                            <option value="11-16" data-translate>Ages 11-16 (Years 7-11)</option>
+                            <option value="16-18" data-translate>Ages 16-18 (Sixth Form)</option>
                         </select>
                     </div>
                     <div class="form-group">
-                        <label for="entryYear">Planned Entry Year <span class="required">*</span></label>
+                        <label for="entryYear" data-translate>Planned Entry Year <span class="required">*</span></label>
                         <select id="entryYear" required>
-                            <option value="">Select entry year...</option>
+                            <option value="" data-translate>Select entry year...</option>
                             <option value="2025">September 2025</option>
                             <option value="2026">September 2026</option>
                             <option value="2027">September 2027</option>
@@ -369,125 +375,127 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="hearAboutUs">How did you hear about More House School? <span class="required">*</span></label>
+                    <label for="hearAboutUs" data-translate>How did you hear about More House School? <span class="required">*</span></label>
                     <select id="hearAboutUs" required>
-                        <option value="">Please select...</option>
-                        <option value="current-school">Current School</option>
-                        <option value="friend-family">Friend or Family</option>
-                        <option value="google-search">Google or Search Engine</option>
-                        <option value="publication">Publication</option>
-                        <option value="social-media">Social Media</option>
-                        <option value="other">Other</option>
+                        <option value="" data-translate>Please select...</option>
+                        <option value="current-school" data-translate>Current School</option>
+                        <option value="friend-family" data-translate>Friend or Family</option>
+                        <option value="google-search" data-translate>Google or Search Engine</option>
+                        <option value="publication" data-translate>Publication</option>
+                        <option value="social-media" data-translate>Social Media</option>
+                        <option value="other" data-translate>Other</option>
                     </select>
                 </div>
 
-                <span class="section-label">Academic Interests</span>
+                <span class="section-label" data-translate>Academic Interests</span>
                 <div class="checkbox-group">
-                    <div class="checkbox-item"><input type="checkbox" id="sciences"><label for="sciences">Sciences</label></div>
-                    <div class="checkbox-item"><input type="checkbox" id="mathematics"><label for="mathematics">Mathematics</label></div>
-                    <div class="checkbox-item"><input type="checkbox" id="english"><label for="english">English & Literature</label></div>
-                    <div class="checkbox-item"><input type="checkbox" id="languages"><label for="languages">Modern Languages</label></div>
-                    <div class="checkbox-item"><input type="checkbox" id="humanities"><label for="humanities">History & Geography</label></div>
-                    <div class="checkbox-item"><input type="checkbox" id="business"><label for="business">Business Studies</label></div>
+                    <div class="checkbox-item"><input type="checkbox" id="sciences"><label for="sciences" data-translate>Sciences</label></div>
+                    <div class="checkbox-item"><input type="checkbox" id="mathematics"><label for="mathematics" data-translate>Mathematics</label></div>
+                    <div class="checkbox-item"><input type="checkbox" id="english"><label for="english" data-translate>English & Literature</label></div>
+                    <div class="checkbox-item"><input type="checkbox" id="languages"><label for="languages" data-translate>Modern Languages</label></div>
+                    <div class="checkbox-item"><input type="checkbox" id="humanities"><label for="humanities" data-translate>History & Geography</label></div>
+                    <div class="checkbox-item"><input type="checkbox" id="business"><label for="business" data-translate>Business Studies</label></div>
                 </div>
 
-                <span class="section-label">Creative & Performance Interests</span>
+                <span class="section-label" data-translate>Creative & Performance Interests</span>
                 <div class="checkbox-group">
-                    <div class="checkbox-item"><input type="checkbox" id="drama"><label for="drama">Drama & Theatre</label></div>
-                    <div class="checkbox-item"><input type="checkbox" id="music"><label for="music">Music & Singing</label></div>
-                    <div class="checkbox-item"><input type="checkbox" id="art"><label for="art">Art & Design</label></div>
-                    <div class="checkbox-item"><input type="checkbox" id="creative_writing"><label for="creative_writing">Creative Writing</label></div>
+                    <div class="checkbox-item"><input type="checkbox" id="drama"><label for="drama" data-translate>Drama & Theatre</label></div>
+                    <div class="checkbox-item"><input type="checkbox" id="music"><label for="music" data-translate>Music & Singing</label></div>
+                    <div class="checkbox-item"><input type="checkbox" id="art"><label for="art" data-translate>Art & Design</label></div>
+                    <div class="checkbox-item"><input type="checkbox" id="creative_writing"><label for="creative_writing" data-translate>Creative Writing</label></div>
                 </div>
 
-                <span class="section-label">Co-curricular Interests</span>
+                <span class="section-label" data-translate>Co-curricular Interests</span>
                 <div class="checkbox-group">
-                    <div class="checkbox-item"><input type="checkbox" id="sport"><label for="sport">Sport & Physical Education</label></div>
-                    <div class="checkbox-item"><input type="checkbox" id="leadership"><label for="leadership">Leadership & Student Voice</label></div>
-                    <div class="checkbox-item"><input type="checkbox" id="community_service"><label for="community_service">Community Service</label></div>
-                    <div class="checkbox-item"><input type="checkbox" id="outdoor_education"><label for="outdoor_education">Outdoor Education</label></div>
+                    <div class="checkbox-item"><input type="checkbox" id="sport"><label for="sport" data-translate>Sport & Physical Education</label></div>
+                    <div class="checkbox-item"><input type="checkbox" id="leadership"><label for="leadership" data-translate>Leadership & Student Voice</label></div>
+                    <div class="checkbox-item"><input type="checkbox" id="community_service"><label for="community_service" data-translate>Community Service</label></div>
+                    <div class="checkbox-item"><input type="checkbox" id="outdoor_education"><label for="outdoor_education" data-translate>Outdoor Education</label></div>
                 </div>
 
-                <span class="section-label">What matters most to your family?</span>
+                <span class="section-label" data-translate>What matters most to your family?</span>
                 <div class="checkbox-group">
-                    <div class="checkbox-item"><input type="checkbox" id="academic_excellence"><label for="academic_excellence">Academic Excellence</label></div>
-                    <div class="checkbox-item"><input type="checkbox" id="pastoral_care"><label for="pastoral_care">Outstanding Pastoral Care</label></div>
-                    <div class="checkbox-item"><input type="checkbox" id="university_preparation"><label for="university_preparation">University Preparation</label></div>
-                    <div class="checkbox-item"><input type="checkbox" id="personal_development"><label for="personal_development">Personal Development</label></div>
-                    <div class="checkbox-item"><input type="checkbox" id="career_guidance"><label for="career_guidance">Career Guidance</label></div>
-                    <div class="checkbox-item"><input type="checkbox" id="extracurricular_opportunities"><label for="extracurricular_opportunities">Extracurricular Opportunities</label></div>
+                    <div class="checkbox-item"><input type="checkbox" id="academic_excellence"><label for="academic_excellence" data-translate>Academic Excellence</label></div>
+                    <div class="checkbox-item"><input type="checkbox" id="pastoral_care"><label for="pastoral_care" data-translate>Outstanding Pastoral Care</label></div>
+                    <div class="checkbox-item"><input type="checkbox" id="university_preparation"><label for="university_preparation" data-translate>University Preparation</label></div>
+                    <div class="checkbox-item"><input type="checkbox" id="personal_development"><label for="personal_development" data-translate>Personal Development</label></div>
+                    <div class="checkbox-item"><input type="checkbox" id="career_guidance"><label for="career_guidance" data-translate>Career Guidance</label></div>
+                    <div class="checkbox-item"><input type="checkbox" id="extracurricular_opportunities"><label for="extracurricular_opportunities" data-translate>Extracurricular Opportunities</label></div>
                 </div>
 
                 <button type="submit" class="submit-btn" id="submitBtn">
                     <span class="loading-spinner" id="loadingSpinner"></span>
-                    <span id="submitText">Create My Personalised Prospectus</span>
+                    <span id="submitText" data-translate>Create My Personalised Prospectus</span>
                 </button>
             </form>
 
             <div class="success-message" id="successMessage">
-                <h3>Thank you for your enquiry!</h3>
-                <p>Your personalised prospectus request has been submitted successfully.</p>
+                <h3 data-translate>Thank you for your enquiry!</h3>
+                <p data-translate>Your personalised prospectus request has been submitted successfully.</p>
                 <p id="prospectusLink"></p>
             </div>
 
             <div class="error-message" id="errorMessage">
-                <h3>Submission Error</h3>
-                <p id="errorText">There was an issue submitting your form. Please try again.</p>
+                <h3 data-translate>Submission Error</h3>
+                <p id="errorText" data-translate>There was an issue submitting your form. Please try again.</p>
             </div>
 
             <div class="privacy-notice">
-                <strong>Privacy Notice:</strong> The information you provide will be used solely for creating your personalised prospectus and supporting your admissions journey.
+                <strong data-translate>Privacy Notice:</strong> <span data-translate>The information you provide will be used solely for creating your personalised prospectus and supporting your admissions journey.</span>
             </div>
 
             <div class="footer-text">
-                <p><strong>More House School</strong><br>22-24 Pont Street, Knightsbridge, London SW1X 0AA</p>
+                <p><strong data-no-translate>More House School</strong><br><span data-no-translate>22-24 Pont Street, Knightsbridge, London SW1X 0AA</span></p>
             </div>
         </div>
 
-        <!-- SIMPLIFIED ACCESS OPTIONS SECTION UNCHANGED -->
+        <!-- Access Options Section -->
         <div id="accessOptions" class="access-options">
             <div class="school-logo" data-no-translate>
                 <img src="https://yt3.googleusercontent.com/_BXVh2JJHQb3ViHUH-hDR_G1YU44EFmu3JSbyhsj5Qmnfy-niQEoIjynQd4Voo8el0RjUm_wUDo=s160-c-k-c0x00ffffff-no-rj" alt="More House School Logo">
             </div>
 
             <div class="access-header">
-                <h2>Your Prospectus is Ready!</h2>
-                <p>Choose how you'd like to access your personalised prospectus:</p>
+                <h2 data-translate>Your Prospectus is Ready!</h2>
+                <p data-translate>Choose how you'd like to access your personalised prospectus:</p>
             </div>
             
             <div class="options-container">
                 <div class="option-card online-option" onclick="viewOnlineProspectus()">
-                    <div class="option-title">View Online</div>
-                    <div class="option-description">
+                    <div class="option-title" data-translate>View Online</div>
+                    <div class="option-description" data-translate>
                         Interactive prospectus with videos and dynamic content
                     </div>
                     <a href="javascript:void(0)" class="btn-access" id="onlineBtn">
-                        View Online Now
+                        <span data-translate>View Online Now</span>
                     </a>
                 </div>
                 
                 <div class="option-card offline-option" onclick="downloadOfflineProspectus()">
-                    <div class="option-title">Download Offline</div>
-                    <div class="option-description">
+                    <div class="option-title" data-translate>Download Offline</div>
+                    <div class="option-description" data-translate>
                         Complete prospectus file for offline viewing and printing
                     </div>
                     <a href="javascript:void(0)" class="btn-access" id="offlineBtn">
-                        Download Offline
+                        <span data-translate>Download Offline</span>
                     </a>
                 </div>
             </div>
             
             <div class="simple-tip">
-                <p><strong>Tip:</strong> You can use both options - view online for the full experience, then download for offline reference.</p>
+                <p><strong data-translate>Tip:</strong> <span data-translate>You can use both options - view online for the full experience, then download for offline reference.</span></p>
             </div>
 
             <div style="text-align:center;margin-top:30px;">
-                <button class="back-btn" onclick="showFormSection()">Create Another Prospectus</button>
+                <button class="back-btn" onclick="showFormSection()">
+                    <span data-translate>Create Another Prospectus</span>
+                </button>
             </div>
         </div>
     </div>
 
     <script>
-        // Translation system (same as prospectus)
+        // Improved Translation System
         (function () {
             'use strict';
 
@@ -495,16 +503,13 @@
             const STORE_KEY = 'morehouse_inquiry_lang';
             const ALLOWED = new Set(['en','zh','ar','ru','fr','es','de','it']);
 
-            const BRAND_TOKENS = [
-                'More House School',
-                'More House',
-                'Knightsbridge'
-            ];
-
-            const EXCLUDE_SELECTOR = '[data-no-translate]';
-
-            let ORIGINAL_HTML = null;
+            // Store translations to avoid re-fetching
+            const translationCache = {};
+            let currentLang = 'en';
             let isTranslating = false;
+
+            // Store original text content for each translatable element
+            const originalTexts = new WeakMap();
 
             function getPicker() {
                 return document.getElementById(PICKER_ID);
@@ -523,6 +528,7 @@
             function setLangAttrs(lang) {
                 document.documentElement.lang = lang || 'en';
                 document.documentElement.dir = (lang === 'ar') ? 'rtl' : 'ltr';
+                currentLang = lang;
             }
 
             function writeLangToURL(lang) {
@@ -545,67 +551,92 @@
                 b.opacity = '';
             }
 
-            function escReg(s) {
-                return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            }
-
-            function protectBrandTokens(html) {
-                const tokens = [...BRAND_TOKENS].sort((a, b) => b.length - a.length);
-                
-                function tokenToPattern(tok) {
-                    const parts = tok.split(/\s+/).map(escReg);
-                    if (parts.length === 1) {
-                        return new RegExp(`\\b${parts[0]}\\b`, 'gi');
+            // Store original texts on initialization
+            function storeOriginalTexts() {
+                document.querySelectorAll('[data-translate]').forEach(el => {
+                    if (!originalTexts.has(el)) {
+                        originalTexts.set(el, el.innerHTML);
                     }
-                    const sep = `(?:\\s|&nbsp;|<[^>]*>)+`;
-                    return new RegExp(`\\b${parts.join(sep)}\\b`, 'gi');
-                }
-                
-                let out = html;
-                
-                for (const tok of tokens) {
-                    const pat = tokenToPattern(tok);
-                    out = out.replace(pat, (m) => {
-                        if (/class="[^"]*notranslate[^"]*"/i.test(m) || /translate="no"/i.test(m)) return m;
-                        return `<span class="notranslate" translate="no">${m}</span>`;
-                    });
-                }
-                
-                return out;
-            }
-
-            function buildTranslatableHTML() {
-                const tmp = document.createElement('div');
-                tmp.innerHTML = ORIGINAL_HTML;
-
-                const placeholders = [];
-                let counter = 0;
-
-                function replaceNodeWithPlaceholder(node, label) {
-                    const key = `INQUIRY_PLACEHOLDER_${label}_${counter++}`;
-                    const comment = document.createComment(key);
-                    const html = node.outerHTML;
-                    node.replaceWith(comment);
-                    placeholders.push({ key, html });
-                }
-
-                tmp.querySelectorAll(EXCLUDE_SELECTOR).forEach(node => replaceNodeWithPlaceholder(node, 'EXCL'));
-                tmp.querySelectorAll('script').forEach(node => replaceNodeWithPlaceholder(node, 'SCRIPT'));
-                tmp.querySelectorAll('style').forEach(node => replaceNodeWithPlaceholder(node, 'STYLE'));
-
-                let html = tmp.innerHTML;
-                html = protectBrandTokens(html);
-
-                return { html, placeholders };
-            }
-
-            function restorePlaceholders(translated, placeholders) {
-                let out = translated;
-                placeholders.forEach(({ key, html }) => {
-                    const marker = `<!--${key}-->`;
-                    out = out.replace(marker, html);
                 });
-                return out;
+
+                // Store placeholders
+                document.querySelectorAll('[data-placeholder]').forEach(el => {
+                    if (!originalTexts.has(el)) {
+                        originalTexts.set(el, el.getAttribute('data-placeholder'));
+                    }
+                });
+            }
+
+            // Extract translatable texts for batch translation
+            function extractTextsToTranslate() {
+                const texts = [];
+                const elements = [];
+
+                // Extract text content
+                document.querySelectorAll('[data-translate]').forEach(el => {
+                    const originalText = originalTexts.get(el) || el.innerHTML;
+                    texts.push(originalText);
+                    elements.push({ el, type: 'content' });
+                });
+
+                // Extract placeholders
+                document.querySelectorAll('[data-placeholder]').forEach(el => {
+                    const originalPlaceholder = originalTexts.get(el) || el.getAttribute('data-placeholder');
+                    texts.push(originalPlaceholder);
+                    elements.push({ el, type: 'placeholder' });
+                });
+
+                return { texts, elements };
+            }
+
+            // Apply translations to elements
+            function applyTranslations(translations, elements) {
+                translations.forEach((translatedText, index) => {
+                    const { el, type } = elements[index];
+                    if (type === 'content') {
+                        el.innerHTML = translatedText;
+                    } else if (type === 'placeholder') {
+                        el.placeholder = translatedText;
+                    }
+                });
+            }
+
+            // Batch translate texts
+            async function translateTexts(texts, targetLang) {
+                const cacheKey = `${targetLang}_${texts.join('|||')}`;
+                
+                if (translationCache[cacheKey]) {
+                    return translationCache[cacheKey];
+                }
+
+                try {
+                    const response = await fetch('/api/deepl', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            html: texts.map(t => `<div>${t}</div>`).join('\n'),
+                            target_lang: targetLang
+                        })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`Translation failed: ${response.status}`);
+                    }
+
+                    const data = await response.json();
+                    const translatedHTML = data.translated || '';
+                    
+                    // Parse translated divs
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(translatedHTML, 'text/html');
+                    const translations = Array.from(doc.querySelectorAll('div')).map(div => div.innerHTML);
+
+                    translationCache[cacheKey] = translations;
+                    return translations;
+                } catch (error) {
+                    console.error('Translation error:', error);
+                    throw error;
+                }
             }
 
             async function translateTo(lang) {
@@ -616,7 +647,16 @@
                     isTranslating = true;
                     beginTransition();
                     try {
-                        document.body.innerHTML = ORIGINAL_HTML;
+                        // Restore original texts
+                        document.querySelectorAll('[data-translate]').forEach(el => {
+                            const original = originalTexts.get(el);
+                            if (original) el.innerHTML = original;
+                        });
+                        document.querySelectorAll('[data-placeholder]').forEach(el => {
+                            const original = originalTexts.get(el);
+                            if (original) el.placeholder = original;
+                        });
+                        
                         setLangAttrs('en');
                         localStorage.setItem(STORE_KEY, 'en');
                         writeLangToURL('en');
@@ -629,38 +669,22 @@
                     return;
                 }
 
-                const { html, placeholders } = buildTranslatableHTML();
+                const { texts, elements } = extractTextsToTranslate();
+                
+                if (texts.length === 0) return;
 
                 isTranslating = true;
                 beginTransition();
                 try {
-                    const res = await fetch('/api/deepl', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ html, target_lang: lang })
-                    });
+                    const translations = await translateTexts(texts, lang);
+                    applyTranslations(translations, elements);
                     
-                    if (!res.ok) {
-                        throw new Error(`Translation failed: ${res.status}`);
-                    }
-                    
-                    const data = await res.json();
-                    const translatedHTML = (data && data.translated) ? data.translated : '';
-                    
-                    if (!translatedHTML) throw new Error('Empty translation');
-
-                    const restored = restorePlaceholders(translatedHTML, placeholders);
-                    
-                    document.body.innerHTML = restored;
-
                     setLangAttrs(lang);
                     localStorage.setItem(STORE_KEY, lang);
                     writeLangToURL(lang);
-                    
                 } catch (err) {
                     console.error('Translation error:', err);
-                    alert('Sorry – we could not translate the form. Please try again.');
-                    document.body.innerHTML = ORIGINAL_HTML;
+                    alert('Sorry — we could not translate the form. Please try again.');
                 } finally {
                     bindPicker();
                     bindForm();
@@ -682,7 +706,7 @@
                     translateTo(lang);
                 });
 
-                const current = getInitialLang();
+                const current = currentLang;
                 if (clone.value !== current) clone.value = current;
             }
 
@@ -692,7 +716,7 @@
             }
 
             function init() {
-                ORIGINAL_HTML = document.body.innerHTML;
+                storeOriginalTexts();
                 const initial = getInitialLang();
                 setLangAttrs(initial);
 
@@ -707,12 +731,11 @@
             document.addEventListener('DOMContentLoaded', init);
         })();
 
-        // ALL ORIGINAL JAVASCRIPT UNCHANGED
         // Global variables to store prospectus data
         let currentProspectusData = null;
 
         function initializeOriginalFunctionality() {
-            // --- EXISTING WEBHOOK CONFIGURATION (unchanged) ---
+            // Webhook configuration
             function getWebhookUrl() {
                 const currentHost = window.location.hostname;
                 
@@ -790,7 +813,7 @@
 
             testWebhookConnectivity();
 
-            // --- Form submission handler ---
+            // Form submission handler
             const form = document.getElementById('inquiryForm');
             if (form) {
                 form.addEventListener('submit', async function(e) {
@@ -809,7 +832,7 @@
                     if (errorMessage) errorMessage.style.display = 'none';
 
                     try {
-                        // Collect form data (unchanged)
+                        // Collect form data
                         const formData = {
                             parentName: document.getElementById('parentName')?.value?.trim() || '',
                             firstName: document.getElementById('firstName')?.value?.trim() || '',
@@ -877,7 +900,7 @@
                         // Reset form
                         form.reset();
 
-                        // Show access options instead of just success message
+                        // Show access options
                         showAccessOptions(result);
 
                     } catch (error) {
@@ -947,7 +970,7 @@
             }
         }
 
-        // --- ACCESS OPTIONS FUNCTIONS ---
+        // Access Options Functions
         function showAccessOptions(prospectusData) {
             currentProspectusData = prospectusData;
             const formSection = document.getElementById('formSection');
@@ -970,7 +993,6 @@
             const onlineBtn = document.getElementById('onlineBtn');
             if (onlineBtn) onlineBtn.innerHTML = 'Loading...';
             
-            // Open online version
             if (currentProspectusData.slug) {
                 window.open(`/${currentProspectusData.slug}`, '_blank');
             } else if (currentProspectusData.prospectus && currentProspectusData.prospectus.url) {
@@ -988,7 +1010,6 @@
             const offlineBtn = document.getElementById('offlineBtn');
             if (offlineBtn) offlineBtn.innerHTML = '📥 Preparing Download...';
             
-            // Create download link using the slug from the prospectus response
             let downloadUrl;
             if (currentProspectusData.prospectus && currentProspectusData.prospectus.slug) {
                 downloadUrl = `/download/${currentProspectusData.prospectus.slug}`;
@@ -997,7 +1018,6 @@
             }
             
             if (downloadUrl) {
-                // Create a temporary link and click it to trigger download
                 const link = document.createElement('a');
                 link.href = downloadUrl;
                 link.style.display = 'none';
@@ -1006,16 +1026,14 @@
                 document.body.removeChild(link);
             } else {
                 console.error('No download URL available');
-                if (offlineBtn) offlineBtn.innerHTML = '❌ Download Failed';
+                if (offlineBtn) offlineBtn.innerHTML = '⌛ Download Failed';
                 return;
             }
-      
             
             setTimeout(() => {
                 if (offlineBtn) offlineBtn.innerHTML = '📱 Download Offline';
             }, 3000);
         }
-
 
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', function() {
