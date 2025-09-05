@@ -2077,38 +2077,21 @@
       }
     }
     
-    function animateGCSECircles() {
-    const circles = document.querySelectorAll('.gcse-results .circle-container');
+    function personalizeStatsSection(data) {
+    const gcseResults = document.getElementById('gcseResults');
     
-    circles.forEach((container, index) => {
-        const percentage = container.querySelector('.percentage');
-        const circle = container.querySelector('.fg-circle');
-        const targetPercent = parseFloat(percentage.getAttribute('data-percent'));
-        
-        // Set CSS variable for animation
-        circle.style.setProperty('--percent', targetPercent);
-        
-        // Animate the number counting up
-        let current = 0;
-        const increment = targetPercent / 60;
-        
-        const countUp = () => {
-            current += increment;
-            if (current >= targetPercent) {
-                current = targetPercent;
-                percentage.textContent = targetPercent + '%';
-                container.classList.add('animate');
-            } else {
-                percentage.textContent = Math.round(current * 10) / 10 + '%';
-                requestAnimationFrame(countUp);
-            }
-        };
-        
-        // Stagger the animations
-        setTimeout(() => {
-            countUp();
-        }, index * 300);
-    });
+    // Check for various possible sixth form values
+    if (data && (
+        data.ageGroup === '16-18' || 
+        data.ageGroup === 'sixthform' ||
+        data.ageGroup === 'sixth-form' ||
+        data.ageGroup === '16+'
+    )) {
+        gcseResults.style.display = 'none';
+    } else {
+        gcseResults.style.display = 'block';
+    }
+}
 }
 
     function personalizeStatsSection(data) {
