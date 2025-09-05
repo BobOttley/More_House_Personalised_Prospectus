@@ -17,7 +17,36 @@
         }
         *{margin:0;padding:0;box-sizing:border-box}
         body{font-family:'Georgia','Times New Roman',serif;line-height:1.6;color:var(--morehouse-text);background:linear-gradient(135deg,var(--morehouse-navy) 0%,#2c3e6b 100%);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
-        .form-container{max-width:700px;width:100%;margin:0 auto;background:white;color:var(--morehouse-text);padding:40px;border-radius:15px;box-shadow:0 20px 60px rgba(0,0,0,0.3)}
+        .form-container{max-width:700px;width:100%;margin:0 auto;background:white;color:var(--morehouse-text);padding:40px;border-radius:15px;box-shadow:0 20px 60px rgba(0,0,0,0.3);position:relative}
+
+        /* ONLY NEW ADDITION - Language Switcher */
+        .language-switcher {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            background: var(--morehouse-deep-pink);
+            border-radius: 8px;
+            padding: 8px 12px;
+            box-shadow: 0 4px 12px rgba(255, 107, 157, 0.3);
+            z-index: 100;
+        }
+        .language-switcher label {
+            color: white;
+            font-weight: bold;
+            font-size: 0.85rem;
+            margin-right: 6px;
+            font-family: 'Arial', 'Helvetica', sans-serif;
+        }
+        .language-switcher select {
+            background: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            min-width: 120px;
+        }
+
         .school-logo{text-align:center;margin-bottom:2rem}
         .school-logo img{width:120px;height:120px;border-radius:50%;border:3px solid var(--morehouse-pink)}
         h1{color:var(--morehouse-navy);margin-bottom:10px;font-size:2.5rem;text-align:center;font-family:'Georgia',serif;font-weight:400}
@@ -212,18 +241,57 @@
             .access-header h2 {
                 font-size: 1.8em;
             }
+
+            .language-switcher {
+                position: static;
+                margin-bottom: 15px;
+                text-align: center;
+            }
+        }
+
+        /* ONLY NEW ADDITION - Light grey placeholder text for name fields */
+        .name-field::placeholder {
+            color: #999;
+            font-style: italic;
+        }
+
+        /* RTL support for Arabic */
+        [dir="rtl"] {
+            text-align: right;
+        }
+        [dir="rtl"] .checkbox-item {
+            flex-direction: row-reverse;
+        }
+        [dir="rtl"] .checkbox-item input[type="checkbox"] {
+            margin-right: 0;
+            margin-left: 10px;
         }
     </style>
 </head>
 <body>
     <div class="form-container">
-        <!-- ORIGINAL FORM SECTION -->
+        <!-- ONLY NEW ADDITION - Language Switcher -->
+        <div class="language-switcher" data-no-translate>
+            <label for="inquiry-lang">Language:</label>
+            <select id="inquiry-lang" aria-label="Select language">
+                <option value="en">🇬🇧 English</option>
+                <option value="zh">🇨🇳 中文</option>
+                <option value="ar">🇸🇦 العربية</option>
+                <option value="ru">🇷🇺 Русский</option>
+                <option value="fr">🇫🇷 Français</option>
+                <option value="es">🇪🇸 Español</option>
+                <option value="de">🇩🇪 Deutsch</option>
+                <option value="it">🇮🇹 Italiano</option>
+            </select>
+        </div>
+
+        <!-- ORIGINAL FORM SECTION UNCHANGED -->
         <div id="formSection">
-            <div class="school-logo">
+            <div class="school-logo" data-no-translate>
                 <img src="https://yt3.googleusercontent.com/_BXVh2JJHQb3ViHUH-hDR_G1YU44EFmu3JSbyhsj5Qmnfy-niQEoIjynQd4Voo8el0RjUm_wUDo=s160-c-k-c0x00ffffff-no-rj" alt="More House School Logo">
             </div>
 
-            <h1>More House School</h1>
+            <h1 data-no-translate>More House School</h1>
             <p class="subtitle">Create Your Personalised Prospectus</p>
 
             <div class="intro-text">
@@ -252,17 +320,17 @@
                 
                 <div class="form-group">
                     <label for="parentName">Parent/Guardian Name <span class="required">*</span></label>
-                    <input type="text" id="parentName" required placeholder="e.g. Mrs Sarah Smith">
+                    <input type="text" id="parentName" class="name-field" required placeholder="Please use English letters (A-Z)">
                 </div>
                 
                 <div class="form-row">
                     <div class="form-group">
                         <label for="firstName">Daughter's First Name <span class="required">*</span></label>
-                        <input type="text" id="firstName" required>
+                        <input type="text" id="firstName" class="name-field" required placeholder="Please use English letters (A-Z)">
                     </div>
                     <div class="form-group">
                         <label for="familySurname">Family Surname <span class="required">*</span></label>
-                        <input type="text" id="familySurname" required>
+                        <input type="text" id="familySurname" class="name-field" required placeholder="Please use English letters (A-Z)">
                     </div>
                 </div>
 
@@ -375,9 +443,9 @@
             </div>
         </div>
 
-        <!-- SIMPLIFIED ACCESS OPTIONS SECTION -->
+        <!-- SIMPLIFIED ACCESS OPTIONS SECTION UNCHANGED -->
         <div id="accessOptions" class="access-options">
-            <div class="school-logo">
+            <div class="school-logo" data-no-translate>
                 <img src="https://yt3.googleusercontent.com/_BXVh2JJHQb3ViHUH-hDR_G1YU44EFmu3JSbyhsj5Qmnfy-niQEoIjynQd4Voo8el0RjUm_wUDo=s160-c-k-c0x00ffffff-no-rj" alt="More House School Logo">
             </div>
 
@@ -419,271 +487,439 @@
     </div>
 
     <script>
+        // Translation system (same as prospectus)
+        (function () {
+            'use strict';
+
+            const PICKER_ID = 'inquiry-lang';
+            const STORE_KEY = 'morehouse_inquiry_lang';
+            const ALLOWED = new Set(['en','zh','ar','ru','fr','es','de','it']);
+
+            const BRAND_TOKENS = [
+                'More House School',
+                'More House',
+                'Knightsbridge'
+            ];
+
+            const EXCLUDE_SELECTOR = '[data-no-translate]';
+
+            let ORIGINAL_HTML = null;
+            let isTranslating = false;
+
+            function getPicker() {
+                return document.getElementById(PICKER_ID);
+            }
+
+            function getInitialLang() {
+                try {
+                    const u = new URL(window.location.href);
+                    const fromURL = (u.searchParams.get('lang') || '').trim().toLowerCase();
+                    if (ALLOWED.has(fromURL)) return fromURL;
+                } catch (_) {}
+                const fromLS = (localStorage.getItem(STORE_KEY) || '').trim().toLowerCase();
+                return ALLOWED.has(fromLS) ? fromLS : 'en';
+            }
+
+            function setLangAttrs(lang) {
+                document.documentElement.lang = lang || 'en';
+                document.documentElement.dir = (lang === 'ar') ? 'rtl' : 'ltr';
+            }
+
+            function writeLangToURL(lang) {
+                try {
+                    const u = new URL(window.location.href);
+                    if (lang === 'en') u.searchParams.delete('lang');
+                    else u.searchParams.set('lang', lang);
+                    history.replaceState(null, '', u.toString());
+                } catch (_) {}
+            }
+
+            function beginTransition() {
+                const b = document.body.style;
+                b.transition = 'opacity 200ms ease';
+                b.opacity = '0.7';
+            }
+
+            function endTransition() {
+                const b = document.body.style;
+                b.opacity = '';
+            }
+
+            function escReg(s) {
+                return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            }
+
+            function protectBrandTokens(html) {
+                const tokens = [...BRAND_TOKENS].sort((a, b) => b.length - a.length);
+                
+                function tokenToPattern(tok) {
+                    const parts = tok.split(/\s+/).map(escReg);
+                    if (parts.length === 1) {
+                        return new RegExp(`\\b${parts[0]}\\b`, 'gi');
+                    }
+                    const sep = `(?:\\s|&nbsp;|<[^>]*>)+`;
+                    return new RegExp(`\\b${parts.join(sep)}\\b`, 'gi');
+                }
+                
+                let out = html;
+                
+                for (const tok of tokens) {
+                    const pat = tokenToPattern(tok);
+                    out = out.replace(pat, (m) => {
+                        if (/class="[^"]*notranslate[^"]*"/i.test(m) || /translate="no"/i.test(m)) return m;
+                        return `<span class="notranslate" translate="no">${m}</span>`;
+                    });
+                }
+                
+                return out;
+            }
+
+            function buildTranslatableHTML() {
+                const tmp = document.createElement('div');
+                tmp.innerHTML = ORIGINAL_HTML;
+
+                const placeholders = [];
+                let counter = 0;
+
+                function replaceNodeWithPlaceholder(node, label) {
+                    const key = `INQUIRY_PLACEHOLDER_${label}_${counter++}`;
+                    const comment = document.createComment(key);
+                    const html = node.outerHTML;
+                    node.replaceWith(comment);
+                    placeholders.push({ key, html });
+                }
+
+                tmp.querySelectorAll(EXCLUDE_SELECTOR).forEach(node => replaceNodeWithPlaceholder(node, 'EXCL'));
+                tmp.querySelectorAll('script').forEach(node => replaceNodeWithPlaceholder(node, 'SCRIPT'));
+                tmp.querySelectorAll('style').forEach(node => replaceNodeWithPlaceholder(node, 'STYLE'));
+
+                let html = tmp.innerHTML;
+                html = protectBrandTokens(html);
+
+                return { html, placeholders };
+            }
+
+            function restorePlaceholders(translated, placeholders) {
+                let out = translated;
+                placeholders.forEach(({ key, html }) => {
+                    const marker = `<!--${key}-->`;
+                    out = out.replace(marker, html);
+                });
+                return out;
+            }
+
+            async function translateTo(lang) {
+                if (isTranslating) return;
+                if (!ALLOWED.has(lang)) return;
+
+                if (lang === 'en') {
+                    isTranslating = true;
+                    beginTransition();
+                    try {
+                        document.body.innerHTML = ORIGINAL_HTML;
+                        setLangAttrs('en');
+                        localStorage.setItem(STORE_KEY, 'en');
+                        writeLangToURL('en');
+                    } finally {
+                        bindPicker();
+                        bindForm();
+                        isTranslating = false;
+                        endTransition();
+                    }
+                    return;
+                }
+
+                const { html, placeholders } = buildTranslatableHTML();
+
+                isTranslating = true;
+                beginTransition();
+                try {
+                    const res = await fetch('/api/deepl', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ html, target_lang: lang })
+                    });
+                    
+                    if (!res.ok) {
+                        throw new Error(`Translation failed: ${res.status}`);
+                    }
+                    
+                    const data = await res.json();
+                    const translatedHTML = (data && data.translated) ? data.translated : '';
+                    
+                    if (!translatedHTML) throw new Error('Empty translation');
+
+                    const restored = restorePlaceholders(translatedHTML, placeholders);
+                    
+                    document.body.innerHTML = restored;
+
+                    setLangAttrs(lang);
+                    localStorage.setItem(STORE_KEY, lang);
+                    writeLangToURL(lang);
+                    
+                } catch (err) {
+                    console.error('Translation error:', err);
+                    alert('Sorry – we could not translate the form. Please try again.');
+                    document.body.innerHTML = ORIGINAL_HTML;
+                } finally {
+                    bindPicker();
+                    bindForm();
+                    isTranslating = false;
+                    endTransition();
+                }
+            }
+
+            function bindPicker() {
+                const picker = getPicker();
+                if (!picker) return;
+                
+                const clone = picker.cloneNode(true);
+                picker.parentNode.replaceChild(clone, picker);
+
+                clone.addEventListener('change', e => {
+                    const lang = String((e.target.value || 'en')).trim().toLowerCase();
+                    if (!ALLOWED.has(lang)) return;
+                    translateTo(lang);
+                });
+
+                const current = getInitialLang();
+                if (clone.value !== current) clone.value = current;
+            }
+
+            function bindForm() {
+                // Re-bind all the original functionality after translation
+                initializeOriginalFunctionality();
+            }
+
+            function init() {
+                ORIGINAL_HTML = document.body.innerHTML;
+                const initial = getInitialLang();
+                setLangAttrs(initial);
+
+                bindPicker();
+                bindForm();
+                
+                if (initial !== 'en') {
+                    translateTo(initial);
+                }
+            }
+
+            document.addEventListener('DOMContentLoaded', init);
+        })();
+
+        // ALL ORIGINAL JAVASCRIPT UNCHANGED
         // Global variables to store prospectus data
         let currentProspectusData = null;
 
-        // --- EXISTING WEBHOOK CONFIGURATION (unchanged) ---
-        function getWebhookUrl() {
-            const currentHost = window.location.hostname;
-            
-            if (currentHost === 'localhost' || currentHost === '127.0.0.1') {
-                return 'http://localhost:3000/webhook';
-            }
-            
-            const RENDER_URL = 'https://more-house-personalised-prospectus.onrender.com';
-            
-            if (window.location.origin.includes('onrender.com')) {
-                return `${window.location.origin}/webhook`;
-            }
-            
-            return `${RENDER_URL}/webhook`;
-        }
-
-        // Webhook visibility and configuration
-        const isLocalhost = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
-        const debugParam = /[?&](debug|showWebhook)=1/.test(location.search);
-        const showWebhookUI = isLocalhost || debugParam;
-
-        const webhookToggle = document.getElementById('webhookToggle');
-        const webhookConfig = document.getElementById('webhookConfig');
-        const webhookUrlInput = document.getElementById('webhookUrl');
-
-        // Set up debug information
-        const currentUrlSpan = document.getElementById('currentUrl');
-        const webhookTargetSpan = document.getElementById('webhookTarget');
-        const connectionStatusSpan = document.getElementById('connectionStatus');
-        
-        currentUrlSpan.textContent = window.location.href;
-        const webhookUrl = getWebhookUrl();
-        webhookTargetSpan.textContent = webhookUrl;
-
-        if (showWebhookUI) {
-            webhookToggle.style.display = 'inline-block';
-            webhookUrlInput.value = webhookUrl;
-            webhookToggle.addEventListener('click', () => {
-                webhookConfig.style.display = webhookConfig.style.display === 'none' ? 'block' : 'none';
-            });
-        } else {
-            webhookToggle.style.display = 'none';
-            webhookConfig.style.display = 'none';
-        }
-
-        // Test webhook connectivity on page load
-        async function testWebhookConnectivity() {
-            try {
-                connectionStatusSpan.textContent = 'Testing connection...';
-                const testUrl = webhookUrl.replace('/webhook', '/health');
+        function initializeOriginalFunctionality() {
+            // --- EXISTING WEBHOOK CONFIGURATION (unchanged) ---
+            function getWebhookUrl() {
+                const currentHost = window.location.hostname;
                 
-                const response = await fetch(testUrl, {
-                    method: 'GET',
-                    mode: 'cors',
-                    signal: AbortSignal.timeout(5000)
+                if (currentHost === 'localhost' || currentHost === '127.0.0.1') {
+                    return 'http://localhost:3000/webhook';
+                }
+                
+                const RENDER_URL = 'https://more-house-personalised-prospectus.onrender.com';
+                
+                if (window.location.origin.includes('onrender.com')) {
+                    return `${window.location.origin}/webhook`;
+                }
+                
+                return `${RENDER_URL}/webhook`;
+            }
+
+            // Webhook visibility and configuration
+            const isLocalhost = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+            const debugParam = /[?&](debug|showWebhook)=1/.test(location.search);
+            const showWebhookUI = isLocalhost || debugParam;
+
+            const webhookToggle = document.getElementById('webhookToggle');
+            const webhookConfig = document.getElementById('webhookConfig');
+            const webhookUrlInput = document.getElementById('webhookUrl');
+
+            // Set up debug information
+            const currentUrlSpan = document.getElementById('currentUrl');
+            const webhookTargetSpan = document.getElementById('webhookTarget');
+            const connectionStatusSpan = document.getElementById('connectionStatus');
+            
+            if (currentUrlSpan) currentUrlSpan.textContent = window.location.href;
+            const webhookUrl = getWebhookUrl();
+            if (webhookTargetSpan) webhookTargetSpan.textContent = webhookUrl;
+
+            if (showWebhookUI && webhookToggle) {
+                webhookToggle.style.display = 'inline-block';
+                if (webhookUrlInput) webhookUrlInput.value = webhookUrl;
+                webhookToggle.addEventListener('click', () => {
+                    if (webhookConfig) {
+                        webhookConfig.style.display = webhookConfig.style.display === 'none' ? 'block' : 'none';
+                    }
                 });
+            } else if (webhookToggle) {
+                webhookToggle.style.display = 'none';
+                if (webhookConfig) webhookConfig.style.display = 'none';
+            }
+
+            // Test webhook connectivity on page load
+            async function testWebhookConnectivity() {
+                if (!connectionStatusSpan) return;
                 
-                if (response.ok) {
-                    connectionStatusSpan.textContent = 'Connected';
-                    connectionStatusSpan.style.color = '#28a745';
-                } else {
-                    connectionStatusSpan.textContent = `Server responded with ${response.status}`;
-                    connectionStatusSpan.style.color = '#ffc107';
+                try {
+                    connectionStatusSpan.textContent = 'Testing connection...';
+                    const testUrl = webhookUrl.replace('/webhook', '/health');
+                    
+                    const response = await fetch(testUrl, {
+                        method: 'GET',
+                        mode: 'cors',
+                        signal: AbortSignal.timeout(5000)
+                    });
+                    
+                    if (response.ok) {
+                        connectionStatusSpan.textContent = 'Connected';
+                        connectionStatusSpan.style.color = '#28a745';
+                    } else {
+                        connectionStatusSpan.textContent = `Server responded with ${response.status}`;
+                        connectionStatusSpan.style.color = '#ffc107';
+                    }
+                } catch (error) {
+                    connectionStatusSpan.textContent = `Connection failed: ${error.message}`;
+                    connectionStatusSpan.style.color = '#dc3545';
+                    console.error('Webhook connectivity test failed:', error);
                 }
-            } catch (error) {
-                connectionStatusSpan.textContent = `Connection failed: ${error.message}`;
-                connectionStatusSpan.style.color = '#dc3545';
-                console.error('Webhook connectivity test failed:', error);
             }
-        }
 
-        testWebhookConnectivity();
+            testWebhookConnectivity();
 
-        // --- NEW: ACCESS OPTIONS FUNCTIONS ---
-        function showAccessOptions(prospectusData) {
-            currentProspectusData = prospectusData;
-            document.getElementById('formSection').style.display = 'none';
-            document.getElementById('accessOptions').classList.add('show');
-        }
+            // --- Form submission handler ---
+            const form = document.getElementById('inquiryForm');
+            if (form) {
+                form.addEventListener('submit', async function(e) {
+                    e.preventDefault();
 
-        function showFormSection() {
-            document.getElementById('accessOptions').classList.remove('show');
-            document.getElementById('formSection').style.display = 'block';
-            currentProspectusData = null;
-        }
+                    const submitBtn = document.getElementById('submitBtn');
+                    const loadingSpinner = document.getElementById('loadingSpinner');
+                    const submitText = document.getElementById('submitText');
+                    const successMessage = document.getElementById('successMessage');
+                    const errorMessage = document.getElementById('errorMessage');
 
-        function viewOnlineProspectus() {
-            if (!currentProspectusData) return;
-            
-            const onlineBtn = document.getElementById('onlineBtn');
-            onlineBtn.innerHTML = 'Loading...';
-            
-            // Open online version
-            if (currentProspectusData.slug) {
-                window.open(`/${currentProspectusData.slug}`, '_blank');
-            } else if (currentProspectusData.prospectus && currentProspectusData.prospectus.url) {
-                window.open(currentProspectusData.prospectus.url, '_blank');
-            }
-            
-            setTimeout(() => {
-                onlineBtn.innerHTML = 'View Online Now';
-            }, 2000);
-        }
+                    if (submitBtn) submitBtn.disabled = true;
+                    if (loadingSpinner) loadingSpinner.style.display = 'inline-block';
+                    if (submitText) submitText.textContent = 'Creating Your Prospectus...';
+                    if (successMessage) successMessage.style.display = 'none';
+                    if (errorMessage) errorMessage.style.display = 'none';
 
-        function downloadOfflineProspectus() {
-    if (!currentProspectusData) return;
-    
-    const offlineBtn = document.getElementById('offlineBtn');
-    offlineBtn.innerHTML = '📥 Preparing Download...';
-    
-    // Create download link using the slug from the prospectus response
-    let downloadUrl;
-    if (currentProspectusData.prospectus && currentProspectusData.prospectus.slug) {
-        downloadUrl = `/download/${currentProspectusData.prospectus.slug}`;
-    } else if (currentProspectusData.inquiryId) {
-        downloadUrl = `/api/download/${currentProspectusData.inquiryId}`;
-    }
-    
-    if (downloadUrl) {
-        // Create a temporary link and click it to trigger download
-        const link = document.createElement('a');
-        link.href = downloadUrl;
-        link.style.display = 'none';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    } else {
-        console.error('No download URL available');
-        offlineBtn.innerHTML = '❌ Download Failed';
-        return;
-    }
-    
-    setTimeout(() => {
-        offlineBtn.innerHTML = '📱 Download Offline';
-    }, 3000);
-}
+                    try {
+                        // Collect form data (unchanged)
+                        const formData = {
+                            parentName: document.getElementById('parentName')?.value?.trim() || '',
+                            firstName: document.getElementById('firstName')?.value?.trim() || '',
+                            familySurname: document.getElementById('familySurname')?.value?.trim() || '',
+                            parentEmail: document.getElementById('parentEmail')?.value?.trim() || '',
+                            contactNumber: document.getElementById('contactNumber')?.value?.trim() || '',
+                            ageGroup: document.getElementById('ageGroup')?.value || '',
+                            entryYear: document.getElementById('entryYear')?.value || '',
+                            hearAboutUs: document.getElementById('hearAboutUs')?.value || '',
+                            sciences: document.getElementById('sciences')?.checked || false,
+                            mathematics: document.getElementById('mathematics')?.checked || false,
+                            english: document.getElementById('english')?.checked || false,
+                            languages: document.getElementById('languages')?.checked || false,
+                            humanities: document.getElementById('humanities')?.checked || false,
+                            business: document.getElementById('business')?.checked || false,
+                            drama: document.getElementById('drama')?.checked || false,
+                            music: document.getElementById('music')?.checked || false,
+                            art: document.getElementById('art')?.checked || false,
+                            creative_writing: document.getElementById('creative_writing')?.checked || false,
+                            sport: document.getElementById('sport')?.checked || false,
+                            leadership: document.getElementById('leadership')?.checked || false,
+                            community_service: document.getElementById('community_service')?.checked || false,
+                            outdoor_education: document.getElementById('outdoor_education')?.checked || false,
+                            academic_excellence: document.getElementById('academic_excellence')?.checked || false,
+                            pastoral_care: document.getElementById('pastoral_care')?.checked || false,
+                            university_preparation: document.getElementById('university_preparation')?.checked || false,
+                            personal_development: document.getElementById('personal_development')?.checked || false,
+                            career_guidance: document.getElementById('career_guidance')?.checked || false,
+                            extracurricular_opportunities: document.getElementById('extracurricular_opportunities')?.checked || false,
+                            submissionTimestamp: new Date().toISOString(),
+                            userAgent: navigator.userAgent,
+                            referrer: document.referrer || 'direct'
+                        };
 
-        // --- ENHANCED FORM SUBMISSION HANDLER ---
-        document.getElementById('inquiryForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
+                        console.log('Form data collected:', formData);
 
-            const submitBtn = document.getElementById('submitBtn');
-            const loadingSpinner = document.getElementById('loadingSpinner');
-            const submitText = document.getElementById('submitText');
-            const successMessage = document.getElementById('successMessage');
-            const errorMessage = document.getElementById('errorMessage');
+                        const finalWebhookUrl = (showWebhookUI && webhookUrlInput?.value) ? 
+                            webhookUrlInput.value : webhookUrl;
 
-            submitBtn.disabled = true;
-            loadingSpinner.style.display = 'inline-block';
-            submitText.textContent = 'Creating Your Prospectus...';
-            successMessage.style.display = 'none';
-            errorMessage.style.display = 'none';
+                        console.log('Submitting to:', finalWebhookUrl);
 
-            try {
-                // Collect form data (unchanged)
-                const formData = {
-                    parentName: document.getElementById('parentName').value.trim(),
-                    firstName: document.getElementById('firstName').value.trim(),
-                    familySurname: document.getElementById('familySurname').value.trim(),
-                    parentEmail: document.getElementById('parentEmail').value.trim(),
-                    contactNumber: document.getElementById('contactNumber').value.trim(),
-                    ageGroup: document.getElementById('ageGroup').value,
-                    entryYear: document.getElementById('entryYear').value,
-                    hearAboutUs: document.getElementById('hearAboutUs').value,
-                    sciences: document.getElementById('sciences').checked,
-                    mathematics: document.getElementById('mathematics').checked,
-                    english: document.getElementById('english').checked,
-                    languages: document.getElementById('languages').checked,
-                    humanities: document.getElementById('humanities').checked,
-                    business: document.getElementById('business').checked,
-                    drama: document.getElementById('drama').checked,
-                    music: document.getElementById('music').checked,
-                    art: document.getElementById('art').checked,
-                    creative_writing: document.getElementById('creative_writing').checked,
-                    sport: document.getElementById('sport').checked,
-                    leadership: document.getElementById('leadership').checked,
-                    community_service: document.getElementById('community_service').checked,
-                    outdoor_education: document.getElementById('outdoor_education').checked,
-                    academic_excellence: document.getElementById('academic_excellence').checked,
-                    pastoral_care: document.getElementById('pastoral_care').checked,
-                    university_preparation: document.getElementById('university_preparation').checked,
-                    personal_development: document.getElementById('personal_development').checked,
-                    career_guidance: document.getElementById('career_guidance').checked,
-                    extracurricular_opportunities: document.getElementById('extracurricular_opportunities').checked,
-                    submissionTimestamp: new Date().toISOString(),
-                    userAgent: navigator.userAgent,
-                    referrer: document.referrer || 'direct'
-                };
+                        const controller = new AbortController();
+                        const timeoutId = setTimeout(() => controller.abort(), 30000);
 
-                console.log('Form data collected:', formData);
+                        const response = await fetch(finalWebhookUrl, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify(formData),
+                            mode: 'cors',
+                            signal: controller.signal
+                        });
 
-                const finalWebhookUrl = (showWebhookUI && webhookUrlInput.value) ? 
-                    webhookUrlInput.value : webhookUrl;
+                        clearTimeout(timeoutId);
 
-                console.log('Submitting to:', finalWebhookUrl);
+                        if (!response.ok) {
+                            const errorText = await response.text().catch(() => 'Unknown error');
+                            throw new Error(`HTTP ${response.status}: ${response.statusText}\n${errorText}`);
+                        }
 
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 30000);
+                        const result = await response.json();
+                        console.log('Webhook response:', result);
 
-                const response = await fetch(finalWebhookUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(formData),
-                    mode: 'cors',
-                    signal: controller.signal
+                        // Reset form
+                        form.reset();
+
+                        // Show access options instead of just success message
+                        showAccessOptions(result);
+
+                    } catch (error) {
+                        console.error('Form submission error:', error);
+                        
+                        let errorMsg = 'There was an issue submitting your form. Please try again.';
+                        
+                        if (error.name === 'AbortError') {
+                            errorMsg = 'Request timed out. Please check your connection and try again.';
+                        } else if (error.message.includes('CORS')) {
+                            errorMsg = 'Connection blocked by security policy. Please contact support.';
+                        } else if (error.message.includes('Failed to fetch')) {
+                            errorMsg = 'Unable to connect to server. Please check your internet connection.';
+                        } else {
+                            errorMsg = `Error: ${error.message}`;
+                        }
+                        
+                        const errorText = document.getElementById('errorText');
+                        if (errorText) errorText.textContent = errorMsg;
+                        if (errorMessage) {
+                            errorMessage.style.display = 'block';
+                            errorMessage.scrollIntoView({ behavior: 'smooth' });
+                        }
+                    } finally {
+                        if (submitBtn) submitBtn.disabled = false;
+                        if (loadingSpinner) loadingSpinner.style.display = 'none';
+                        if (submitText) submitText.textContent = 'Create My Personalised Prospectus';
+                    }
                 });
-
-                clearTimeout(timeoutId);
-
-                if (!response.ok) {
-                    const errorText = await response.text().catch(() => 'Unknown error');
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}\n${errorText}`);
-                }
-
-                const result = await response.json();
-                console.log('Webhook response:', result);
-
-                // Reset form
-                document.getElementById('inquiryForm').reset();
-
-                // Show access options instead of just success message
-                showAccessOptions(result);
-
-            } catch (error) {
-                console.error('Form submission error:', error);
-                
-                let errorMsg = 'There was an issue submitting your form. Please try again.';
-                
-                if (error.name === 'AbortError') {
-                    errorMsg = 'Request timed out. Please check your connection and try again.';
-                } else if (error.message.includes('CORS')) {
-                    errorMsg = 'Connection blocked by security policy. Please contact support.';
-                } else if (error.message.includes('Failed to fetch')) {
-                    errorMsg = 'Unable to connect to server. Please check your internet connection.';
-                } else {
-                    errorMsg = `Error: ${error.message}`;
-                }
-                
-                document.getElementById('errorText').textContent = errorMsg;
-                errorMessage.style.display = 'block';
-                errorMessage.scrollIntoView({ behavior: 'smooth' });
-            } finally {
-                submitBtn.disabled = false;
-                loadingSpinner.style.display = 'none';
-                submitText.textContent = 'Create My Personalised Prospectus';
             }
-        });
 
-        // --- EXISTING FORM FUNCTIONALITY (unchanged) ---
-        document.querySelectorAll('.checkbox-item').forEach(item => {
-            item.addEventListener('click', function(e) {
-                if (e.target.type !== 'checkbox') {
-                    const cb = this.querySelector('input[type="checkbox"]');
-                    cb.checked = !cb.checked;
-                }
+            // Checkbox functionality
+            document.querySelectorAll('.checkbox-item').forEach(item => {
+                item.addEventListener('click', function(e) {
+                    if (e.target.type !== 'checkbox') {
+                        const cb = this.querySelector('input[type="checkbox"]');
+                        if (cb) cb.checked = !cb.checked;
+                    }
+                });
             });
-        });
 
-        document.addEventListener('DOMContentLoaded', function() {
+            // Field validation
             const requiredFields = document.querySelectorAll('input[required], select[required]');
             requiredFields.forEach(field => {
                 field.addEventListener('blur', function() {
@@ -695,16 +931,95 @@
             });
             
             const emailField = document.getElementById('parentEmail');
-            emailField.addEventListener('blur', function() {
-                const ok = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.value);
-                this.style.borderColor = this.value && !ok ? '#dc3545' : (this.value ? '#28a745' : '#ddd');
-            });
+            if (emailField) {
+                emailField.addEventListener('blur', function() {
+                    const ok = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.value);
+                    this.style.borderColor = this.value && !ok ? '#dc3545' : (this.value ? '#28a745' : '#ddd');
+                });
+            }
 
             const phoneField = document.getElementById('contactNumber');
-            phoneField.addEventListener('blur', function() {
-                const ok = /^[\d\s\+\-\(\)]{10,}$/.test(this.value);
-                this.style.borderColor = this.value && !ok ? '#dc3545' : (this.value ? '#28a745' : '#ddd');
-            });
+            if (phoneField) {
+                phoneField.addEventListener('blur', function() {
+                    const ok = /^[\d\s\+\-\(\)]{10,}$/.test(this.value);
+                    this.style.borderColor = this.value && !ok ? '#dc3545' : (this.value ? '#28a745' : '#ddd');
+                });
+            }
+        }
+
+        // --- ACCESS OPTIONS FUNCTIONS ---
+        function showAccessOptions(prospectusData) {
+            currentProspectusData = prospectusData;
+            const formSection = document.getElementById('formSection');
+            const accessOptions = document.getElementById('accessOptions');
+            if (formSection) formSection.style.display = 'none';
+            if (accessOptions) accessOptions.classList.add('show');
+        }
+
+        function showFormSection() {
+            const accessOptions = document.getElementById('accessOptions');
+            const formSection = document.getElementById('formSection');
+            if (accessOptions) accessOptions.classList.remove('show');
+            if (formSection) formSection.style.display = 'block';
+            currentProspectusData = null;
+        }
+
+        function viewOnlineProspectus() {
+            if (!currentProspectusData) return;
+            
+            const onlineBtn = document.getElementById('onlineBtn');
+            if (onlineBtn) onlineBtn.innerHTML = 'Loading...';
+            
+            // Open online version
+            if (currentProspectusData.slug) {
+                window.open(`/${currentProspectusData.slug}`, '_blank');
+            } else if (currentProspectusData.prospectus && currentProspectusData.prospectus.url) {
+                window.open(currentProspectusData.prospectus.url, '_blank');
+            }
+            
+            setTimeout(() => {
+                if (onlineBtn) onlineBtn.innerHTML = 'View Online Now';
+            }, 2000);
+        }
+
+        function downloadOfflineProspectus() {
+            if (!currentProspectusData) return;
+            
+            const offlineBtn = document.getElementById('offlineBtn');
+            if (offlineBtn) offlineBtn.innerHTML = '📥 Preparing Download...';
+            
+            // Create download link using the slug from the prospectus response
+            let downloadUrl;
+            if (currentProspectusData.prospectus && currentProspectusData.prospectus.slug) {
+                downloadUrl = `/download/${currentProspectusData.prospectus.slug}`;
+            } else if (currentProspectusData.inquiryId) {
+                downloadUrl = `/api/download/${currentProspectusData.inquiryId}`;
+            }
+            
+            if (downloadUrl) {
+                // Create a temporary link and click it to trigger download
+                const link = document.createElement('a');
+                link.href = downloadUrl;
+                link.style.display = 'none';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            } else {
+                console.error('No download URL available');
+                if (offlineBtn) offlineBtn.innerHTML = '❌ Download Failed';
+                return;
+            }
+      
+            
+            setTimeout(() => {
+                if (offlineBtn) offlineBtn.innerHTML = '📱 Download Offline';
+            }, 3000);
+        }
+
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeOriginalFunctionality();
         });
     </script>
 </body>

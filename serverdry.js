@@ -1,5 +1,5 @@
-// server.js - Version 6.0.0 with Multilingual Support
-// More House School Prospectus Service with DeepL Translation
+// server.js - Refactored Version 5.0.0
+// More House School Prospectus Service with Analytics & AI
 
 const express = require('express');
 const cors = require('cors');
@@ -20,18 +20,15 @@ let slugIndex = {};
 
 // ===================== CONSTANTS & CONFIG =====================
 const CONFIG = {
-  VERSION: '6.0.0-MULTILINGUAL',
-  SERVICE_NAME: 'More House School Multilingual Prospectus Service',
+  VERSION: '5.0.0-COMPLETE',
+  SERVICE_NAME: 'More House School Prospectus Service',
   ENVIRONMENT: process.env.NODE_ENV || 'development',
   ENCRYPTION_KEY: process.env.ENCRYPTION_KEY || crypto.randomBytes(32).toString('hex')
 };
 
-const ALLOWED_LANGUAGES = new Set(['en','zh','ar','ru','fr','es','de','it']);
-
 const ENDPOINTS = {
   health: '/health',
   webhook: '/webhook',
-  deepl: '/api/deepl',
   dashboard: '/dashboard.html',
   inquiries: '/api/analytics/inquiries',
   dashboardData: '/api/dashboard-data',
@@ -45,6 +42,7 @@ const ENDPOINTS = {
 
 // ===================== UTILITY FUNCTIONS =====================
 const utils = {
+  // Get base URL for the application
   getBaseUrl(req) {
     if (process.env.PUBLIC_BASE_URL) {
       return process.env.PUBLIC_BASE_URL.replace(/\/+$/, '');
@@ -54,10 +52,12 @@ const utils = {
     return `${proto}://${host}`;
   },
 
+  // Generate unique inquiry ID
   generateInquiryId() {
     return `INQ-${Date.now()}${Math.floor(Math.random() * 1000)}`;
   },
 
+  // Sanitize string for filenames
   sanitise(s, fallback = '') {
     return (s || fallback)
       .toString()
@@ -66,6 +66,7 @@ const utils = {
       .replace(/-+/g, '-');
   },
 
+  // Normalize segment for slugs
   normaliseSegment(s) {
     return String(s || '')
       .toLowerCase()
@@ -73,6 +74,7 @@ const utils = {
       .replace(/^-+|-+$/g, '');
   },
 
+  // Create slug from inquiry data
   makeSlug(inquiry) {
     const fam = (inquiry.familySurname || 'Family')
       .toLowerCase()
@@ -85,38 +87,38 @@ const utils = {
     return `the-${fam}-family-${shortId}`;
   },
 
+  // Generate prospectus filename
   generateFilename(inquiry) {
     const date = new Date().toISOString().split('T')[0];
     const fam = this.sanitise(inquiry.familySurname, 'Family');
     const first = this.sanitise(inquiry.firstName, 'Student');
-    const lang = inquiry.formLanguage || 'en';
-    return `More-House-School-${fam}-Family-${first}-${inquiry.entryYear}-${lang}-${date}.html`;
+    return `More-House-School-${fam}-Family-${first}-${inquiry.entryYear}-${date}.html`;
   },
 
+  // Parse prospectus filename
   parseProspectusFilename(filename) {
-    const m = String(filename).match(/^More-House-School-(.+?)-Family-(.+?)-(20\d{2})-(.+?)-(.+?)\.html$/);
+    const m = String(filename).match(/^More-House-School-(.+?)-Family-(.+?)-(20\d{2})-(.+?)\.html$/);
     if (!m) return null;
     return {
       familySurname: m[1].replace(/-/g, ' '),
       firstName: m[2].replace(/-/g, ' '),
       entryYear: m[3],
-      language: m[4],
-      date: m[5]
+      date: m[4]
     };
   },
 
+  // Get system status
   getSystemStatus() {
     return {
       database: db ? 'connected' : 'json-only',
       environment: CONFIG.ENVIRONMENT,
       version: CONFIG.VERSION,
       uptime: process.uptime(),
-      translation: 'enabled',
-      supportedLanguages: Array.from(ALLOWED_LANGUAGES),
       timestamp: new Date().toISOString()
     };
   },
 
+  // Extract location from IP
   extractLocation(req) {
     const ip = req.ip || req.connection.remoteAddress || 'unknown';
     const geo = req.headers['x-vercel-ip-country'] ? {
@@ -176,7 +178,7 @@ const database = {
     const haveParts = !!(process.env.DB_HOST && process.env.DB_USER && process.env.DB_NAME);
     
     if (!haveUrl && !haveParts) {
-      console.log('📉 No DB credentials — running in JSON-only mode.');
+      console.log('📉 No DB credentials – running in JSON-only mode.');
       return false;
     }
 
@@ -210,7 +212,7 @@ const database = {
       const query = `
         INSERT INTO inquiries (
           id, first_name, family_surname, parent_email, phone,
-          age_group, entry_year, form_language, status, slug,
+          age_group, entry_year, additional_info, status, slug,
           prospectus_filename, prospectus_url, received_at,
           user_agent, referrer, ip_address, location_data
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
@@ -223,9 +225,10 @@ const database = {
       
       const values = [
         inquiry.id, inquiry.firstName, inquiry.familySurname,
-        inquiry.parentEmail, inquiry.contactNumber || null,
-        inquiry.ageGroup, inquiry.entryYear, inquiry.formLanguage || 'en',
-        inquiry.status, inquiry.slug, inquiry.prospectusFilename || null,
+        inquiry.parentEmail, inquiry.phone || null,
+        inquiry.ageGroup, inquiry.entryYear,
+        inquiry.additionalInfo || null, inquiry.status,
+        inquiry.slug, inquiry.prospectusFilename || null,
         inquiry.prospectusUrl || null, inquiry.receivedAt,
         inquiry.userAgent || null, inquiry.referrer || null,
         inquiry.ip || null, JSON.stringify(inquiry.location || {})
@@ -391,6 +394,7 @@ const fileSystem = {
 const inquiryOps = {
   async findBySlug(slug) {
     try {
+      // Try database first
       if (db) {
         const result = await db.query('SELECT * FROM inquiries WHERE slug = $1 LIMIT 1', [slug]);
         if (result.rows.length > 0) {
@@ -402,7 +406,6 @@ const inquiryOps = {
             parentEmail: row.parent_email,
             ageGroup: row.age_group,
             entryYear: row.entry_year,
-            formLanguage: row.form_language,
             receivedAt: row.received_at,
             status: row.status,
             slug: row.slug,
@@ -412,6 +415,7 @@ const inquiryOps = {
         }
       }
       
+      // Fallback to JSON files
       const files = await fs.readdir(path.join(__dirname, 'data'));
       for (const file of files.filter(x => x.startsWith('inquiry-') && x.endsWith('.json'))) {
         const content = await fs.readFile(path.join(__dirname, 'data', file), 'utf8');
@@ -428,6 +432,7 @@ const inquiryOps = {
 
   async findById(id) {
     try {
+      // Try database first
       if (db) {
         const result = await db.query('SELECT * FROM inquiries WHERE id = $1 LIMIT 1', [id]);
         if (result.rows.length > 0) {
@@ -435,6 +440,7 @@ const inquiryOps = {
         }
       }
       
+      // Fallback to JSON files
       const files = await fs.readdir(path.join(__dirname, 'data'));
       for (const file of files.filter(x => x.startsWith('inquiry-') && x.endsWith('.json'))) {
         const content = await fs.readFile(path.join(__dirname, 'data', file), 'utf8');
@@ -453,6 +459,7 @@ const inquiryOps = {
     const inquiries = [];
     
     try {
+      // Get from database if available
       if (db) {
         const result = await db.query('SELECT * FROM inquiries ORDER BY received_at DESC');
         inquiries.push(...result.rows.map(row => ({
@@ -462,7 +469,6 @@ const inquiryOps = {
           parentEmail: row.parent_email,
           ageGroup: row.age_group,
           entryYear: row.entry_year,
-          formLanguage: row.form_language,
           receivedAt: row.received_at,
           status: row.status,
           slug: row.slug,
@@ -471,6 +477,7 @@ const inquiryOps = {
           prospectusUrl: row.prospectus_url
         })));
       } else {
+        // Fallback to JSON files
         const files = await fs.readdir(path.join(__dirname, 'data'));
         for (const file of files.filter(x => x.startsWith('inquiry-') && x.endsWith('.json'))) {
           const content = await fs.readFile(path.join(__dirname, 'data', file), 'utf8');
@@ -487,6 +494,7 @@ const inquiryOps = {
 
   async updateStatus(inquiryId, updates) {
     try {
+      // Update in database if available
       if (db) {
         const query = `
           UPDATE inquiries SET
@@ -507,6 +515,7 @@ const inquiryOps = {
         await db.query(query, values);
       }
       
+      // Also update JSON file
       const files = await fs.readdir(path.join(__dirname, 'data'));
       for (const file of files.filter(x => x.startsWith('inquiry-') && x.endsWith('.json'))) {
         const filePath = path.join(__dirname, 'data', file);
@@ -528,282 +537,149 @@ const inquiryOps = {
   }
 };
 
-// ===================== TRANSLATION FUNCTIONS =====================
-const translation = {
-  async translateHTML(html, targetLang) {
-    try {
-      const DEEPL_API_KEY = process.env.DEEPL_API_KEY;
-      const DEEPL_ENDPOINT = process.env.DEEPL_API_BASE || 'https://api-free.deepl.com/v2/translate';
-
-      if (!DEEPL_API_KEY) {
-        throw new Error('DEEPL_API_KEY missing');
-      }
-
-      if (!ALLOWED_LANGUAGES.has(targetLang.toLowerCase())) {
-        throw new Error(`Unsupported target language: ${targetLang}`);
-      }
-
-      const form = new URLSearchParams();
-      form.append('text', html);
-      form.append('target_lang', targetLang.toUpperCase());
-      form.append('tag_handling', 'html');
-      form.append('preserve_formatting', '1');
-      form.append('split_sentences', 'nonewlines');
-
-      const response = await fetch(DEEPL_ENDPOINT, {
-        method: 'POST',
-        headers: {
-          'Authorization': `DeepL-Auth-Key ${DEEPL_API_KEY}`,
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: form
-      });
-
-      const payload = await response.json();
-      if (!response.ok) {
-        throw new Error(`DeepL error: ${response.status} ${JSON.stringify(payload)}`);
-      }
-
-      const translated = payload?.translations?.[0]?.text || '';
-      if (!translated) {
-        throw new Error('Empty translation received');
-      }
-
-      return translated;
-    } catch (error) {
-      console.error('Translation failed:', error);
-      throw error;
-    }
-  },
-
-  async generateMultilingualProspectus(inquiry) {
-    const userLanguage = inquiry.formLanguage || 'en';
-    console.log(`🌍 Generating prospectus in ${userLanguage} for ${inquiry.firstName} ${inquiry.familySurname}`);
+// ===================== PROSPECTUS GENERATION =====================
+async function generateProspectus(inquiry) {
+  try {
+    const filename = utils.generateFilename(inquiry);
+    const filePath = path.join(__dirname, 'prospectuses', filename);
+    const baseUrl = process.env.PUBLIC_BASE_URL || 'http://localhost:3000';
+    const trackingId = encryption.encrypt(inquiry.id);
     
-    try {
-      // Read the template
-      const templatePath = path.join(__dirname, 'public', 'prospectus_template.html');
-      let templateHtml;
-      
-      try {
-        templateHtml = await fs.readFile(templatePath, 'utf8');
-        console.log('📄 Template loaded from public/prospectus_template.html');
-      } catch (templateError) {
-        console.warn('⚠️ Template not found, creating basic template...');
-        const basicTemplate = this.createBasicTemplate();
-        await fs.mkdir(path.join(__dirname, 'public'), { recursive: true });
-        await fs.writeFile(templatePath, basicTemplate, 'utf8');
-        templateHtml = basicTemplate;
-        console.log('📝 Basic template created');
-      }
-
-      const filename = utils.generateFilename(inquiry);
-      const outputPath = path.join(__dirname, 'prospectuses', filename);
-      const baseUrl = utils.getBaseUrl({ headers: {}, protocol: 'https', get: () => 'localhost:3000' });
-      const trackingId = encryption.encrypt(inquiry.id);
-      
-      // Add meta tags with inquiry and language information
-      const metaTags = `
-    <meta name="inquiry-id" content="${inquiry.id}">
-    <meta name="tracking-id" content="${trackingId}">
-    <meta name="initial-language" content="${userLanguage}">
-    <meta name="form-language" content="${userLanguage}">
-    <meta name="generated-date" content="${new Date().toISOString()}">
-    <meta name="student-name" content="${inquiry.firstName} ${inquiry.familySurname}">
-    <meta name="entry-year" content="${inquiry.entryYear}">
-    <meta name="age-group" content="${inquiry.ageGroup}">`;
-      
-      templateHtml = templateHtml.replace('</head>', metaTags + '\n</head>');
-      
-      // Update page title
-      const personalizedTitle = `${inquiry.firstName} ${inquiry.familySurname} - More House School Prospectus ${inquiry.entryYear}`;
-      templateHtml = templateHtml.replace(/<title>.*?<\/title>/, `<title>${personalizedTitle}</title>`);
-      
-      // If not English, translate the content before personalization
-      if (userLanguage !== 'en') {
-        console.log(`🔄 Translating content to ${userLanguage}...`);
-        try {
-          // Extract translatable content (avoid scripts, styles, and data-no-translate elements)
-          const translatableHtml = this.prepareForTranslation(templateHtml);
-          const translatedHtml = await this.translateHTML(translatableHtml, userLanguage);
-          templateHtml = this.restoreNonTranslatableContent(templateHtml, translatedHtml);
-          console.log(`✅ Content translated to ${userLanguage}`);
-        } catch (translationError) {
-          console.warn(`⚠️ Translation failed, using English version:`, translationError.message);
-        }
-      }
-
-      // Set URL with language parameter if not English
-      const languageParam = userLanguage !== 'en' ? `?lang=${userLanguage}` : '';
-      
-      // Create personalization script
-      const personalizationScript = `
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const userData = ${JSON.stringify(inquiry, null, 2)};
-    console.log('🎯 Initializing prospectus with data:', userData);
-    
-    if (typeof initializeProspectus === 'function') {
-        initializeProspectus(userData);
-        console.log('✅ Prospectus personalized for:', userData.firstName, userData.familySurname);
-    } else {
-        console.warn('⚠️ initializeProspectus function not found in template');
-    }
-});
-</script>`;
-
-      // Create tracking script
-      const trackingScript = this.createTrackingScript(trackingId, baseUrl);
-
-      // Inject scripts before closing body tag
-      templateHtml = templateHtml.replace('</body>', 
-          personalizationScript + '\n' + trackingScript + '\n</body>');
-      
-      // Write the personalized prospectus to file
-      await fs.writeFile(outputPath, templateHtml, 'utf8');
-      console.log(`✅ Generated multilingual prospectus: ${filename} (${userLanguage})`);
-      console.log(`📁 Saved to: ${outputPath}`);
-      
-      return {
-        filename: filename,
-        url: `/prospectuses/${filename}${languageParam}`,
-        fullPath: outputPath,
-        language: userLanguage
-      };
-    } catch (error) {
-      console.error('❌ Failed to generate multilingual prospectus:', error.message);
-      throw error;
-    }
-  },
-
-  createBasicTemplate() {
-    return `<!DOCTYPE html>
+    const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>More House School Prospectus</title>
-  
-  <!-- Language Switcher -->
-  <div id="lang-switcher" data-no-translate
-       style="position:fixed; top:16px; right:16px; z-index:9999; background:#fff; border:1px solid #e5e5e5; border-radius:6px; padding:6px 8px; font:14px/1.2 system-ui;">
-    <label for="prospectus-lang" style="margin-right:6px;">Language:</label>
-    <select id="prospectus-lang" aria-label="Select language">
-      <option value="en">🇬🇧 English</option>
-      <option value="zh">🇨🇳 中文</option>
-      <option value="ar">🇸🇦 العربية</option>
-      <option value="ru">🇷🇺 Русский</option>
-      <option value="fr">🇫🇷 Français</option>
-      <option value="es">🇪🇸 Español</option>
-      <option value="de">🇩🇪 Deutsch</option>
-      <option value="it">🇮🇹 Italiano</option>
-    </select>
-  </div>
-  
+  <title>More House School - ${inquiry.familySurname} Family Prospectus</title>
+  <style>
+    body { font-family: Georgia, serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 20px; }
+    .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 40px; text-align: center; border-radius: 10px; margin-bottom: 30px; }
+    h1 { margin: 0; font-size: 2.5em; }
+    .subtitle { opacity: 0.95; margin-top: 10px; }
+    .content { background: white; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); border-radius: 10px; }
+    .section { margin-bottom: 30px; }
+    .cta { background: #667eea; color: white; padding: 15px 30px; text-decoration: none; display: inline-block; border-radius: 5px; margin-top: 20px; }
+    .cta:hover { background: #764ba2; }
+  </style>
   <script>
-    function initializeProspectus(userData) {
-      console.log('Personalizing prospectus for:', userData);
-      document.querySelectorAll('[data-field]').forEach(el => {
-        const field = el.dataset.field;
-        if (userData[field]) {
-          el.textContent = userData[field];
-        }
-      });
-    }
-  </script>
-</head>
-<body>
-  <h1 data-no-translate>More House School</h1>
-  <p data-no-translate>Knightsbridge</p>
-  <h2>Prospectus</h2>
-  <p>Welcome <span data-field="firstName"></span> <span data-field="familySurname"></span></p>
-  <p>Entry Year: <span data-field="entryYear"></span></p>
-  <p>Age Group: <span data-field="ageGroup"></span></p>
-  
-  <script src="/translator.js" defer></script>
-</body>
-</html>`;
-  },
-
-  prepareForTranslation(html) {
-    // Simple implementation - in production you'd want more sophisticated parsing
-    // Remove script and style tags, and elements with data-no-translate
-    let translatable = html
-      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
-      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
-      .replace(/<[^>]*data-no-translate[^>]*>[\s\S]*?<\/[^>]+>/gi, '');
-    return translatable;
-  },
-
-  restoreNonTranslatableContent(original, translated) {
-    // Simple merge - in production you'd want more sophisticated merging
-    // This is a basic implementation
-    return translated;
-  },
-
-  createTrackingScript(trackingId, baseUrl) {
-    return `
-<script>
-(function() {
-    const trackingId = '${trackingId}';
-    const sessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-    const startTime = Date.now();
-    let maxScrollDepth = 0;
-    let clickCount = 0;
-    
-    fetch('${baseUrl}/api/track-engagement', {
+    (function() {
+      const trackingId = '${trackingId}';
+      const sessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+      const startTime = Date.now();
+      let maxScrollDepth = 0;
+      let clickCount = 0;
+      
+      // Track page view
+      fetch('${baseUrl}/api/track-engagement', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-            inquiryId: trackingId,
-            eventType: 'page_view',
-            sessionId: sessionId,
-            pageUrl: window.location.href
+          inquiryId: trackingId,
+          eventType: 'page_view',
+          sessionId: sessionId,
+          pageUrl: window.location.href
         })
-    }).catch(err => console.log('Tracking error:', err));
-    
-    window.addEventListener('scroll', function() {
+      });
+      
+      // Track scroll depth
+      window.addEventListener('scroll', function() {
         const scrollPercent = Math.round((window.scrollY + window.innerHeight) / document.body.scrollHeight * 100);
         maxScrollDepth = Math.max(maxScrollDepth, scrollPercent);
-    });
-    
-    document.addEventListener('click', function(e) {
+      });
+      
+      // Track clicks
+      document.addEventListener('click', function(e) {
         if (e.target.tagName === 'A') {
-            clickCount++;
-            fetch('${baseUrl}/api/track-engagement', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    inquiryId: trackingId,
-                    eventType: 'link_click',
-                    sessionId: sessionId,
-                    eventData: { href: e.target.href, text: e.target.innerText }
-                })
-            }).catch(err => console.log('Tracking error:', err));
+          clickCount++;
+          fetch('${baseUrl}/api/track-engagement', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              inquiryId: trackingId,
+              eventType: 'link_click',
+              sessionId: sessionId,
+              eventData: { href: e.target.href, text: e.target.innerText }
+            })
+          });
         }
-    });
-    
-    window.addEventListener('beforeunload', function() {
+      });
+      
+      // Send metrics on page unload
+      window.addEventListener('beforeunload', function() {
         const timeOnPage = Math.round((Date.now() - startTime) / 1000);
-        const payload = JSON.stringify({
-            inquiryId: trackingId,
-            eventType: 'page_exit',
-            sessionId: sessionId,
-            metrics: {
-                timeOnPage: timeOnPage,
-                scrollDepth: maxScrollDepth,
-                clicksOnLinks: clickCount
-            }
-        });
-        
-        if (navigator.sendBeacon) {
-            navigator.sendBeacon('${baseUrl}/api/track-engagement', payload);
-        }
-    });
-})();
-</script>`;
+        navigator.sendBeacon('${baseUrl}/api/track-engagement', JSON.stringify({
+          inquiryId: trackingId,
+          eventType: 'page_exit',
+          sessionId: sessionId,
+          metrics: {
+            timeOnPage: timeOnPage,
+            scrollDepth: maxScrollDepth,
+            clicksOnLinks: clickCount
+          }
+        }));
+      });
+    })();
+  </script>
+</head>
+<body>
+  <div class="header">
+    <h1>Welcome to More House School</h1>
+    <div class="subtitle">Personalized Prospectus for the ${inquiry.familySurname} Family</div>
+  </div>
+  
+  <div class="content">
+    <div class="section">
+      <h2>Dear ${inquiry.firstName},</h2>
+      <p>Thank you for your interest in More House School. We're excited to share how our unique approach to education can support your journey.</p>
+    </div>
+    
+    <div class="section">
+      <h2>Why More House is Perfect for ${inquiry.firstName}</h2>
+      <p>Based on your interest in our <strong>${inquiry.ageGroup}</strong> program for <strong>${inquiry.entryYear}</strong> entry, we've prepared this personalized prospectus highlighting the most relevant aspects of our school for your family.</p>
+    </div>
+    
+    <div class="section">
+      <h2>Our ${inquiry.ageGroup} Program</h2>
+      <p>Our ${inquiry.ageGroup} curriculum is designed to challenge and inspire students, preparing them for success in their academic journey and beyond.</p>
+      <ul>
+        <li>Small class sizes ensuring personalized attention</li>
+        <li>Innovative teaching methods tailored to different learning styles</li>
+        <li>Comprehensive support system for academic and personal development</li>
+        <li>Rich extracurricular programs to develop well-rounded individuals</li>
+      </ul>
+    </div>
+    
+    <div class="section">
+      <h2>Next Steps for ${inquiry.entryYear} Entry</h2>
+      <p>We would love to welcome ${inquiry.firstName} to our community. Here are your next steps:</p>
+      <ol>
+        <li>Schedule a personal tour of our campus</li>
+        <li>Meet with our admissions team to discuss ${inquiry.firstName}'s specific needs and interests</li>
+        <li>Attend one of our open days to experience More House in action</li>
+        <li>Submit your application for ${inquiry.entryYear} entry</li>
+      </ol>
+    </div>
+    
+    <div class="section">
+      <a href="mailto:admissions@morehouse.edu?subject=Follow-up for ${inquiry.familySurname} Family&body=Dear Admissions Team,%0D%0A%0D%0AI would like to schedule a visit to discuss ${inquiry.firstName}'s application for ${inquiry.entryYear} entry to the ${inquiry.ageGroup} program." class="cta">Schedule Your Visit</a>
+    </div>
+  </div>
+</body>
+</html>`;
+    
+    await fs.writeFile(filePath, html);
+    console.log(`✅ Generated prospectus: ${filename}`);
+    
+    return {
+      filename: filename,
+      url: `/prospectuses/${filename}`,
+      fullPath: filePath
+    };
+  } catch (error) {
+    console.error('Failed to generate prospectus:', error.message);
+    throw error;
   }
-};
+}
 
 // ===================== AI ANALYSIS FUNCTIONS =====================
 async function analyzeEngagementForInquiry(inquiryId) {
@@ -835,11 +711,12 @@ async function analyzeEngagementForInquiry(inquiryId) {
       }
     }
 
+    // In a real implementation, this would call an AI API
+    // For now, return a structured analysis based on available data
     return {
       inquiryId: inquiryId,
       familyName: `${inquiry.first_name || inquiry.firstName} ${inquiry.family_surname || inquiry.familySurname}`,
       status: inquiry.status,
-      language: inquiry.form_language || inquiry.formLanguage || 'en',
       engagementLevel: engagementScore > 70 ? 'high' : engagementScore > 40 ? 'medium' : 'low',
       leadTemperature: engagementScore > 70 ? 'hot' : engagementScore > 40 ? 'warm' : 'cold',
       conversationStarters: [
@@ -894,6 +771,7 @@ async function analyzeEngagementForInquiry(inquiryId) {
 // ===================== MIDDLEWARE SETUP =====================
 const corsOptions = {
   origin(origin, cb) {
+    // Allow all origins for development, restrict in production
     if (!origin || 
         origin.includes('.onrender.com') || 
         origin.includes('localhost') || 
@@ -901,7 +779,7 @@ const corsOptions = {
         origin.includes('.github.io')) {
       return cb(null, true);
     }
-    return cb(null, true);
+    return cb(null, true); // Allow all for now
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
@@ -946,22 +824,17 @@ app.get('/', (req, res) => {
     .endpoints { background: #fafafa; padding: 15px; border-radius: 8px; }
     code { background: #e5e7eb; padding: 2px 6px; border-radius: 3px; }
     a { color: #2563eb; }
-    .new-feature { background: #e8f5e9; padding: 8px; border-radius: 4px; color: #2e7d32; font-weight: bold; margin: 10px 0; }
   </style>
 </head>
 <body>
   <h1>${CONFIG.SERVICE_NAME}</h1>
   <p><strong>Version ${CONFIG.VERSION}</strong></p>
   
-  <div class="new-feature">🌍 Now with full multilingual support!</div>
-  
   <div class="status">
     <h3>System Status:</h3>
     <ul>
       <li>Database: ${status.database}</li>
       <li>Environment: ${status.environment}</li>
-      <li>Translation: ${status.translation}</li>
-      <li>Supported Languages: ${status.supportedLanguages.join(', ')}</li>
       <li>Uptime: ${Math.floor(status.uptime / 60)} minutes</li>
     </ul>
   </div>
@@ -971,76 +844,20 @@ app.get('/', (req, res) => {
     <ul>
       <li>Health: <a href="${base}${ENDPOINTS.health}">${base}${ENDPOINTS.health}</a></li>
       <li>Webhook: <code>POST ${base}${ENDPOINTS.webhook}</code></li>
-      <li>Translation: <code>POST ${base}${ENDPOINTS.deepl}</code></li>
       <li>Dashboard: <a href="${base}${ENDPOINTS.dashboard}">${base}${ENDPOINTS.dashboard}</a></li>
       <li>Inquiries: <a href="${base}${ENDPOINTS.inquiries}">${base}${ENDPOINTS.inquiries}</a></li>
       <li>Dashboard Data: <a href="${base}${ENDPOINTS.dashboardData}">${base}${ENDPOINTS.dashboardData}</a></li>
+      <li>AI Analysis: <code>POST ${base}/api/ai/engagement-summary/:inquiryId</code></li>
+      <li>Rebuild Slugs: <a href="${base}${ENDPOINTS.rebuildSlugs}">${base}${ENDPOINTS.rebuildSlugs}</a></li>
     </ul>
   </div>
-  
-  <h3>🆕 Multilingual Features:</h3>
-  <ul>
-    <li>🌍 <strong>Language-aware prospectus generation</strong></li>
-    <li>🔄 <strong>Real-time DeepL translation</strong></li>
-    <li>📱 <strong>Dynamic language switching</strong></li>
-    <li>🎯 <strong>Pre-translated content delivery</strong></li>
-  </ul>
   
   <p style="margin-top: 20px;">Pretty URLs: <code>${base}/the-smith-family-abc123</code></p>
 </body>
 </html>`);
 });
 
-// ===================== DEEPL TRANSLATION ENDPOINT =====================
-app.post(ENDPOINTS.deepl, async (req, res) => {
-  try {
-    const DEEPL_API_KEY = process.env.DEEPL_API_KEY;
-    const DEEPL_ENDPOINT = process.env.DEEPL_API_BASE || 'https://api-free.deepl.com/v2/translate';
-
-    if (!DEEPL_API_KEY) {
-      return res.status(500).json({ error: 'DEEPL_API_KEY missing' });
-    }
-
-    const { html, target_lang } = req.body || {};
-
-    if (typeof html !== 'string' || !html.trim()) {
-      return res.status(400).json({ error: 'Missing html' });
-    }
-    if (!ALLOWED_LANGUAGES.has((target_lang || '').toLowerCase())) {
-      return res.status(400).json({ error: 'Unsupported target_lang' });
-    }
-
-    // Build form for DeepL (HTML-aware)
-    const form = new URLSearchParams();
-    form.append('text', html);
-    form.append('target_lang', String(target_lang).toUpperCase());
-    form.append('tag_handling', 'html');
-    form.append('preserve_formatting', '1');
-    form.append('split_sentences', 'nonewlines');
-
-    const dl = await fetch(DEEPL_ENDPOINT, {
-      method: 'POST',
-      headers: {
-        'Authorization': `DeepL-Auth-Key ${DEEPL_API_KEY}`,
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: form
-    });
-
-    const payload = await dl.json();
-    if (!dl.ok) {
-      return res.status(502).json({ error: 'DeepL error', details: payload });
-    }
-
-    const translated = payload?.translations?.[0]?.text || '';
-    return res.json({ translated });
-  } catch (err) {
-    console.error('DeepL proxy failed:', err);
-    return res.status(500).json({ error: 'Proxy failure' });
-  }
-});
-
-// ===================== WEBHOOK ENDPOINT WITH MULTILINGUAL SUPPORT =====================
+// Webhook endpoint
 app.post(ENDPOINTS.webhook, async (req, res) => {
   try {
     const data = req.body || {};
@@ -1058,16 +875,11 @@ app.post(ENDPOINTS.webhook, async (req, res) => {
     const now = new Date().toISOString();
     const base = utils.getBaseUrl(req);
     
-    // ✅ CAPTURE FORM LANGUAGE
-    const formLanguage = data.formLanguage || 'en';
-    console.log(`🌍 Form submitted in language: ${formLanguage}`);
-    
     const record = {
       id: utils.generateInquiryId(),
       receivedAt: now,
       status: 'received',
       prospectusGenerated: false,
-      formLanguage: formLanguage,  // ✅ STORE THE LANGUAGE
       userAgent: req.headers['user-agent'],
       referrer: req.headers.referer,
       ip: req.ip || req.connection.remoteAddress,
@@ -1077,14 +889,6 @@ app.post(ENDPOINTS.webhook, async (req, res) => {
 
     record.slug = utils.makeSlug(record);
     
-    console.log(`\n🎯 WEBHOOK RECEIVED - ${formLanguage.toUpperCase()}`);
-    console.log('═══════════════════════════════════════');
-    console.log(`👨‍👩‍👧 Family: ${record.firstName} ${record.familySurname}`);
-    console.log(`📧 Email: ${record.parentEmail}`);
-    console.log(`🌍 Language: ${formLanguage}`);
-    console.log(`🎓 Entry: ${record.entryYear} (${record.ageGroup})`);
-    console.log('═══════════════════════════════════════');
-    
     // Save to JSON file
     await fileSystem.saveInquiryJson(record);
     
@@ -1093,10 +897,8 @@ app.post(ENDPOINTS.webhook, async (req, res) => {
       await database.saveInquiry(record);
     }
     
-    // ✅ GENERATE MULTILINGUAL PROSPECTUS
-    console.log(`🎨 Generating prospectus in ${formLanguage}...`);
-    const prospectus = await translation.generateMultilingualProspectus(record);
-    
+    // Generate prospectus
+    const prospectus = await generateProspectus(record);
     record.prospectusGenerated = true;
     record.prospectusFilename = prospectus.filename;
     record.prospectusUrl = prospectus.url;
@@ -1113,19 +915,11 @@ app.post(ENDPOINTS.webhook, async (req, res) => {
     slugIndex[record.slug] = prospectus.url;
     await fileSystem.saveSlugIndex();
     
-    console.log(`✅ Multilingual prospectus generated: ${prospectus.filename}`);
-    
     res.json({
       success: true,
-      message: `Inquiry received and prospectus generated in ${formLanguage}`,
+      message: 'Inquiry received and prospectus generated',
       inquiryId: record.id,
       slug: record.slug,
-      language: formLanguage,
-      prospectus: {
-        filename: prospectus.filename,
-        url: `${base}${prospectus.url}`,
-        language: prospectus.language
-      },
       prospectusUrl: `${base}${prospectus.url}`,
       prettyUrl: `${base}/${record.slug}`
     });
@@ -1165,39 +959,18 @@ app.get(ENDPOINTS.dashboardData, async (req, res) => {
     const totalInquiries = inquiries.length;
     const prospectusGenerated = inquiries.filter(i => i.prospectusGenerated).length;
     
-    // Language breakdown
-    const languageStats = {};
-    inquiries.forEach(i => {
-      const lang = i.formLanguage || 'en';
-      languageStats[lang] = (languageStats[lang] || 0) + 1;
-    });
-    
+    // Get engagement data if database is available
     let engagementStats = null;
     if (db) {
-      const overallResult = await db.query(`
+      const engagementResult = await db.query(`
         SELECT 
           COUNT(DISTINCT inquiry_id) as engaged_families,
-          SUM(time_on_page) as total_time_seconds,
-          MAX(scroll_depth) as max_scroll_depth,
-          SUM(clicks_on_links) as total_clicks,
-          SUM(total_visits) as total_visits
+          AVG(time_on_page) as avg_time_on_page,
+          AVG(scroll_depth) as avg_scroll_depth,
+          SUM(clicks_on_links) as total_clicks
         FROM engagement_metrics
       `);
-      
-      const perInquiryResult = await db.query(`
-        SELECT 
-          inquiry_id,
-          SUM(time_on_page) as total_time,
-          COUNT(*) as visit_count
-        FROM engagement_metrics
-        GROUP BY inquiry_id
-        ORDER BY total_time DESC
-      `);
-      
-      engagementStats = {
-        overall: overallResult.rows[0],
-        byInquiry: perInquiryResult.rows
-      };
+      engagementStats = engagementResult.rows[0];
     }
     
     res.json({
@@ -1206,7 +979,6 @@ app.get(ENDPOINTS.dashboardData, async (req, res) => {
         totalInquiries,
         prospectusGenerated,
         conversionRate: totalInquiries > 0 ? ((prospectusGenerated / totalInquiries) * 100).toFixed(1) : 0,
-        languageBreakdown: languageStats,
         engagementStats
       },
       recentInquiries: inquiries.slice(0, 10),
@@ -1226,31 +998,10 @@ app.post([ENDPOINTS.trackEngagement, ENDPOINTS.trackLegacy], async (req, res) =>
   try {
     const data = req.body;
     
-    if (data.events && Array.isArray(data.events)) {
-      const { events, sessionInfo } = data;
-      
-      for (const event of events) {
-        const inquiryId = event.inquiryId || sessionInfo?.inquiryId;
-        
-        if (inquiryId && inquiryId !== 'UNKNOWN') {
-          await database.trackEngagementEvent({
-            inquiryId: inquiryId,
-            eventType: event.eventType,
-            eventData: event.data || {},
-            sessionId: event.sessionId || sessionInfo?.sessionId,
-            ipAddress: req.ip,
-            userAgent: req.headers['user-agent'],
-            pageUrl: event.pageUrl || req.headers.referer
-          });
-        }
-      }
-      
-      res.json({ success: true, processed: events.length });
-      return;
-    }
+    // Decrypt inquiry ID if encrypted
+    const inquiryId = encryption.decrypt(data.inquiryId);
     
-    const inquiryId = encryption.decrypt(data.inquiryId || '');
-    
+    // Track the event
     if (data.eventType) {
       await database.trackEngagementEvent({
         ...data,
@@ -1260,6 +1011,7 @@ app.post([ENDPOINTS.trackEngagement, ENDPOINTS.trackLegacy], async (req, res) =>
       });
     }
     
+    // Update metrics if provided
     if (data.metrics) {
       await database.updateEngagementMetrics(inquiryId, {
         ...data.metrics,
@@ -1344,30 +1096,27 @@ app.get(ENDPOINTS.rebuildSlugs, async (req, res) => {
   });
 });
 
-// Reserved slugs for system routes
-const RESERVED = new Set([
-  'api','prospectuses','health','tracking','dashboard','favicon','robots',
-  'sitemap','metrics','config','webhook','admin','download'
-]);
-
 // Pretty URL handler (slug-based routing)
 app.get('/:slug', async (req, res, next) => {
   const slug = req.params.slug.toLowerCase();
   
-  if (slug.includes('.') || slug.startsWith('api') || RESERVED.has(slug)) {
+  // Skip if it looks like a file or API route
+  if (slug.includes('.') || slug.startsWith('api')) {
     return next();
   }
   
   try {
+    // Check slug index first
     if (slugIndex[slug]) {
       const prospectusPath = path.join(__dirname, slugIndex[slug]);
       return res.sendFile(prospectusPath);
     }
     
+    // Try to find inquiry and generate prospectus if needed
     const inquiry = await inquiryOps.findBySlug(slug);
     if (inquiry) {
       if (!inquiry.prospectusFilename) {
-        const prospectus = await translation.generateMultilingualProspectus(inquiry);
+        const prospectus = await generateProspectus(inquiry);
         await inquiryOps.updateStatus(inquiry.id, {
           status: 'prospectus-generated',
           prospectusFilename: prospectus.filename,
@@ -1399,7 +1148,7 @@ app.use((err, req, res, next) => {
   });
 });
 
-// 404 handler
+// 404 handler - must be last
 app.use((req, res) => {
   res.status(404).json({
     success: false,
@@ -1409,7 +1158,8 @@ app.use((req, res) => {
 });
 
 // ===================== SERVER LIFECYCLE =====================
-// ===================== SERVER LIFECYCLE =====================
+
+// Unified shutdown handler
 async function handleShutdown(signal) {
   console.log(`\nShutting down gracefully (${signal})...`);
   
@@ -1421,8 +1171,9 @@ async function handleShutdown(signal) {
   process.exit(0);
 }
 
+// Server startup
 async function startServer() {
-  console.log('Starting More House Multilingual System...');
+  console.log('Starting More House School System...');
   
   try {
     const dbConnected = await database.initialize();
@@ -1432,28 +1183,14 @@ async function startServer() {
     
     app.listen(PORT, () => {
       console.log(`
-╔══════════════════════════════════════════════════════════════════╗
-║              MORE HOUSE MULTILINGUAL SYSTEM v${CONFIG.VERSION}              ║
-╠══════════════════════════════════════════════════════════════════╣
-║ Server:      http://localhost:${PORT}                                ║
+╔════════════════════════════════════════════════════════╗
+║           MORE HOUSE SCHOOL SYSTEM v${CONFIG.VERSION}           ║
+╠════════════════════════════════════════════════════════╣
+║ Server:      http://localhost:${PORT}                      ║
 ║ Database:    ${dbConnected ? '✅ PostgreSQL Connected' : '📁 JSON-only mode      '}      ║
-║ Translation: ✅ DeepL API Enabled                                ║
-║ Languages:   🌍 8 Languages Supported                           ║
 ║ Environment: ${CONFIG.ENVIRONMENT.padEnd(26)} ║
-║ Status:      🟢 All systems operational                         ║
-╚══════════════════════════════════════════════════════════════════╝
-      
-🌍 Supported Languages: ${Array.from(ALLOWED_LANGUAGES).join(', ')}
-🔄 Translation: ${process.env.DEEPL_API_KEY ? 'Connected' : 'Disabled (JSON only)'}
-════════════════════════════════════════════════════════════════════
-✅ MULTILINGUAL FEATURES:
-   ✅ Language-aware prospectus generation
-   ✅ Real-time DeepL translation via /api/deepl
-   ✅ Form language capture and storage
-   ✅ Pre-translated content delivery
-   ✅ Dynamic language switching in prospectus
-   ✅ Multilingual analytics and tracking
-════════════════════════════════════════════════════════════════════
+║ Status:      🟢 All systems operational               ║
+╚════════════════════════════════════════════════════════╝
       `);
     });
   } catch (error) {
@@ -1462,11 +1199,14 @@ async function startServer() {
   }
 }
 
+// Register shutdown handlers
 process.on('SIGINT', () => handleShutdown('SIGINT'));
 process.on('SIGTERM', () => handleShutdown('SIGTERM'));
 
+// Start the server
 startServer();
 
+// Export for testing or external use
 module.exports = {
   app,
   utils,
@@ -1474,6 +1214,6 @@ module.exports = {
   encryption,
   fileSystem,
   inquiryOps,
-  translation,
+  generateProspectus,
   analyzeEngagementForInquiry
 };

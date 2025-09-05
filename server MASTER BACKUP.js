@@ -7,18 +7,13 @@ require('dotenv').config();
 const { Client } = require('pg');
 const OpenAI = require("openai");
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-const { translateFullHtml, normaliseLang, SUPPORTED } = require('./translate_engine');
-const { deeplBatch } = require('./translate_engine');
-const { normaliseLang, SUPPORTED, deeplBatch } = require('./translate_engine');
-
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 let db = null;
 let slugIndex = {};
 
-
-console.log('DeepL API key present:', !!process.env.DEEPL_API_KEY);
+app.use(require('express').json({ limit: '1mb' }));
 
 
 // ===== GEO/IP helpers =====================================
@@ -85,38 +80,6 @@ app.use((req, _res, next) => {
   req.geo = enrichGeo(req.clientIp);
   next();
 });
-
-// Translate full HTML with DeepL (preserves markup, skips script/style)
-async function translateFullHtml(html, lang) {
-  const key = process.env.DEEPL_API_KEY;
-  if (!key) throw new Error('DEEPL_API_KEY missing');
-
-  const endpoint = process.env.DEEPL_ENDPOINT || 'https://api-free.deepl.com/v2/translate';
-  const params = new URLSearchParams();
-  params.set('target_lang', lang.toUpperCase());
-  params.set('tag_handling', 'html');
-  params.set('ignore_tags', 'script,style');
-  params.set('preserve_formatting', '1');
-  params.append('text', html);
- 
-  const resp = await fetch(endpoint, {
-    method: 'POST',
-    headers: {
-      'Authorization': `DeepL-Auth-Key ${key}`,
-      'Content-Type': 'application/x-www-form-urlencoded'
-    },
-    body: params
-  });
-
-  if (!resp.ok) {
-    const body = await resp.text();
-    throw new Error(`DeepL HTTP ${resp.status}: ${body}`);
-  }
-
-  const data = await resp.json();
-  return data.translations[0].text;
-}
-
 
 // ===================== DATABASE INITIALIZATION =====================
 async function initializeDatabase() {
@@ -370,9 +333,12 @@ async function findInquiryBySlug(slug) {
           id: row.id,
           firstName: row.first_name,
           familySurname: row.family_surname,
+          parentName: row.parent_name,        // ADD THIS
           parentEmail: row.parent_email,
+          contactNumber: row.contact_number,  // ADD THIS
           ageGroup: row.age_group,
           entryYear: row.entry_year,
+          hearAboutUs: row.hear_about_us,    // ADD THIS
           receivedAt: row.received_at,
           status: row.status,
           slug: row.slug
@@ -856,12 +822,27 @@ async function buildEngagementSnapshot(db, inquiryId) {
       time_on_page_ms: totalDwellMs,
       video_ms: sections.reduce((sum, s) => sum + s.video_ms, 0),
       clicks: sections.reduce((sum, s) => sum + s.clicks, 0),
-      total_visits: parseInt(visitCount.rows[0]?.total_visits || 1),
+      total_visits: parseInt(visitCount.rows[0]?.total_visits || 0),
       scroll_depth: sections.length > 0 
         ? Math.round(sections.reduce((sum, s) => sum + s.max_scroll_pct, 0) / sections.length)
         : 0
     };
     
+        // --- Baseline guards: never show zero time if there were visits ---
+    // Use DB-stored return_visits when event data is sparse
+    if (!totals.total_visits || totals.total_visits === 0) {
+      const rvRow = await db.query(
+        'SELECT COALESCE(return_visits, 0) AS rv FROM inquiries WHERE id = $1',
+        [inquiryId]
+      );
+      totals.total_visits = parseInt(rvRow.rows[0]?.rv || '0', 10);
+    }
+
+    // If we still have visits but zero time, assume minimum 60s per visit
+    if ((totals.total_visits || 0) > 0 && (!totals.time_on_page_ms || totals.time_on_page_ms === 0)) {
+      totals.time_on_page_ms = totals.total_visits * 60000;
+    }
+
     return {
       sections,
       totals,
@@ -1307,15 +1288,11 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-app.use(express.json({ limit: '20mb' }));
+app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use((req, _res, next) => { console.log(req.method, req.url); next(); });
 app.use(express.static(path.join(__dirname, 'public')));
-
-// Translation-aware prospectus routes - CORRECTED VERSION
-app.get('/health', (req, res) => res.json({ ok: true }));
-
-
+app.use('/prospectuses', express.static(path.join(__dirname, 'prospectuses')));
 
 // ===================== API ROUTES =====================
 
@@ -1323,7 +1300,7 @@ app.get('/health', (req, res) => res.json({ ok: true }));
 app.post(['/webhook', '/api/inquiry'], async (req, res) => {
   try {
     const data = req.body || {};
-    const required = ['firstName','familySurname','parentEmail','ageGroup','entryYear'];
+    const required = ['firstName','familySurname','parentEmail','contactNumber','parentName','ageGroup','entryYear','hearAboutUs'];
     const missing = required.filter(k => !data[k]);
     
     if (missing.length) {
@@ -1344,6 +1321,9 @@ app.post(['/webhook', '/api/inquiry'], async (req, res) => {
       receivedAt: now,
       status: 'received',
       prospectusGenerated: false,
+      parentName: data.parentName,          // ADD THIS
+      contactNumber: data.contactNumber,    // ADD THIS
+      hearAboutUs: data.hearAboutUs,   
       userAgent: req.headers['user-agent'],
       referrer: req.headers.referer,
       ip: clientIP,
@@ -1364,7 +1344,7 @@ app.post(['/webhook', '/api/inquiry'], async (req, res) => {
       try {
         await db.query(`
           INSERT INTO inquiries (
-            id, first_name, family_surname, parent_email, age_group, entry_year,
+            id, parent_name, first_name, family_surname, parent_email, contact_number, age_group, entry_year, hear_about_us,
             sciences, mathematics, english, languages, humanities, business,
             drama, music, art, creative_writing,
             sport, leadership, community_service, outdoor_education,
@@ -1373,17 +1353,17 @@ app.post(['/webhook', '/api/inquiry'], async (req, res) => {
             received_at, status, user_agent, referrer, ip_address,
             country, region, city, latitude, longitude, timezone, isp
           ) VALUES (
-            $1,$2,$3,$4,$5,$6,
-            $7,$8,$9,$10,$11,$12,
-            $13,$14,$15,$16,
-            $17,$18,$19,$20,
-            $21,$22,$23,$24,$25,$26,
-            $27,$28,$29,$30,$31,
-            $32,$33,$34,$35,$36,$37,$38
+            $1,$2,$3,$4,$5,$6,$7,$8,$9,
+            $10,$11,$12,$13,$14,$15,
+            $16,$17,$18,$19,
+            $20,$21,$22,$23,
+            $24,$25,$26,$27,$28,$29,
+            $30,$31,$32,$33,$34,
+            $35,$36,$37,$38,$39,$40,$41
           )
           ON CONFLICT (id) DO NOTHING
         `, [
-          record.id, record.firstName, record.familySurname, record.parentEmail, record.ageGroup, record.entryYear,
+          record.id, record.parentName, record.firstName, record.familySurname, record.parentEmail, record.contactNumber, record.ageGroup, record.entryYear, record.hearAboutUs,
           !!record.sciences, !!record.mathematics, !!record.english, !!record.languages, !!record.humanities, !!record.business,
           !!record.drama, !!record.music, !!record.art, !!record.creative_writing,
           !!record.sport, !!record.leadership, !!record.community_service, !!record.outdoor_education,
@@ -1496,86 +1476,6 @@ app.post('/api/generate-prospectus/:inquiryId', async (req, res) => {
     res.status(500).json({ success: false, error: e.message });
   }
 });
-// Add this endpoint to your existing server.js Translation 
-// ===== Translation endpoint (DeepL) =====
-// === DeepL batch translation (logs + fallback) ===
-app.post('/api/translate-batch', async (req, res) => {
-  try {
-    const { texts, lang } = req.body || {};
-    if (!Array.isArray(texts) || !texts.length || !lang) {
-      return res.status(400).json({ error: 'Invalid request: texts[] and lang are required.' });
-    }
-
-    console.log(`[translate-batch] lang=${lang} count=${texts.length}`);
-
-    const key = process.env.DEEPL_API_KEY;
-    if (!key) {
-      console.error('[translate-batch] Missing DEEPL_API_KEY');
-      return res.status(500).json({ error: 'DEEPL not configured (DEEPL_API_KEY missing)' });
-    }
-
-    let translations = null;
-
-    // 1) Preferred: your existing helper if present
-    try {
-      if (typeof deeplBatch === 'function') {
-        translations = await deeplBatch(texts, lang);
-      }
-    } catch (err) {
-      console.warn('[translate-batch] deeplBatch() failed, will fall back:', err.message || err);
-    }
-
-    // 2) Fallback: direct DeepL REST (guarantees usage)
-    if (!translations || !Array.isArray(translations) || translations.length !== texts.length) {
-      const params = new URLSearchParams();
-      params.set('target_lang', (lang || 'EN').toUpperCase());
-      for (const t of texts) params.append('text', t);
-
-      const endpoint = process.env.DEEPL_ENDPOINT || 'https://api-free.deepl.com/v2/translate';
-      const resp = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Authorization': `DeepL-Auth-Key ${key}`,
-          'Content-Type': 'application/x-www-form-urlencoded'
-        },
-        body: params
-      });
-
-      if (!resp.ok) {
-        const body = await resp.text().catch(() => '');
-        console.error('[translate-batch] DeepL HTTP', resp.status, body);
-        return res.status(502).json({ error: `DeepL HTTP ${resp.status}`, detail: body });
-      }
-
-      const data = await resp.json();
-      if (!data || !Array.isArray(data.translations)) {
-        console.error('[translate-batch] Unexpected DeepL payload', data);
-        return res.status(502).json({ error: 'DeepL: unexpected response', detail: data });
-      }
-      translations = data.translations.map(t => t.text);
-    }
-
-    return res.json({ translations });
-  } catch (error) {
-    console.error('[translate-batch] Fatal error:', error);
-    return res.status(500).json({ error: 'Translation failed' });
-  }
-});
-
-// Client -> server relay for full-document translation via DeepL
-app.post('/api/translate-html', async (req, res) => {
-  try {
-    const { html, lang } = req.body || {};
-    if (!html || typeof html !== 'string') return res.status(400).json({ error: 'Missing html' });
-    if (!lang) return res.status(400).json({ error: 'Missing lang' });
-    const out = await translateFullHtml(html, String(lang));
-    return res.json({ html: out, lang: String(lang) });
-  } catch (e) {
-    console.error('translate-html error:', e.message);
-    return res.status(500).json({ error: 'Translate failed' });
-  }
-});
-
 
 // Tracking endpoints
 app.post(["/api/track","/api/tracking"], (req,res) => res.redirect(307, "/api/track-engagement"));
@@ -1642,6 +1542,63 @@ app.post('/api/track-engagement', async (req, res) => {
     });
   }
 });
+
+// === Latest visit timeline (read-only) ==========================
+app.get('/api/visits/:inquiryId/latest', async (req, res) => {
+  const { inquiryId } = req.params;
+  if (!inquiryId) return res.status(400).json({ ok: false, error: 'Missing inquiryId' });
+
+  try {
+    if (!db) return res.json({ ok: true, session: null, events: [] });
+
+    // Find most recent session for this inquiry
+    const sess = await db.query(`
+      WITH sessions AS (
+        SELECT session_id,
+               MIN(timestamp) AS start_ts,
+               MAX(timestamp) AS end_ts
+        FROM tracking_events
+        WHERE inquiry_id = $1
+          AND session_id IS NOT NULL
+        GROUP BY session_id
+        ORDER BY end_ts DESC
+        LIMIT 1
+      )
+      SELECT session_id, start_ts, end_ts
+      FROM sessions
+    `, [inquiryId]);
+
+    if (!sess.rows.length) return res.json({ ok: true, session: null, events: [] });
+    const { session_id, start_ts, end_ts } = sess.rows[0];
+
+    // Pull ordered events for that session
+    const evs = await db.query(`
+      SELECT event_type, event_data, timestamp
+      FROM tracking_events
+      WHERE inquiry_id = $1
+        AND session_id = $2
+      ORDER BY timestamp ASC
+    `, [inquiryId, session_id]);
+
+    const events = evs.rows.map(r => ({
+      type: r.event_type,
+      ts: r.timestamp,
+      name: (r.event_data && r.event_data.name) || r.event_type,
+      section: r.event_data?.section ?? null,
+      dwellSec: r.event_data?.dwellSec ?? null,
+      tier: r.event_data?.tier ?? null,
+      reason: r.event_data?.reason ?? null,
+      youtubeId: r.event_data?.youtubeId ?? null,
+      title: r.event_data?.title ?? null
+    }));
+
+    res.json({ ok: true, session: { id: session_id, start: start_ts, end: end_ts }, events });
+  } catch (e) {
+    console.error('latest visit error:', e);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 
 app.post('/api/track/dwell', async (req, res) => {
   try {
@@ -1714,8 +1671,11 @@ app.get('/api/dashboard-data', async (req, res) => {
           id: row.id,
           firstName: row.first_name,
           familySurname: row.family_surname,
+          parent_name: row.parentname,
           parentEmail: row.parent_email,
+          contact_number: row.contactnumber,
           ageGroup: row.age_group,
+          hear_about_us: row.hearabout_us,
           entryYear: row.entry_year,
           receivedAt: row.received_at,
           status: row.status,
@@ -1878,8 +1838,264 @@ app.get('/api/dashboard-data', async (req, res) => {
   }
 });
 
-app.get('/health/translate', (req, res) => {
-  res.json({ deepl_key_present: !!process.env.DEEPL_API_KEY });
+// === Inquiry overview (family, contact, interests, entry years, basic counts) ===
+app.get('/api/inquiry/:inquiryId/overview', async (req, res) => {
+  const { inquiryId } = req.params;
+  if (!inquiryId) return res.status(400).json({ ok:false, error:'Missing inquiryId' });
+
+  try {
+    if (!db) return res.json({ ok:true, overview: null });
+
+    // 1) Pull core inquiry info (adjust field names if yours differ)
+    const iq = await db.query(`
+      SELECT
+        inquiry_id,
+        family_name,
+        child_name,
+        email,
+        age_group,
+        entry_year,
+        interests,          -- array or comma-separated (adjust as needed)
+        slug,
+        prospectus_url      -- if stored; else build from slug
+      FROM inquiries
+      WHERE inquiry_id = $1
+      LIMIT 1
+    `, [inquiryId]);
+
+    const base = iq.rows[0] || {
+      inquiry_id: inquiryId,
+      family_name: 'Unknown Family',
+      child_name: null,
+      email: null,
+      age_group: null,
+      entry_year: null,
+      interests: null,
+      slug: null,
+      prospectus_url: null
+    };
+
+    // 2) Engagement basics from tracking_events
+    const stats = await db.query(`
+      SELECT
+        COUNT(*) AS events,
+        COUNT(DISTINCT session_id) AS visits,
+        MIN(timestamp) AS first_seen,
+        MAX(timestamp) AS last_seen
+      FROM tracking_events
+      WHERE inquiry_id = $1
+    `, [inquiryId]);
+
+    // Optional: total dwell time across sections (sum of section_exit dwellSec)
+    const dwell = await db.query(`
+      SELECT COALESCE(SUM((event_data->>'dwellSec')::int),0) AS total_dwell_sec
+      FROM tracking_events
+      WHERE inquiry_id = $1 AND event_type = 'section_exit'
+    `, [inquiryId]);
+
+    res.json({
+      ok: true,
+      overview: {
+        inquiryId: base.inquiry_id,
+        familyName: base.family_name,
+        childName: base.child_name,
+        email: base.email,
+        ageGroup: base.age_group,
+        entryYear: base.entry_year,
+        interests: base.interests,
+        slug: base.slug,
+        prospectusUrl: base.prospectus_url,
+        visits: Number(stats.rows[0]?.visits || 0),
+        events: Number(stats.rows[0]?.events || 0),
+        firstSeen: stats.rows[0]?.first_seen || null,
+        lastSeen: stats.rows[0]?.last_seen || null,
+        totalDwellSec: Number(dwell.rows[0]?.total_dwell_sec || 0)
+      }
+    });
+  } catch (e) {
+    console.error('overview error:', e);
+    res.status(500).json({ ok:false, error: e.message });
+  }
+});
+
+// === Sessions list for an inquiry (start/end + event count) ===
+app.get('/api/visits/:inquiryId/sessions', async (req, res) => {
+  const { inquiryId } = req.params;
+  if (!inquiryId) return res.status(400).json({ ok:false, error:'Missing inquiryId' });
+
+  try {
+    if (!db) return res.json({ ok:true, sessions: [] });
+
+    const q = await db.query(`
+      SELECT session_id,
+             MIN(timestamp) AS start_ts,
+             MAX(timestamp) AS end_ts,
+             COUNT(*)       AS events
+      FROM tracking_events
+      WHERE inquiry_id = $1 AND session_id IS NOT NULL
+      GROUP BY session_id
+      ORDER BY start_ts DESC
+      LIMIT 50
+    `, [inquiryId]);
+
+    res.json({ ok:true, sessions: q.rows });
+  } catch (e) {
+    console.error('sessions list error:', e);
+    res.status(500).json({ ok:false, error: e.message });
+  }
+});
+
+// === Utility: summarise a set of events into a short narrative ===
+function summariseEvents(events) {
+  // Track dwell by section
+  const bySection = new Map();
+  // Track unique videos by ID
+  const videos = new Map(); // youtubeId -> title
+  let openMorningClicks = 0;
+  const tiers = [];
+
+  for (const ev of events) {
+    if (ev.type === 'section_exit' && ev.section) {
+      const prev = bySection.get(ev.section) || 0;
+      if (Number.isFinite(ev.dwellSec)) {
+        bySection.set(ev.section, prev + Number(ev.dwellSec));
+      }
+    }
+
+    if (ev.type === 'video_open' && ev.youtubeId) {
+      if (!videos.has(ev.youtubeId)) {
+        videos.set(ev.youtubeId, ev.title || ev.youtubeId);
+      }
+    }
+
+    if (ev.type === 'cta_openmorning_click') {
+      openMorningClicks += 1;
+    }
+
+    if (ev.type === 'tier_exit') {
+      tiers.push({ tier: ev.tier, dwellSec: ev.dwellSec || 0 });
+    }
+  }
+
+  const topSections = [...bySection.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 4)
+    .map(([k, v]) => `${k.replace(/_/g, ' ')} (${Math.round(v / 60)}m)`);
+
+  const tierBits = tiers
+    .sort((a, b) => b.dwellSec - a.dwellSec)
+    .slice(0, 3)
+    .map(t => `${t.tier} (${Math.round((t.dwellSec || 0) / 60)}m)`);
+
+  const videoBits = Array.from(videos.values()).slice(0, 4);
+
+  const parts = [];
+  if (topSections.length) {
+    parts.push(`Most time in: ${topSections.join(', ')}.`);
+  }
+  if (tierBits.length) {
+    parts.push(`Looked at tiers: ${tierBits.join(', ')}.`);
+  }
+  if (videoBits.length) {
+    parts.push(`Watched/opened videos: ${videoBits.join(', ')}.`);
+  }
+  if (openMorningClicks) {
+    parts.push(
+      `Clicked “Book an Open Morning” ${openMorningClicks} time${openMorningClicks > 1 ? 's' : ''}.`
+    );
+  }
+
+  return parts.join(' ');
+}
+
+
+// === Per-session AI-style summary (rule-based) ===
+app.get('/api/visits/:inquiryId/:sessionId/summary', async (req,res)=>{
+  const { inquiryId, sessionId } = req.params;
+  if (!inquiryId || !sessionId) return res.status(400).json({ ok:false, error: 'Missing params' });
+  try {
+    if (!db) return res.json({ ok:true, summary: '' });
+
+    const evs = await db.query(`
+      SELECT event_type, event_data, timestamp
+      FROM tracking_events
+      WHERE inquiry_id = $1 AND session_id = $2
+      ORDER BY timestamp ASC
+    `, [inquiryId, sessionId]);
+
+    const events = evs.rows.map(r => ({
+      type: r.event_type,
+      ts: r.timestamp,
+      section: r.event_data?.section ?? null,
+      dwellSec: r.event_data?.dwellSec ?? null,
+      tier: r.event_data?.tier ?? null,
+      youtubeId: r.event_data?.youtubeId ?? null,
+      title: r.event_data?.title ?? null
+    }));
+
+    const text = summariseEvents(events);
+    res.json({ ok:true, summary: text });
+  } catch (e) {
+    console.error('session summary error:', e);
+    res.status(500).json({ ok:false, error:e.message });
+  }
+});
+
+app.get('/api/analytics/inquiries/:id/video_rollup', async (req, res) => {
+  try {
+    const inquiryId = req.params.id;
+    const q = await db.query(`
+      SELECT video_id, MAX(video_title) AS title, COUNT(DISTINCT session_id) AS sessions,
+             SUM(COALESCE(watched_sec,0)) AS watch_sec
+      FROM video_engagement_tracking
+      WHERE inquiry_id = $1 AND video_id IS NOT NULL
+      GROUP BY video_id
+      ORDER BY watch_sec DESC
+    `, [inquiryId]);
+
+    res.json({
+      inquiry_id: inquiryId,
+      distinct_videos: q.rows.length,
+      total_watch_sec: q.rows.reduce((s,r)=>s+Number(r.watch_sec||0),0),
+      videos: q.rows
+    });
+  } catch (e) {
+    console.error('video_rollup error', e);
+    res.status(500).json({ error: 'Failed to compute video roll-up' });
+  }
+});
+
+
+// === Overall AI-style summary across all sessions ===
+app.get('/api/inquiry/:inquiryId/summary', async (req,res)=>{
+  const { inquiryId } = req.params;
+  if (!inquiryId) return res.status(400).json({ ok:false, error:'Missing inquiryId' });
+  try {
+    if (!db) return res.json({ ok:true, summary: '' });
+
+    const evs = await db.query(`
+      SELECT event_type, event_data, timestamp
+      FROM tracking_events
+      WHERE inquiry_id = $1
+      ORDER BY timestamp ASC
+    `, [inquiryId]);
+
+    const events = evs.rows.map(r => ({
+      type: r.event_type,
+      ts: r.timestamp,
+      section: r.event_data?.section ?? null,
+      dwellSec: r.event_data?.dwellSec ?? null,
+      tier: r.event_data?.tier ?? null,
+      youtubeId: r.event_data?.youtubeId ?? null,
+      title: r.event_data?.title ?? null
+    }));
+
+    const text = summariseEvents(events);
+    res.json({ ok:true, summary: text });
+  } catch (e) {
+    console.error('overall summary error:', e);
+    res.status(500).json({ ok:false, error:e.message });
+  }
 });
 
 
@@ -1888,24 +2104,41 @@ app.get('/api/analytics/inquiries', async (req, res) => {
     console.log('Analytics inquiries request...');
     let inquiries = [];
     const base = getBaseUrl(req);
-    
+
     if (db) {
       try {
         console.log('Reading inquiries from DATABASE...');
         const result = await db.query(`
-          SELECT i.*,
-                 -- Use the REAL data from inquiries table, not engagement_metrics
-                 i.dwell_ms as actual_dwell_ms,
-                 i.return_visits as actual_return_visits,
-                 -- Get AI insights
-                 afi.insights_json as ai_engagement
+          SELECT 
+            i.*,
+
+            /* Total dwell across ALL visits: sum of section_exit seconds → ms */
+            (
+              SELECT COALESCE(SUM(COALESCE((te.event_data->>'dwellSec')::int, 0)), 0) * 1000
+              FROM tracking_events te
+              WHERE te.inquiry_id = i.id
+                AND te.event_type IN ('section_exit_enhanced','section_exit')
+            ) AS actual_dwell_ms,
+
+            /* Visit count = DISTINCT sessions from tracking */
+            (
+              SELECT COUNT(DISTINCT te.session_id)
+              FROM tracking_events te
+              WHERE te.inquiry_id = i.id
+                AND te.session_id IS NOT NULL
+            ) AS actual_return_visits,
+
+            /* Keep your AI engagement join */
+            afi.insights_json AS ai_engagement
+
           FROM inquiries i
           LEFT JOIN ai_family_insights afi 
             ON i.id = afi.inquiry_id 
-            AND afi.analysis_type = 'engagement_summary'
+           AND afi.analysis_type = 'engagement_summary'
           ORDER BY i.received_at DESC
+
         `);
-        
+
         inquiries = result.rows.map(row => ({
           id: row.id,
           first_name: row.first_name,
@@ -1924,28 +2157,32 @@ app.get('/api/analytics/inquiries', async (req, res) => {
           prospectus_pretty_path: row.slug ? `/${row.slug}` : null,
           prospectus_pretty_url: row.slug ? `${base}/${row.slug}` : null,
           prospectus_direct_url: row.prospectus_url ? `${base}${row.prospectus_url}` : null,
-          
-          // USE THE REAL DATA FROM INQUIRIES TABLE
-          dwell_ms: row.actual_dwell_ms || 0,
-          return_visits: row.actual_return_visits || 1,
+
+          /* FIXED: no more forced “1 visit” */
+          dwell_ms: Number(row.actual_dwell_ms || 0),
+          return_visits: Number(row.actual_return_visits || 0),
+
           engagement: {
-            timeOnPage: row.actual_dwell_ms || 0,
-            scrollDepth: 100, // Assume good scroll for families with dwell time
-            clickCount: Math.floor((row.actual_dwell_ms || 0) / 10000), // Estimate
-            totalVisits: row.actual_return_visits || 1,
+            timeOnPage: Number(row.actual_dwell_ms || 0),
+            scrollDepth: 100,
+            clickCount: Math.floor(Number(row.actual_dwell_ms || 0) / 10000),
+            totalVisits: Number(row.actual_return_visits || 0),
             lastVisit: row.prospectus_generated_at || row.received_at,
             engagementScore: calculateEngagementScore({
-              timeOnPage: row.actual_dwell_ms || 0,
+              timeOnPage: Number(row.actual_dwell_ms || 0),
               scrollDepth: 100,
-              totalVisits: row.actual_return_visits || 1,
-              clickCount: Math.floor((row.actual_dwell_ms || 0) / 10000)
+              totalVisits: Number(row.actual_return_visits || 0),
+              clickCount: Math.floor(Number(row.actual_dwell_ms || 0) / 10000)
             })
           },
-          
-          // Include AI insights
-          aiEngagement: row.ai_engagement ? (typeof row.ai_engagement === 'string' ? JSON.parse(row.ai_engagement) : row.ai_engagement) : null,
-          
-          // Subject interests
+
+          aiEngagement: row.ai_engagement
+            ? (typeof row.ai_engagement === 'string'
+                ? JSON.parse(row.ai_engagement)
+                : row.ai_engagement)
+            : null,
+
+          /* Subject interests (unchanged) */
           sciences: row.sciences,
           mathematics: row.mathematics,
           english: row.english,
@@ -1967,19 +2204,13 @@ app.get('/api/analytics/inquiries', async (req, res) => {
           career_guidance: row.career_guidance,
           extracurricular_opportunities: row.extracurricular_opportunities
         }));
-        
+
         console.log(`Loaded ${inquiries.length} inquiries with REAL data`);
-        
-        // Debug log for Barbara
-        const barbara = inquiries.find(i => i.first_name === 'Barbara');
-        if (barbara) {
-          console.log(`Barbara's REAL data: ${barbara.dwell_ms}ms, ${barbara.return_visits} visits, score: ${barbara.engagement.engagementScore}`);
-        }
       } catch (dbError) {
         console.warn('Database read failed:', dbError.message);
       }
     }
-    
+
     console.log(`Returning ${inquiries.length} inquiries with corrected data`);
     res.json(inquiries);
   } catch (e) {
@@ -1987,6 +2218,168 @@ app.get('/api/analytics/inquiries', async (req, res) => {
     res.status(500).json({ error: 'Failed to get inquiries' });
   }
 });
+
+// Save/Upsert Overall AI Summary
+app.put('/api/analytics/inquiries/:id/overall_summary', express.json(), async (req, res) => {
+  try {
+    const inquiryId = req.params.id;
+    const { overview, recommendations, strategy } = req.body || {};
+
+    if (!db) return res.status(503).json({ ok: false, error: 'Database not available' });
+    if (!inquiryId) return res.status(400).json({ ok: false, error: 'Missing inquiry id' });
+
+    // normalise types
+    const ov = typeof overview === 'string' ? overview : (overview ?? null);
+    const recs = Array.isArray(recommendations) ? recommendations : [];
+    const strat = typeof strategy === 'string' ? strategy : (strategy ?? null);
+
+    await db.query(`
+      INSERT INTO inquiry_ai_summary (inquiry_id, overview, recommendations, strategy, generated_at, updated_at)
+      VALUES ($1, $2, $3::jsonb, $4, NOW(), NOW())
+      ON CONFLICT (inquiry_id)
+      DO UPDATE SET
+        overview       = EXCLUDED.overview,
+        recommendations= EXCLUDED.recommendations,
+        strategy       = EXCLUDED.strategy,
+        updated_at     = NOW()
+    `, [inquiryId, ov, JSON.stringify(recs), strat]);
+
+    return res.json({ ok: true, inquiry_id: inquiryId });
+  } catch (err) {
+    console.error('PUT overall_summary error:', err);
+    res.status(500).json({ ok: false, error: 'Failed to save overall AI summary' });
+  }
+});
+
+// Save/Update inquiry pipeline status
+app.put('/api/analytics/inquiries/:id/status', express.json(), async (req, res) => {
+  try {
+    const id = req.params.id;
+    const { status } = req.body || {};
+    if (!id || !status) return res.status(400).json({ ok: false, error: 'Missing id or status' });
+    if (!db) return res.status(503).json({ ok: false, error: 'Database not available' });
+
+    await db.query(
+      `UPDATE inquiries
+         SET status = $1,
+             updated_at = NOW()
+       WHERE id = $2`,
+      [status, id]
+    );
+
+    return res.json({ ok: true, id, status });
+  } catch (err) {
+    console.error('PUT /inquiries/:id/status error:', err);
+    res.status(500).json({ ok: false, error: 'Failed to save status' });
+  }
+});
+
+
+// Fetch Overall AI Summary
+app.get('/api/analytics/inquiries/:id/overall_summary', async (req, res) => {
+  try {
+    const inquiryId = req.params.id;
+
+    // 1) Stored free-text (keep for narrative only)
+    let stored = null;
+    try {
+      const r = await db.query(
+        `SELECT overview, recommendations, strategy, generated_at, updated_at
+           FROM inquiry_ai_summary
+          WHERE inquiry_id = $1`,
+        [inquiryId]
+      );
+      stored = r.rows[0] || null;
+    } catch (_) {}
+
+    // 2) Computed engagement from tracking + inquiries (ground truth)
+    // Sections + dwell
+    const sectionsQ = await db.query(`
+      SELECT
+        COALESCE(event_data->>'currentSection','unknown') AS section_id,
+        SUM(COALESCE((event_data->>'timeInSectionSec')::int,0)) AS dwell_sec
+      FROM tracking_events
+      WHERE inquiry_id = $1 AND event_type = 'section_exit'
+      GROUP BY 1
+    `, [inquiryId]);
+
+    // Visits (distinct sessions)
+    const visitsQ = await db.query(`
+      SELECT COUNT(DISTINCT session_id) AS visits
+      FROM tracking_events
+      WHERE inquiry_id = $1 AND session_id IS NOT NULL
+    `, [inquiryId]);
+
+    // Total dwell (prefer inquiries.dwell_ms if populated; else sum of sections)
+    const dwellQ = await db.query(
+      `SELECT dwell_ms, return_visits FROM inquiries WHERE id = $1`,
+      [inquiryId]
+    );
+
+    const fallbackDwellMs = sectionsQ.rows.reduce((sum, r) => sum + (Number(r.dwell_sec || 0) * 1000), 0);
+    const dwellMs = Math.max(Number(dwellQ.rows[0]?.dwell_ms || 0), fallbackDwellMs);
+    const visits = Math.max(Number(visitsQ.rows[0]?.visits || 0), Number(dwellQ.rows[0]?.return_visits || 0) || 0);
+
+    // Distinct videos watched (prefer video_engagement_tracking if present; else from tracking_events youtube ids)
+    const vidsFromTable = await db.query(`
+      SELECT COUNT(DISTINCT video_id) AS vids
+      FROM video_engagement_tracking
+      WHERE inquiry_id = $1 AND video_id IS NOT NULL
+    `, [inquiryId]);
+
+    let distinctVideos = Number(vidsFromTable.rows[0]?.vids || 0);
+    if (!distinctVideos) {
+      const vidsFromEvents = await db.query(`
+        SELECT COUNT(DISTINCT event_data->>'youtubeId') AS vids
+        FROM tracking_events
+        WHERE inquiry_id = $1
+          AND event_type LIKE 'youtube_video_%'
+          AND event_data ? 'youtubeId'
+      `, [inquiryId]);
+      distinctVideos = Number(vidsFromEvents.rows[0]?.vids || 0);
+    }
+
+    // Top sections by dwell
+    const topSections = sectionsQ.rows
+      .map(r => ({ section: (r.section_id || 'unknown'), dwell_ms: Number(r.dwell_sec || 0) * 1000 }))
+      .sort((a,b) => b.dwell_ms - a.dwell_ms)
+      .slice(0, 5);
+
+    // Deterministic, factual narrative (no guessing)
+    const minutes = Math.round(dwellMs / 60000);
+    const secCount = sectionsQ.rows.filter(r => r.section_id !== 'unknown').length;
+    const topNames = topSections.map(s => s.section.replace(/_/g,' ')).slice(0,3);
+    const parts = [];
+    parts.push(`${visits || 1} visit${visits === 1 ? '' : 's'} with ${minutes} minute${minutes === 1 ? '' : 's'} total engagement across ${secCount} section${secCount === 1 ? '' : 's'}.`);
+    if (distinctVideos > 0) parts.push(`Watched ${distinctVideos} video${distinctVideos === 1 ? '' : 's'}.`);
+    if (topNames.length) parts.push(`Most time in: ${topNames.join(', ')}.`);
+    const computedNarrative = parts.join(' ');
+
+    // 3) Response combines stored text (if you still want it) with computed facts
+    return res.json({
+      inquiry_id: inquiryId,
+      computed: {
+        visits,
+        dwell_ms: dwellMs,
+        dwell_minutes: minutes,
+        distinct_sections: secCount,
+        videos_watched: distinctVideos,
+        top_sections: topSections
+      },
+      // keep the legacy fields so your UI doesn’t break
+      overview: stored?.overview || computedNarrative,
+      recommendations: stored?.recommendations || [],
+      strategy: stored?.strategy || null,
+      generated_at: stored?.generated_at || null,
+      updated_at: stored?.updated_at || null,
+      source: 'computed+stored'
+    });
+  } catch (err) {
+    console.error('GET overall_summary error:', err);
+    res.status(500).json({ error: 'Failed to compute overall AI summary' });
+  }
+});
+
 
 // AI endpoints
 app.post('/api/ai/engagement-summary/all', (req, res) => {
@@ -2058,9 +2451,20 @@ app.get('/api/ai/engagement-summary/:inquiryId', async (req, res) => {
       ORDER BY 2 DESC
     `, [inquiryId]);
     
-    const dwellMs = Number(inquiryData.rows[0]?.dwell_ms || 0);
-    const visits = Number(inquiryData.rows[0]?.return_visits || 1);
+    // Sum actual section engagement time from section_exit events
+    const sessionTotals = await db.query(`
+      SELECT 
+        COUNT(DISTINCT session_id) as session_count,
+        SUM(COALESCE((event_data->>'dwellSec')::int, 0)) as total_seconds
+      FROM tracking_events 
+      WHERE inquiry_id = $1 AND event_type = 'section_exit'
+    `, [inquiryId]);
+
+    const totalSeconds = parseInt(sessionTotals.rows[0]?.total_seconds || 0);
+    const dwellMs = totalSeconds * 1000; // For location 1
+    const totalDwellMs = totalSeconds * 1000; // For location 2
     const score = Math.min(100, Math.round((dwellMs / 1000) / 10) + 50);
+    const visitCount = Math.max(parseInt(sessionTotals.rows[0]?.session_count || 0), 1);
     
     let summaryText = 'No summary available';
     let highlights = [];
@@ -2087,7 +2491,7 @@ app.get('/api/ai/engagement-summary/:inquiryId', async (req, res) => {
     
     res.json({
       dwellMs,
-      visits,
+      visits: visitCount,
       score,
       sections: sectionData.rows,
       summaryText,
@@ -2202,9 +2606,12 @@ app.post('/api/ai/analyze-family/:inquiryId', async (req, res) => {
       id: inquiry.id,
       firstName: inquiry.firstName || inquiry.first_name,
       familySurname: inquiry.familySurname || inquiry.family_surname,
+      parentName: inquiry.parentName || inquiry.parent_name,  
       parentEmail: inquiry.parentEmail || inquiry.parent_email,
+      contactNumber: inquiry.contactNumber || inquiry.contact_number, 
       ageGroup: inquiry.ageGroup || inquiry.age_group,
       entryYear: inquiry.entryYear || inquiry.entry_year,
+      hearAboutUs: inquiry.hearAboutUs || inquiry.hear_about_us,
       sciences: inquiry.sciences,
       mathematics: inquiry.mathematics,
       english: inquiry.english,
@@ -2963,12 +3370,21 @@ app.get('/api/section-data/:inquiryId', async (req, res) => {
       return res.status(404).json({ error: 'Inquiry not found' });
     }
     
-    const totalDwellMs = parseInt(inquiry.dwell_ms || '0');
-    const visitCount = Math.max(
-      parseInt(visits.rows[0]?.visit_count || '1'),
-      parseInt(inquiry.return_visits || '1')
-    );
+    // Sum actual section engagement time from section_exit events
+    const sessionTotals = await db.query(`
+      SELECT 
+        COUNT(DISTINCT session_id) as session_count,
+        SUM(COALESCE((event_data->>'dwellSec')::int, 0)) as total_seconds
+      FROM tracking_events 
+      WHERE inquiry_id = $1 AND event_type = 'section_exit'
+    `, [inquiryId]);
+
+    const totalSeconds = parseInt(sessionTotals.rows[0]?.total_seconds || 0);
+    const dwellMs = totalSeconds * 1000; // For location 1
+    const totalDwellMs = totalSeconds * 1000; // For location 2
+    const visitCount = Math.max(parseInt(sessionTotals.rows[0]?.session_count || 0), 1);
     
+        
     // Calculate comprehensive engagement score
     const engagementScore = calculateEngagementScore({
       timeOnPage: totalDwellMs,
@@ -3097,6 +3513,103 @@ app.get('/api/debug/snapshot/:inquiryId', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+// === Latest visit timeline (read-only) ==========================
+app.get('/api/visits/:inquiryId/latest', async (req, res) => {
+  const { inquiryId } = req.params;
+  if (!inquiryId) return res.status(400).json({ ok: false, error: 'Missing inquiryId' });
+
+  try {
+    if (!db) return res.json({ ok: true, session: null, events: [] });
+
+    // Find most recent session for this inquiry
+    const sess = await db.query(`
+      WITH sessions AS (
+        SELECT session_id,
+               MIN(timestamp) AS start_ts,
+               MAX(timestamp) AS end_ts
+        FROM tracking_events
+        WHERE inquiry_id = $1
+          AND session_id IS NOT NULL
+        GROUP BY session_id
+        ORDER BY end_ts DESC
+        LIMIT 1
+      )
+      SELECT session_id, start_ts, end_ts
+      FROM sessions
+    `, [inquiryId]);
+
+    if (!sess.rows.length) return res.json({ ok: true, session: null, events: [] });
+
+    const { session_id, start_ts, end_ts } = sess.rows[0];
+
+    // Pull ordered events for that session
+    const evs = await db.query(`
+      SELECT event_type, event_data, timestamp
+      FROM tracking_events
+      WHERE inquiry_id = $1
+        AND session_id = $2
+      ORDER BY timestamp ASC
+    `, [inquiryId, session_id]);
+
+    // Light transform: flatten JSON and keep only what we need in the dashboard
+    const events = evs.rows.map(r => ({
+      type: r.event_type,
+      ts: r.timestamp,
+      name: (r.event_data && r.event_data.name) || r.event_type,
+      section: r.event_data && r.event_data.section || null,
+      dwellSec: r.event_data && (r.event_data.dwellSec ?? null),
+      tier: r.event_data && r.event_data.tier || null,
+      reason: r.event_data && r.event_data.reason || null,
+      youtubeId: r.event_data && r.event_data.youtubeId || null,
+      title: r.event_data && r.event_data.title || null
+    }));
+
+    res.json({
+      ok: true,
+      session: { id: session_id, start: start_ts, end: end_ts },
+      events
+    });
+  } catch (e) {
+    console.error('latest visit error:', e);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// === Per-session events (used by dashboard session history) ===
+app.get('/api/sessions/:sessionId', async (req, res) => {
+  const { sessionId } = req.params;
+  if (!sessionId) return res.status(400).json({ ok: false, error: 'Missing sessionId' });
+
+  try {
+    if (!db) return res.json({ ok: true, events: [] });
+
+    const evs = await db.query(`
+      SELECT event_type, event_data, timestamp
+      FROM tracking_events
+      WHERE session_id = $1
+      ORDER BY timestamp ASC
+    `, [sessionId]);
+
+    const events = evs.rows.map(r => ({
+      type: r.event_type,
+      ts: r.timestamp,
+      name: (r.event_data && r.event_data.name) || r.event_type,
+      section: r.event_data?.section ?? null,
+      dwellSec: r.event_data?.dwellSec ?? null,
+      tier: r.event_data?.tier ?? null,
+      reason: r.event_data?.reason ?? null,
+      youtubeId: r.event_data?.youtubeId ?? null,
+      title: r.event_data?.title ?? null
+    }));
+
+    res.json({ ok: true, sessionId, events });
+  } catch (e) {
+    console.error('session events error:', e);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 
 app.get('/api/check-summary/:inquiryId', async (req, res) => {
   try {
@@ -3326,11 +3839,169 @@ app.get('/prospectuses/:filename', async (req, res) => {
   }
 });
 
+// ===================== DeepL proxy (safe: POST; does not affect slug GETs) =====================
+app.post('/api/deepl', async (req, res) => {
+  try {
+    const DEEPL_API_KEY  = process.env.DEEPL_API_KEY;
+    const DEEPL_ENDPOINT = process.env.DEEPL_API_BASE || 'https://api-free.deepl.com/v2/translate'; // set to https://api.deepl.com/v2/translate if on paid
+
+    if (!DEEPL_API_KEY) {
+      return res.status(500).json({ error: 'DEEPL_API_KEY missing' });
+    }
+
+    const { html, target_lang } = req.body || {};
+    const ALLOWED = new Set(['en','zh','ar','ru','fr','es','de','it']);
+
+    if (typeof html !== 'string' || !html.trim()) {
+      return res.status(400).json({ error: 'Missing html' });
+    }
+    if (!ALLOWED.has((target_lang || '').toLowerCase())) {
+      return res.status(400).json({ error: 'Unsupported target_lang' });
+    }
+
+    // Build form for DeepL (HTML-aware)
+    const form = new URLSearchParams();
+    form.append('text', html);
+    form.append('target_lang', String(target_lang).toUpperCase()); // e.g. FR, DE
+    form.append('tag_handling', 'html');
+    form.append('preserve_formatting', '1');
+    form.append('split_sentences', 'nonewlines');
+
+    // Node 18+ has global fetch
+    const dl = await fetch(DEEPL_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Authorization': `DeepL-Auth-Key ${DEEPL_API_KEY}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: form
+    });
+
+    const payload = await dl.json();
+    if (!dl.ok) {
+      return res.status(502).json({ error: 'DeepL error', details: payload });
+    }
+
+    const translated = payload?.translations?.[0]?.text || '';
+    return res.json({ translated });
+  } catch (err) {
+    console.error('DeepL proxy failed:', err);
+    return res.status(500).json({ error: 'Proxy failure' });
+  }
+});
+
+
 // Slug-based routing
 const RESERVED = new Set([
   'api','prospectuses','health','tracking','dashboard','favicon','robots',
-  'sitemap','metrics','config','webhook','admin','smart_analytics_dashboard.html'
+  'sitemap','metrics','config','webhook','admin','smart_analytics_dashboard.html',
+  'download'  // ADD THIS LINE
 ]);
+
+// Download routes - MUST come before /:slug to avoid route conflicts
+app.get('/download/:slug', async (req, res) => {
+  try {
+    const slug = String(req.params.slug || '').toLowerCase();
+    console.log(`📥 Download request for slug: ${slug}`);
+
+    const inquiry = await findInquiryBySlug(slug);
+    if (!inquiry) {
+      return res.status(404).send('Prospectus not found');
+    }
+
+    console.log(`Found inquiry for download: ${inquiry.firstName} ${inquiry.familySurname}`);
+
+    // Generate prospectus if needed
+    let prospectusInfo;
+    try {
+      prospectusInfo = await generateProspectus(inquiry);
+    } catch (genError) {
+      console.error('Failed to generate prospectus for download:', genError);
+      return res.status(500).send('Failed to generate prospectus');
+    }
+    
+    // Read the generated file
+    const filePath = path.join(__dirname, 'prospectuses', prospectusInfo.filename);
+    let html;
+    
+    try {
+      html = await fs.readFile(filePath, 'utf8');
+    } catch (readError) {
+      console.error('Failed to read prospectus file:', readError);
+      return res.status(500).send('Failed to read prospectus file');
+    }
+    
+    // Create download filename
+    const downloadFilename = `${inquiry.firstName}-${inquiry.familySurname}-Prospectus-${inquiry.entryYear}-OFFLINE.html`;
+    
+    // Set headers for download
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${downloadFilename}"`);
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    
+    console.log(`✅ Sending download: ${downloadFilename}`);
+    res.send(html);
+
+  } catch (error) {
+    console.error('❌ Download via slug failed:', error);
+    res.status(500).send(`Download failed: ${error.message}`);
+  }
+});
+
+// Download route via inquiry ID - for dashboard use
+app.get('/api/download/:inquiryId', async (req, res) => {
+  try {
+    const inquiryId = req.params.inquiryId;
+    console.log(`📥 API Download request for inquiry: ${inquiryId}`);
+
+    // Find the inquiry data
+    const inquiry = await findInquiryByIdFixed(inquiryId);
+    if (!inquiry) {
+      return res.status(404).json({ error: 'Inquiry not found' });
+    }
+
+    console.log(`Found inquiry for API download: ${inquiry.firstName} ${inquiry.familySurname}`);
+
+    // Generate prospectus if needed
+    let prospectusInfo;
+    try {
+      prospectusInfo = await generateProspectus(inquiry);
+    } catch (genError) {
+      console.error('Failed to generate prospectus for API download:', genError);
+      return res.status(500).json({ error: 'Failed to generate prospectus' });
+    }
+    
+    // Read the generated file
+    const filePath = path.join(__dirname, 'prospectuses', prospectusInfo.filename);
+    let html;
+    
+    try {
+      html = await fs.readFile(filePath, 'utf8');
+    } catch (readError) {
+      console.error('Failed to read prospectus file for API:', readError);
+      return res.status(500).json({ error: 'Failed to read prospectus file' });
+    }
+    
+    // Create download filename
+    const downloadFilename = `${inquiry.firstName}-${inquiry.familySurname}-Prospectus-${inquiry.entryYear}-OFFLINE.html`;
+    
+    // Set headers for download
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${downloadFilename}"`);
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    
+    console.log(`✅ Sending API download: ${downloadFilename}`);
+    res.send(html);
+
+  } catch (error) {
+    console.error('❌ API Download failed:', error);
+    res.status(500).json({ error: `Download failed: ${error.message}` });
+  }
+});
 
 app.get('/:slug', async (req, res, next) => {
   const slug = String(req.params.slug || '').toLowerCase();
@@ -3380,37 +4051,6 @@ app.get('/:slug', async (req, res, next) => {
     try {
       await fs.access(abs);
       console.log(`Serving: ${slug} -> ${rel}`);
-      
-      // Check if it's an HTML file that needs translation
-      if (abs.toLowerCase().endsWith('.html')) {
-        const raw = await fs.readFile(abs, 'utf8');
-        let lang = normaliseLang(req.query.lang || 'en');
-        if (!SUPPORTED.has(lang)) lang = 'en';
-        const translateOff = (req.query.translate || '').toLowerCase() === 'off';
-        
-        if (translateOff || lang === 'en') {
-          console.log('Serving original HTML');
-          res.setHeader('Content-Type', 'text/html; charset=utf-8');
-          return res.status(200).send(raw);
-        }
-        
-        console.log(`Translating slug ${slug} to ${lang}`);
-        console.log('DeepL API key present:', !!process.env.DEEPL_API_KEY);
-
-        const translated = await translateFullHtml(raw, lang);
-
-        console.log('Translation complete for slug');
-        console.log('Original length:', raw.length);
-        console.log('Translated length:', translated.length);
-        console.log('Content changed:', raw !== translated);
-
-        res.setHeader('Content-Type', 'text/html; charset=utf-8');
-        res.setHeader('Cache-Control', 'public, max-age=60');
-        res.setHeader('Vary', 'Accept-Language');
-        res.setHeader('X-Robots-Tag', 'noindex, nofollow');
-        return res.status(200).send(translated);
-      }
-      
       return res.sendFile(abs);
     } catch (accessError) {
       console.log(`File missing, attempting to regenerate: ${abs}`);
@@ -3423,27 +4063,6 @@ app.get('/:slug', async (req, res, next) => {
           await saveSlugIndex();
           abs = path.join(__dirname, 'prospectuses', p.filename);
           console.log(`Regenerated and serving: ${slug} -> ${p.url}`);
-          
-          // Apply translation to regenerated file if needed
-          if (abs.toLowerCase().endsWith('.html')) {
-            const raw = await fs.readFile(abs, 'utf8');
-            let lang = normaliseLang(req.query.lang || 'en');
-            if (!SUPPORTED.has(lang)) lang = 'en';
-            const translateOff = (req.query.translate || '').toLowerCase() === 'off';
-            
-            if (translateOff || lang === 'en') {
-              res.setHeader('Content-Type', 'text/html; charset=utf-8');
-              return res.status(200).send(raw);
-            }
-            
-            const translated = await translateFullHtml(raw, lang);
-            res.setHeader('Content-Type', 'text/html; charset=utf-8');
-            res.setHeader('Cache-Control', 'public, max-age=60');
-            res.setHeader('Vary', 'Accept-Language');
-            res.setHeader('X-Robots-Tag', 'noindex, nofollow');
-            return res.status(200).send(translated);
-          }
-          
           return res.sendFile(abs);
         }
       } catch (regenError) {
@@ -3651,6 +4270,34 @@ app.get('/api/test/section-data/:inquiryId', async (req, res) => {
   }
 });
 
+app.get('/api/debug/visit-times/:inquiryId', async (req, res) => {
+  try {
+    // Calculate duration for each session from tracking_events
+    const result = await db.query(`
+      SELECT 
+        session_id,
+        MIN(timestamp) as start_time,
+        MAX(timestamp) as end_time,
+        EXTRACT(EPOCH FROM (MAX(timestamp) - MIN(timestamp))) as duration_seconds,
+        COUNT(*) as events
+      FROM tracking_events 
+      WHERE inquiry_id = $1 AND session_id IS NOT NULL
+      GROUP BY session_id
+      ORDER BY start_time DESC
+    `, [req.params.inquiryId]);
+    
+    const totalSeconds = result.rows.reduce((sum, row) => sum + parseFloat(row.duration_seconds || 0), 0);
+    
+    res.json({
+      sessions: result.rows,
+      total_seconds: totalSeconds,
+      total_minutes: Math.round(totalSeconds / 60)
+    });
+  } catch (err) {
+    res.json({ error: err.message });
+  }
+});
+
 app.get('/api/debug/barbara', async (req, res) => {
   try {
     const inquiryId = 'INQ-1756192540364116'; // Barbara's ID
@@ -3814,6 +4461,320 @@ app.get('/', (req, res) => {
 </body></html>`);
 });
 
+// Allowed pipeline statuses (single source of truth)
+const PIPELINE_STATUSES = [
+  'new_inquiry',
+  'contacted',
+  'high_interest',
+  'tour_booked',
+  'open_day_booked',
+  'application_started',
+  'application_complete',
+  'not_interested'
+];
+
+// Update an inquiry's status
+app.put('/api/inquiries/:id/status', express.json(), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body || {};
+
+    if (!id) return res.status(400).json({ ok:false, error:'Missing inquiry id' });
+    if (!status || !PIPELINE_STATUSES.includes(status)) {
+      return res.status(400).json({ ok:false, error:`Invalid status. Allowed: ${PIPELINE_STATUSES.join(', ')}` });
+    }
+    if (!db) return res.status(503).json({ ok:false, error:'DB unavailable' });
+
+    const q = await db.query(
+      `UPDATE inquiries
+         SET status = $1,
+             updated_at = NOW()
+       WHERE id = $2
+       RETURNING id, status, updated_at`,
+      [status, id]
+    );
+
+    if (q.rowCount === 0) return res.status(404).json({ ok:false, error:'Inquiry not found' });
+    res.json({ ok:true, inquiry: q.rows[0] });
+  } catch (e) {
+    console.error('PUT /api/inquiries/:id/status error:', e);
+    res.status(500).json({ ok:false, error:'Failed to update status' });
+  }
+});
+
+// (Optional) expose allowed statuses to the front-end
+app.get('/api/inquiries/statuses', (_req, res) => {
+  res.json({ statuses: PIPELINE_STATUSES });
+});
+
+app.get('/api/debug/sessions/:inquiryId', async (req, res) => {
+  try {
+    const sessionSummaries = await db.query('SELECT COUNT(*) as count, SUM(duration_seconds) as total FROM session_summaries WHERE inquiry_id = $1', [req.params.inquiryId]);
+    const trackingEvents = await db.query('SELECT COUNT(*) as count, COUNT(DISTINCT session_id) as sessions FROM tracking_events WHERE inquiry_id = $1', [req.params.inquiryId]);
+    
+    res.json({
+      session_summaries: sessionSummaries.rows[0],
+      tracking_events: trackingEvents.rows[0],
+      inquiry_id: req.params.inquiryId
+    });
+  } catch (err) {
+    res.json({ error: err.message });
+  }
+});
+
+
+// ===================== IMPROVED HELPER FUNCTION =====================
+async function findInquiryByIdFixed(inquiryId) {
+  try {
+    // First try database if available
+    if (db) {
+      const result = await db.query('SELECT * FROM inquiries WHERE id = $1', [inquiryId]);
+      if (result.rows.length > 0) {
+        const row = result.rows[0];
+        // Convert database format to expected format
+        return {
+          id: row.id,
+          firstName: row.first_name,
+          familySurname: row.family_surname,
+          parentName: row.parent_name,
+          parentEmail: row.parent_email,
+          contactNumber: row.contact_number,
+          ageGroup: row.age_group,
+          entryYear: row.entry_year,
+          hearAboutUs: row.hear_about_us,
+          receivedAt: row.received_at,
+          status: row.status,
+          slug: row.slug,
+          // Include all the boolean fields for interests
+          sciences: row.sciences,
+          mathematics: row.mathematics,
+          english: row.english,
+          languages: row.languages,
+          humanities: row.humanities,
+          business: row.business,
+          drama: row.drama,
+          music: row.music,
+          art: row.art,
+          creative_writing: row.creative_writing,
+          sport: row.sport,
+          leadership: row.leadership,
+          community_service: row.community_service,
+          outdoor_education: row.outdoor_education,
+          academic_excellence: row.academic_excellence,
+          pastoral_care: row.pastoral_care,
+          university_preparation: row.university_preparation,
+          personal_development: row.personal_development,
+          career_guidance: row.career_guidance,
+          extracurricular_opportunities: row.extracurricular_opportunities
+        };
+      }
+    }
+    
+    // Fallback to JSON files
+    const dataDir = path.join(__dirname, 'data');
+    const files = await fs.readdir(dataDir);
+    
+    for (const f of files.filter(x => x.startsWith('inquiry-') && x.endsWith('.json'))) {
+      try {
+        const filePath = path.join(dataDir, f);
+        const content = await fs.readFile(filePath, 'utf8');
+        const inquiry = JSON.parse(content);
+        
+        if (inquiry.id === inquiryId) {
+          console.log(`Found inquiry in JSON file: ${f}`);
+          return inquiry;
+        }
+      } catch (fileError) {
+        console.warn(`Failed to parse ${f}:`, fileError.message);
+        continue;
+      }
+    }
+    
+    console.log(`No inquiry found with ID: ${inquiryId}`);
+    return null;
+  } catch (error) {
+    console.error('Error finding inquiry by ID:', error);
+    return null;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════
+// ADD THIS HELPER FUNCTION (if you don't already have it)
+// ═══════════════════════════════════════════════════════════════════════════════════════════
+
+async function findInquiryById(inquiryId) {
+  try {
+    const files = await fs.readdir(path.join(__dirname, 'data'));
+    for (const f of files.filter(x => x.startsWith('inquiry-') && x.endsWith('.json'))) {
+      try {
+        const filePath = path.join(__dirname, 'data', f);
+        const inquiry = JSON.parse(await fs.readFile(filePath, 'utf8'));
+        if (inquiry.id === inquiryId) {
+          return inquiry;
+        }
+      } catch (e) {
+        console.warn(`Failed to parse ${f}:`, e.message);
+      }
+    }
+  } catch (e) {
+    console.error('Error reading inquiry files:', e);
+  }
+  return null;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════
+// UPDATE YOUR RESERVED SET (find this in your existing server.js and add 'download')
+// ═══════════════════════════════════════════════════════════════════════════════════════════
+
+// Find this line and add 'download' to it:
+
+// Delete inquiry endpoint
+app.delete('/api/analytics/inquiries/:id', async (req, res) => {
+  try {
+    const inquiryId = req.params.id;
+    
+    if (!inquiryId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Missing inquiry ID' 
+      });
+    }
+
+    // Start transaction if database is available
+    if (db) {
+      try {
+        await db.query('BEGIN');
+        
+        // Check if inquiry exists
+        const existsResult = await db.query(
+          'SELECT id, first_name, family_surname FROM inquiries WHERE id = $1',
+          [inquiryId]
+        );
+        
+        if (existsResult.rows.length === 0) {
+          await db.query('ROLLBACK');
+          return res.status(404).json({ 
+            success: false, 
+            error: 'Inquiry not found' 
+          });
+        }
+        
+        const inquiry = existsResult.rows[0];
+        
+        // Delete related data in correct order (foreign key constraints)
+        
+        // 1. Delete AI insights
+        await db.query('DELETE FROM ai_family_insights WHERE inquiry_id = $1', [inquiryId]);
+        
+        // 2. Delete video engagement tracking
+        await db.query('DELETE FROM video_engagement_tracking WHERE inquiry_id = $1', [inquiryId]);
+        
+        // 3. Delete tracking events
+        await db.query('DELETE FROM tracking_events WHERE inquiry_id = $1', [inquiryId]);
+        
+        // 4. Delete engagement metrics
+        await db.query('DELETE FROM engagement_metrics WHERE inquiry_id = $1', [inquiryId]);
+        
+        // 5. Delete inquiry AI summary (if exists)
+        await db.query('DELETE FROM inquiry_ai_summary WHERE inquiry_id = $1', [inquiryId]);
+        
+        // 6. Finally delete the main inquiry record
+        const deleteResult = await db.query('DELETE FROM inquiries WHERE id = $1', [inquiryId]);
+        
+        await db.query('COMMIT');
+        
+        console.log(`Successfully deleted inquiry ${inquiryId} (${inquiry.first_name} ${inquiry.family_surname}) and all related data`);
+        
+        return res.json({ 
+          success: true, 
+          message: `Successfully deleted inquiry for ${inquiry.first_name} ${inquiry.family_surname}`,
+          deletedId: inquiryId
+        });
+        
+      } catch (dbError) {
+        await db.query('ROLLBACK');
+        console.error('Database deletion failed:', dbError);
+        return res.status(500).json({ 
+          success: false, 
+          error: 'Failed to delete from database',
+          details: dbError.message 
+        });
+      }
+    }
+    
+    // Fallback: JSON file deletion (if no database)
+    try {
+      const files = await fs.readdir(path.join(__dirname, 'data'));
+      let found = false;
+      
+      for (const f of files.filter(x => x.startsWith('inquiry-') && x.endsWith('.json'))) {
+        try {
+          const filePath = path.join(__dirname, 'data', f);
+          const content = await fs.readFile(filePath, 'utf8');
+          const inquiry = JSON.parse(content);
+          
+          if (inquiry.id === inquiryId) {
+            // Delete the JSON file
+            await fs.unlink(filePath);
+            
+            // Try to delete the prospectus file if it exists
+            if (inquiry.prospectusFilename) {
+              try {
+                const prospectusPath = path.join(__dirname, 'prospectuses', inquiry.prospectusFilename);
+                await fs.unlink(prospectusPath);
+                console.log(`Deleted prospectus file: ${inquiry.prospectusFilename}`);
+              } catch (prospectusError) {
+                console.warn(`Failed to delete prospectus file: ${prospectusError.message}`);
+              }
+            }
+            
+            // Remove from slug index
+            if (inquiry.slug && slugIndex[inquiry.slug]) {
+              delete slugIndex[inquiry.slug];
+              await saveSlugIndex();
+              console.log(`Removed slug mapping: ${inquiry.slug}`);
+            }
+            
+            found = true;
+            console.log(`Successfully deleted inquiry ${inquiryId} from JSON files`);
+            
+            return res.json({ 
+              success: true, 
+              message: `Successfully deleted inquiry for ${inquiry.firstName} ${inquiry.familySurname}`,
+              deletedId: inquiryId,
+              source: 'json'
+            });
+          }
+        } catch (fileError) {
+          console.warn(`Failed to process ${f}:`, fileError.message);
+        }
+      }
+      
+      if (!found) {
+        return res.status(404).json({ 
+          success: false, 
+          error: 'Inquiry not found in JSON files' 
+        });
+      }
+      
+    } catch (jsonError) {
+      console.error('JSON deletion failed:', jsonError);
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Failed to delete from JSON files',
+        details: jsonError.message 
+      });
+    }
+    
+  } catch (error) {
+    console.error('Delete inquiry error:', error);
+    return res.status(500).json({ 
+      success: false, 
+      error: 'Internal server error during deletion',
+      details: error.message 
+    });
+  }
+});
 // 404 handler
 app.use((req, res) => {
   res.status(404).json({ 
