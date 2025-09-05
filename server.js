@@ -1344,6 +1344,68 @@ app.get(ENDPOINTS.rebuildSlugs, async (req, res) => {
   });
 });
 
+// Download by inquiry ID endpoint
+app.get('/api/download/:id', async (req, res) => {
+  try {
+    const inquiryId = req.params.id;
+    console.log(`📥 Download request by ID: ${inquiryId}`);
+    
+    const inquiry = await inquiryOps.findById(inquiryId);
+    if (!inquiry) {
+      return res.status(404).json({ 
+        success: false, 
+        error: "Not found", 
+        message: `Route GET /api/download/${inquiryId} not found` 
+      });
+    }
+    
+    console.log(`Found inquiry: ${inquiry.firstName || inquiry.first_name} ${inquiry.familySurname || inquiry.family_surname}`);
+    
+    // Generate prospectus if needed
+    const prospectusFilename = inquiry.prospectusFilename || inquiry.prospectus_filename;
+    
+    if (!prospectusFilename) {
+      console.log('Generating prospectus for download...');
+      const prospectus = await translation.generateMultilingualProspectus(inquiry);
+      await inquiryOps.updateStatus(inquiry.id, {
+        status: 'prospectus-generated',
+        prospectusFilename: prospectus.filename,
+        prospectusUrl: prospectus.url
+      });
+      inquiry.prospectusFilename = prospectus.filename;
+    }
+    
+    // Send the file for download
+    const filePath = path.join(__dirname, 'prospectuses', prospectusFilename || inquiry.prospectusFilename);
+    
+    // Check if file exists
+    try {
+      await fs.access(filePath);
+    } catch (e) {
+      console.error(`File not found: ${filePath}`);
+      return res.status(404).json({ 
+        success: false, 
+        error: "File not found", 
+        message: `Prospectus file not found for ${inquiryId}` 
+      });
+    }
+    
+    // Send file with proper headers for download
+    const firstName = inquiry.firstName || inquiry.first_name || 'Student';
+    const familySurname = inquiry.familySurname || inquiry.family_surname || 'Family';
+    const entryYear = inquiry.entryYear || inquiry.entry_year || '2025';
+    const downloadName = `${firstName}-${familySurname}-Prospectus-${entryYear}.html`;
+    res.download(filePath, downloadName);
+    
+  } catch (error) {
+    console.error('Download error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
 // Reserved slugs for system routes
 const RESERVED = new Set([
   'api','prospectuses','health','tracking','dashboard','favicon','robots',
