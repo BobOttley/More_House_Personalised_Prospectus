@@ -2106,23 +2106,22 @@
 }
 
     function trackProgress(){
-      if(!ytPlayer || typeof ytPlayer.getDuration !== 'function') return;
-      const dur = ytPlayer.getDuration() || 0;
-      const cur = ytPlayer.getCurrentTime() || 0;
-      if(dur <= 0) return;
-      let pct = Math.floor((cur / dur) * 100);
-      if(pct > 100) pct = 100;
-      if(pct >= lastPct + 10){
-        lastPct = pct;
-        emit('youtube_video_progress', { videoId: safeVideoId(), percent: pct });
-      }
+        if(!ytPlayer || typeof ytPlayer.getDuration !== 'function') return;
+        const dur = ytPlayer.getDuration() || 0;
+        const cur = ytPlayer.getCurrentTime() || 0;
+        if(dur <= 0) return;
+        let pct = Math.floor((cur / dur) * 100);
+        if(pct > 100) pct = 100;
+        if(pct >= lastPct + 10){
+            lastPct = pct;
+            emit('youtube_video_progress', { videoId: safeVideoId(), percent: pct });
+        }
     }
-  
+
     function safeVideoId(){
-      try { return (ytPlayer.getVideoData() || {}).video_id || null; }
-      catch { return null; }
+        try { return (ytPlayer.getVideoData() || {}).video_id || null; }
+        catch { return null; }
     }
-  })();
 
 
 </script>
