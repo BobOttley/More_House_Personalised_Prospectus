@@ -2092,21 +2092,6 @@
         gcseResults.style.display = 'block';
     }
 }
-}
-
-    function personalizeStatsSection(data) {
-        const gcseResults = document.getElementById('gcseResults');
-        
-        if (data && data.ageGroup === '16-18') {
-            gcseResults.style.display = 'none';
-        } else {
-            gcseResults.style.display = 'block';
-            // Animate the circles when shown
-            setTimeout(() => {
-                animateGCSECircles();
-            }, 500);
-        }
-    }
     
     // Optional: Highlight music statistic if student selected music
     if (data.music) {
