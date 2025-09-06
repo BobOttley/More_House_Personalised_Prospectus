@@ -3970,9 +3970,6 @@ app.get('/prospectuses/:filename', async (req, res) => {
   }
 });
 
-// ===================== DeepL proxy (safe: POST; does not affect slug GETs) =====================
-// Add this at the top of your server.js with other requires
-const translationCache = require('./translation-cache');
 
 // Replace your existing /api/deepl endpoint with this:
 app.post('/api/deepl', async (req, res) => {
