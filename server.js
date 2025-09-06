@@ -1545,6 +1545,9 @@ app.post('/api/generate-prospectus/:inquiryId', async (req, res) => {
       return res.status(404).json({ success: false, error: 'Inquiry not found' });
     }
     
+    const language = req.query.lang || 'en';
+    console.log(`URL language parameter: ${language}`);
+    inquiry.language = language;
     const p = await generateProspectus(inquiry);
     await updateInquiryStatus(inquiry.id, p);
     
@@ -4172,6 +4175,9 @@ app.get('/:slug', async (req, res, next) => {
       if (inquiry) {
         try {
           console.log(`Regenerating prospectus for found inquiry: ${inquiry.id}`);
+          const language = req.query.lang || 'en';
+          console.log(`URL language parameter: ${language}`);
+          inquiry.language = language;
           const p = await generateProspectus(inquiry);
           await updateInquiryStatus(inquiry.id, p);
           rel = p.url;
@@ -4204,6 +4210,9 @@ app.get('/:slug', async (req, res, next) => {
       try {
         const inquiry = await findInquiryBySlug(slug);
         if (inquiry) {
+          const language = req.query.lang || 'en';
+          console.log(`URL language parameter: ${language}`);
+          inquiry.language = language;
           const p = await generateProspectus(inquiry);
           await updateInquiryStatus(inquiry.id, p);
           slugIndex[slug] = p.url;
