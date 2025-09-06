@@ -1023,50 +1023,75 @@
 
     // Process and enrich family data
     function processRealData(raw) {
-      return raw.map(f => {
-        const sessionCount = f.session_count || f.sessions_count || f.total_sessions || f.return_visits || 0;
-        let totalDwellMs = Number(f.dwell_ms) || 0;
-        let actualVisits = Number(sessionCount) || 0;
+ return raw.map(f => {
+   let totalDwellMs = 0;
+   let actualVisits = 0;
 
-        if (f.sessions && Array.isArray(f.sessions)) {
-          actualVisits = f.sessions.length;
-          totalDwellMs = f.sessions.reduce((sum, s) => {
-            return sum + (Number(s.dwell_ms) || Number(s.duration) || 0);
-          }, 0);
-        }
+   // Check multiple possible session fields
+   if (f.sessions && Array.isArray(f.sessions)) {
+     actualVisits = f.sessions.length;
+     totalDwellMs = f.sessions.reduce((sum, s) => {
+       // Try multiple duration fields and convert to ms
+       const duration = Number(s.dwell_ms) || 
+                       Number(s.duration_ms) || 
+                       (Number(s.duration) * 1000) || 
+                       (Number(s.dwell_seconds) * 1000) ||
+                       (Number(s.duration_seconds) * 1000) ||
+                       (Number(s.total_dwell_seconds) * 1000) || 0;
+       return sum + duration;
+     }, 0);
+   } else {
+     // Fallback to single values
+     actualVisits = Number(f.session_count) || Number(f.sessions_count) || 
+                   Number(f.total_sessions) || Number(f.return_visits) || 
+                   Number(f.visits) || Number(f.total_visits) || 0;
+     
+     // Try to get total time from various fields
+     totalDwellMs = Number(f.dwell_ms) || 
+                    Number(f.total_dwell_ms) ||
+                    (Number(f.dwell_seconds) * 1000) ||
+                    (Number(f.total_dwell_seconds) * 1000) ||
+                    (Number(f.total_time_seconds) * 1000) ||
+                    (Number(f.time_on_page) * 1000) || 0;
+   }
 
-        // Fallback: if there are visits but no dwell recorded, assume at least 60s
-        if (actualVisits > 0 && totalDwellMs === 0) {
-          totalDwellMs = actualVisits * 60000;
-        }
+   // If still no visits but we have an inquiry, assume at least 1
+   if (actualVisits === 0 && f.id) {
+     actualVisits = 1;
+   }
 
-        const last = f.updated_at || f.received_at || null;
-        const isActiveToday = !!(last && (Date.now() - new Date(last).getTime()) <= 86400000);
+   // If we have visits but no time, assume 60s per visit
+   if (actualVisits > 0 && totalDwellMs === 0) {
+     totalDwellMs = actualVisits * 60000;
+   }
 
-        return {
-          id: f.id || f.inquiry_id,
-          name: `${f.first_name || ''} ${f.family_surname || ''}`.trim(),
-          firstName: f.first_name,
-          familySurname: f.family_surname,
-          parentEmail: f.parent_email,
-          entryYear: f.entry_year,
-          ageGroup: f.age_group,
-          receivedAt: f.received_at,
-          lastActivity: last,
-          timeOnPageMs: totalDwellMs,
-          timeOnPageMinutes: Math.max(0, Math.round(totalDwellMs / 60000)),
-          visits: actualVisits,
-          sessionCount: actualVisits,
-          isActiveToday,
-          hasProspectus: !!f.prospectus_generated,
-          prospectusUrl: f.prospectus_pretty_url || null,
-          city: f.city || null,
-          country: f.country || null,
-          interests: extractInterests(f),
-          rawData: f
-        };
-      }).filter(x => x.name.length);
-    }
+   const last = f.updated_at || f.received_at || null;
+   const isActiveToday = !!(last && (Date.now() - new Date(last).getTime()) <= 86400000);
+
+   return {
+     id: f.id || f.inquiry_id,
+     name: `${f.first_name || ''} ${f.family_surname || ''}`.trim(),
+     firstName: f.first_name,
+     familySurname: f.family_surname,
+     parentEmail: f.parent_email,
+     entryYear: f.entry_year,
+     ageGroup: f.age_group,
+     receivedAt: f.received_at,
+     lastActivity: last,
+     timeOnPageMs: totalDwellMs,
+     timeOnPageMinutes: Math.max(0, Math.round(totalDwellMs / 60000)),
+     visits: actualVisits,
+     sessionCount: actualVisits,
+     isActiveToday,
+     hasProspectus: !!f.prospectus_generated,
+     prospectusUrl: f.prospectus_pretty_url || null,
+     city: f.city || null,
+     country: f.country || null,
+     interests: extractInterests(f),
+     rawData: f
+   };
+ }).filter(x => x.name.length);
+}
 
     // Load main data
     async function loadData() {
