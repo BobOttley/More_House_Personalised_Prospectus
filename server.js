@@ -3974,7 +3974,7 @@ app.get('/prospectuses/:filename', async (req, res) => {
 app.post('/api/deepl', async (req, res) => {
   try {
     const DEEPL_API_KEY  = process.env.DEEPL_API_KEY;
-    const DEEPL_ENDPOINT = process.env.DEEPL_API_BASE || 'https://api-free.deepl.com/v2/translate'; // set to https://api.deepl.com/v2/translate if on paid
+    const DEEPL_ENDPOINT = process.env.DEEPL_API_BASE || 'https://api.deepl.com/v2/translate';
 
     if (!DEEPL_API_KEY) {
       return res.status(500).json({ error: 'DEEPL_API_KEY missing' });
