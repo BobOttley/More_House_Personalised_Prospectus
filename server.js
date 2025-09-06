@@ -3971,6 +3971,10 @@ app.get('/prospectuses/:filename', async (req, res) => {
 });
 
 // ===================== DeepL proxy (safe: POST; does not affect slug GETs) =====================
+// Add this at the top of your server.js with other requires
+const translationCache = require('./translation-cache');
+
+// Replace your existing /api/deepl endpoint with this:
 app.post('/api/deepl', async (req, res) => {
   try {
     const DEEPL_API_KEY  = process.env.DEEPL_API_KEY;
@@ -3989,6 +3993,16 @@ app.post('/api/deepl', async (req, res) => {
     if (!ALLOWED.has((target_lang || '').toLowerCase())) {
       return res.status(400).json({ error: 'Unsupported target_lang' });
     }
+
+    // CACHE CHECK: Try to get from cache first
+    const cached = await translationCache.get(html, target_lang, 'web');
+    if (cached) {
+      console.log(`✔ Cache hit: serving cached ${target_lang} translation`);
+      return res.json({ translated: cached });
+    }
+
+    // CACHE MISS: Need to call DeepL
+    console.log(`➜ Cache miss: calling DeepL for ${target_lang} translation`);
 
     // Build form for DeepL (HTML-aware)
     const form = new URLSearchParams();
@@ -4014,6 +4028,11 @@ app.post('/api/deepl', async (req, res) => {
     }
 
     const translated = payload?.translations?.[0]?.text || '';
+    
+    // CACHE SAVE: Store the translation for future use
+    await translationCache.set(html, translated, target_lang, 'web');
+    console.log(`💾 Cached new ${target_lang} translation`);
+    
     return res.json({ translated });
   } catch (err) {
     console.error('DeepL proxy failed:', err);
