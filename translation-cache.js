@@ -13,7 +13,7 @@ class TranslationCache {
     async init() {
         try {
             await fs.mkdir(this.cacheDir, { recursive: true });
-            console.log('✓ Translation cache initialized');
+            console.log('✔ Translation cache initialized');
         } catch (error) {
             console.error('Cache init error:', error);
         }
@@ -31,7 +31,7 @@ class TranslationCache {
         
         // Check memory first (fastest)
         if (this.memoryCache.has(key)) {
-            console.log(`✓ Memory cache hit: ${context || 'general'} → ${targetLang}`);
+            console.log(`✔ Memory cache hit: ${context || 'general'} → ${targetLang}`);
             return this.memoryCache.get(key);
         }
 
@@ -43,7 +43,7 @@ class TranslationCache {
             
             // Store in memory for next time
             this.memoryCache.set(key, cached.translation);
-            console.log(`✓ File cache hit: ${context || 'general'} → ${targetLang}`);
+            console.log(`✔ File cache hit: ${context || 'general'} → ${targetLang}`);
             return cached.translation;
         } catch (error) {
             return null; // Not cached
@@ -72,7 +72,7 @@ class TranslationCache {
         }
     }
 
-    // Main translation function with caching
+    // Main translation function with caching - NOW CALLS DEEPL DIRECTLY
     async translate(text, targetLang, context = '') {
         // Don't translate if already in English or if target is English
         if (!text || targetLang === 'en') return text;
@@ -85,25 +85,43 @@ class TranslationCache {
         console.log(`→ Translating to ${targetLang}: ${context || 'general'}`);
         
         try {
-            // Call your translation API
-            const response = await fetch('http://localhost:3000/api/deepl', {
+            // Get DeepL credentials from environment
+            const DEEPL_API_KEY = process.env.DEEPL_API_KEY;
+            const DEEPL_ENDPOINT = process.env.DEEPL_API_BASE || 'https://api.deepl.com/v2/translate';
+            
+            if (!DEEPL_API_KEY) {
+                throw new Error('DEEPL_API_KEY not configured');
+            }
+
+            // Build form data for DeepL
+            const form = new URLSearchParams();
+            form.append('text', text);
+            form.append('target_lang', targetLang.toUpperCase()); // e.g. FR, DE
+            form.append('tag_handling', 'html');
+            form.append('preserve_formatting', '1');
+            form.append('split_sentences', 'nonewlines');
+
+            // Call DeepL API directly
+            const response = await fetch(DEEPL_ENDPOINT, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    html: text,
-                    target_lang: targetLang
-                })
+                headers: {
+                    'Authorization': `DeepL-Auth-Key ${DEEPL_API_KEY}`,
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: form
             });
 
             if (!response.ok) {
-                throw new Error(`Translation API error: ${response.status}`);
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(`DeepL API error: ${response.status} - ${JSON.stringify(errorData)}`);
             }
 
             const data = await response.json();
-            const translation = data.translated || text;
+            const translation = data?.translations?>[0]?.text || text;
 
             // Cache the translation
             await this.set(text, translation, targetLang, context);
+            console.log(`💾 Cached new ${targetLang} translation for: ${context || 'general'}`);
 
             return translation;
         } catch (error) {
@@ -149,7 +167,7 @@ class TranslationCache {
         this.memoryCache.clear();
         console.log('Memory cache cleared');
     }
-
+    // Get cache statistics
     // Get cache statistics
     async getStats() {
         const files = await fs.readdir(this.cacheDir);
@@ -160,6 +178,8 @@ class TranslationCache {
         };
     }
 }
+
+
 
 // Export singleton instance
 module.exports = new TranslationCache();
