@@ -559,7 +559,7 @@ ${await fs.readFile(path.join(__dirname, 'public', 'tracking.js'), 'utf8')}
   // Set language selector if present AND trigger translation
   const langSelector = document.getElementById('prospectus-lang');
   if (langSelector && '${language}' !== 'en') {
-    langSelector.value = '${language}';
+    langSelector.value = ${JSON.stringify(language)};
     // Trigger change event to activate translation
     setTimeout(() => {
       const event = new Event('change', { bubbles: true });
