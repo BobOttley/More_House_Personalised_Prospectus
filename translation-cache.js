@@ -117,7 +117,7 @@ class TranslationCache {
             }
 
             const data = await response.json();
-            const translation = data?.translations?>[0]?.text || text;
+            const translation = data?.translations?.[0]?.text || text;
 
             // Cache the translation
             await this.set(text, translation, targetLang, context);
