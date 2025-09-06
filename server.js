@@ -556,10 +556,15 @@ ${await fs.readFile(path.join(__dirname, 'public', 'tracking.js'), 'utf8')}
     }
   })();
   
-  // Set language selector if present
+  // Set language selector if present AND trigger translation
   const langSelector = document.getElementById('prospectus-lang');
-  if (langSelector) {
+  if (langSelector && '${language}' !== 'en') {
     langSelector.value = '${language}';
+    // Trigger change event to activate translation
+    setTimeout(() => {
+      const event = new Event('change', { bubbles: true });
+      langSelector.dispatchEvent(event);
+    }, 500); // Small delay to ensure translator.js is loaded
   }
 </script>`;
     
