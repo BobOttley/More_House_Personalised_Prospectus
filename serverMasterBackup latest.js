@@ -7,7 +7,6 @@ require('dotenv').config();
 const { Client } = require('pg');
 const OpenAI = require("openai");
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-const translationCache = require('./translation-cache');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -418,82 +417,17 @@ async function generateProspectus(inquiry) {
     const templatePath = path.join(__dirname, 'public', 'prospectus_template.html');
     let html = await fs.readFile(templatePath, 'utf8');
     
-    // ============= NEW TRANSLATION SECTION =============
-    const language = inquiry.language || 'en';
-    console.log(`📌 Language requested: ${language}`);
-    
-    if (language !== 'en') {
-      console.log(`🌐 Translating prospectus to ${language}...`);
-      
-      // Define texts to translate with their contexts
-      const textsToTranslate = [
-        { text: "Your Personalised Prospectus", context: "title" },
-        { text: "Welcome to More House School", context: "welcome" },
-        { text: "An Independent Day School for Girls aged 11-18", context: "subtitle" },
-        { text: "Academic Excellence", context: "academics" },
-        { text: "Pastoral Care", context: "pastoral" },
-        { text: "Discover More", context: "cta" },
-        { text: "Our Mission", context: "mission" },
-        { text: "Your Journey Starts Here", context: "journey" }
-      ];
-      
-      // Translate all static texts
-      for (const item of textsToTranslate) {
-        const translated = await translationCache.translate(
-          item.text,
-          language,
-          `prospectus_${item.context}`
-        );
-        html = html.replace(new RegExp(item.text, 'g'), translated);
-      }
-      
-      // Translate interest-specific sections if selected
-      if (inquiry.sciences) {
-        const scienceText = "Science and Discovery";
-        const translated = await translationCache.translate(scienceText, language, "interest_sciences");
-        html = html.replace(scienceText, translated);
-      }
-      
-      if (inquiry.mathematics) {
-        const mathText = "Mathematics Excellence";
-        const translated = await translationCache.translate(mathText, language, "interest_math");
-        html = html.replace(mathText, translated);
-      }
-      
-      if (inquiry.drama) {
-        const dramaText = "Drama and Performance";
-        const translated = await translationCache.translate(dramaText, language, "interest_drama");
-        html = html.replace(dramaText, translated);
-      }
-      
-      if (inquiry.music) {
-        const musicText = "Music and Creativity";
-        const translated = await translationCache.translate(musicText, language, "interest_music");
-        html = html.replace(musicText, translated);
-      }
-      
-      if (inquiry.sport) {
-        const sportText = "Sports and Wellbeing";
-        const translated = await translationCache.translate(sportText, language, "interest_sport");
-        html = html.replace(sportText, translated);
-      }
-      
-      console.log(`✅ Translation complete for ${language}`);
-    }
-    // ============= END TRANSLATION SECTION =============
-    
     const filename = generateFilename(inquiry);
     const relPath = `/prospectuses/${filename}`;
     const absPath = path.join(__dirname, 'prospectuses', filename);
     
-    // Add meta tags for tracking (updated with language)
+    // Add meta tags for tracking
     const meta = `
 <meta name="inquiry-id" content="${inquiry.id}">
 <meta name="generated-date" content="${new Date().toISOString()}">
 <meta name="student-name" content="${inquiry.firstName} ${inquiry.familySurname}">
 <meta name="entry-year" content="${inquiry.entryYear}">
-<meta name="age-group" content="${inquiry.ageGroup}">
-<meta name="language" content="${language}">`;
+<meta name="age-group" content="${inquiry.ageGroup}">`;
     
     html = html.replace('</head>', `${meta}\n</head>`);
     
@@ -512,9 +446,8 @@ console.log('Prospectus tracking initialized for:', '${inquiry.id}');
 <script>
 ${await fs.readFile(path.join(__dirname, 'public', 'tracking.js'), 'utf8')}
 </script>`;
-
-    // Inject personalisation payload + initialise the page (updated with language)
-    const personalizationBootstrap = `
+// Inject personalisation payload + initialise the page
+const personalizationBootstrap = `
 <script>
   // Make the inquiry data available to the prospectus template
   window.PROSPECTUS_DATA = ${JSON.stringify({
@@ -524,7 +457,6 @@ ${await fs.readFile(path.join(__dirname, 'public', 'tracking.js'), 'utf8')}
     parentEmail: inquiry.parentEmail,
     ageGroup: inquiry.ageGroup,
     entryYear: inquiry.entryYear,
-    language: language,  // Added language field
     sciences: !!inquiry.sciences,
     mathematics: !!inquiry.mathematics,
     english: !!inquiry.english,
@@ -555,12 +487,6 @@ ${await fs.readFile(path.join(__dirname, 'public', 'tracking.js'), 'utf8')}
       setTimeout(startPersonalisation, 50);
     }
   })();
-  
-  // Set language selector if present
-  const langSelector = document.getElementById('prospectus-lang');
-  if (langSelector) {
-    langSelector.value = '${language}';
-  }
 </script>`;
     
     // Find the body closing tag and inject BEFORE it
@@ -574,6 +500,7 @@ ${await fs.readFile(path.join(__dirname, 'public', 'tracking.js'), 'utf8')}
       + personalizationBootstrap
       + '\n'
       + html.slice(bodyCloseIndex);
+
     
     // Write the final HTML file
     await fs.writeFile(absPath, html, 'utf8');
@@ -587,14 +514,12 @@ ${await fs.readFile(path.join(__dirname, 'public', 'tracking.js'), 'utf8')}
     console.log(`✅ Prospectus generated: ${filename}`);
     console.log(`🔗 Pretty URL: ${prettyPath}`);
     console.log(`📊 Tracking ID: ${inquiry.id}`);
-    console.log(`🌐 Language: ${language}`);
     
     return {
       filename,
       url: relPath,
       slug,
       prettyPath,
-      language,  // Added language to return object
       generatedAt: new Date().toISOString()
     };
   } catch (e) {
@@ -1398,8 +1323,7 @@ app.post(['/webhook', '/api/inquiry'], async (req, res) => {
       prospectusGenerated: false,
       parentName: data.parentName,          // ADD THIS
       contactNumber: data.contactNumber,    // ADD THIS
-      hearAboutUs: data.hearAboutUs,
-      language: data.language || 'en',   
+      hearAboutUs: data.hearAboutUs,   
       userAgent: req.headers['user-agent'],
       referrer: req.headers.referer,
       ip: clientIP,
