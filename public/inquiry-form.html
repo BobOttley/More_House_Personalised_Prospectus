@@ -76,11 +76,7 @@
         .footer-text{text-align:center;margin-top:30px;font-size:.9rem;color:var(--morehouse-text);opacity:.8}
         .privacy-notice{background:var(--morehouse-light-grey);padding:15px;border-radius:8px;margin-top:20px;font-size:.85rem;color:var(--morehouse-text);border-left:3px solid var(--morehouse-navy)}
         @media (max-width:768px){.form-container{padding:30px 20px;margin:10px}h1{font-size:2rem}.subtitle{font-size:1rem}.form-row{grid-template-columns:1fr;gap:15px}.checkbox-group{grid-template-columns:1fr}.section-label{font-size:1.1rem}}
-        .webhook-config{background:var(--morehouse-light-grey);padding:15px;border-radius:8px;margin-bottom:20px;border:1px solid #ddd}
-        .webhook-config label{font-size:.9rem;margin-bottom:5px}
-        .webhook-config input{font-size:14px;padding:8px}
-        .webhook-config-toggle{background:var(--morehouse-navy);color:white;border:none;padding:8px 15px;border-radius:5px;cursor:pointer;font-size:.8rem;margin-bottom:15px;display:none}
-        .debug-info{background:#f8f9fa;padding:10px;border-radius:5px;margin-top:10px;font-size:12px;color:#666;border:1px solid #dee2e6}
+        .debug-info{background:#f8f9fa;padding:10px;border-radius:5px;margin-bottom:20px;font-size:12px;color:#666;border:1px solid #dee2e6}
 
         /* Access Options Styles */
         .access-options {
@@ -248,11 +244,6 @@
             }
         }
 
-        .name-field::placeholder {
-            color: #999;
-            font-style: italic;
-        }
-
         /* RTL support for Arabic */
         [dir="rtl"] {
             text-align: right;
@@ -312,31 +303,22 @@
                 <span data-translate>Status</span>: <span id="connectionStatus">Checking...</span>
             </div>
 
-            <!-- Webhook Configuration -->
-            <button type="button" class="webhook-config-toggle" id="webhookToggle" data-translate>Webhook Configuration</button>
-            <div class="webhook-config" id="webhookConfig" style="display:none;">
-                <div class="form-group">
-                    <label for="webhookUrl" data-translate>Webhook URL (testing only)</label>
-                    <input type="url" id="webhookUrl" value="" placeholder="https://your-service.onrender.com/webhook">
-                </div>
-            </div>
-
             <form id="inquiryForm">
                 <span class="section-label" data-translate>Family Information</span>
                 
                 <div class="form-group">
                     <label for="parentName"><span data-translate>Parent/Guardian Name</span> <span class="required">*</span></label>
-                    <input type="text" id="parentName" class="name-field" required data-placeholder="Please use English letters (A-Z)">
+                    <input type="text" id="parentName" required>
                 </div>
                 
                 <div class="form-row">
                     <div class="form-group">
                         <label for="firstName"><span data-translate>Daughter's First Name</span> <span class="required">*</span></label>
-                        <input type="text" id="firstName" class="name-field" required data-placeholder="Please use English letters (A-Z)">
+                        <input type="text" id="firstName" required>
                     </div>
                     <div class="form-group">
                         <label for="familySurname"><span data-translate>Family Surname</span> <span class="required">*</span></label>
-                        <input type="text" id="familySurname" class="name-field" required data-placeholder="Please use English letters (A-Z)">
+                        <input type="text" id="familySurname" required>
                     </div>
                 </div>
 
@@ -347,7 +329,7 @@
                     </div>
                     <div class="form-group">
                         <label for="contactNumber"><span data-translate>Contact Number</span> <span class="required">*</span></label>
-                        <input type="tel" id="contactNumber" required data-placeholder="e.g. 020 7235 2855">
+                        <input type="tel" id="contactNumber" required>
                     </div>
                 </div>
 
@@ -495,7 +477,12 @@
     </div>
 
     <script>
-        // Improved Translation System
+        // Global variables
+        let isSubmitting = false;
+        let currentProspectusData = null;
+        let formEventListeners = [];
+
+        // Translation System
         (function () {
             'use strict';
 
@@ -503,13 +490,14 @@
             const STORE_KEY = 'morehouse_inquiry_lang';
             const ALLOWED = new Set(['en','zh','ar','ru','fr','es','de','it']);
 
-            // Store translations to avoid re-fetching
             const translationCache = {};
             let currentLang = 'en';
             let isTranslating = false;
 
-            // Store original text content for each translatable element
             const originalTexts = new WeakMap();
+
+            // Make currentLang accessible globally
+            window.getCurrentLanguage = () => currentLang;
 
             function getPicker() {
                 return document.getElementById(PICKER_ID);
@@ -551,57 +539,36 @@
                 b.opacity = '';
             }
 
-            // Store original texts on initialization
             function storeOriginalTexts() {
                 document.querySelectorAll('[data-translate]').forEach(el => {
                     if (!originalTexts.has(el)) {
                         originalTexts.set(el, el.innerHTML);
                     }
                 });
-
-                // Store placeholders
-                document.querySelectorAll('[data-placeholder]').forEach(el => {
-                    if (!originalTexts.has(el)) {
-                        originalTexts.set(el, el.getAttribute('data-placeholder'));
-                    }
-                });
             }
 
-            // Extract translatable texts for batch translation
             function extractTextsToTranslate() {
                 const texts = [];
                 const elements = [];
 
-                // Extract text content
                 document.querySelectorAll('[data-translate]').forEach(el => {
                     const originalText = originalTexts.get(el) || el.innerHTML;
                     texts.push(originalText);
                     elements.push({ el, type: 'content' });
                 });
 
-                // Extract placeholders
-                document.querySelectorAll('[data-placeholder]').forEach(el => {
-                    const originalPlaceholder = originalTexts.get(el) || el.getAttribute('data-placeholder');
-                    texts.push(originalPlaceholder);
-                    elements.push({ el, type: 'placeholder' });
-                });
-
                 return { texts, elements };
             }
 
-            // Apply translations to elements
             function applyTranslations(translations, elements) {
                 translations.forEach((translatedText, index) => {
                     const { el, type } = elements[index];
                     if (type === 'content') {
                         el.innerHTML = translatedText;
-                    } else if (type === 'placeholder') {
-                        el.placeholder = translatedText;
                     }
                 });
             }
 
-            // Batch translate texts
             async function translateTexts(texts, targetLang) {
                 const cacheKey = `${targetLang}_${texts.join('|||')}`;
                 
@@ -626,7 +593,6 @@
                     const data = await response.json();
                     const translatedHTML = data.translated || '';
                     
-                    // Parse translated divs
                     const parser = new DOMParser();
                     const doc = parser.parseFromString(translatedHTML, 'text/html');
                     const translations = Array.from(doc.querySelectorAll('div')).map(div => div.innerHTML);
@@ -647,14 +613,9 @@
                     isTranslating = true;
                     beginTransition();
                     try {
-                        // Restore original texts
                         document.querySelectorAll('[data-translate]').forEach(el => {
                             const original = originalTexts.get(el);
                             if (original) el.innerHTML = original;
-                        });
-                        document.querySelectorAll('[data-placeholder]').forEach(el => {
-                            const original = originalTexts.get(el);
-                            if (original) el.placeholder = original;
                         });
                         
                         setLangAttrs('en');
@@ -662,7 +623,7 @@
                         writeLangToURL('en');
                     } finally {
                         bindPicker();
-                        bindForm();
+                        window.initializeFormFunctionality();
                         isTranslating = false;
                         endTransition();
                     }
@@ -687,7 +648,7 @@
                     alert('Sorry — we could not translate the form. Please try again.');
                 } finally {
                     bindPicker();
-                    bindForm();
+                    window.initializeFormFunctionality();
                     isTranslating = false;
                     endTransition();
                 }
@@ -710,18 +671,13 @@
                 if (clone.value !== current) clone.value = current;
             }
 
-            function bindForm() {
-                // Re-bind all the original functionality after translation
-                initializeOriginalFunctionality();
-            }
-
             function init() {
                 storeOriginalTexts();
                 const initial = getInitialLang();
                 setLangAttrs(initial);
 
                 bindPicker();
-                bindForm();
+                window.initializeFormFunctionality();
                 
                 if (initial !== 'en') {
                     translateTo(initial);
@@ -731,10 +687,14 @@
             document.addEventListener('DOMContentLoaded', init);
         })();
 
-        // Global variables to store prospectus data
-        let currentProspectusData = null;
+        // Main Form Functionality
+        window.initializeFormFunctionality = function() {
+            // Clear previous event listeners
+            formEventListeners.forEach(({ element, type, handler }) => {
+                element.removeEventListener(type, handler);
+            });
+            formEventListeners = [];
 
-        function initializeOriginalFunctionality() {
             // Webhook configuration
             function getWebhookUrl() {
                 const currentHost = window.location.hostname;
@@ -752,15 +712,6 @@
                 return `${RENDER_URL}/webhook`;
             }
 
-            // Webhook visibility and configuration
-            const isLocalhost = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
-            const debugParam = /[?&](debug|showWebhook)=1/.test(location.search);
-            const showWebhookUI = isLocalhost || debugParam;
-
-            const webhookToggle = document.getElementById('webhookToggle');
-            const webhookConfig = document.getElementById('webhookConfig');
-            const webhookUrlInput = document.getElementById('webhookUrl');
-
             // Set up debug information
             const currentUrlSpan = document.getElementById('currentUrl');
             const webhookTargetSpan = document.getElementById('webhookTarget');
@@ -770,20 +721,7 @@
             const webhookUrl = getWebhookUrl();
             if (webhookTargetSpan) webhookTargetSpan.textContent = webhookUrl;
 
-            if (showWebhookUI && webhookToggle) {
-                webhookToggle.style.display = 'inline-block';
-                if (webhookUrlInput) webhookUrlInput.value = webhookUrl;
-                webhookToggle.addEventListener('click', () => {
-                    if (webhookConfig) {
-                        webhookConfig.style.display = webhookConfig.style.display === 'none' ? 'block' : 'none';
-                    }
-                });
-            } else if (webhookToggle) {
-                webhookToggle.style.display = 'none';
-                if (webhookConfig) webhookConfig.style.display = 'none';
-            }
-
-            // Test webhook connectivity on page load
+            // Test webhook connectivity
             async function testWebhookConnectivity() {
                 if (!connectionStatusSpan) return;
                 
@@ -813,11 +751,18 @@
 
             testWebhookConnectivity();
 
-            // Form submission handler
+            // Form submission handler with duplicate prevention
             const form = document.getElementById('inquiryForm');
             if (form) {
-                form.addEventListener('submit', async function(e) {
+                const submitHandler = async function(e) {
                     e.preventDefault();
+
+                    // Prevent duplicate submissions
+                    if (isSubmitting) {
+                        console.log('Submission already in progress');
+                        return;
+                    }
+                    isSubmitting = true;
 
                     const submitBtn = document.getElementById('submitBtn');
                     const loadingSpinner = document.getElementById('loadingSpinner');
@@ -825,15 +770,27 @@
                     const successMessage = document.getElementById('successMessage');
                     const errorMessage = document.getElementById('errorMessage');
 
-                    if (submitBtn) submitBtn.disabled = true;
+                    // Immediately disable button
+                    if (submitBtn) {
+                        submitBtn.disabled = true;
+                        submitBtn.style.opacity = '0.6';
+                        submitBtn.style.cursor = 'not-allowed';
+                    }
                     if (loadingSpinner) loadingSpinner.style.display = 'inline-block';
                     if (submitText) submitText.textContent = 'Creating Your Prospectus...';
                     if (successMessage) successMessage.style.display = 'none';
                     if (errorMessage) errorMessage.style.display = 'none';
 
                     try {
-                        // Collect form data
+                        // Get current language
+                        const currentLanguage = window.getCurrentLanguage ? window.getCurrentLanguage() : 'en';
+                        
+                        // Collect form data including language
                         const formData = {
+                            // Include the language field
+                            language: currentLanguage,
+                            
+                            // Family information
                             parentName: document.getElementById('parentName')?.value?.trim() || '',
                             firstName: document.getElementById('firstName')?.value?.trim() || '',
                             familySurname: document.getElementById('familySurname')?.value?.trim() || '',
@@ -842,42 +799,48 @@
                             ageGroup: document.getElementById('ageGroup')?.value || '',
                             entryYear: document.getElementById('entryYear')?.value || '',
                             hearAboutUs: document.getElementById('hearAboutUs')?.value || '',
+                            
+                            // Academic interests
                             sciences: document.getElementById('sciences')?.checked || false,
                             mathematics: document.getElementById('mathematics')?.checked || false,
                             english: document.getElementById('english')?.checked || false,
                             languages: document.getElementById('languages')?.checked || false,
                             humanities: document.getElementById('humanities')?.checked || false,
                             business: document.getElementById('business')?.checked || false,
+                            
+                            // Creative interests
                             drama: document.getElementById('drama')?.checked || false,
                             music: document.getElementById('music')?.checked || false,
                             art: document.getElementById('art')?.checked || false,
                             creative_writing: document.getElementById('creative_writing')?.checked || false,
+                            
+                            // Co-curricular interests
                             sport: document.getElementById('sport')?.checked || false,
                             leadership: document.getElementById('leadership')?.checked || false,
                             community_service: document.getElementById('community_service')?.checked || false,
                             outdoor_education: document.getElementById('outdoor_education')?.checked || false,
+                            
+                            // Family priorities
                             academic_excellence: document.getElementById('academic_excellence')?.checked || false,
                             pastoral_care: document.getElementById('pastoral_care')?.checked || false,
                             university_preparation: document.getElementById('university_preparation')?.checked || false,
                             personal_development: document.getElementById('personal_development')?.checked || false,
                             career_guidance: document.getElementById('career_guidance')?.checked || false,
                             extracurricular_opportunities: document.getElementById('extracurricular_opportunities')?.checked || false,
+                            
+                            // Metadata
                             submissionTimestamp: new Date().toISOString(),
                             userAgent: navigator.userAgent,
                             referrer: document.referrer || 'direct'
                         };
 
-                        console.log('Form data collected:', formData);
-
-                        const finalWebhookUrl = (showWebhookUI && webhookUrlInput?.value) ? 
-                            webhookUrlInput.value : webhookUrl;
-
-                        console.log('Submitting to:', finalWebhookUrl);
+                        console.log('Form data collected (with language):', formData);
+                        console.log('Submitting to:', webhookUrl);
 
                         const controller = new AbortController();
                         const timeoutId = setTimeout(() => controller.abort(), 30000);
 
-                        const response = await fetch(finalWebhookUrl, {
+                        const response = await fetch(webhookUrl, {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
@@ -925,50 +888,70 @@
                             errorMessage.scrollIntoView({ behavior: 'smooth' });
                         }
                     } finally {
-                        if (submitBtn) submitBtn.disabled = false;
+                        // Reset submission flag
+                        isSubmitting = false;
+                        
+                        if (submitBtn) {
+                            submitBtn.disabled = false;
+                            submitBtn.style.opacity = '1';
+                            submitBtn.style.cursor = 'pointer';
+                        }
                         if (loadingSpinner) loadingSpinner.style.display = 'none';
                         if (submitText) submitText.textContent = 'Create My Personalised Prospectus';
                     }
-                });
+                };
+
+                form.addEventListener('submit', submitHandler);
+                formEventListeners.push({ element: form, type: 'submit', handler: submitHandler });
             }
 
             // Checkbox functionality
             document.querySelectorAll('.checkbox-item').forEach(item => {
-                item.addEventListener('click', function(e) {
+                const handler = function(e) {
                     if (e.target.type !== 'checkbox') {
                         const cb = this.querySelector('input[type="checkbox"]');
                         if (cb) cb.checked = !cb.checked;
                     }
-                });
+                };
+                item.addEventListener('click', handler);
+                formEventListeners.push({ element: item, type: 'click', handler });
             });
 
             // Field validation
             const requiredFields = document.querySelectorAll('input[required], select[required]');
             requiredFields.forEach(field => {
-                field.addEventListener('blur', function() {
+                const blurHandler = function() {
                     this.style.borderColor = this.value.trim() ? '#28a745' : '#dc3545';
-                });
-                field.addEventListener('input', function() {
+                };
+                const inputHandler = function() {
                     if (this.value.trim()) this.style.borderColor = '#28a745';
-                });
+                };
+                field.addEventListener('blur', blurHandler);
+                field.addEventListener('input', inputHandler);
+                formEventListeners.push({ element: field, type: 'blur', handler: blurHandler });
+                formEventListeners.push({ element: field, type: 'input', handler: inputHandler });
             });
             
             const emailField = document.getElementById('parentEmail');
             if (emailField) {
-                emailField.addEventListener('blur', function() {
+                const emailHandler = function() {
                     const ok = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.value);
                     this.style.borderColor = this.value && !ok ? '#dc3545' : (this.value ? '#28a745' : '#ddd');
-                });
+                };
+                emailField.addEventListener('blur', emailHandler);
+                formEventListeners.push({ element: emailField, type: 'blur', handler: emailHandler });
             }
 
             const phoneField = document.getElementById('contactNumber');
             if (phoneField) {
-                phoneField.addEventListener('blur', function() {
+                const phoneHandler = function() {
                     const ok = /^[\d\s\+\-\(\)]{10,}$/.test(this.value);
                     this.style.borderColor = this.value && !ok ? '#dc3545' : (this.value ? '#28a745' : '#ddd');
-                });
+                };
+                phoneField.addEventListener('blur', phoneHandler);
+                formEventListeners.push({ element: phoneField, type: 'blur', handler: phoneHandler });
             }
-        }
+        };
 
         // Access Options Functions
         function showAccessOptions(prospectusData) {
@@ -985,9 +968,11 @@
             if (accessOptions) accessOptions.classList.remove('show');
             if (formSection) formSection.style.display = 'block';
             currentProspectusData = null;
+            // Reset submission flag when returning to form
+            isSubmitting = false;
         }
 
-        function viewOnlineProspectus() {
+        window.viewOnlineProspectus = function() {
             if (!currentProspectusData) return;
             
             const onlineBtn = document.getElementById('onlineBtn');
@@ -1002,9 +987,9 @@
             setTimeout(() => {
                 if (onlineBtn) onlineBtn.innerHTML = 'View Online Now';
             }, 2000);
-        }
+        };
 
-        function downloadOfflineProspectus() {
+        window.downloadOfflineProspectus = function() {
             if (!currentProspectusData) return;
             
             const offlineBtn = document.getElementById('offlineBtn');
@@ -1026,19 +1011,16 @@
                 document.body.removeChild(link);
             } else {
                 console.error('No download URL available');
-                if (offlineBtn) offlineBtn.innerHTML = '⌛ Download Failed';
+                if (offlineBtn) offlineBtn.innerHTML = '⚠️ Download Failed';
                 return;
             }
             
             setTimeout(() => {
-                if (offlineBtn) offlineBtn.innerHTML = '📱 Download Offline';
+                if (offlineBtn) offlineBtn.innerHTML = '📥 Download Offline';
             }, 3000);
-        }
+        };
 
-        // Initialize on page load
-        document.addEventListener('DOMContentLoaded', function() {
-            initializeOriginalFunctionality();
-        });
+        window.showFormSection = showFormSection;
     </script>
 </body>
 </html>
