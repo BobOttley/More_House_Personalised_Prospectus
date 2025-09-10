@@ -3046,7 +3046,13 @@ ${extracurricularPersonalization ? `<p>${extracurricularPersonalization}</p>` : 
         })();
     </script>
     <script src="/translator.js" defer></script>
-    <script src="https://emily-more-house.onrender.com/static/realtime-voice-handsfree.js"></script>
-    <script src="https://emily-more-house.onrender.com/static/script.js"></script>
+    <!-- Tell the page where your chatbot backend is -->
+    <script>
+      window.PENAI_CHATBOT_ORIGIN = "https://emily-more-house.onrender.com";
+    </script>
+
+    <!-- Load voice helper (optional) and the main chatbot script directly from Render -->
+    <script src="https://emily-more-house.onrender.com/static/realtime-voice-handsfree.js" defer></script>
+    <script src="https://emily-more-house.onrender.com/static/script.js" defer></script>
 </body>
 </html>
