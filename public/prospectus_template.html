@@ -3003,27 +3003,27 @@ ${extracurricularPersonalization ? `<p>${extracurricularPersonalization}</p>` : 
       var mh = Math.min(Math.max(64,h), Math.floor(window.innerHeight*0.85));
       return {w:mw,h:mh};
     }
+    
     function apply(w,h){
       var s = clamp(w,h);
       frame.style.width  = s.w + 'px';
       frame.style.height = s.h + 'px';
+      console.log('Resized iframe to:', s.w, 'x', s.h);
     }
   
     // Listen for size messages from the child iFrame
-window.addEventListener('message', function(ev){
-  var BOT_ORIGIN = "https://emily-more-house.onrender.com";
-  if (ev.origin !== BOT_ORIGIN) return;
-  var m = ev.data || {};
-  if (m.type === 'penai:resize' && m.w && m.h) {
-    console.log('🎯 Received resize message:', m.w, 'x', m.h);
-    var frame = document.getElementById('penai-frame');
-    if (frame) {
-      frame.style.width = m.w + 'px';
-      frame.style.height = m.h + 'px';
-      console.log('✅ Iframe resized to:', m.w, 'x', m.h);
-    }
-  }
-});
+    window.addEventListener('message', function(ev){
+      if (ev.origin !== BOT_ORIGIN) return;
+      var m = ev.data || {};
+      if (m.type === 'penai:resize' && m.w && m.h) {
+        console.log('Received resize message:', m.w, 'x', m.h);
+        apply(m.w, m.h);
+      }
+    });
+  
+    // Initial bubble size
+    apply(64,64);
+  })();
 </script>
 
     <!-- 1. Your translator -->
