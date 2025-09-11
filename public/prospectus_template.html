@@ -2994,21 +2994,31 @@ ${extracurricularPersonalization ? `<p>${extracurricularPersonalization}</p>` : 
     referrerpolicy="no-referrer-when-downgrade"></iframe>
 </div>
 
-<script>
 (function(){
-  var BOT_ORIGIN = "https://emily-more-house.onrender.com";
-  var frame = document.getElementById('penai-frame');
-
-  function clamp(w,h){
-    var mw = Math.min(Math.max(64,w), Math.floor(window.innerWidth*0.95));
-    var mh = Math.min(Math.max(64,h), Math.floor(window.innerHeight*0.85));
-    return {w:mw,h:mh};
-  }
-  function apply(w,h){
-    var s = clamp(w,h);
-    frame.style.width  = s.w + 'px';
-    frame.style.height = s.h + 'px';
-  }
+    var BOT_ORIGIN = "https://emily-more-house.onrender.com";
+    var frame = document.getElementById('penai-frame');
+  
+    function clamp(w,h){
+      var mw = Math.min(Math.max(64,w), Math.floor(window.innerWidth*0.95));
+      var mh = Math.min(Math.max(64,h), Math.floor(window.innerHeight*0.85));
+      return {w:mw,h:mh};
+    }
+    function apply(w,h){
+      var s = clamp(w,h);
+      frame.style.width  = s.w + 'px';
+      frame.style.height = s.h + 'px';
+    }
+  
+    // Listen for size messages from the child iFrame
+    window.addEventListener('message', function(ev){
+      if (ev.origin !== BOT_ORIGIN) return;
+      var m = ev.data || {};
+      if (m.type === 'penai:resize' && m.w && m.h) apply(m.w, m.h);
+    });
+  
+    // Initial bubble size
+    apply(64,64);
+  })();
 
   // Listen for size messages from the child iFrame
   window.addEventListener('message', function(ev){
