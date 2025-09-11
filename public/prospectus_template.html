@@ -2979,9 +2979,10 @@ ${extracurricularPersonalization ? `<p>${extracurricularPersonalization}</p>` : 
         })();
     </script>
     <!-- PEN.ai chatbot (auto-resize iFrame) -->
-<style>
+
+ <style>
   #penai-chat-wrapper{position:fixed;right:18px;bottom:18px;z-index:2147483000}
-  #penai-chat-wrapper iframe{display:block;border:0;background:transparent;width:64px;height:64px}
+  #penai-chat-wrapper iframe{display:block;border:0;background:transparent;width:64px;height:64px;transition:all 0.3s ease}
   @media print{#penai-chat-wrapper{display:none!important}}
 </style>
 
@@ -2994,36 +2995,45 @@ ${extracurricularPersonalization ? `<p>${extracurricularPersonalization}</p>` : 
     referrerpolicy="no-referrer-when-downgrade"></iframe>
 </div>
 
-(function(){
-    var BOT_ORIGIN = "https://emily-more-house.onrender.com";
-    var frame = document.getElementById('penai-frame');
-  
-    function clamp(w,h){
-      var mw = Math.min(Math.max(64,w), Math.floor(window.innerWidth*0.95));
-      var mh = Math.min(Math.max(64,h), Math.floor(window.innerHeight*0.85));
-      return {w:mw,h:mh};
-    }
-    
-    function apply(w,h){
-      var s = clamp(w,h);
-      frame.style.width  = s.w + 'px';
-      frame.style.height = s.h + 'px';
-      console.log('Resized iframe to:', s.w, 'x', s.h);
-    }
-  
-    // Listen for size messages from the child iFrame
-    window.addEventListener('message', function(ev){
-      if (ev.origin !== BOT_ORIGIN) return;
-      var m = ev.data || {};
-      if (m.type === 'penai:resize' && m.w && m.h) {
-        console.log('Received resize message:', m.w, 'x', m.h);
-        apply(m.w, m.h);
-      }
-    });
-  
-    // Initial bubble size
-    apply(64,64);
-  })();
+<script>
+    (function(){
+        var BOT_ORIGIN = "https://emily-more-house.onrender.com";
+        var frame = document.getElementById('penai-frame');
+        
+        console.log('🎯 Chatbot iframe initialized');
+        
+        // Listen for resize messages from the chatbot iframe
+        window.addEventListener('message', function(ev){
+            if (ev.origin !== BOT_ORIGIN) return;
+            
+            var m = ev.data || {};
+            if (m.type === 'penai:resize' && typeof m.w === 'number' && typeof m.h === 'number') {
+                console.log('📏 Received resize message:', m.w, 'x', m.h);
+                
+                if (frame) {
+                    // Apply size constraints
+                    var maxW = Math.min(m.w, Math.floor(window.innerWidth * 0.95));
+                    var maxH = Math.min(m.h, Math.floor(window.innerHeight * 0.85));
+                    var finalW = Math.max(64, maxW);
+                    var finalH = Math.max(64, maxH);
+                    
+                    frame.style.width = finalW + 'px';
+                    frame.style.height = finalH + 'px';
+                    console.log('✅ Iframe resized to:', finalW, 'x', finalH);
+                }
+            }
+        });
+        
+        // Handle iframe load to ensure communication is established
+        frame.addEventListener('load', function() {
+            console.log('🔗 Chatbot iframe loaded');
+            // Give the iframe a moment to initialize, then send a ping
+            setTimeout(function() {
+                frame.contentWindow.postMessage({type: 'penai:parent-ready'}, BOT_ORIGIN);
+            }, 500);
+        });
+    })();
+    </script>
 </script>
 
     <!-- 1. Your translator -->
