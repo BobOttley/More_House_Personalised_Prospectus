@@ -2997,37 +2997,46 @@ ${extracurricularPersonalization ? `<p>${extracurricularPersonalization}</p>` : 
   </div>
   
   <script>
-  /* prospectus-penai.js — start small to avoid avatar cropping; expand on resize message */
+ /* prospectus-penai.js — v3
+   Fix: prevent avatar cropping by enforcing a safe minimum bubble size.
+   Behaviour:
+   - Start at bubble size (not a big panel) so the avatar is fully visible.
+   - Only accept resize messages that are >= MIN_BUBBLE in both dimensions.
+   - Open/expanded sizes still apply normally.
+*/
 (function () {
   'use strict';
 
+  // ---- CONFIG ---------------------------------------------------------------
   var BOT_ORIGIN = (window.PENAI_CHATBOT_ORIGIN || 'https://emily-more-house.onrender.com').replace(/\/+$/,'');
   var WRAP_ID    = 'penai-chat-wrapper';
   var IFRAME_ID  = 'penai-frame';
 
-  // Start SMALL so the avatar/bubble is fully visible when closed
-  var DEFAULT_W  = 76;   // bubble size (was 400)
-  var DEFAULT_H  = 76;   // bubble size (was 600)
-  var OPEN_W     = 400;  // typical open size (used only as a manual fallback if needed)
+  // Safe bubble sizes (tweak if you still see cropping)
+  var BUBBLE_W   = 120;   // initial closed size (was 76)
+  var BUBBLE_H   = 120;
+  var MIN_BUBBLE = 112;   // hard floor; ignore smaller sizes from child
+
+  // Reasonable open fallback (only used if child never posts a size)
+  var OPEN_W     = 400;
   var OPEN_H     = 600;
 
-  var MIN_SIZE   = 56;
+  // Viewport clamps
   var VIEW_W_PCT = 0.95;
   var VIEW_H_PCT = 0.85;
 
-  var gotResizeMessage = false;
-
-  function clampSize(w, h) {
+  // ---- UTIL -----------------------------------------------------------------
+  function clampToViewport(w, h) {
     var maxW = Math.floor((window.innerWidth  || 1024) * VIEW_W_PCT);
     var maxH = Math.floor((window.innerHeight ||  768) * VIEW_H_PCT);
-    w = Math.max(MIN_SIZE, Math.min(parseInt(w,10) || DEFAULT_W, maxW));
-    h = Math.max(MIN_SIZE, Math.min(parseInt(h,10) || DEFAULT_H, maxH));
+    w = Math.min(parseInt(w,10) || OPEN_W, maxW);
+    h = Math.min(parseInt(h,10) || OPEN_H, maxH);
     return { w: w, h: h };
   }
 
   function applySize(iframe, w, h) {
     if (!iframe) return;
-    var s = clampSize(w, h);
+    var s = clampToViewport(w, h);
     iframe.style.width  = s.w + 'px';
     iframe.style.height = s.h + 'px';
   }
@@ -3056,58 +3065,68 @@ ${extracurricularPersonalization ? `<p>${extracurricularPersonalization}</p>` : 
       iframe.allow = 'microphone; autoplay; clipboard-read; clipboard-write';
       iframe.referrerPolicy = 'no-referrer-when-downgrade';
       iframe.src = BOT_ORIGIN + '/embed';
-      iframe.style.display    = 'block';
-      iframe.style.border     = '0';
-      iframe.style.background = 'transparent';
+      iframe.style.display     = 'block';
+      iframe.style.border      = '0';
+      iframe.style.background  = 'transparent';
+      iframe.style.pointerEvents = 'auto';
       wrap.appendChild(iframe);
     }
     return iframe;
+  }
+
+  // Accept only sensible sizes from the child (avoid tiny/cropped states)
+  function saneResizeTarget(w, h) {
+    w = parseInt(w, 10) || 0;
+    h = parseInt(h, 10) || 0;
+
+    // If child tries to shrink below a safe bubble, clamp to MIN_BUBBLE
+    if (w < MIN_BUBBLE || h < MIN_BUBBLE) {
+      w = Math.max(w, MIN_BUBBLE);
+      h = Math.max(h, MIN_BUBBLE);
+    }
+    return { w: w, h: h };
   }
 
   function handleMessage(ev) {
     try {
       if (!ev || typeof ev.origin !== 'string') return;
       if (ev.origin.replace(/\/+$/,'') !== BOT_ORIGIN) return;
-
       var data = ev.data || {};
+
       if (data.type === 'penai:resize' && (data.w || data.h)) {
-        gotResizeMessage = true;
         var f = document.getElementById(IFRAME_ID);
-        if (f) applySize(f, data.w, data.h);
+        if (!f) return;
+        var t = saneResizeTarget(data.w, data.h);
+        applySize(f, t.w, t.h);
       }
-    } catch (_) {}
+    } catch (_) { /* ignore */ }
   }
 
   function init() {
     var iframe = ensureIframe();
 
-    // Start bubble-sized so the avatar isn’t cropped
-    applySize(iframe, DEFAULT_W, DEFAULT_H);
+    // Start at a SAFE bubble size so the avatar is always fully visible
+    applySize(iframe, BUBBLE_W, BUBBLE_H);
 
-    // Listen for the bot telling us the correct size (closed/open states)
+    // Listen for embedded app resize messages
     window.addEventListener('message', handleMessage, false);
 
-    // Keep within viewport on window resize
+    // Keep within viewport if the window changes
     window.addEventListener('resize', function () {
       if (!iframe) iframe = document.getElementById(IFRAME_ID);
       if (!iframe) return;
       var rect = iframe.getBoundingClientRect();
-      applySize(iframe, rect.width || DEFAULT_W, rect.height || DEFAULT_H);
+      applySize(iframe, rect.width || BUBBLE_W, rect.height || BUBBLE_H);
     });
 
-    // Safety: if some other script zeroes it, restore bubble size shortly after load
+    // Safety: if something else zeroes it after load, restore safe bubble
     setTimeout(function () {
       var f = document.getElementById(IFRAME_ID);
       if (!f) return;
       var w = parseInt(f.style.width, 10)  || 0;
       var h = parseInt(f.style.height, 10) || 0;
-      if (w < MIN_SIZE || h < MIN_SIZE) applySize(f, DEFAULT_W, DEFAULT_H);
+      if (w < MIN_BUBBLE || h < MIN_BUBBLE) applySize(f, BUBBLE_W, BUBBLE_H);
     }, 300);
-
-    // Optional: if you find it never expands when opened,
-    // you can force an open-sized fallback after click by uncommenting below
-    // and wiring a tiny "proxy" button outside the iframe.
-    // For now we rely on the embed posting 'penai:resize' on open.
   }
 
   if (document.readyState === 'loading') {
@@ -3117,7 +3136,6 @@ ${extracurricularPersonalization ? `<p>${extracurricularPersonalization}</p>` : 
   }
 })();
 
-  </script>
 
 </script>
 
