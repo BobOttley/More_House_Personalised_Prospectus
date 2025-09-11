@@ -2997,33 +2997,126 @@ ${extracurricularPersonalization ? `<p>${extracurricularPersonalization}</p>` : 
   </div>
   
   <script>
-  (function(){
-    var BOT_ORIGIN = "https://emily-more-house.onrender.com";
-    var frame = document.getElementById('penai-frame');
-  
-    function clamp(w,h){
-      var mw = Math.min(Math.max(64,w), Math.floor(window.innerWidth*0.95));
-      var mh = Math.min(Math.max(64,h), Math.floor(window.innerHeight*0.85));
-      return {w:mw,h:mh};
+  /* prospectus-penai.js — start small to avoid avatar cropping; expand on resize message */
+(function () {
+  'use strict';
+
+  var BOT_ORIGIN = (window.PENAI_CHATBOT_ORIGIN || 'https://emily-more-house.onrender.com').replace(/\/+$/,'');
+  var WRAP_ID    = 'penai-chat-wrapper';
+  var IFRAME_ID  = 'penai-frame';
+
+  // Start SMALL so the avatar/bubble is fully visible when closed
+  var DEFAULT_W  = 76;   // bubble size (was 400)
+  var DEFAULT_H  = 76;   // bubble size (was 600)
+  var OPEN_W     = 400;  // typical open size (used only as a manual fallback if needed)
+  var OPEN_H     = 600;
+
+  var MIN_SIZE   = 56;
+  var VIEW_W_PCT = 0.95;
+  var VIEW_H_PCT = 0.85;
+
+  var gotResizeMessage = false;
+
+  function clampSize(w, h) {
+    var maxW = Math.floor((window.innerWidth  || 1024) * VIEW_W_PCT);
+    var maxH = Math.floor((window.innerHeight ||  768) * VIEW_H_PCT);
+    w = Math.max(MIN_SIZE, Math.min(parseInt(w,10) || DEFAULT_W, maxW));
+    h = Math.max(MIN_SIZE, Math.min(parseInt(h,10) || DEFAULT_H, maxH));
+    return { w: w, h: h };
+  }
+
+  function applySize(iframe, w, h) {
+    if (!iframe) return;
+    var s = clampSize(w, h);
+    iframe.style.width  = s.w + 'px';
+    iframe.style.height = s.h + 'px';
+  }
+
+  function ensureWrapper() {
+    var wrap = document.getElementById(WRAP_ID);
+    if (!wrap) {
+      wrap = document.createElement('div');
+      wrap.id = WRAP_ID;
+      wrap.style.position = 'fixed';
+      wrap.style.right    = '18px';
+      wrap.style.bottom   = '18px';
+      wrap.style.zIndex   = '2147483000';
+      document.body.appendChild(wrap);
     }
-    function apply(w,h){
-      var s = clamp(w,h);
-      frame.style.width  = s.w + 'px';
-      frame.style.height = s.h + 'px';
+    return wrap;
+  }
+
+  function ensureIframe() {
+    var iframe = document.getElementById(IFRAME_ID);
+    if (!iframe) {
+      var wrap = ensureWrapper();
+      iframe = document.createElement('iframe');
+      iframe.id = IFRAME_ID;
+      iframe.title = 'PEN.ai Chatbot';
+      iframe.allow = 'microphone; autoplay; clipboard-read; clipboard-write';
+      iframe.referrerPolicy = 'no-referrer-when-downgrade';
+      iframe.src = BOT_ORIGIN + '/embed';
+      iframe.style.display    = 'block';
+      iframe.style.border     = '0';
+      iframe.style.background = 'transparent';
+      wrap.appendChild(iframe);
     }
-  
-    // Fallback so it’s visible even if no message arrives
-    apply(400, 600);
-  
-    // Listen for size messages from the child iFrame
-    window.addEventListener('message', function(ev){
-      if (ev.origin !== BOT_ORIGIN) return;
-      var m = ev.data || {};
-      if (m.type === 'penai:resize' && m.w && m.h) {
-        apply(m.w, m.h);
+    return iframe;
+  }
+
+  function handleMessage(ev) {
+    try {
+      if (!ev || typeof ev.origin !== 'string') return;
+      if (ev.origin.replace(/\/+$/,'') !== BOT_ORIGIN) return;
+
+      var data = ev.data || {};
+      if (data.type === 'penai:resize' && (data.w || data.h)) {
+        gotResizeMessage = true;
+        var f = document.getElementById(IFRAME_ID);
+        if (f) applySize(f, data.w, data.h);
       }
+    } catch (_) {}
+  }
+
+  function init() {
+    var iframe = ensureIframe();
+
+    // Start bubble-sized so the avatar isn’t cropped
+    applySize(iframe, DEFAULT_W, DEFAULT_H);
+
+    // Listen for the bot telling us the correct size (closed/open states)
+    window.addEventListener('message', handleMessage, false);
+
+    // Keep within viewport on window resize
+    window.addEventListener('resize', function () {
+      if (!iframe) iframe = document.getElementById(IFRAME_ID);
+      if (!iframe) return;
+      var rect = iframe.getBoundingClientRect();
+      applySize(iframe, rect.width || DEFAULT_W, rect.height || DEFAULT_H);
     });
-  })();
+
+    // Safety: if some other script zeroes it, restore bubble size shortly after load
+    setTimeout(function () {
+      var f = document.getElementById(IFRAME_ID);
+      if (!f) return;
+      var w = parseInt(f.style.width, 10)  || 0;
+      var h = parseInt(f.style.height, 10) || 0;
+      if (w < MIN_SIZE || h < MIN_SIZE) applySize(f, DEFAULT_W, DEFAULT_H);
+    }, 300);
+
+    // Optional: if you find it never expands when opened,
+    // you can force an open-sized fallback after click by uncommenting below
+    // and wiring a tiny "proxy" button outside the iframe.
+    // For now we rely on the embed posting 'penai:resize' on open.
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+
   </script>
 
 </script>
