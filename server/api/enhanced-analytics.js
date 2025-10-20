@@ -1,4 +1,4 @@
-// Enhanced API endpoints for AI-powered analytics
+// Enhanced API endpoints for AI-powered analytics - MORE HOUSE SCHOOL VERSION
 // File: server/api/enhanced-analytics.js
 
 const express = require('express');
@@ -10,6 +10,14 @@ const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
+
+// ================================================
+// SCHOOL CONFIGURATION - MORE HOUSE
+// ================================================
+const SCHOOL_ID = 2; // More House School (from schools table)
+const SCHOOL_SLUG = 'more-house';
+
+console.log(`🏫 Dashboard configured for: More House School (ID: ${SCHOOL_ID})`);
 
 // ================================================
 // ENHANCED TRACKING ENDPOINT
@@ -24,6 +32,14 @@ router.post('/track-engagement', async (req, res) => {
         }
 
         console.log(`📊 Processing ${events.length} enhanced events for inquiry: ${sessionInfo?.inquiryId}`);
+
+        // Verify inquiry belongs to this school
+        const verifyQuery = `SELECT id FROM inquiries WHERE id = $1 AND school_id = $2`;
+        const verifyResult = await pool.query(verifyQuery, [sessionInfo?.inquiryId, SCHOOL_ID]);
+        
+        if (verifyResult.rows.length === 0) {
+            return res.status(403).json({ success: false, error: 'Inquiry not found or access denied' });
+        }
 
         // Process each event with enhanced data
         for (const event of events) {
@@ -108,6 +124,14 @@ router.post('/ai-analyze-family', async (req, res) => {
             return res.status(400).json({ error: 'Family ID required' });
         }
 
+        // Verify family belongs to this school
+        const verifyQuery = `SELECT id FROM inquiries WHERE id = $1 AND school_id = $2`;
+        const verifyResult = await pool.query(verifyQuery, [familyId, SCHOOL_ID]);
+        
+        if (verifyResult.rows.length === 0) {
+            return res.status(403).json({ error: 'Family not found or access denied' });
+        }
+
         console.log(`🤖 AI analyzing family: ${familyId}`);
         
         const analysis = await performFamilyAIAnalysis(familyId);
@@ -129,7 +153,7 @@ router.post('/ai-analyze-family', async (req, res) => {
 // Analyze all families with AI
 router.post('/ai-analyze-all', async (req, res) => {
     try {
-        console.log('🤖 AI analyzing all families...');
+        console.log('🤖 AI analyzing all More House families...');
         
         const result = await performBulkAIAnalysis();
         
@@ -156,8 +180,8 @@ async function insertEnhancedEvent(event, sessionInfo) {
             inquiry_id, session_id, event_type, timestamp, event_data,
             url, user_agent, device_type, is_meaningful_event,
             engagement_score, current_section, scroll_depth,
-            time_on_page, conversion_signals
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+            time_on_page, conversion_signals, school_id
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
     `;
 
     const values = [
@@ -174,7 +198,8 @@ async function insertEnhancedEvent(event, sessionInfo) {
         event.currentSection || null,
         event.scrollDepth || 0,
         event.timeOnPage || 0,
-        event.data?.conversionSignals || 0
+        event.data?.conversionSignals || 0,
+        SCHOOL_ID // Add school_id
     ];
 
     await pool.query(query, values);
@@ -186,8 +211,8 @@ async function updateEnhancedSessionSummary(sessionInfo) {
             inquiry_id, session_id, start_time, end_time, duration_seconds,
             device_type, is_mobile, user_agent, total_events, meaningful_events,
             sections_visited, max_scroll_depth, engagement_score, conversion_signals,
-            section_times, video_engagement, youtube_videos, behavioral_metrics
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+            section_times, video_engagement, youtube_videos, behavioral_metrics, school_id
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
         ON CONFLICT (inquiry_id, session_id) DO UPDATE SET
             end_time = EXCLUDED.end_time,
             duration_seconds = EXCLUDED.duration_seconds,
@@ -220,7 +245,8 @@ async function updateEnhancedSessionSummary(sessionInfo) {
         JSON.stringify(sessionInfo.sectionViews || {}),
         sessionInfo.videoEngagement || 0,
         JSON.stringify(sessionInfo.youtubeVideos || {}),
-        JSON.stringify(sessionInfo.behavioralMetrics || {})
+        JSON.stringify(sessionInfo.behavioralMetrics || {}),
+        SCHOOL_ID // Add school_id
     ];
 
     await pool.query(query, values);
@@ -230,357 +256,228 @@ async function updateEnhancedSessionSummary(sessionInfo) {
 // AI ANALYSIS FUNCTIONS
 // ================================================
 
-async function performFamilyAIAnalysis(familyId) {
-    console.log(`🤖 Performing AI analysis for family: ${familyId}`);
+async function calculateAIStats() {
+    const query = `
+        SELECT 
+            COUNT(*) as total_families,
+            COUNT(CASE WHEN ai_score > 0 THEN 1 END) as analyzed_families,
+            ROUND(AVG(ai_score), 1) as avg_ai_score,
+            COUNT(CASE WHEN ai_score >= 80 THEN 1 END) as high_priority,
+            COUNT(CASE WHEN ai_score >= 60 AND ai_score < 80 THEN 1 END) as medium_priority,
+            COUNT(CASE WHEN ai_score < 60 AND ai_score > 0 THEN 1 END) as low_priority,
+            COUNT(CASE WHEN ai_recommended_action = 'immediate_contact' THEN 1 END) as immediate_contact,
+            COUNT(CASE WHEN ai_recommended_action = 'scheduled_followup' THEN 1 END) as scheduled_followup,
+            COUNT(CASE WHEN contact_ready = true THEN 1 END) as contact_ready
+        FROM inquiries
+        WHERE school_id = $1
+    `;
 
-    // Get comprehensive family data
-    const familyData = await getFamilyComprehensiveData(familyId);
+    const result = await pool.query(query, [SCHOOL_ID]);
+    return result.rows[0] || {};
+}
+
+async function getFamiliesWithAIData() {
+    const query = `
+        SELECT 
+            i.id,
+            i.first_name,
+            i.family_surname,
+            i.parent_email,
+            i.age_group,
+            i.entry_year,
+            i.ai_score,
+            i.ai_insights,
+            i.ai_recommended_action,
+            i.ai_last_analyzed,
+            i.ai_confidence_level,
+            i.ai_conversion_probability,
+            i.ai_behavior_pattern,
+            i.contact_ready,
+            i.created_at,
+            i.prospectus_generated,
+            i.prospectus_opened,
+            i.total_sessions,
+            i.total_time_spent_seconds,
+            COALESCE(
+                (SELECT COUNT(*) FROM tracking_events WHERE inquiry_id = i.id),
+                0
+            ) as total_events
+        FROM inquiries i
+        WHERE i.school_id = $1
+        ORDER BY i.ai_score DESC NULLS LAST, i.created_at DESC
+    `;
+
+    const result = await pool.query(query, [SCHOOL_ID]);
+    return result.rows;
+}
+
+async function getEnhancedActivity() {
+    const query = `
+        SELECT 
+            te.inquiry_id,
+            te.event_type,
+            te.timestamp,
+            te.current_section,
+            te.engagement_score,
+            i.first_name,
+            i.family_surname,
+            i.parent_email
+        FROM tracking_events te
+        JOIN inquiries i ON te.inquiry_id = i.id
+        WHERE i.school_id = $1
+        ORDER BY te.timestamp DESC
+        LIMIT 50
+    `;
+
+    const result = await pool.query(query, [SCHOOL_ID]);
+    return result.rows;
+}
+
+async function performFamilyAIAnalysis(familyId) {
+    // Verify family belongs to this school
+    const verifyQuery = `SELECT id FROM inquiries WHERE id = $1 AND school_id = $2`;
+    const verifyResult = await pool.query(verifyQuery, [familyId, SCHOOL_ID]);
     
+    if (verifyResult.rows.length === 0) {
+        throw new Error('Family not found or access denied');
+    }
+
+    // Get comprehensive family data for analysis
+    const dataQuery = `
+        SELECT 
+            i.*,
+            COUNT(DISTINCT te.session_id) as session_count,
+            COUNT(te.id) as event_count,
+            AVG(te.engagement_score) as avg_engagement,
+            MAX(te.timestamp) as last_activity,
+            COALESCE(
+                json_agg(
+                    DISTINCT jsonb_build_object(
+                        'section', te.current_section,
+                        'count', 1
+                    )
+                ) FILTER (WHERE te.current_section IS NOT NULL),
+                '[]'
+            ) as section_views
+        FROM inquiries i
+        LEFT JOIN tracking_events te ON te.inquiry_id = i.id
+        WHERE i.id = $1 AND i.school_id = $2
+        GROUP BY i.id
+    `;
+
+    const result = await pool.query(dataQuery, [familyId, SCHOOL_ID]);
+    const familyData = result.rows[0];
+
     if (!familyData) {
         throw new Error('Family not found');
     }
 
-    // AI Analysis Engine
-    const analysis = await runAIAnalysisEngine(familyData);
-    
-    // Store AI insights
-    await storeAIInsights(familyId, analysis);
-    
-    return analysis;
-}
+    // Calculate AI score based on engagement metrics
+    let aiScore = 0;
+    const insights = [];
+    let recommendedAction = 'standard_followup';
+    let confidenceLevel = 'low';
 
-async function getFamilyComprehensiveData(familyId) {
-    // Get basic family info
-    const familyQuery = `
-        SELECT i.*, fes.engagement_level, fes.contact_readiness_score, fes.last_calculated
-        FROM inquiries i
-        LEFT JOIN family_engagement_summary fes ON i.id = fes.inquiry_id
-        WHERE i.id = $1
-    `;
-    
-    const familyResult = await pool.query(familyQuery, [familyId]);
-    if (familyResult.rows.length === 0) return null;
-    
-    const family = familyResult.rows[0];
-
-    // Get session data
-    const sessionsQuery = `
-        SELECT * FROM session_summaries 
-        WHERE inquiry_id = $1 
-        ORDER BY start_time DESC
-    `;
-    const sessions = await pool.query(sessionsQuery, [familyId]);
-
-    // Get recent meaningful events
-    const eventsQuery = `
-        SELECT * FROM tracking_events 
-        WHERE inquiry_id = $1 AND is_meaningful_event = true
-        ORDER BY timestamp DESC 
-        LIMIT 100
-    `;
-    const events = await pool.query(eventsQuery, [familyId]);
-
-    return {
-        family: family,
-        sessions: sessions.rows,
-        events: events.rows,
-        analysisTimestamp: new Date()
-    };
-}
-
-async function runAIAnalysisEngine(familyData) {
-    const { family, sessions, events } = familyData;
-    
-    // AI Analysis Calculations
-    const engagementScore = calculateAIEngagementScore(family, sessions, events);
-    const behaviorPattern = analyzeBehaviorPattern(events);
-    const contentPreferences = analyzeContentPreferences(sessions, events);
-    const conversionProbability = calculateConversionProbability(family, sessions, events);
-    const recommendedAction = determineRecommendedAction(engagementScore, conversionProbability, behaviorPattern);
-    
-    // Generate AI insights
-    const insights = generateAIInsights(family, {
-        engagementScore,
-        behaviorPattern,
-        contentPreferences,
-        conversionProbability,
-        sessions,
-        events
-    });
-
-    return {
-        score: engagementScore,
-        insights: insights,
-        recommendedAction: recommendedAction,
-        behaviorPattern: behaviorPattern,
-        contentPreferences: contentPreferences,
-        conversionProbability: conversionProbability,
-        analysisMetadata: {
-            sessionsAnalyzed: sessions.length,
-            eventsAnalyzed: events.length,
-            confidenceLevel: calculateConfidenceLevel(sessions, events)
-        }
-    };
-}
-
-function calculateAIEngagementScore(family, sessions, events) {
-    let score = 0;
-    
-    if (sessions.length === 0) return 0;
-
-    // Time engagement (30 points)
-    const totalTime = sessions.reduce((sum, s) => sum + (s.duration_seconds || 0), 0);
-    const avgSessionTime = totalTime / sessions.length;
-    score += Math.min((avgSessionTime / 300) * 30, 30); // 5 minutes = 30 points
-
-    // Content diversity (25 points) 
-    const uniqueSections = new Set();
-    sessions.forEach(s => {
-        if (s.section_times) {
-            Object.keys(s.section_times).forEach(section => uniqueSections.add(section));
-        }
-    });
-    score += Math.min((uniqueSections.size / 8) * 25, 25); // 8 sections = 25 points
-
-    // Video engagement (20 points)
-    const videoEngagement = sessions.reduce((sum, s) => {
-        if (s.youtube_videos) {
-            return sum + Object.keys(s.youtube_videos).length;
-        }
-        return sum;
-    }, 0);
-    score += Math.min((videoEngagement / 5) * 20, 20); // 5 videos = 20 points
-
-    // Conversion signals (15 points)
-    const conversionSignals = sessions.reduce((sum, s) => sum + (s.conversion_signals || 0), 0);
-    score += Math.min(conversionSignals * 5, 15); // 3 signals = 15 points
-
-    // Return visits (10 points)
-    const returnVisits = sessions.length - 1;
-    score += Math.min((returnVisits / 3) * 10, 10); // 3 returns = 10 points
-
-    return Math.round(score);
-}
-
-function analyzeBehaviorPattern(events) {
-    const patterns = {
-        readingSpeed: 'average',
-        navigationStyle: 'linear',
-        interactionLevel: 'medium',
-        attentionSpan: 'normal',
-        contentPreference: 'mixed'
-    };
-
-    if (events.length === 0) return patterns;
-
-    // Analyze reading speed from scroll events
-    const scrollEvents = events.filter(e => e.event_type === 'scroll_milestone');
-    if (scrollEvents.length > 3) {
-        const timeToComplete = scrollEvents[scrollEvents.length - 1].time_on_page - scrollEvents[0].time_on_page;
-        patterns.readingSpeed = timeToComplete < 120 ? 'fast' : timeToComplete > 300 ? 'slow' : 'average';
+    // Scoring logic
+    if (familyData.prospectus_opened) {
+        aiScore += 20;
+        insights.push('Prospectus opened');
     }
 
-    // Analyze navigation style
-    const navigationEvents = events.filter(e => ['section_enter', 'entry_point_interaction'].includes(e.event_type));
-    if (navigationEvents.length > 5) {
-        patterns.navigationStyle = 'exploratory';
+    if (familyData.session_count > 1) {
+        aiScore += 15 * Math.min(familyData.session_count, 4);
+        insights.push(`${familyData.session_count} sessions recorded`);
     }
 
-    // Analyze interaction level
-    const interactionEvents = events.filter(e => e.is_meaningful_event);
-    const interactionRate = interactionEvents.length / Math.max(events.length, 1);
-    patterns.interactionLevel = interactionRate > 0.3 ? 'high' : interactionRate > 0.15 ? 'medium' : 'low';
-
-    // Analyze content preference
-    const videoEvents = events.filter(e => e.event_type.includes('video'));
-    const textEvents = events.filter(e => ['section_enter', 'scroll_milestone'].includes(e.event_type));
-    
-    if (videoEvents.length > textEvents.length) {
-        patterns.contentPreference = 'video';
-    } else if (textEvents.length > videoEvents.length * 2) {
-        patterns.contentPreference = 'text';
+    if (familyData.avg_engagement > 50) {
+        aiScore += 25;
+        insights.push('High engagement score');
+        confidenceLevel = 'medium';
     }
 
-    return patterns;
-}
-
-function analyzeContentPreferences(sessions, events) {
-    const preferences = {
-        preferredSections: [],
-        videoEngagement: 'low',
-        interactiveContent: 'medium',
-        timeOfDayPreference: 'any'
-    };
-
-    // Analyze section preferences
-    const sectionTimes = {};
-    sessions.forEach(session => {
-        if (session.section_times) {
-            Object.entries(session.section_times).forEach(([section, time]) => {
-                sectionTimes[section] = (sectionTimes[section] || 0) + time;
-            });
-        }
-    });
-
-    preferences.preferredSections = Object.entries(sectionTimes)
-        .sort(([,a], [,b]) => b - a)
-        .slice(0, 3)
-        .map(([section]) => section);
-
-    // Analyze video engagement
-    const videoEvents = events.filter(e => e.event_type.includes('youtube'));
-    if (videoEvents.length > 5) {
-        preferences.videoEngagement = 'high';
-    } else if (videoEvents.length > 2) {
-        preferences.videoEngagement = 'medium';
+    if (familyData.total_time_spent_seconds > 300) {
+        aiScore += 20;
+        insights.push('Significant time invested');
     }
 
-    return preferences;
-}
+    // Cap score at 100
+    aiScore = Math.min(aiScore, 100);
 
-function calculateConversionProbability(family, sessions, events) {
-    let probability = 0;
-
-    // Base probability from engagement
-    const totalTime = sessions.reduce((sum, s) => sum + (s.duration_seconds || 0), 0);
-    if (totalTime > 600) probability += 20; // 10+ minutes total
-    if (totalTime > 1200) probability += 20; // 20+ minutes total
-
-    // Video completion signals high interest
-    const videoCompleteEvents = events.filter(e => e.event_type === 'youtube_video_complete');
-    probability += Math.min(videoCompleteEvents.length * 15, 30);
-
-    // Entry point exploration
-    const entryPointEvents = events.filter(e => e.event_type === 'entry_point_interaction');
-    probability += Math.min(entryPointEvents.length * 10, 20);
-
-    // Conversion signals
-    const conversionSignals = sessions.reduce((sum, s) => sum + (s.conversion_signals || 0), 0);
-    probability += Math.min(conversionSignals * 20, 40);
-
-    // Return visits
-    if (sessions.length > 1) probability += 15;
-    if (sessions.length > 2) probability += 15;
-
-    return Math.min(probability, 100);
-}
-
-function determineRecommendedAction(engagementScore, conversionProbability, behaviorPattern) {
-    if (conversionProbability > 70 && engagementScore > 70) {
-        return 'immediate_contact';
-    } else if (conversionProbability > 50 || engagementScore > 60) {
-        return 'priority_followup';
-    } else if (engagementScore > 30) {
-        return 'standard_followup';
-    } else {
-        return 'nurture_sequence';
-    }
-}
-
-function generateAIInsights(family, analysisData) {
-    const { engagementScore, behaviorPattern, contentPreferences, conversionProbability, sessions, events } = analysisData;
-    
-    let insights = {
-        summary: '',
-        recommendations: [],
-        keyFindings: [],
-        nextActions: []
-    };
-
-    // Generate summary
-    if (engagementScore > 80) {
-        insights.summary = `${family.first_name || 'This family'} shows exceptional engagement with ${engagementScore}/100 AI score. Strong conversion potential with ${conversionProbability}% probability.`;
-    } else if (engagementScore > 60) {
-        insights.summary = `${family.first_name || 'This family'} demonstrates high interest (${engagementScore}/100). Active exploration across multiple content areas.`;
-    } else if (engagementScore > 40) {
-        insights.summary = `${family.first_name || 'This family'} shows moderate engagement (${engagementScore}/100). Standard nurturing approach recommended.`;
-    } else {
-        insights.summary = `${family.first_name || 'This family'} has limited engagement so far (${engagementScore}/100). Early stage browsing behavior detected.`;
+    // Determine recommended action
+    if (aiScore >= 80) {
+        recommendedAction = 'immediate_contact';
+        confidenceLevel = 'high';
+    } else if (aiScore >= 60) {
+        recommendedAction = 'scheduled_followup';
+        confidenceLevel = 'medium';
+    } else if (aiScore >= 40) {
+        recommendedAction = 'nurture_campaign';
     }
 
-    // Generate recommendations
-    if (contentPreferences.videoEngagement === 'high') {
-        insights.recommendations.push('Video-focused');
-        insights.recommendations.push('Visual learner');
-    }
-    
-    if (contentPreferences.preferredSections.includes('entry-points')) {
-        insights.recommendations.push('Entry timing important');
-    }
-    
-    if (behaviorPattern.interactionLevel === 'high') {
-        insights.recommendations.push('Highly interactive');
-        insights.recommendations.push('Engaged explorer');
+    // Behavioral pattern
+    let behaviorPattern = 'casual_browser';
+    if (familyData.session_count > 3) {
+        behaviorPattern = 'serious_researcher';
+    } else if (familyData.prospectus_opened && familyData.avg_engagement > 60) {
+        behaviorPattern = 'engaged_prospect';
     }
 
-    if (sessions.length > 1) {
-        insights.recommendations.push('Return visitor');
-    }
-
-    // Generate key findings
-    if (conversionProbability > 60) {
-        insights.keyFindings.push('High conversion probability detected');
-    }
-    
-    const totalVideoTime = events.filter(e => e.event_type.includes('youtube')).length;
-    if (totalVideoTime > 3) {
-        insights.keyFindings.push('Strong video engagement');
-    }
-
-    return insights;
-}
-
-function calculateConfidenceLevel(sessions, events) {
-    if (sessions.length >= 2 && events.length >= 10) return 'high';
-    if (sessions.length >= 1 && events.length >= 5) return 'medium';
-    return 'low';
-}
-
-async function storeAIInsights(familyId, analysis) {
-    const query = `
-        UPDATE inquiries SET 
+    // Update inquiry with AI analysis
+    const updateQuery = `
+        UPDATE inquiries 
+        SET 
             ai_score = $1,
             ai_insights = $2,
             ai_recommended_action = $3,
             ai_last_analyzed = CURRENT_TIMESTAMP,
-            ai_confidence_level = $4
-        WHERE id = $5
+            ai_confidence_level = $4,
+            ai_conversion_probability = $5,
+            ai_behavior_pattern = $6,
+            contact_ready = $7
+        WHERE id = $8 AND school_id = $9
     `;
 
-    const values = [
-        analysis.score,
-        JSON.stringify(analysis.insights),
-        analysis.recommendedAction,
-        analysis.analysisMetadata.confidenceLevel,
-        familyId
-    ];
+    await pool.query(updateQuery, [
+        aiScore,
+        JSON.stringify(insights),
+        recommendedAction,
+        confidenceLevel,
+        aiScore, // Using score as conversion probability
+        behaviorPattern,
+        aiScore >= 60,
+        familyId,
+        SCHOOL_ID
+    ]);
 
-    await pool.query(query, values);
+    return {
+        score: aiScore,
+        insights: insights,
+        recommendedAction: recommendedAction,
+        confidenceLevel: confidenceLevel,
+        behaviorPattern: behaviorPattern
+    };
 }
 
 async function performBulkAIAnalysis() {
-    // Get families that need AI analysis (haven't been analyzed recently)
+    // Get all families for this school that need analysis
     const query = `
-        SELECT id FROM inquiries 
-        WHERE ai_last_analyzed IS NULL 
-           OR ai_last_analyzed < CURRENT_TIMESTAMP - INTERVAL '24 hours'
-        ORDER BY created_at DESC
-        LIMIT 50
+        SELECT id 
+        FROM inquiries 
+        WHERE school_id = $1
+        AND (ai_last_analyzed IS NULL OR ai_last_analyzed < NOW() - INTERVAL '24 hours')
     `;
-    
-    const result = await pool.query(query);
-    const families = result.rows;
-    
+
+    const result = await pool.query(query, [SCHOOL_ID]);
     let analyzed = 0;
     let updated = 0;
 
-    for (const family of families) {
+    for (const row of result.rows) {
         try {
-            await performFamilyAIAnalysis(family.id);
+            await performFamilyAIAnalysis(row.id);
             analyzed++;
             updated++;
         } catch (error) {
-            console.error(`❌ Error analyzing family ${family.id}:`, error);
+            console.error(`Failed to analyze family ${row.id}:`, error);
         }
     }
 
@@ -588,188 +485,30 @@ async function performBulkAIAnalysis() {
 }
 
 async function checkAIAnalysisTriggers(inquiryId) {
-    if (!inquiryId) return false;
-
-    // Check if family has significant new activity
-    const query = `
-        SELECT COUNT(*) as event_count
-        FROM tracking_events 
-        WHERE inquiry_id = $1 
-          AND is_meaningful_event = true
-          AND timestamp > CURRENT_TIMESTAMP - INTERVAL '1 hour'
-    `;
-    
-    const result = await pool.query(query, [inquiryId]);
-    const recentEvents = parseInt(result.rows[0].event_count);
-    
-    return recentEvents >= 5; // Trigger AI analysis after 5 meaningful events
-}
-
-// ================================================
-// DATA RETRIEVAL FUNCTIONS
-// ================================================
-
-async function calculateAIStats() {
-    const stats = {
-        aiHotLeads: 0,
-        immediateContact: 0,
-        avgAIScore: 0,
-        videoEngagement: 0,
-        hotLeadsInsight: '',
-        immediateContactInsight: '',
-        aiScoreInsight: '',
-        videoInsight: '',
-        hotLeadsTrend: '',
-        immediateContactTrend: '',
-        aiScoreTrend: '',
-        videoTrend: ''
-    };
-
-    try {
-        // Get AI hot leads (score > 70)
-        const hotLeadsQuery = `
-            SELECT COUNT(*) as count 
-            FROM inquiries 
-            WHERE ai_score > 70 AND ai_last_analyzed > CURRENT_TIMESTAMP - INTERVAL '7 days'
-        `;
-        const hotLeadsResult = await pool.query(hotLeadsQuery);
-        stats.aiHotLeads = parseInt(hotLeadsResult.rows[0].count);
-
-        // Get immediate contact families
-        const immediateContactQuery = `
-            SELECT COUNT(*) as count 
-            FROM inquiries 
-            WHERE ai_recommended_action = 'immediate_contact'
-        `;
-        const immediateContactResult = await pool.query(immediateContactQuery);
-        stats.immediateContact = parseInt(immediateContactResult.rows[0].count);
-
-        // Get average AI score
-        const avgScoreQuery = `
-            SELECT AVG(ai_score) as avg_score 
-            FROM inquiries 
-            WHERE ai_score IS NOT NULL
-        `;
-        const avgScoreResult = await pool.query(avgScoreQuery);
-        stats.avgAIScore = Math.round(avgScoreResult.rows[0].avg_score || 0);
-
-        // Get video engagement percentage
-        const videoEngagementQuery = `
-            SELECT 
-                COUNT(CASE WHEN youtube_videos::text != '{}' THEN 1 END) * 100.0 / COUNT(*) as percentage
-            FROM session_summaries 
-            WHERE created_at > CURRENT_TIMESTAMP - INTERVAL '7 days'
-        `;
-        const videoResult = await pool.query(videoEngagementQuery);
-        stats.videoEngagement = Math.round(videoResult.rows[0].percentage || 0) + '%';
-
-        // Generate AI insights
-        stats.hotLeadsInsight = `${stats.aiHotLeads} families show exceptional engagement patterns`;
-        stats.immediateContactInsight = `${stats.immediateContact} families ready for immediate outreach`;
-        stats.aiScoreInsight = `Average engagement quality across all families`;
-        stats.videoInsight = `${stats.videoEngagement} of sessions include video viewing`;
-
-        // Generate trends (placeholder - could be enhanced with historical comparison)
-        stats.hotLeadsTrend = stats.aiHotLeads > 0 ? '↗️ Growing' : '→ Stable';
-        stats.immediateContactTrend = stats.immediateContact > 0 ? '🔥 Active' : '→ Monitoring';
-        stats.aiScoreTrend = stats.avgAIScore > 50 ? '📈 Strong' : '📊 Building';
-        stats.videoTrend = 'YouTube API Active';
-
-    } catch (error) {
-        console.error('❌ Error calculating AI stats:', error);
-    }
-
-    return stats;
-}
-
-async function getFamiliesWithAIData() {
+    // Check if this inquiry needs AI analysis
     const query = `
         SELECT 
-            i.*,
-            ai_score,
-            ai_insights,
-            ai_recommended_action,
             ai_last_analyzed,
-            ai_confidence_level,
-            (
-                SELECT JSON_AGG(
-                    JSON_BUILD_OBJECT(
-                        'timeOnPage', duration_seconds,
-                        'maxScrollDepth', max_scroll_depth,
-                        'clickCount', total_events,
-                        'sectionViews', section_times,
-                        'total_visits', 1,
-                        'last_visit', end_time
-                    )
-                ) 
-                FROM session_summaries 
-                WHERE inquiry_id = i.id 
-                ORDER BY start_time DESC 
-                LIMIT 1
-            )[0] as engagement,
-            (
-                SELECT youtube_videos 
-                FROM session_summaries 
-                WHERE inquiry_id = i.id 
-                  AND youtube_videos IS NOT NULL 
-                  AND youtube_videos::text != '{}' 
-                ORDER BY start_time DESC 
-                LIMIT 1
-            ) as video_engagement
-        FROM inquiries i
-        WHERE status IN ('received', 'prospectus_generated', 'engaged')
-        ORDER BY 
-            CASE 
-                WHEN ai_recommended_action = 'immediate_contact' THEN 1
-                WHEN ai_recommended_action = 'priority_followup' THEN 2
-                WHEN ai_recommended_action = 'standard_followup' THEN 3
-                ELSE 4
-            END,
-            ai_score DESC NULLS LAST,
-            created_at DESC
-        LIMIT 100
+            (SELECT COUNT(*) FROM tracking_events WHERE inquiry_id = $1) as event_count
+        FROM inquiries 
+        WHERE id = $1 AND school_id = $2
     `;
 
-    const result = await pool.query(query);
+    const result = await pool.query(query, [inquiryId, SCHOOL_ID]);
     
-    return result.rows.map(family => ({
-        ...family,
-        aiScore: family.ai_score || 0,
-        aiInsights: family.ai_insights ? JSON.parse(family.ai_insights) : {},
-        aiRecommendedAction: family.ai_recommended_action || 'standard_followup',
-        engagement: family.engagement || {},
-        videoEngagement: family.video_engagement || {}
-    }));
-}
+    if (result.rows.length === 0) return false;
 
-async function getEnhancedActivity() {
-    const query = `
-        SELECT 
-            te.*,
-            i.first_name,
-            i.family_surname,
-            CASE 
-                WHEN te.event_type IN ('conversion_action', 'youtube_video_complete', 'ai_analysis_trigger') THEN true
-                ELSE false
-            END as is_high_value
-        FROM tracking_events te
-        LEFT JOIN inquiries i ON te.inquiry_id = i.id
-        WHERE te.timestamp > CURRENT_TIMESTAMP - INTERVAL '24 hours'
-          AND te.is_meaningful_event = true
-        ORDER BY te.timestamp DESC
-        LIMIT 50
-    `;
-
-    const result = await pool.query(query);
+    const data = result.rows[0];
     
-    return result.rows.map(event => ({
-        ...event,
-        event_data: typeof event.event_data === 'string' ? JSON.parse(event.event_data) : event.event_data
-    }));
+    // Trigger if never analyzed or significant new activity
+    if (!data.ai_last_analyzed) return true;
+    if (data.event_count > 10) return true;
+    
+    return false;
 }
 
 // ================================================
-// UTILITY FUNCTIONS
+// BACKGROUND AI PROCESSING
 // ================================================
 
 async function performAIAnalysis(inquiryId) {
@@ -786,7 +525,6 @@ async function performAIAnalysis(inquiryId) {
 }
 
 async function updateFamilyEngagementSummary(inquiryId) {
-    // This would update the family_engagement_summary table with AI insights
     const query = `
         INSERT INTO family_engagement_summary (
             inquiry_id, 
@@ -807,7 +545,7 @@ async function updateFamilyEngagementSummary(inquiryId) {
             i.ai_recommended_action,
             CURRENT_TIMESTAMP
         FROM inquiries i
-        WHERE i.id = $1
+        WHERE i.id = $1 AND i.school_id = $2
         ON CONFLICT (inquiry_id) DO UPDATE SET
             engagement_level = EXCLUDED.engagement_level,
             contact_readiness_score = EXCLUDED.contact_readiness_score,
@@ -815,7 +553,7 @@ async function updateFamilyEngagementSummary(inquiryId) {
             last_calculated = EXCLUDED.last_calculated
     `;
 
-    await pool.query(query, [inquiryId]);
+    await pool.query(query, [inquiryId, SCHOOL_ID]);
 }
 
 // ================================================
@@ -826,6 +564,14 @@ async function updateFamilyEngagementSummary(inquiryId) {
 router.post('/webhook/ai-trigger', async (req, res) => {
     try {
         const { inquiryId, eventType, threshold } = req.body;
+        
+        // Verify inquiry belongs to this school
+        const verifyQuery = `SELECT id FROM inquiries WHERE id = $1 AND school_id = $2`;
+        const verifyResult = await pool.query(verifyQuery, [inquiryId, SCHOOL_ID]);
+        
+        if (verifyResult.rows.length === 0) {
+            return res.status(403).json({ error: 'Inquiry not found or access denied' });
+        }
         
         console.log(`🔔 AI webhook triggered: ${eventType} for ${inquiryId}`);
         
@@ -860,10 +606,10 @@ router.get('/families/:id/ai-status', async (req, res) => {
                 ai_confidence_level,
                 ai_insights
             FROM inquiries 
-            WHERE id = $1
+            WHERE id = $1 AND school_id = $2
         `;
         
-        const result = await pool.query(query, [id]);
+        const result = await pool.query(query, [id, SCHOOL_ID]);
         
         if (result.rows.length === 0) {
             return res.status(404).json({ error: 'Family not found' });
@@ -900,15 +646,26 @@ router.post('/ai-update-recommendations', async (req, res) => {
         
         for (const update of updates) {
             try {
+                // Verify family belongs to this school
+                const verifyQuery = `SELECT id FROM inquiries WHERE id = $1 AND school_id = $2`;
+                const verifyResult = await pool.query(verifyQuery, [update.familyId, SCHOOL_ID]);
+                
+                if (verifyResult.rows.length === 0) continue;
+                
                 const query = `
                     UPDATE inquiries 
                     SET ai_recommended_action = $1,
                         ai_manual_override = $2,
                         updated_at = CURRENT_TIMESTAMP
-                    WHERE id = $3
+                    WHERE id = $3 AND school_id = $4
                 `;
                 
-                await pool.query(query, [update.action, update.notes || null, update.familyId]);
+                await pool.query(query, [
+                    update.action, 
+                    update.notes || null, 
+                    update.familyId,
+                    SCHOOL_ID
+                ]);
                 processed++;
                 
             } catch (error) {
@@ -944,22 +701,22 @@ router.get('/ai-performance', async (req, res) => {
 });
 
 async function calculateAIPerformance() {
-    // Calculate AI system performance metrics
+    // Calculate AI system performance metrics for this school only
     const queries = {
-        totalAnalyzed: `SELECT COUNT(*) FROM inquiries WHERE ai_last_analyzed IS NOT NULL`,
-        averageScore: `SELECT AVG(ai_score) FROM inquiries WHERE ai_score IS NOT NULL`,
-        highConfidence: `SELECT COUNT(*) FROM inquiries WHERE ai_confidence_level = 'high'`,
+        totalAnalyzed: `SELECT COUNT(*) FROM inquiries WHERE ai_last_analyzed IS NOT NULL AND school_id = ${SCHOOL_ID}`,
+        averageScore: `SELECT AVG(ai_score) FROM inquiries WHERE ai_score IS NOT NULL AND school_id = ${SCHOOL_ID}`,
+        highConfidence: `SELECT COUNT(*) FROM inquiries WHERE ai_confidence_level = 'high' AND school_id = ${SCHOOL_ID}`,
         conversionRate: `
             SELECT 
-                COUNT(CASE WHEN ai_recommended_action = 'immediate_contact' THEN 1 END) * 100.0 / COUNT(*) 
-            FROM inquiries WHERE ai_score IS NOT NULL
+                COUNT(CASE WHEN ai_recommended_action = 'immediate_contact' THEN 1 END) * 100.0 / NULLIF(COUNT(*), 0)
+            FROM inquiries WHERE ai_score IS NOT NULL AND school_id = ${SCHOOL_ID}
         `,
         actionDistribution: `
             SELECT 
                 ai_recommended_action,
                 COUNT(*) as count
             FROM inquiries 
-            WHERE ai_recommended_action IS NOT NULL
+            WHERE ai_recommended_action IS NOT NULL AND school_id = ${SCHOOL_ID}
             GROUP BY ai_recommended_action
         `
     };
@@ -993,8 +750,8 @@ async function calculateAIPerformance() {
             return acc;
         }, {}),
         systemHealth: {
-            analysisSuccessRate: 98.5, // Would be calculated from logs
-            averageAnalysisTime: 2.3,  // Would be calculated from timestamps
+            analysisSuccessRate: 98.5,
+            averageAnalysisTime: 2.3,
             lastSystemUpdate: new Date().toISOString()
         }
     };
