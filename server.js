@@ -3745,6 +3745,186 @@ app.get('/api/sessions/:sessionId', async (req, res) => {
   }
 });
 
+// ============================================================================
+// FOLLOW-UP API ENDPOINTS
+// Add these to your server.js (around line 3000, after other API endpoints)
+// ============================================================================
+
+// Get all follow-ups
+app.get('/api/follow-ups', async (req, res) => {
+  try {
+    const { status, priority } = req.query;
+    
+    let query = 'SELECT * FROM follow_ups';
+    const conditions = [];
+    const values = [];
+    let paramCount = 1;
+    
+    if (status === 'active') {
+      conditions.push('completed = FALSE');
+    } else if (status === 'completed') {
+      conditions.push('completed = TRUE');
+    }
+    
+    if (priority && priority !== 'all') {
+      conditions.push(`priority = $${paramCount++}`);
+      values.push(priority);
+    }
+    
+    if (conditions.length > 0) {
+      query += ' WHERE ' + conditions.join(' AND ');
+    }
+    
+    query += ' ORDER BY completed ASC, due_date ASC, priority DESC';
+    
+    if (db) {
+      const result = await db.query(query, values);
+      return res.json({ success: true, followUps: result.rows });
+    } else {
+      return res.json({ success: true, followUps: [] });
+    }
+  } catch (error) {
+    console.error('Error fetching follow-ups:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch follow-ups' });
+  }
+});
+
+// Get follow-up stats
+app.get('/api/follow-ups/stats', async (req, res) => {
+  try {
+    if (db) {
+      const result = await db.query('SELECT * FROM follow_ups_summary');
+      return res.json({ success: true, stats: result.rows[0] });
+    } else {
+      return res.json({ 
+        success: true, 
+        stats: { overdue_count: 0, today_count: 0, upcoming_count: 0, completed_count: 0 } 
+      });
+    }
+  } catch (error) {
+    console.error('Error fetching follow-up stats:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch stats' });
+  }
+});
+
+// Create follow-up
+app.post('/api/follow-ups', async (req, res) => {
+  try {
+    const { inquiry_id, family_name, note, due_date, priority } = req.body;
+    
+    if (!family_name || !note || !due_date) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Missing required fields: family_name, note, due_date' 
+      });
+    }
+    
+    if (db) {
+      const result = await db.query(
+        `INSERT INTO follow_ups (inquiry_id, family_name, note, due_date, priority, created_at)
+         VALUES ($1, $2, $3, $4, $5, NOW())
+         RETURNING *`,
+        [inquiry_id || null, family_name, note, due_date, priority || 'medium']
+      );
+      
+      return res.json({ success: true, followUp: result.rows[0] });
+    } else {
+      return res.status(500).json({ success: false, error: 'Database not available' });
+    }
+  } catch (error) {
+    console.error('Error creating follow-up:', error);
+    res.status(500).json({ success: false, error: 'Failed to create follow-up' });
+  }
+});
+
+// Update follow-up
+app.put('/api/follow-ups/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { family_name, note, due_date, priority, completed } = req.body;
+    
+    const updates = [];
+    const values = [];
+    let paramCount = 1;
+    
+    if (family_name !== undefined) {
+      updates.push(`family_name = $${paramCount++}`);
+      values.push(family_name);
+    }
+    if (note !== undefined) {
+      updates.push(`note = $${paramCount++}`);
+      values.push(note);
+    }
+    if (due_date !== undefined) {
+      updates.push(`due_date = $${paramCount++}`);
+      values.push(due_date);
+    }
+    if (priority !== undefined) {
+      updates.push(`priority = $${paramCount++}`);
+      values.push(priority);
+    }
+    if (completed !== undefined) {
+      updates.push(`completed = $${paramCount++}`);
+      values.push(completed);
+      if (completed) {
+        updates.push(`completed_at = NOW()`);
+      } else {
+        updates.push(`completed_at = NULL`);
+      }
+    }
+    
+    if (updates.length === 0) {
+      return res.status(400).json({ success: false, error: 'No fields to update' });
+    }
+    
+    updates.push(`updated_at = NOW()`);
+    values.push(id);
+    
+    if (db) {
+      const result = await db.query(
+        `UPDATE follow_ups SET ${updates.join(', ')} WHERE id = $${paramCount} RETURNING *`,
+        values
+      );
+      
+      if (result.rows.length === 0) {
+        return res.status(404).json({ success: false, error: 'Follow-up not found' });
+      }
+      
+      return res.json({ success: true, followUp: result.rows[0] });
+    } else {
+      return res.status(500).json({ success: false, error: 'Database not available' });
+    }
+  } catch (error) {
+    console.error('Error updating follow-up:', error);
+    res.status(500).json({ success: false, error: 'Failed to update follow-up' });
+  }
+});
+
+// Delete follow-up
+app.delete('/api/follow-ups/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    if (db) {
+      const result = await db.query('DELETE FROM follow_ups WHERE id = $1 RETURNING *', [id]);
+      
+      if (result.rows.length === 0) {
+        return res.status(404).json({ success: false, error: 'Follow-up not found' });
+      }
+      
+      return res.json({ success: true, message: 'Follow-up deleted' });
+    } else {
+      return res.status(500).json({ success: false, error: 'Database not available' });
+    }
+  } catch (error) {
+    console.error('Error deleting follow-up:', error);
+    res.status(500).json({ success: false, error: 'Failed to delete follow-up' });
+  }
+});
+
+// ============================================================================
+// END OF FOLLOW-UP ENDPOINTS
+// ============================================================================
 
 app.get('/api/check-summary/:inquiryId', async (req, res) => {
   try {
@@ -3974,6 +4154,126 @@ app.get('/prospectuses/:filename', async (req, res) => {
   }
 });
 
+// ============================================================================
+// ADD THIS EMAIL GENERATION ENDPOINT TO YOUR server.js
+// Insert this AFTER the last /api/ai/ endpoint (around line 3000)
+// ============================================================================
+
+app.post('/api/ai/generate-email', async (req, res) => {
+  try {
+    const { originalEmail, templateType, instructions } = req.body;
+
+    if (!originalEmail || !originalEmail.text) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing email content'
+      });
+    }
+
+    // Load knowledge base files
+    let knowledgeContext = '';
+    
+    // Load chunks.jsonl
+    try {
+      const chunksFile = await fs.readFile(path.join(__dirname, 'chunks.jsonl'), 'utf8');
+      const chunks = chunksFile.split('\n')
+        .filter(line => line.trim())
+        .map(line => JSON.parse(line))
+        .slice(0, 20); // Use first 20 chunks
+      
+      knowledgeContext += '\n\nSCHOOL INFORMATION:\n';
+      chunks.forEach(chunk => {
+        if (chunk.text) {
+          knowledgeContext += chunk.text + '\n\n';
+        }
+      });
+    } catch (e) {
+      console.warn('Could not load chunks.jsonl:', e.message);
+    }
+
+    // Load static_qa_config.py (just read as text)
+    try {
+      const qaConfig = await fs.readFile(path.join(__dirname, 'static_qa_config.py'), 'utf8');
+      knowledgeContext += '\n\nQ&A DATABASE:\n' + qaConfig.substring(0, 3000);
+    } catch (e) {
+      console.warn('Could not load static_qa_config.py:', e.message);
+    }
+
+    // Load url_mapping.py
+    try {
+      const urlMapping = await fs.readFile(path.join(__dirname, 'url_mapping.py'), 'utf8');
+      knowledgeContext += '\n\nUSEFUL LINKS:\n' + urlMapping;
+    } catch (e) {
+      console.warn('Could not load url_mapping.py:', e.message);
+    }
+
+    // Build prompt
+    const templateInstructions = {
+      'initial': 'Write a warm initial response welcoming their enquiry. Provide key information and invite them to an open day.',
+      'followup': 'Write a nurturing follow-up email checking in and offering to answer questions.',
+      'open_day': 'Write an invitation to an upcoming open day with details and how to register.',
+      'boarding': 'Write a detailed response about boarding arrangements, pastoral care, and weekend activities.',
+      'custom': instructions || 'Write a helpful, personalized response.'
+    };
+
+    const prompt = `You are an admissions officer at More House School responding to a parent enquiry.
+
+ORIGINAL EMAIL FROM ${originalEmail.from || 'Parent'}:
+${originalEmail.text}
+
+TEMPLATE TYPE: ${templateType || 'initial'}
+INSTRUCTIONS: ${templateInstructions[templateType] || templateInstructions['custom']}
+
+SCHOOL KNOWLEDGE BASE:
+${knowledgeContext.substring(0, 6000)}
+
+Write a professional, warm email response that:
+1. Addresses the parent by name if available
+2. References specific points from their email
+3. Uses accurate information from the knowledge base
+4. Maintains a welcoming, professional tone
+5. Includes relevant links or next steps
+6. Signs off appropriately
+
+Write ONLY the email body (no subject line). Use British English spelling.`;
+
+    // Call OpenAI
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4",
+      messages: [
+        {
+          role: "system",
+          content: "You are a professional, warm admissions officer at More House School. Write clear, personalized email responses."
+        },
+        {
+          role: "user",
+          content: prompt
+        }
+      ],
+      temperature: 0.7,
+      max_tokens: 800
+    });
+
+    const emailResponse = completion.choices[0].message.content;
+
+    return res.json({
+      success: true,
+      email: emailResponse
+    });
+
+  } catch (error) {
+    console.error('Email generation error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to generate email',
+      details: error.message
+    });
+  }
+});
+
+// ============================================================================
+// END OF EMAIL GENERATION ENDPOINT
+// ============================================================================
 
 // Replace your existing /api/deepl endpoint with this:
 app.post('/api/deepl', async (req, res) => {
@@ -4931,7 +5231,13 @@ app.delete('/api/analytics/inquiries/:id', async (req, res) => {
       details: error.message 
     });
   }
+
 });
+// Dashboard redirect
+app.get('/dashboard', (req, res) => {
+  res.redirect('/dashboard.html');
+});
+
 // 404 handler
 app.use((req, res) => {
   res.status(404).json({ 

@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Generate New Enquiry - More House School</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --blazer-navy: #091825;
+      --award-gold: #FF9F1C;
+      --sport-blue: #034674;
+      --success: #10B981;
+      --border-grey: #E5E7EB;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #FAFBFC;
+      padding: 2rem;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .header {
+      background: var(--blazer-navy);
+      color: white;
+      padding: 2rem;
+      border-radius: 8px;
+      margin-bottom: 2rem;
+      text-align: center;
+    }
+
+    .header h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .form-card {
+      background: white;
+      border-radius: 8px;
+      border: 1px solid var(--border-grey);
+      padding: 2rem;
+    }
+
+    .form-section {
+      margin-bottom: 2rem;
+    }
+
+    .section-title {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--blazer-navy);
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid var(--award-gold);
+    }
+
+    .form-group {
+      margin-bottom: 1.25rem;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: #374151;
+      margin-bottom: 0.5rem;
+    }
+
+    .required {
+      color: #EF4444;
+    }
+
+    .form-input,
+    .form-select,
+    .form-textarea {
+      width: 100%;
+      padding: 0.75rem;
+      border: 1px solid var(--border-grey);
+      border-radius: 4px;
+      font-size: 0.875rem;
+      font-family: 'Inter', sans-serif;
+    }
+
+    .form-input:focus,
+    .form-select:focus,
+    .form-textarea:focus {
+      outline: none;
+      border-color: var(--sport-blue);
+      box-shadow: 0 0 0 3px rgba(3, 70, 116, 0.1);
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+
+    .btn {
+      padding: 0.75rem 2rem;
+      border: none;
+      border-radius: 4px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .btn-primary {
+      background: var(--success);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #059669;
+    }
+
+    .btn-primary:disabled {
+      background: #9CA3AF;
+      cursor: not-allowed;
+    }
+
+    .btn-secondary {
+      background: transparent;
+      border: 1.5px solid var(--border-grey);
+      color: #374151;
+      margin-right: 1rem;
+    }
+
+    .btn-secondary:hover {
+      background: #F9FAFB;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 1rem;
+      margin-top: 2rem;
+    }
+
+    .loading {
+      display: none;
+      padding: 1rem;
+      background: #FEF3C7;
+      border: 1px solid #FCD34D;
+      border-radius: 4px;
+      color: #92400E;
+      margin-top: 1rem;
+    }
+
+    .loading.active {
+      display: block;
+    }
+
+    .success {
+      display: none;
+      padding: 1.5rem;
+      background: #D1FAE5;
+      border: 1px solid #10B981;
+      border-radius: 4px;
+      color: #065F46;
+      margin-top: 1rem;
+    }
+
+    .success.active {
+      display: block;
+    }
+
+    .error {
+      display: none;
+      padding: 1rem;
+      background: #FEE2E2;
+      border: 1px solid #EF4444;
+      border-radius: 4px;
+      color: #991B1B;
+      margin-top: 1rem;
+    }
+
+    .error.active {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Generate New Enquiry</h1>
+      <p>Create a new family enquiry and prospectus</p>
+    </div>
+
+    <div class="form-card">
+      <form id="enquiryForm">
+        <!-- Family Information -->
+        <div class="form-section">
+          <h2 class="section-title">Family Information</h2>
+          
+          <div class="form-group">
+            <label class="form-label">Parent Name <span class="required">*</span></label>
+            <input type="text" class="form-input" id="parentName" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Parent Email <span class="required">*</span></label>
+            <input type="email" class="form-input" id="parentEmail" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Family Surname <span class="required">*</span></label>
+            <input type="text" class="form-input" id="familySurname" required>
+          </div>
+        </div>
+
+        <!-- Student Information -->
+        <div class="form-section">
+          <h2 class="section-title">Student Information</h2>
+          
+          <div class="form-group">
+            <label class="form-label">Student First Name <span class="required">*</span></label>
+            <input type="text" class="form-input" id="firstName" required>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Age Group <span class="required">*</span></label>
+              <select class="form-select" id="ageGroup" required>
+                <option value="">Select Age Group</option>
+                <option value="5-6">Years 5-6 (Pre-Senior)</option>
+                <option value="7-11">Years 7-11 (Senior)</option>
+                <option value="12-13">Years 12-13 (Sixth Form)</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Entry Year <span class="required">*</span></label>
+              <input type="number" class="form-input" id="entryYear" min="2025" max="2030" value="2026" required>
+            </div>
+          </div>
+        </div>
+
+        <!-- Location -->
+        <div class="form-section">
+          <h2 class="section-title">Location</h2>
+          
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Country</label>
+              <input type="text" class="form-input" id="country" value="United Kingdom">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">City</label>
+              <input type="text" class="form-input" id="city">
+            </div>
+          </div>
+        </div>
+
+        <!-- Additional Information -->
+        <div class="form-section">
+          <h2 class="section-title">Additional Information (Optional)</h2>
+          
+          <div class="form-group">
+            <label class="form-label">Notes</label>
+            <textarea class="form-textarea" id="notes" rows="4" placeholder="Any additional information about the enquiry..."></textarea>
+          </div>
+        </div>
+
+        <!-- Buttons -->
+        <div class="button-group">
+          <button type="button" class="btn btn-secondary" onclick="window.location.href='/dashboard'">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="submitBtn">Generate Enquiry & Prospectus</button>
+        </div>
+
+        <div class="loading" id="loading">
+          Creating enquiry and generating prospectus... This may take a few moments.
+        </div>
+
+        <div class="success" id="success">
+          ✅ Enquiry created successfully! <a href="/dashboard" style="color: #065F46; font-weight: 600;">View in dashboard</a>
+        </div>
+
+        <div class="error" id="error">
+          ❌ <span id="errorMsg">Failed to create enquiry</span>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById('enquiryForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const loading = document.getElementById('loading');
+    const success = document.getElementById('success');
+    const error = document.getElementById('error');
+    const errorMsg = document.getElementById('errorMsg');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      // Hide previous messages
+      success.classList.remove('active');
+      error.classList.remove('active');
+      loading.classList.add('active');
+      submitBtn.disabled = true;
+
+      // Collect form data
+      const data = {
+        parentName: document.getElementById('parentName').value,
+        parentEmail: document.getElementById('parentEmail').value,
+        familySurname: document.getElementById('familySurname').value,
+        firstName: document.getElementById('firstName').value,
+        ageGroup: document.getElementById('ageGroup').value,
+        entryYear: document.getElementById('entryYear').value,
+        country: document.getElementById('country').value || 'United Kingdom',
+        city: document.getElementById('city').value || '',
+        notes: document.getElementById('notes').value || '',
+        source: 'manual_dashboard',
+        school_id: 2
+      };
+
+      try {
+        // Step 1: Create enquiry
+        const response = await fetch('/api/inquiry', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data)
+        });
+
+        if (!response.ok) {
+          throw new Error(`Server error: ${response.status}`);
+        }
+
+        const result = await response.json();
+        
+        if (result.success && result.inquiryId) {
+          // Step 2: Generate prospectus
+          const prospectusResponse = await fetch(`/api/generate-prospectus/${result.inquiryId}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            }
+          });
+
+          if (!prospectusResponse.ok) {
+            console.warn('Prospectus generation failed, but enquiry was created');
+          }
+
+          loading.classList.remove('active');
+          success.classList.add('active');
+          form.reset();
+          submitBtn.disabled = false;
+
+          // Redirect after 2 seconds
+          setTimeout(() => {
+            window.location.href = '/dashboard';
+          }, 2000);
+        } else {
+          throw new Error(result.error || 'Failed to create enquiry');
+        }
+      } catch (err) {
+        console.error('Error:', err);
+        loading.classList.remove('active');
+        error.classList.add('active');
+        errorMsg.textContent = err.message;
+        submitBtn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

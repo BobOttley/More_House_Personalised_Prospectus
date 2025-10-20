@@ -52,3 +52,4 @@ build/
 *.bak
 public/*.bak*
 server.js.bak.*
+.env

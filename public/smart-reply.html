@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart Reply - AI Email Assistant</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --blazer-navy: #091825;
+      --award-gold: #FF9F1C;
+      --sport-blue: #034674;
+      --text-primary: #2C3E50;
+      --white: #FFFFFF;
+      --light-grey: #F8FAFC;
+      --border-grey: #E5E7EB;
+      --success: #10B981;
+      --warning: #F59E0B;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #FAFBFC;
+      padding: 2rem;
+      color: var(--text-primary);
+      font-size: 14px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    /* Header */
+    .page-header {
+      background: linear-gradient(135deg, var(--blazer-navy), var(--sport-blue));
+      color: white;
+      padding: 2rem;
+      border-radius: 8px;
+      margin-bottom: 2rem;
+      text-align: center;
+    }
+
+    .page-header h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .page-header p {
+      color: rgba(255, 255, 255, 0.85);
+      font-size: 0.95rem;
+    }
+
+    /* Main Grid */
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    @media (max-width: 968px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Cards */
+    .card {
+      background: white;
+      border-radius: 8px;
+      border: 1px solid var(--border-grey);
+      padding: 1.5rem;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+      padding-bottom: 1rem;
+      border-bottom: 2px solid var(--light-grey);
+    }
+
+    .card-icon {
+      font-size: 1.5rem;
+    }
+
+    .card-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--blazer-navy);
+    }
+
+    .card-subtitle {
+      font-size: 0.85rem;
+      color: #6B7280;
+      margin-top: 0.25rem;
+    }
+
+    /* Form Elements */
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 0.5rem;
+    }
+
+    .form-input,
+    .form-textarea,
+    .form-select {
+      width: 100%;
+      padding: 0.75rem;
+      border: 1px solid var(--border-grey);
+      border-radius: 4px;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.875rem;
+      transition: all 0.2s ease;
+    }
+
+    .form-input:focus,
+    .form-textarea:focus,
+    .form-select:focus {
+      outline: none;
+      border-color: var(--sport-blue);
+      box-shadow: 0 0 0 3px rgba(3, 70, 116, 0.1);
+    }
+
+    .form-textarea {
+      min-height: 250px;
+      font-family: 'Courier New', monospace;
+      resize: vertical;
+    }
+
+    .form-textarea.reply-output {
+      min-height: 400px;
+      background: #F9FAFB;
+      line-height: 1.6;
+    }
+
+    /* Buttons */
+    .btn {
+      padding: 0.75rem 1.5rem;
+      border: none;
+      border-radius: 4px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-family: 'Inter', sans-serif;
+    }
+
+    .btn-primary {
+      background: var(--blazer-navy);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: var(--sport-blue);
+    }
+
+    .btn-primary:disabled {
+      background: #9CA3AF;
+      cursor: not-allowed;
+    }
+
+    .btn-secondary {
+      background: transparent;
+      border: 1.5px solid var(--border-grey);
+      color: var(--text-primary);
+    }
+
+    .btn-secondary:hover {
+      background: var(--light-grey);
+    }
+
+    .btn-success {
+      background: var(--success);
+      color: white;
+    }
+
+    .btn-success:hover {
+      background: #059669;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    /* Loading State */
+    .loading {
+      display: none;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 1rem;
+      background: #FEF3C7;
+      border: 1px solid #FCD34D;
+      border-radius: 4px;
+      margin: 1rem 0;
+      color: #92400E;
+      font-size: 0.875rem;
+    }
+
+    .loading.active {
+      display: flex;
+    }
+
+    .loading::before {
+      content: '○';
+      display: inline-block;
+      animation: spin 1s linear infinite;
+      font-size: 1.2rem;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Info Box */
+    .info-box {
+      background: #EFF6FF;
+      border-left: 4px solid var(--sport-blue);
+      padding: 1rem;
+      border-radius: 4px;
+      margin-bottom: 1.5rem;
+    }
+
+    .info-box h3 {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--sport-blue);
+      margin-bottom: 0.5rem;
+    }
+
+    .info-box p {
+      font-size: 0.85rem;
+      color: #1E40AF;
+      line-height: 1.5;
+    }
+
+    .info-box ul {
+      margin-top: 0.5rem;
+      margin-left: 1.25rem;
+      font-size: 0.85rem;
+      color: #1E40AF;
+    }
+
+    .info-box li {
+      margin-bottom: 0.25rem;
+    }
+
+    /* Quick Templates */
+    .template-chips {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-top: 0.75rem;
+    }
+
+    .chip {
+      padding: 0.5rem 1rem;
+      background: white;
+      border: 1.5px solid var(--border-grey);
+      border-radius: 20px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .chip:hover {
+      background: var(--award-gold);
+      border-color: var(--award-gold);
+      color: white;
+    }
+
+    /* Copy Button Container */
+    .output-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+
+    .copy-btn {
+      padding: 0.5rem 1rem;
+      background: var(--success);
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .copy-btn:hover {
+      background: #059669;
+    }
+
+    .copy-btn.copied {
+      background: var(--blazer-navy);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="page-header">
+      <h1>✨ Smart Reply Assistant</h1>
+      <p>AI-powered email responses using More House School knowledge base</p>
+    </div>
+
+    <!-- Info Box -->
+    <div class="info-box">
+      <h3>📚 Powered by School Knowledge Base</h3>
+      <p>This assistant uses More House's complete knowledge base including:</p>
+      <ul>
+        <li>Admissions policies and procedures</li>
+        <li>School FAQs and static Q&A config</li>
+        <li>Curriculum, co-curricular activities, and sport information</li>
+        <li>Fees, scholarships, and boarding details</li>
+        <li>All school documentation and resources</li>
+      </ul>
+    </div>
+
+    <!-- Main Grid -->
+    <div class="grid">
+      <!-- Input Card -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-icon">📧</span>
+          <div>
+            <div class="card-title">Parent Email</div>
+            <div class="card-subtitle">Paste the email you received</div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Email Template Type</label>
+          <select class="form-select" id="templateType">
+            <option value="initial">Initial Response - First contact</option>
+            <option value="followup">Follow-up - Nurturing enquiry</option>
+            <option value="open_day">Open Day - Event invitation</option>
+            <option value="boarding">Boarding Info - Accommodation details</option>
+            <option value="custom">Custom - Flexible response</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">From (Parent Name)</label>
+          <input type="text" class="form-input" id="parentName" placeholder="e.g., Sarah Johnson">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Email Content</label>
+          <textarea 
+            class="form-textarea" 
+            id="emailInput" 
+            placeholder="Paste the parent's email here...
+
+Example:
+Dear Admissions Team,
+
+I am interested in learning more about More House School for my daughter Emma (age 13). She is particularly interested in sciences and drama.
+
+Could you provide information about your curriculum and any upcoming open days?
+
+Best regards,
+Sarah Johnson"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Additional Instructions (Optional)</label>
+          <input 
+            type="text" 
+            class="form-input" 
+            id="additionalInstructions" 
+            placeholder="e.g., Focus on science programs, mention upcoming open day">
+        </div>
+
+        <div class="button-group">
+          <button class="btn btn-primary" id="generateBtn">
+            🤖 Generate Reply
+          </button>
+          <button class="btn btn-secondary" id="clearBtn">
+            Clear All
+          </button>
+        </div>
+
+        <div class="loading" id="loadingIndicator">
+          <span>Generating AI response using school knowledge base...</span>
+        </div>
+      </div>
+
+      <!-- Output Card -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-icon">✉️</span>
+          <div>
+            <div class="card-title">Generated Reply</div>
+            <div class="card-subtitle">AI-generated response using school data</div>
+          </div>
+        </div>
+
+        <div class="output-header">
+          <label class="form-label">Professional Email Response</label>
+          <button class="copy-btn" id="copyBtn" style="display:none;">📋 Copy Reply</button>
+        </div>
+
+        <textarea 
+          class="form-textarea reply-output" 
+          id="replyOutput" 
+          readonly 
+          placeholder="Your AI-generated reply will appear here...
+
+The assistant will:
+• Address the parent by name
+• Reference specific questions from their email
+• Use accurate information from the school knowledge base
+• Maintain a professional yet warm tone
+• Include relevant links and resources"></textarea>
+
+        <div class="template-chips">
+          <div class="chip" onclick="insertSample('sciences')">Sample: Sciences Interest</div>
+          <div class="chip" onclick="insertSample('boarding')">Sample: Boarding Query</div>
+          <div class="chip" onclick="insertSample('general')">Sample: General Enquiry</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const generateBtn = document.getElementById('generateBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const copyBtn = document.getElementById('copyBtn');
+    const loadingIndicator = document.getElementById('loadingIndicator');
+    const emailInput = document.getElementById('emailInput');
+    const replyOutput = document.getElementById('replyOutput');
+    const parentName = document.getElementById('parentName');
+    const templateType = document.getElementById('templateType');
+    const additionalInstructions = document.getElementById('additionalInstructions');
+
+    // Generate Reply
+    generateBtn.addEventListener('click', async () => {
+      const email = emailInput.value.trim();
+      const parent = parentName.value.trim();
+      
+      if (!email) {
+        alert('Please paste the parent email first');
+        return;
+      }
+
+      if (!parent) {
+        alert('Please enter the parent name');
+        return;
+      }
+
+      // Show loading
+      generateBtn.disabled = true;
+      loadingIndicator.classList.add('active');
+      replyOutput.value = 'Generating response...';
+
+      try {
+        const response = await fetch('/api/ai/generate-email', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            originalEmail: {
+              from: parent,
+              text: email,
+              subject: 'Enquiry',
+              date: new Date().toISOString()
+            },
+            templateType: templateType.value,
+            instructions: additionalInstructions.value || null
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`Server error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        
+        if (data.success && data.email) {
+          replyOutput.value = data.email;
+          copyBtn.style.display = 'block';
+        } else {
+          throw new Error(data.error || 'Failed to generate response');
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        replyOutput.value = `Error generating reply: ${error.message}\n\nPlease try again or contact support.`;
+      } finally {
+        generateBtn.disabled = false;
+        loadingIndicator.classList.remove('active');
+      }
+    });
+
+    // Clear All
+    clearBtn.addEventListener('click', () => {
+      emailInput.value = '';
+      replyOutput.value = '';
+      parentName.value = '';
+      additionalInstructions.value = '';
+      templateType.value = 'initial';
+      copyBtn.style.display = 'none';
+    });
+
+    // Copy Reply
+    copyBtn.addEventListener('click', () => {
+      replyOutput.select();
+      document.execCommand('copy');
+      
+      copyBtn.textContent = '✓ Copied!';
+      copyBtn.classList.add('copied');
+      
+      setTimeout(() => {
+        copyBtn.textContent = '📋 Copy Reply';
+        copyBtn.classList.remove('copied');
+      }, 2000);
+    });
+
+    // Sample Email Templates
+    function insertSample(type) {
+      const samples = {
+        sciences: {
+          parent: 'Dr. Sarah Thompson',
+          email: `Dear Admissions Team,
+
+I am writing to enquire about More House School for my daughter Emma, who is currently in Year 7. She has a particular passion for the sciences, especially biology and chemistry, and I am keen to find a school that will nurture this interest.
+
+Could you please provide information about:
+- Your science curriculum and laboratory facilities
+- Any science-related co-curricular activities or competitions
+- University destinations for science students
+- Your next open day
+
+Thank you for your time.
+
+Best regards,
+Dr. Sarah Thompson`
+        },
+        boarding: {
+          parent: 'Mr. James Wilson',
+          email: `Dear More House School,
+
+We are an international family currently based in Hong Kong, and we are exploring UK boarding schools for our son Thomas (age 14) for September entry.
+
+I would appreciate information about:
+- Boarding arrangements and pastoral care
+- Weekend activities for boarders
+- Support for international students
+- Travel arrangements during holidays
+
+We will be visiting the UK in April and would love to arrange a tour.
+
+Kind regards,
+James Wilson`
+        },
+        general: {
+          parent: 'Mrs. Amanda Clarke',
+          email: `Dear Admissions,
+
+I am interested in learning more about More House School for my daughter Sophie, who is currently 12 years old. She enjoys drama, music, and sport.
+
+Could you send me information about the admissions process and any upcoming events where we could visit the school?
+
+Thank you,
+Amanda Clarke`
+        }
+      };
+
+      const sample = samples[type];
+      if (sample) {
+        parentName.value = sample.parent;
+        emailInput.value = sample.email;
+      }
+    }
+
+    // Enable Enter key to generate (Ctrl+Enter)
+    emailInput.addEventListener('keydown', (e) => {
+      if (e.ctrlKey && e.key === 'Enter') {
+        generateBtn.click();
+      }
+    });
+  </script>
+</body>
+</html>
