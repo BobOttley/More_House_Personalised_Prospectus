@@ -2269,6 +2269,7 @@ app.get('/api/analytics/inquiries', async (req, res) => {
           LEFT JOIN ai_family_insights afi 
             ON i.id = afi.inquiry_id 
            AND afi.analysis_type = 'engagement_summary'
+          WHERE i.school_id = 2
           ORDER BY i.received_at DESC
 
         `);
@@ -2643,7 +2644,7 @@ app.get('/api/ai/engagement-summary/:inquiryId', async (req, res) => {
 
 app.post('/api/ai/analyze-all-families', async (req, res) => {
   try {
-    const q = await db.query(`SELECT * FROM inquiries ORDER BY created_at DESC NULLS LAST`);
+    const q = await db.query(`SELECT * FROM inquiries WHERE school_id = 2 ORDER BY created_at DESC NULLS LAST`);
     const rows = q?.rows || [];
     const results = [];
     
@@ -3919,7 +3920,7 @@ app.get('/admin/debug-database', async (req, res) => {
       LIMIT 5
     `);
     
-    const [{ count }] = (await db.query(`SELECT COUNT(*) as count FROM inquiries`)).rows;
+    const [{ count }] = (await db.query(`SELECT COUNT(*) as count FROM inquiries WHERE school_id = 2`)).rows;
     
     let aiCount = 0;
     try {
