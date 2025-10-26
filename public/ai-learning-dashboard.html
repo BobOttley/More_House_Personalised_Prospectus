@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Learning Dashboard - More House School</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --blazer-navy: #091825;
+      --award-gold: #FF9F1C;
+      --sport-blue: #034674;
+      --text-primary: #2C3E50;
+      --white: #FFFFFF;
+      --light-grey: #F8FAFC;
+      --border-grey: #E5E7EB;
+      --success: #10B981;
+      --warning: #F59E0B;
+      --danger: #EF4444;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #FAFBFC;
+      color: var(--text-primary);
+    }
+
+    .content-wrapper {
+      padding: 2rem;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .header {
+      background: var(--blazer-navy);
+      color: white;
+      padding: 2rem;
+      border-bottom: 4px solid var(--award-gold);
+      margin-bottom: 2rem;
+      text-align: center;
+    }
+
+    .header h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: 2.5rem;
+      margin-bottom: 0;
+    }
+
+    .header p {
+      display: none;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .stat-card {
+      background: white;
+      padding: 1.5rem;
+      border-radius: 8px;
+      border: 1px solid var(--border-grey);
+      text-align: center;
+    }
+
+    .stat-label {
+      font-size: 0.875rem;
+      color: #6B7280;
+      margin-bottom: 0.5rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .stat-value {
+      font-size: 2.5rem;
+      font-weight: 700;
+      color: var(--blazer-navy);
+    }
+
+    .stat-value.gold {
+      color: var(--award-gold);
+    }
+
+    .stat-value.success {
+      color: var(--success);
+    }
+
+    .main-content {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 2rem;
+    }
+
+    @media (max-width: 968px) {
+      .main-content {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .panel {
+      background: white;
+      border-radius: 8px;
+      border: 1px solid var(--border-grey);
+      padding: 1.5rem;
+    }
+
+    .panel-header {
+      border-bottom: 2px solid var(--light-grey);
+      padding-bottom: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .panel-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--blazer-navy);
+    }
+
+    .rules-table {
+      width: 100%;
+      font-size: 0.875rem;
+    }
+
+    .rules-table th {
+      text-align: left;
+      padding: 0.75rem;
+      background: var(--light-grey);
+      font-weight: 600;
+      color: var(--text-primary);
+      border-bottom: 2px solid var(--border-grey);
+    }
+
+    .rules-table td {
+      padding: 0.75rem;
+      border-bottom: 1px solid var(--light-grey);
+    }
+
+    .rules-table tr:hover {
+      background: #F9FAFB;
+    }
+
+    .confidence-badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .confidence-high {
+      background: #D1FAE5;
+      color: #065F46;
+    }
+
+    .confidence-medium {
+      background: #FED7AA;
+      color: #92400E;
+    }
+
+    .confidence-low {
+      background: #FEE2E2;
+      color: #991B1B;
+    }
+
+    .rule-phrase {
+      font-family: 'Courier New', monospace;
+      background: var(--light-grey);
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.8rem;
+    }
+
+    .action-btn {
+      padding: 0.5rem 1rem;
+      border: none;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-disable {
+      background: var(--danger);
+      color: white;
+    }
+
+    .btn-disable:hover {
+      background: #DC2626;
+    }
+
+    .recent-corrections {
+      list-style: none;
+    }
+
+    .correction-item {
+      padding: 1rem;
+      background: var(--light-grey);
+      border-radius: 4px;
+      margin-bottom: 0.75rem;
+      border-left: 3px solid var(--award-gold);
+    }
+
+    .correction-type {
+      display: inline-block;
+      padding: 0.25rem 0.5rem;
+      background: var(--blazer-navy);
+      color: white;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      margin-bottom: 0.5rem;
+    }
+
+    .correction-note {
+      font-size: 0.875rem;
+      color: var(--text-primary);
+      line-height: 1.5;
+    }
+
+    .correction-time {
+      font-size: 0.75rem;
+      color: #6B7280;
+      margin-top: 0.5rem;
+    }
+
+    .refresh-btn {
+      float: right;
+      padding: 0.5rem 1rem;
+      background: var(--sport-blue);
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-size: 0.875rem;
+      cursor: pointer;
+    }
+
+    .refresh-btn:hover {
+      background: var(--blazer-navy);
+    }
+
+    .loading {
+      text-align: center;
+      padding: 2rem;
+      color: #6B7280;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1><span style="color: var(--award-gold);">SMART</span> Rules</h1>
+  </div>
+
+  <div class="content-wrapper">
+  <div class="container">
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">Total Corrections</div>
+        <div class="stat-value" id="totalCorrections">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Active Learning Rules</div>
+        <div class="stat-value gold" id="activeRules">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">AI Confidence Rate</div>
+        <div class="stat-value success" id="successRate">0%</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Emails Generated Today</div>
+        <div class="stat-value" id="emailsToday">0</div>
+      </div>
+    </div>
+
+    <div class="main-content">
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Active Learning Rules</span>
+          <button class="refresh-btn" onclick="deleteAllRules()" style="background: #EF4444; margin-right: 10px;">Delete All</button>
+          <button class="refresh-btn" onclick="loadStats()">Refresh</button>
+        </div>
+        <table class="rules-table">
+          <thead>
+            <tr>
+              <th>Type</th>
+              <th style="width: 60%;">Learning Rule</th>
+              <th>Confidence</th>
+              <th>Uses</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="rulesTableBody">
+            <tr>
+              <td colspan="5" class="loading">Loading rules...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Recent Corrections</span>
+        </div>
+        <ul class="recent-corrections" id="recentCorrections">
+          <li class="loading">Loading recent corrections...</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  </div>
+
+  <script>
+    // Load stats on page load
+    window.addEventListener('DOMContentLoaded', loadStats);
+
+    async function loadStats() {
+      try {
+        const response = await fetch('/api/ai/learning-stats');
+        const data = await response.json();
+
+        // Update stats
+        document.getElementById('totalCorrections').textContent = data.totalCorrections || 0;
+        document.getElementById('activeRules').textContent = data.activeRules || 0;
+        document.getElementById('successRate').textContent = (data.successRate || 0) + '%';
+        document.getElementById('emailsToday').textContent = data.emailsToday || 0;
+
+        // Populate rules table
+        const tbody = document.getElementById('rulesTableBody');
+        if (data.topRules && data.topRules.length > 0) {
+          tbody.innerHTML = data.topRules.map(rule => `
+            <tr>
+              <td><span class="correction-type">${rule.rule_type || 'general'}</span></td>
+              <td style="white-space: normal; word-wrap: break-word;">${rule.original_phrase || rule.context_hint || 'No description'}</td>
+              <td>${getConfidenceBadge(rule.confidence_score)}</td>
+              <td>${rule.times_used || 0}</td>
+              <td>
+                <button class="action-btn btn-disable" onclick="disableRule(${rule.id})">
+                  Delete
+                </button>
+              </td>
+            </tr>
+          `).join('');
+        } else {
+          tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #6B7280;">No learning rules yet. Rules will appear here as the AI learns from corrections.</td></tr>';
+        }
+
+        // Load recent corrections (would need another endpoint or include in stats)
+        loadRecentCorrections();
+
+      } catch (error) {
+        console.error('Failed to load stats:', error);
+      }
+    }
+
+    async function loadRecentCorrections() {
+      const corrections = document.getElementById('recentCorrections');
+      corrections.innerHTML = '<li class="loading">Loading recent corrections...</li>';
+      
+      try {
+        const response = await fetch('/api/ai/learning-stats');
+        const data = await response.json();
+        
+        if (data.recentCorrections && data.recentCorrections.length > 0) {
+          corrections.innerHTML = data.recentCorrections.map(correction => `
+            <li class="correction-item">
+              <span class="correction-type">${correction.type || 'general'}</span>
+              <div class="correction-note">${correction.note}</div>
+              <div class="correction-time">${correction.time}</div>
+            </li>
+          `).join('');
+        } else {
+          corrections.innerHTML = `
+            <li style="text-align: center; padding: 2rem; color: #6B7280;">
+              No corrections yet. When you edit and correct generated emails, they'll appear here.
+            </li>
+          `;
+        }
+      } catch (error) {
+        console.error('Failed to load recent corrections:', error);
+        corrections.innerHTML = `
+          <li style="text-align: center; padding: 2rem; color: #6B7280;">
+            No corrections yet. When you edit and correct generated emails, they'll appear here.
+          </li>
+        `;
+      }
+    }
+
+    function getConfidenceBadge(score) {
+      const percentage = Math.round(score * 100);
+      let className = 'confidence-low';
+      if (percentage >= 80) className = 'confidence-high';
+      else if (percentage >= 60) className = 'confidence-medium';
+      
+      return `<span class="confidence-badge ${className}">${percentage}%</span>`;
+    }
+
+    function truncate(text, length) {
+      if (!text) return '';
+      return text.length > length ? text.substring(0, length) + '...' : text;
+    }
+
+    async function disableRule(ruleId) {
+      if (confirm('Are you sure you want to delete this learning rule?')) {
+        try {
+          const response = await fetch(`/api/ai/learning-rules/${ruleId}/disable`, {
+            method: 'POST'
+          });
+          
+          if (response.ok) {
+            loadStats(); // Refresh the page
+          }
+        } catch (error) {
+          console.error('Failed to delete rule:', error);
+        }
+      }
+    }
+
+    async function deleteAllRules() {
+      if (confirm('Are you sure you want to DELETE ALL learning rules? This cannot be undone!')) {
+        try {
+          const response = await fetch('/api/ai/learning-rules/delete-all', {
+            method: 'POST'
+          });
+          
+          if (response.ok) {
+            alert('All rules deleted successfully');
+            loadStats(); // Refresh the page
+          }
+        } catch (error) {
+          console.error('Failed to delete all rules:', error);
+          alert('Failed to delete rules');
+        }
+      }
+    }
+
+    // Auto-refresh every 30 seconds
+    setInterval(loadStats, 30000);
+  </script>
+</body>
+</html>

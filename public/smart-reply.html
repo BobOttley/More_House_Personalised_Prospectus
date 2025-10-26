@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Smart Reply - AI Email Assistant</title>
+  <title>SMART Reply - More House School</title>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
@@ -27,35 +27,43 @@
     body {
       font-family: 'Inter', sans-serif;
       background: #FAFBFC;
-      padding: 2rem;
       color: var(--text-primary);
       font-size: 14px;
     }
 
-    .container {
-      max-width: 1200px;
-      margin: 0 auto;
+    .content-wrapper {
+      padding: 2rem;
     }
 
     /* Header */
     .page-header {
-      background: linear-gradient(135deg, var(--blazer-navy), var(--sport-blue));
-      color: white;
+      background: var(--blazer-navy);
+      color: #fff;
       padding: 2rem;
-      border-radius: 8px;
+      border-bottom: 4px solid var(--award-gold);
       margin-bottom: 2rem;
       text-align: center;
     }
 
     .page-header h1 {
       font-family: 'Playfair Display', serif;
-      font-size: 2rem;
-      margin-bottom: 0.5rem;
+      font-size: 2.5rem;
+      margin-bottom: 0;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+
+    .smart-text {
+      color: var(--award-gold);
+    }
+
+    .reply-text {
+      color: #fff;
+      font-weight: 400;
     }
 
     .page-header p {
-      color: rgba(255, 255, 255, 0.85);
-      font-size: 0.95rem;
+      display: none;
     }
 
     /* Main Grid */
@@ -222,10 +230,10 @@
     }
 
     .loading::before {
-      content: '○';
+      content: 'Loading';
       display: inline-block;
-      animation: spin 1s linear infinite;
-      font-size: 1.2rem;
+      font-size: 0.875rem;
+      margin-right: 0.25rem;
     }
 
     @keyframes spin {
@@ -318,32 +326,17 @@
   </style>
 </head>
 <body>
-  <div class="container">
-    <!-- Header -->
-    <div class="page-header">
-      <h1>✨ Smart Reply Assistant</h1>
-      <p>AI-powered email responses using More House School knowledge base</p>
-    </div>
+  <!-- Header -->
+  <div class="page-header">
+    <h1><span class="smart-text">SMART</span> <span class="reply-text">Reply</span></h1>
+  </div>
 
-    <!-- Info Box -->
-    <div class="info-box">
-      <h3>📚 Powered by School Knowledge Base</h3>
-      <p>This assistant uses More House's complete knowledge base including:</p>
-      <ul>
-        <li>Admissions policies and procedures</li>
-        <li>School FAQs and static Q&A config</li>
-        <li>Curriculum, co-curricular activities, and sport information</li>
-        <li>Fees, scholarships, and boarding details</li>
-        <li>All school documentation and resources</li>
-      </ul>
-    </div>
-
+  <div class="content-wrapper">
     <!-- Main Grid -->
     <div class="grid">
       <!-- Input Card -->
       <div class="card">
         <div class="card-header">
-          <span class="card-icon">📧</span>
           <div>
             <div class="card-title">Parent Email</div>
             <div class="card-subtitle">Paste the email you received</div>
@@ -356,7 +349,7 @@
             <option value="initial">Initial Response - First contact</option>
             <option value="followup">Follow-up - Nurturing enquiry</option>
             <option value="open_day">Open Day - Event invitation</option>
-            <option value="boarding">Boarding Info - Accommodation details</option>
+            <option value="sixth_form">Sixth Form - A Level information</option>
             <option value="custom">Custom - Flexible response</option>
           </select>
         </div>
@@ -390,12 +383,12 @@ Sarah Johnson"></textarea>
             type="text" 
             class="form-input" 
             id="additionalInstructions" 
-            placeholder="e.g., Focus on science programs, mention upcoming open day">
+            placeholder="e.g., Focus on science programmes, mention upcoming open day">
         </div>
 
         <div class="button-group">
           <button class="btn btn-primary" id="generateBtn">
-            🤖 Generate Reply
+            Generate Reply
           </button>
           <button class="btn btn-secondary" id="clearBtn">
             Clear All
@@ -410,16 +403,14 @@ Sarah Johnson"></textarea>
       <!-- Output Card -->
       <div class="card">
         <div class="card-header">
-          <span class="card-icon">✉️</span>
           <div>
-            <div class="card-title">Generated Reply</div>
-            <div class="card-subtitle">AI-generated response using school data</div>
+            <div class="card-title">Generated <span class="smart-text">SMART</span> Reply</div>
           </div>
         </div>
 
         <div class="output-header">
           <label class="form-label">Professional Email Response</label>
-          <button class="copy-btn" id="copyBtn" style="display:none;">📋 Copy Reply</button>
+          <button class="copy-btn" id="copyBtn" style="display:none;">Copy Reply</button>
         </div>
 
         <textarea 
@@ -429,17 +420,19 @@ Sarah Johnson"></textarea>
           placeholder="Your AI-generated reply will appear here...
 
 The assistant will:
-• Address the parent by name
-• Reference specific questions from their email
-• Use accurate information from the school knowledge base
-• Maintain a professional yet warm tone
-• Include relevant links and resources"></textarea>
-
-        <div class="template-chips">
-          <div class="chip" onclick="insertSample('sciences')">Sample: Sciences Interest</div>
-          <div class="chip" onclick="insertSample('boarding')">Sample: Boarding Query</div>
-          <div class="chip" onclick="insertSample('general')">Sample: General Enquiry</div>
+- Address the parent by name
+- Reference specific questions from their email
+- Use accurate information from the school knowledge base
+- Maintain a professional yet warm tone
+- Use British English spelling and school terminology
+- Include relevant links and resources
+- Remember More House is an all-girls day school"></textarea>
+        
+        <!-- Feedback Area - Shows after generation -->
+        <div id="feedbackContainer" style="margin-top: 1rem;">
+          <!-- Feedback controls will appear here after email generation -->
         </div>
+
       </div>
     </div>
   </div>
@@ -489,7 +482,10 @@ The assistant will:
               date: new Date().toISOString()
             },
             templateType: templateType.value,
-            instructions: additionalInstructions.value || null
+            instructions: (additionalInstructions.value ? additionalInstructions.value + '. ' : '') + 
+              'IMPORTANT: Use British English spelling throughout (e.g., colour, organise, programme, behaviour, centre). ' +
+              'Use British school terminology (Year groups not Grades, sixth form, A Levels, GCSE, head teacher not principal). ' +
+              'Remember More House is an all-girls day school (no boarding facilities).'
           })
         });
 
@@ -502,6 +498,11 @@ The assistant will:
         if (data.success && data.email) {
           replyOutput.value = data.email;
           copyBtn.style.display = 'block';
+          
+          // Add feedback controls if we have a history ID
+          if (data.historyId) {
+            addFeedbackControls(data.historyId);
+          }
         } else {
           throw new Error(data.error || 'Failed to generate response');
         }
@@ -529,71 +530,14 @@ The assistant will:
       replyOutput.select();
       document.execCommand('copy');
       
-      copyBtn.textContent = '✓ Copied!';
+      copyBtn.textContent = 'Copied!';
       copyBtn.classList.add('copied');
       
       setTimeout(() => {
-        copyBtn.textContent = '📋 Copy Reply';
+        copyBtn.textContent = 'Copy Reply';
         copyBtn.classList.remove('copied');
       }, 2000);
     });
-
-    // Sample Email Templates
-    function insertSample(type) {
-      const samples = {
-        sciences: {
-          parent: 'Dr. Sarah Thompson',
-          email: `Dear Admissions Team,
-
-I am writing to enquire about More House School for my daughter Emma, who is currently in Year 7. She has a particular passion for the sciences, especially biology and chemistry, and I am keen to find a school that will nurture this interest.
-
-Could you please provide information about:
-- Your science curriculum and laboratory facilities
-- Any science-related co-curricular activities or competitions
-- University destinations for science students
-- Your next open day
-
-Thank you for your time.
-
-Best regards,
-Dr. Sarah Thompson`
-        },
-        boarding: {
-          parent: 'Mr. James Wilson',
-          email: `Dear More House School,
-
-We are an international family currently based in Hong Kong, and we are exploring UK boarding schools for our son Thomas (age 14) for September entry.
-
-I would appreciate information about:
-- Boarding arrangements and pastoral care
-- Weekend activities for boarders
-- Support for international students
-- Travel arrangements during holidays
-
-We will be visiting the UK in April and would love to arrange a tour.
-
-Kind regards,
-James Wilson`
-        },
-        general: {
-          parent: 'Mrs. Amanda Clarke',
-          email: `Dear Admissions,
-
-I am interested in learning more about More House School for my daughter Sophie, who is currently 12 years old. She enjoys drama, music, and sport.
-
-Could you send me information about the admissions process and any upcoming events where we could visit the school?
-
-Thank you,
-Amanda Clarke`
-        }
-      };
-
-      const sample = samples[type];
-      if (sample) {
-        parentName.value = sample.parent;
-        emailInput.value = sample.email;
-      }
-    }
 
     // Enable Enter key to generate (Ctrl+Enter)
     emailInput.addEventListener('keydown', (e) => {
@@ -601,6 +545,164 @@ Amanda Clarke`
         generateBtn.click();
       }
     });
+
+    // FEEDBACK SYSTEM FUNCTIONS
+    function addFeedbackControls(historyId) {
+      // Get the feedback container
+      const feedbackContainer = document.getElementById('feedbackContainer');
+      if (!feedbackContainer) {
+        console.error('Feedback container not found!');
+        return;
+      }
+
+      // Clear any existing feedback
+      feedbackContainer.innerHTML = '';
+
+      // Add new feedback controls
+      const feedbackHTML = `
+        <div class="feedback-section" id="feedbackSection" style="padding: 1rem; background: #FFF3CD; border: 2px solid var(--award-gold); border-radius: 4px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-weight: 600; color: var(--blazer-navy);">✏️ Improve AI Accuracy</span>
+            <button class="btn btn-primary" onclick="enableEditing('${historyId}')" style="padding: 0.5rem 1rem; font-size: 0.875rem; background: var(--award-gold); border: none; color: var(--blazer-navy); font-weight: 600;">
+              Edit & Train AI
+            </button>
+          </div>
+          <div id="editingControls" style="display: none; margin-top: 1rem;">
+            <div style="background: white; padding: 1rem; border-radius: 4px; margin-bottom: 1rem;">
+              <h3 style="font-size: 1rem; color: var(--blazer-navy); margin-bottom: 0.5rem;">📚 Help the AI Learn</h3>
+              <p style="font-size: 0.875rem; color: #6B7280;">Edit the email above, then tell us what needed fixing so the AI learns from this correction.</p>
+            </div>
+            
+            <label class="form-label">What type of correction?</label>
+            <select id="correctionType" class="form-select" style="margin-bottom: 0.75rem;">
+              <option value="">Select correction type...</option>
+              <option value="tone">Tone - too formal/casual</option>
+              <option value="facts">Facts - incorrect information</option>
+              <option value="grammar">Grammar/spelling</option>
+              <option value="structure">Structure/format</option>
+              <option value="personalization">Personalization - not specific enough</option>
+              <option value="terminology">Terminology - wrong terms used</option>
+            </select>
+            
+            <label class="form-label">Specific feedback (required):</label>
+            <input type="text" id="feedbackNotes" class="form-input" 
+                   placeholder="e.g., 'Too formal - should be warmer', 'Used Grade instead of Year'" 
+                   style="margin-bottom: 1rem;">
+            
+            <div class="button-group">
+              <button class="btn btn-success" onclick="submitCorrection('${historyId}')" id="submitCorrectionBtn">
+                💾 Save Correction & Train AI
+              </button>
+              <button class="btn btn-secondary" onclick="cancelEditing()">
+                Cancel
+              </button>
+            </div>
+            
+            <div id="feedbackStatus" style="margin-top: 1rem; display: none; padding: 0.75rem; border-radius: 4px;"></div>
+          </div>
+        </div>
+      `;
+      
+      // Insert into the container
+      feedbackContainer.innerHTML = feedbackHTML;
+    }
+
+    // FEEDBACK SYSTEM FUNCTIONS - Make them globally accessible
+    window.enableEditing = function(historyId) {
+      // Make textarea editable
+      replyOutput.readOnly = false;
+      replyOutput.style.background = '#FFFFFF';
+      replyOutput.style.border = '2px solid var(--award-gold)';
+      
+      // Show editing controls
+      document.getElementById('editingControls').style.display = 'block';
+      
+      // Store the history ID for submission
+      window.currentHistoryId = historyId;
+    }
+
+    window.cancelEditing = function() {
+      // Make textarea read-only again
+      replyOutput.readOnly = true;
+      replyOutput.style.background = '#F9FAFB';
+      replyOutput.style.border = '1px solid var(--border-grey)';
+      
+      // Hide editing controls
+      const editingControls = document.getElementById('editingControls');
+      if (editingControls) {
+        editingControls.style.display = 'none';
+      }
+    }
+
+    window.submitCorrection = async function(historyId) {
+      const correctedEmail = replyOutput.value;
+      const correctionType = document.getElementById('correctionType').value;
+      const feedbackNotes = document.getElementById('feedbackNotes').value;
+      
+      if (!correctionType) {
+        alert('Please select what type of correction this is');
+        return;
+      }
+      
+      if (!feedbackNotes) {
+        alert('Please provide specific feedback to help the AI learn');
+        return;
+      }
+      
+      const submitBtn = document.getElementById('submitCorrectionBtn');
+      const statusDiv = document.getElementById('feedbackStatus');
+      
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Training AI...';
+      
+      try {
+        const response = await fetch('/api/ai/email-feedback', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            historyId,
+            correctedEmail,
+            correctionNotes: feedbackNotes,
+            correctionType
+          })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          statusDiv.style.display = 'block';
+          statusDiv.style.background = '#D1FAE5';
+          statusDiv.style.color = '#065F46';
+          statusDiv.style.border = '2px solid #10B981';
+          statusDiv.style.padding = '1rem';
+          statusDiv.innerHTML = `
+            <div style="font-weight: 600; font-size: 1.1rem; margin-bottom: 0.5rem;">
+              ✅ AI Training Successful!
+            </div>
+            <div>
+              The AI learned ${result.patternsLearned || 1} new pattern${result.patternsLearned !== 1 ? 's' : ''} from your correction.
+              It won't make this mistake again!
+            </div>
+          `;
+          
+          // Reset after success
+          setTimeout(() => {
+            window.cancelEditing();
+            feedbackContainer.innerHTML = '<div style="padding: 1rem; background: #D1FAE5; border-radius: 4px; text-align: center; color: #065F46;">✅ Correction saved! Generate another email to continue training the AI.</div>';
+          }, 4000);
+        } else {
+          throw new Error(result.error || 'Failed to save correction');
+        }
+      } catch (error) {
+        console.error('Feedback submission error:', error);
+        statusDiv.style.display = 'block';
+        statusDiv.style.color = '#EF4444';
+        statusDiv.textContent = `Error: ${error.message}`;
+        
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Save Correction & Train AI';
+      }
+    }
   </script>
 </body>
 </html>

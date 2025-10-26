@@ -1,0 +1,1026 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>More House School - Enquiry Form</title>
+    <style>
+        /* More House School Official Brand Colours */
+        :root {
+            --morehouse-navy: #1a2b5c;
+            --morehouse-pink: #FFB3C1;
+            --morehouse-deep-pink: #FF6B9D;
+            --morehouse-light-pink: #FFE5EC;
+            --morehouse-text: #2C3E50;
+            --morehouse-white: #FFFFFF;
+            --morehouse-light-grey: #F5F5F5;
+        }
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:'Georgia','Times New Roman',serif;line-height:1.6;color:var(--morehouse-text);background:linear-gradient(135deg,var(--morehouse-navy) 0%,#2c3e6b 100%);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+        .form-container{max-width:700px;width:100%;margin:0 auto;background:white;color:var(--morehouse-text);padding:40px;border-radius:15px;box-shadow:0 20px 60px rgba(0,0,0,0.3);position:relative}
+
+        /* Language Switcher */
+        .language-switcher {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            background: var(--morehouse-deep-pink);
+            border-radius: 8px;
+            padding: 8px 12px;
+            box-shadow: 0 4px 12px rgba(255, 107, 157, 0.3);
+            z-index: 100;
+        }
+        .language-switcher label {
+            color: white;
+            font-weight: bold;
+            font-size: 0.85rem;
+            margin-right: 6px;
+            font-family: 'Arial', 'Helvetica', sans-serif;
+        }
+        .language-switcher select {
+            background: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            min-width: 120px;
+        }
+
+        .school-logo{text-align:center;margin-bottom:2rem}
+        .school-logo img{width:120px;height:120px;border-radius:50%;border:3px solid var(--morehouse-pink)}
+        h1{color:var(--morehouse-navy);margin-bottom:10px;font-size:2.5rem;text-align:center;font-family:'Georgia',serif;font-weight:400}
+        .subtitle{color:var(--morehouse-deep-pink);margin-bottom:30px;font-size:1.2rem;font-style:italic;text-align:center}
+        .intro-text{background:var(--morehouse-light-pink);padding:20px;border-radius:10px;margin-bottom:30px;border-left:4px solid var(--morehouse-deep-pink)}
+        .intro-text p{margin:0;font-size:1rem;line-height:1.6}
+        .form-group{margin-bottom:20px;text-align:left}
+        .form-row{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+        .form-group label{display:block;margin-bottom:8px;font-weight:bold;color:var(--morehouse-navy);font-family:'Arial','Helvetica',sans-serif}
+        .required{color:var(--morehouse-deep-pink)}
+        .form-group input,.form-group select{width:100%;padding:12px;border:2px solid #ddd;border-radius:8px;font-size:16px;transition:border-color .3s;font-family:'Arial','Helvetica',sans-serif}
+        .form-group input:focus,.form-group select:focus{outline:none;border-color:var(--morehouse-deep-pink);box-shadow:0 0 0 3px rgba(255,107,157,.1)}
+        .section-label{font-weight:bold;color:var(--morehouse-navy);margin:30px 0 15px;display:block;font-size:1.2rem;border-bottom:2px solid var(--morehouse-pink);padding-bottom:5px}
+        .checkbox-group{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:15px;background:var(--morehouse-light-pink);padding:20px;border-radius:10px;border:2px solid var(--morehouse-pink)}
+        .checkbox-item{display:flex;align-items:center;gap:10px;padding:10px 15px;background:white;border-radius:8px;border:2px solid #ddd;transition:all .3s;cursor:pointer}
+        .checkbox-item:hover{border-color:var(--morehouse-deep-pink);background:#fff9f0;transform:translateY(-2px)}
+        .checkbox-item input[type="checkbox"]{cursor:pointer;width:18px;height:18px;accent-color:var(--morehouse-deep-pink)}
+        .checkbox-item label{cursor:pointer;margin:0;font-weight:normal;color:var(--morehouse-text);font-size:.9rem}
+        .checkbox-item input[type="checkbox"]:checked+label{color:var(--morehouse-navy);font-weight:600}
+        .submit-btn{background:linear-gradient(135deg,var(--morehouse-deep-pink),var(--morehouse-navy));color:white;padding:15px 40px;border:none;border-radius:50px;font-size:1.2rem;cursor:pointer;width:100%;margin-top:30px;font-weight:600;text-transform:uppercase;letter-spacing:1px;transition:all .3s;font-family:'Arial','Helvetica',sans-serif}
+        .submit-btn:hover{transform:translateY(-2px);box-shadow:0 10px 30px rgba(255,107,157,.4)}
+        .submit-btn:disabled{opacity:.6;cursor:not-allowed;transform:none}
+        .loading-spinner{display:none;width:20px;height:20px;border:2px solid #fff;border-top:2px solid transparent;border-radius:50%;animation:spin 1s linear infinite;margin-right:10px}
+        @keyframes spin{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
+        .success-message{display:none;background:#d4edda;color:#155724;padding:20px;border-radius:10px;border:1px solid #c3e6cb;margin-top:20px;text-align:center}
+        .error-message{display:none;background:#f8d7da;color:#721c24;padding:20px;border-radius:10px;border:1px solid #f5c6cb;margin-top:20px;text-align:center}
+        .footer-text{text-align:center;margin-top:30px;font-size:.9rem;color:var(--morehouse-text);opacity:.8}
+        .privacy-notice{background:var(--morehouse-light-grey);padding:15px;border-radius:8px;margin-top:20px;font-size:.85rem;color:var(--morehouse-text);border-left:3px solid var(--morehouse-navy)}
+        @media (max-width:768px){.form-container{padding:30px 20px;margin:10px}h1{font-size:2rem}.subtitle{font-size:1rem}.form-row{grid-template-columns:1fr;gap:15px}.checkbox-group{grid-template-columns:1fr}.section-label{font-size:1.1rem}}
+        .debug-info{background:#f8f9fa;padding:10px;border-radius:5px;margin-bottom:20px;font-size:12px;color:#666;border:1px solid #dee2e6}
+
+        /* Access Options Styles */
+        .access-options {
+            display: none;
+            animation: slideUp 0.6s ease-out;
+        }
+
+        .access-options.show {
+            display: block;
+        }
+
+        .access-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .access-header h2 {
+            color: var(--morehouse-navy);
+            margin-bottom: 15px;
+            font-size: 2.2em;
+            font-weight: 400;
+        }
+
+        .access-header p {
+            color: #666;
+            font-size: 1.1em;
+            line-height: 1.6;
+        }
+
+        .options-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin: 40px 0;
+        }
+
+        .option-card {
+            padding: 30px 25px;
+            border-radius: 12px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            border: 2px solid transparent;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .option-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+            border-color: var(--morehouse-deep-pink);
+        }
+
+        .online-option:hover {
+            border-color: var(--morehouse-navy);
+        }
+
+        .option-title {
+            font-size: 1.5em;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: var(--morehouse-navy);
+        }
+
+        .option-description {
+            font-size: 1em;
+            color: #666;
+            line-height: 1.5;
+            margin-bottom: 25px;
+        }
+
+        .btn-access {
+            display: inline-block;
+            padding: 12px 30px;
+            border: 2px solid var(--morehouse-navy);
+            border-radius: 25px;
+            font-weight: bold;
+            font-size: 1em;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            background: white;
+            color: var(--morehouse-navy);
+            width: 100%;
+        }
+
+        .btn-access:hover {
+            background: var(--morehouse-navy);
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .offline-option .btn-access {
+            border-color: var(--morehouse-deep-pink);
+            color: var(--morehouse-deep-pink);
+        }
+
+        .offline-option .btn-access:hover {
+            background: var(--morehouse-deep-pink);
+            color: white;
+        }
+
+        .simple-tip {
+            text-align: center;
+            background: var(--morehouse-light-pink);
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid var(--morehouse-deep-pink);
+            margin: 30px 0;
+        }
+
+        .simple-tip p {
+            margin: 0;
+            color: var(--morehouse-text);
+            font-size: 0.95em;
+            line-height: 1.5;
+        }
+
+        .back-btn {
+            background: transparent;
+            color: var(--morehouse-navy);
+            border: 2px solid var(--morehouse-navy);
+            padding: 10px 25px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            font-size: 0.95em;
+        }
+
+        .back-btn:hover {
+            background: var(--morehouse-navy);
+            color: white;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .options-container {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+            
+            .option-card {
+                padding: 25px 20px;
+            }
+            
+            .access-header h2 {
+                font-size: 1.8em;
+            }
+
+            .language-switcher {
+                position: static;
+                margin-bottom: 15px;
+                text-align: center;
+            }
+        }
+
+        /* RTL support for Arabic */
+        [dir="rtl"] {
+            text-align: right;
+        }
+        [dir="rtl"] .checkbox-item {
+            flex-direction: row-reverse;
+        }
+        [dir="rtl"] .checkbox-item input[type="checkbox"] {
+            margin-right: 0;
+            margin-left: 10px;
+        }
+        [dir="rtl"] .intro-text {
+            border-left: none;
+            border-right: 4px solid var(--morehouse-deep-pink);
+        }
+        [dir="rtl"] .privacy-notice {
+            border-left: none;
+            border-right: 3px solid var(--morehouse-navy);
+        }
+    </style>
+</head>
+<body>
+    <div class="form-container">
+        <!-- Language Switcher -->
+        <div class="language-switcher" data-no-translate>
+            <label for="inquiry-lang">Language:</label>
+            <select id="inquiry-lang" aria-label="Select language">
+                <option value="en">🇬🇧 English</option>
+                <option value="zh">🇨🇳 中文</option>
+                <option value="ar">🇸🇦 العربية</option>
+                <option value="ru">🇷🇺 Русский</option>
+                <option value="fr">🇫🇷 Français</option>
+                <option value="es">🇪🇸 Español</option>
+                <option value="de">🇩🇪 Deutsch</option>
+                <option value="it">🇮🇹 Italiano</option>
+            </select>
+        </div>
+
+        <!-- Form Section -->
+        <div id="formSection">
+            <div class="school-logo" data-no-translate>
+                <img src="https://yt3.googleusercontent.com/_BXVh2JJHQb3ViHUH-hDR_G1YU44EFmu3JSbyhsj5Qmnfy-niQEoIjynQd4Voo8el0RjUm_wUDo=s160-c-k-c0x00ffffff-no-rj" alt="More House School Logo">
+            </div>
+
+            <h1 data-no-translate>More House School</h1>
+            <p class="subtitle" data-translate>Create Your Personalised Prospectus</p>
+
+            <div class="intro-text">
+                <p data-translate><strong>Welcome to More House School's personalised prospectus experience.</strong> Please complete this form to receive a bespoke prospectus tailored to your daughter's interests and your family's priorities.</p>
+            </div>
+
+            <!-- Debug Information Panel -->
+            <div class="debug-info" id="debugInfo">
+                <strong>Connection Info:</strong><br>
+                <span data-translate>Current URL</span>: <span id="currentUrl"></span><br>
+                <span data-translate>Webhook Target</span>: <span id="webhookTarget"></span><br>
+                <span data-translate>Status</span>: <span id="connectionStatus">Checking...</span>
+            </div>
+
+            <form id="inquiryForm">
+                <span class="section-label" data-translate>Family Information</span>
+                
+                <div class="form-group">
+                    <label for="parentName"><span data-translate>Parent/Guardian Name</span> <span class="required">*</span></label>
+                    <input type="text" id="parentName" required>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="firstName"><span data-translate>Daughter's First Name</span> <span class="required">*</span></label>
+                        <input type="text" id="firstName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="familySurname"><span data-translate>Family Surname</span> <span class="required">*</span></label>
+                        <input type="text" id="familySurname" required>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="parentEmail"><span data-translate>Parent Email Address</span> <span class="required">*</span></label>
+                        <input type="email" id="parentEmail" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="contactNumber"><span data-translate>Contact Number</span> <span class="required">*</span></label>
+                        <input type="tel" id="contactNumber" required>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="ageGroup"><span data-translate>Current Age Group</span> <span class="required">*</span></label>
+                        <select id="ageGroup" required>
+                            <option value="" data-translate>Select age group...</option>
+                            <option value="9-11" data-translate>Ages 9-11 (Years 5-6)</option>
+                            <option value="11-16" data-translate>Ages 11-16 (Years 7-11)</option>
+                            <option value="16-18" data-translate>Ages 16-18 (Sixth Form)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="entryYear"><span data-translate>Planned Entry Year</span> <span class="required">*</span></label>
+                        <select id="entryYear" required>
+                            <option value="" data-translate>Select entry year...</option>
+                            <option value="2025" data-translate>September 2025</option>
+                            <option value="2026" data-translate>September 2026</option>
+                            <option value="2027" data-translate>September 2027</option>
+                            <option value="2028" data-translate>September 2028</option>
+                            <option value="2029" data-translate>September 2029</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="hearAboutUs"><span data-translate>How did you hear about More House School?</span> <span class="required">*</span></label>
+                    <select id="hearAboutUs" required>
+                        <option value="" data-translate>Please select...</option>
+                        <option value="current-school" data-translate>Current School</option>
+                        <option value="friend-family" data-translate>Friend or Family</option>
+                        <option value="google-search" data-translate>Google or Search Engine</option>
+                        <option value="publication" data-translate>Publication</option>
+                        <option value="social-media" data-translate>Social Media</option>
+                        <option value="other" data-translate>Other</option>
+                    </select>
+                </div>
+
+                <span class="section-label" data-translate>Academic Interests</span>
+                <div class="checkbox-group">
+                    <div class="checkbox-item"><input type="checkbox" id="sciences"><label for="sciences" data-translate>Sciences</label></div>
+                    <div class="checkbox-item"><input type="checkbox" id="mathematics"><label for="mathematics" data-translate>Mathematics</label></div>
+                    <div class="checkbox-item"><input type="checkbox" id="english"><label for="english" data-translate>English & Literature</label></div>
+                    <div class="checkbox-item"><input type="checkbox" id="languages"><label for="languages" data-translate>Modern Languages</label></div>
+                    <div class="checkbox-item"><input type="checkbox" id="humanities"><label for="humanities" data-translate>History & Geography</label></div>
+                    <div class="checkbox-item"><input type="checkbox" id="business"><label for="business" data-translate>Business Studies</label></div>
+                </div>
+
+                <span class="section-label" data-translate>Creative & Performance Interests</span>
+                <div class="checkbox-group">
+                    <div class="checkbox-item"><input type="checkbox" id="drama"><label for="drama" data-translate>Drama & Theatre</label></div>
+                    <div class="checkbox-item"><input type="checkbox" id="music"><label for="music" data-translate>Music & Singing</label></div>
+                    <div class="checkbox-item"><input type="checkbox" id="art"><label for="art" data-translate>Art & Design</label></div>
+                    <div class="checkbox-item"><input type="checkbox" id="creative_writing"><label for="creative_writing" data-translate>Creative Writing</label></div>
+                </div>
+
+                <span class="section-label" data-translate>Co-curricular Interests</span>
+                <div class="checkbox-group">
+                    <div class="checkbox-item"><input type="checkbox" id="sport"><label for="sport" data-translate>Sport & Physical Education</label></div>
+                    <div class="checkbox-item"><input type="checkbox" id="leadership"><label for="leadership" data-translate>Leadership & Student Voice</label></div>
+                    <div class="checkbox-item"><input type="checkbox" id="community_service"><label for="community_service" data-translate>Community Service</label></div>
+                    <div class="checkbox-item"><input type="checkbox" id="outdoor_education"><label for="outdoor_education" data-translate>Outdoor Education</label></div>
+                </div>
+
+                <span class="section-label" data-translate>What matters most to your family?</span>
+                <div class="checkbox-group">
+                    <div class="checkbox-item"><input type="checkbox" id="academic_excellence"><label for="academic_excellence" data-translate>Academic Excellence</label></div>
+                    <div class="checkbox-item"><input type="checkbox" id="pastoral_care"><label for="pastoral_care" data-translate>Outstanding Pastoral Care</label></div>
+                    <div class="checkbox-item"><input type="checkbox" id="university_preparation"><label for="university_preparation" data-translate>University Preparation</label></div>
+                    <div class="checkbox-item"><input type="checkbox" id="personal_development"><label for="personal_development" data-translate>Personal Development</label></div>
+                    <div class="checkbox-item"><input type="checkbox" id="career_guidance"><label for="career_guidance" data-translate>Career Guidance</label></div>
+                    <div class="checkbox-item"><input type="checkbox" id="extracurricular_opportunities"><label for="extracurricular_opportunities" data-translate>Extracurricular Opportunities</label></div>
+                </div>
+
+                <button type="submit" class="submit-btn" id="submitBtn">
+                    <span class="loading-spinner" id="loadingSpinner"></span>
+                    <span id="submitText" data-translate>Create My Personalised Prospectus</span>
+                </button>
+            </form>
+
+            <div class="success-message" id="successMessage">
+                <h3 data-translate>Thank you for your enquiry!</h3>
+                <p data-translate>Your personalised prospectus request has been submitted successfully.</p>
+                <p id="prospectusLink"></p>
+            </div>
+
+            <div class="error-message" id="errorMessage">
+                <h3 data-translate>Submission Error</h3>
+                <p id="errorText" data-translate>There was an issue submitting your form. Please try again.</p>
+            </div>
+
+            <div class="privacy-notice">
+                <strong data-translate>Privacy Notice:</strong> <span data-translate>The information you provide will be used solely for creating your personalised prospectus and supporting your admissions journey.</span>
+            </div>
+
+            <div class="footer-text">
+                <p><strong data-no-translate>More House School</strong><br><span data-no-translate>22-24 Pont Street, Knightsbridge, London SW1X 0AA</span></p>
+            </div>
+        </div>
+
+        <!-- Access Options Section -->
+        <div id="accessOptions" class="access-options">
+            <div class="school-logo" data-no-translate>
+                <img src="https://yt3.googleusercontent.com/_BXVh2JJHQb3ViHUH-hDR_G1YU44EFmu3JSbyhsj5Qmnfy-niQEoIjynQd4Voo8el0RjUm_wUDo=s160-c-k-c0x00ffffff-no-rj" alt="More House School Logo">
+            </div>
+
+            <div class="access-header">
+                <h2 data-translate>Your Prospectus is Ready!</h2>
+                <p data-translate>Choose how you'd like to access your personalised prospectus:</p>
+            </div>
+            
+            <div class="options-container">
+                <div class="option-card online-option" onclick="viewOnlineProspectus()">
+                    <div class="option-title" data-translate>View Online</div>
+                    <div class="option-description" data-translate>
+                        Interactive prospectus with videos and dynamic content
+                    </div>
+                    <a href="javascript:void(0)" class="btn-access" id="onlineBtn">
+                        <span data-translate>View Online Now</span>
+                    </a>
+                </div>
+                
+                <div class="option-card offline-option" onclick="downloadOfflineProspectus()">
+                    <div class="option-title" data-translate>Download Offline</div>
+                    <div class="option-description" data-translate>
+                        Complete prospectus file for offline viewing and printing
+                    </div>
+                    <a href="javascript:void(0)" class="btn-access" id="offlineBtn">
+                        <span data-translate>Download Offline</span>
+                    </a>
+                </div>
+            </div>
+            
+            <div class="simple-tip">
+                <p><strong data-translate>Tip:</strong> <span data-translate>You can use both options - view online for the full experience, then download for offline reference.</span></p>
+            </div>
+
+            <div style="text-align:center;margin-top:30px;">
+                <button class="back-btn" onclick="showFormSection()">
+                    <span data-translate>Create Another Prospectus</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let isSubmitting = false;
+        let currentProspectusData = null;
+        let formEventListeners = [];
+
+        // Translation System
+        (function () {
+            'use strict';
+
+            const PICKER_ID = 'inquiry-lang';
+            const STORE_KEY = 'morehouse_inquiry_lang';
+            const ALLOWED = new Set(['en','zh','ar','ru','fr','es','de','it']);
+
+            const translationCache = {};
+            let currentLang = 'en';
+            let isTranslating = false;
+
+            const originalTexts = new WeakMap();
+
+            // Make currentLang accessible globally
+            window.getCurrentLanguage = () => currentLang;
+
+            function getPicker() {
+                return document.getElementById(PICKER_ID);
+            }
+
+            function getInitialLang() {
+                try {
+                    const u = new URL(window.location.href);
+                    const fromURL = (u.searchParams.get('lang') || '').trim().toLowerCase();
+                    if (ALLOWED.has(fromURL)) return fromURL;
+                } catch (_) {}
+                const fromLS = (localStorage.getItem(STORE_KEY) || '').trim().toLowerCase();
+                return ALLOWED.has(fromLS) ? fromLS : 'en';
+            }
+
+            function setLangAttrs(lang) {
+                document.documentElement.lang = lang || 'en';
+                document.documentElement.dir = (lang === 'ar') ? 'rtl' : 'ltr';
+                currentLang = lang;
+            }
+
+            function writeLangToURL(lang) {
+                try {
+                    const u = new URL(window.location.href);
+                    if (lang === 'en') u.searchParams.delete('lang');
+                    else u.searchParams.set('lang', lang);
+                    history.replaceState(null, '', u.toString());
+                } catch (_) {}
+            }
+
+            function beginTransition() {
+                const b = document.body.style;
+                b.transition = 'opacity 200ms ease';
+                b.opacity = '0.7';
+            }
+
+            function endTransition() {
+                const b = document.body.style;
+                b.opacity = '';
+            }
+
+            function storeOriginalTexts() {
+                document.querySelectorAll('[data-translate]').forEach(el => {
+                    if (!originalTexts.has(el)) {
+                        originalTexts.set(el, el.innerHTML);
+                    }
+                });
+            }
+
+            function extractTextsToTranslate() {
+                const texts = [];
+                const elements = [];
+
+                document.querySelectorAll('[data-translate]').forEach(el => {
+                    const originalText = originalTexts.get(el) || el.innerHTML;
+                    texts.push(originalText);
+                    elements.push({ el, type: 'content' });
+                });
+
+                return { texts, elements };
+            }
+
+            function applyTranslations(translations, elements) {
+                translations.forEach((translatedText, index) => {
+                    const { el, type } = elements[index];
+                    if (type === 'content') {
+                        el.innerHTML = translatedText;
+                    }
+                });
+            }
+
+            async function translateTexts(texts, targetLang) {
+                const cacheKey = `${targetLang}_${texts.join('|||')}`;
+                
+                if (translationCache[cacheKey]) {
+                    return translationCache[cacheKey];
+                }
+
+                try {
+                    const response = await fetch('/api/deepl', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            html: texts.map(t => `<div>${t}</div>`).join('\n'),
+                            target_lang: targetLang
+                        })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`Translation failed: ${response.status}`);
+                    }
+
+                    const data = await response.json();
+                    const translatedHTML = data.translated || '';
+                    
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(translatedHTML, 'text/html');
+                    const translations = Array.from(doc.querySelectorAll('div')).map(div => div.innerHTML);
+
+                    translationCache[cacheKey] = translations;
+                    return translations;
+                } catch (error) {
+                    console.error('Translation error:', error);
+                    throw error;
+                }
+            }
+
+            async function translateTo(lang) {
+                if (isTranslating) return;
+                if (!ALLOWED.has(lang)) return;
+
+                if (lang === 'en') {
+                    isTranslating = true;
+                    beginTransition();
+                    try {
+                        document.querySelectorAll('[data-translate]').forEach(el => {
+                            const original = originalTexts.get(el);
+                            if (original) el.innerHTML = original;
+                        });
+                        
+                        setLangAttrs('en');
+                        localStorage.setItem(STORE_KEY, 'en');
+                        writeLangToURL('en');
+                    } finally {
+                        bindPicker();
+                        window.initializeFormFunctionality();
+                        isTranslating = false;
+                        endTransition();
+                    }
+                    return;
+                }
+
+                const { texts, elements } = extractTextsToTranslate();
+                
+                if (texts.length === 0) return;
+
+                isTranslating = true;
+                beginTransition();
+                try {
+                    const translations = await translateTexts(texts, lang);
+                    applyTranslations(translations, elements);
+                    
+                    setLangAttrs(lang);
+                    localStorage.setItem(STORE_KEY, lang);
+                    writeLangToURL(lang);
+                } catch (err) {
+                    console.error('Translation error:', err);
+                    alert('Sorry — we could not translate the form. Please try again.');
+                } finally {
+                    bindPicker();
+                    window.initializeFormFunctionality();
+                    isTranslating = false;
+                    endTransition();
+                }
+            }
+
+            function bindPicker() {
+                const picker = getPicker();
+                if (!picker) return;
+                
+                const clone = picker.cloneNode(true);
+                picker.parentNode.replaceChild(clone, picker);
+
+                clone.addEventListener('change', e => {
+                    const lang = String((e.target.value || 'en')).trim().toLowerCase();
+                    if (!ALLOWED.has(lang)) return;
+                    translateTo(lang);
+                });
+
+                const current = currentLang;
+                if (clone.value !== current) clone.value = current;
+            }
+
+            function init() {
+                storeOriginalTexts();
+                const initial = getInitialLang();
+                setLangAttrs(initial);
+
+                bindPicker();
+                window.initializeFormFunctionality();
+                
+                if (initial !== 'en') {
+                    translateTo(initial);
+                }
+            }
+
+            document.addEventListener('DOMContentLoaded', init);
+        })();
+
+        // Main Form Functionality
+        window.initializeFormFunctionality = function() {
+            // Clear previous event listeners
+            formEventListeners.forEach(({ element, type, handler }) => {
+                element.removeEventListener(type, handler);
+            });
+            formEventListeners = [];
+
+            // Webhook configuration
+            function getWebhookUrl() {
+                const currentHost = window.location.hostname;
+                
+                if (currentHost === 'localhost' || currentHost === '127.0.0.1') {
+                    return 'http://localhost:3000/webhook';
+                }
+                
+                const RENDER_URL = 'https://more-house-personalised-prospectus.onrender.com';
+                
+                if (window.location.origin.includes('onrender.com')) {
+                    return `${window.location.origin}/webhook`;
+                }
+                
+                return `${RENDER_URL}/webhook`;
+            }
+
+            // Set up debug information
+            const currentUrlSpan = document.getElementById('currentUrl');
+            const webhookTargetSpan = document.getElementById('webhookTarget');
+            const connectionStatusSpan = document.getElementById('connectionStatus');
+            
+            if (currentUrlSpan) currentUrlSpan.textContent = window.location.href;
+            const webhookUrl = getWebhookUrl();
+            if (webhookTargetSpan) webhookTargetSpan.textContent = webhookUrl;
+
+            // Test webhook connectivity
+            async function testWebhookConnectivity() {
+                if (!connectionStatusSpan) return;
+                
+                try {
+                    connectionStatusSpan.textContent = 'Testing connection...';
+                    const testUrl = webhookUrl.replace('/webhook', '/health');
+                    
+                    const response = await fetch(testUrl, {
+                        method: 'GET',
+                        mode: 'cors',
+                        signal: AbortSignal.timeout(5000)
+                    });
+                    
+                    if (response.ok) {
+                        connectionStatusSpan.textContent = 'Connected';
+                        connectionStatusSpan.style.color = '#28a745';
+                    } else {
+                        connectionStatusSpan.textContent = `Server responded with ${response.status}`;
+                        connectionStatusSpan.style.color = '#ffc107';
+                    }
+                } catch (error) {
+                    connectionStatusSpan.textContent = `Connection failed: ${error.message}`;
+                    connectionStatusSpan.style.color = '#dc3545';
+                    console.error('Webhook connectivity test failed:', error);
+                }
+            }
+
+            testWebhookConnectivity();
+
+            // Form submission handler with duplicate prevention
+            const form = document.getElementById('inquiryForm');
+            if (form) {
+                const submitHandler = async function(e) {
+                    e.preventDefault();
+
+                    // Prevent duplicate submissions
+                    if (isSubmitting) {
+                        console.log('Submission already in progress');
+                        return;
+                    }
+                    isSubmitting = true;
+
+                    const submitBtn = document.getElementById('submitBtn');
+                    const loadingSpinner = document.getElementById('loadingSpinner');
+                    const submitText = document.getElementById('submitText');
+                    const successMessage = document.getElementById('successMessage');
+                    const errorMessage = document.getElementById('errorMessage');
+
+                    // Immediately disable button
+                    if (submitBtn) {
+                        submitBtn.disabled = true;
+                        submitBtn.style.opacity = '0.6';
+                        submitBtn.style.cursor = 'not-allowed';
+                    }
+                    if (loadingSpinner) loadingSpinner.style.display = 'inline-block';
+                    if (submitText) submitText.textContent = 'Creating Your Prospectus...';
+                    if (successMessage) successMessage.style.display = 'none';
+                    if (errorMessage) errorMessage.style.display = 'none';
+
+                    try {
+                        // Get current language
+                        const currentLanguage = window.getCurrentLanguage ? window.getCurrentLanguage() : 'en';
+                        
+                        // Collect form data including language
+                        const formData = {
+                            // Include the language field
+                            language: currentLanguage,
+                            
+                            // Family information
+                            parentName: document.getElementById('parentName')?.value?.trim() || '',
+                            firstName: document.getElementById('firstName')?.value?.trim() || '',
+                            familySurname: document.getElementById('familySurname')?.value?.trim() || '',
+                            parentEmail: document.getElementById('parentEmail')?.value?.trim() || '',
+                            contactNumber: document.getElementById('contactNumber')?.value?.trim() || '',
+                            ageGroup: document.getElementById('ageGroup')?.value || '',
+                            entryYear: document.getElementById('entryYear')?.value || '',
+                            hearAboutUs: document.getElementById('hearAboutUs')?.value || '',
+                            
+                            // Academic interests
+                            sciences: document.getElementById('sciences')?.checked || false,
+                            mathematics: document.getElementById('mathematics')?.checked || false,
+                            english: document.getElementById('english')?.checked || false,
+                            languages: document.getElementById('languages')?.checked || false,
+                            humanities: document.getElementById('humanities')?.checked || false,
+                            business: document.getElementById('business')?.checked || false,
+                            
+                            // Creative interests
+                            drama: document.getElementById('drama')?.checked || false,
+                            music: document.getElementById('music')?.checked || false,
+                            art: document.getElementById('art')?.checked || false,
+                            creative_writing: document.getElementById('creative_writing')?.checked || false,
+                            
+                            // Co-curricular interests
+                            sport: document.getElementById('sport')?.checked || false,
+                            leadership: document.getElementById('leadership')?.checked || false,
+                            community_service: document.getElementById('community_service')?.checked || false,
+                            outdoor_education: document.getElementById('outdoor_education')?.checked || false,
+                            
+                            // Family priorities
+                            academic_excellence: document.getElementById('academic_excellence')?.checked || false,
+                            pastoral_care: document.getElementById('pastoral_care')?.checked || false,
+                            university_preparation: document.getElementById('university_preparation')?.checked || false,
+                            personal_development: document.getElementById('personal_development')?.checked || false,
+                            career_guidance: document.getElementById('career_guidance')?.checked || false,
+                            extracurricular_opportunities: document.getElementById('extracurricular_opportunities')?.checked || false,
+                            
+                            // Metadata
+                            submissionTimestamp: new Date().toISOString(),
+                            userAgent: navigator.userAgent,
+                            referrer: document.referrer || 'direct'
+                        };
+
+                        console.log('Form data collected (with language):', formData);
+                        console.log('Submitting to:', webhookUrl);
+
+                        const controller = new AbortController();
+                        const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+                        const response = await fetch(webhookUrl, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify(formData),
+                            mode: 'cors',
+                            signal: controller.signal
+                        });
+
+                        clearTimeout(timeoutId);
+
+                        if (!response.ok) {
+                            const errorText = await response.text().catch(() => 'Unknown error');
+                            throw new Error(`HTTP ${response.status}: ${response.statusText}\n${errorText}`);
+                        }
+
+                        const result = await response.json();
+                        console.log('Webhook response:', result);
+
+                        // Reset form
+                        form.reset();
+
+                        // Show access options
+                        showAccessOptions(result);
+
+                    } catch (error) {
+                        console.error('Form submission error:', error);
+                        
+                        let errorMsg = 'There was an issue submitting your form. Please try again.';
+                        
+                        if (error.name === 'AbortError') {
+                            errorMsg = 'Request timed out. Please check your connection and try again.';
+                        } else if (error.message.includes('CORS')) {
+                            errorMsg = 'Connection blocked by security policy. Please contact support.';
+                        } else if (error.message.includes('Failed to fetch')) {
+                            errorMsg = 'Unable to connect to server. Please check your internet connection.';
+                        } else {
+                            errorMsg = `Error: ${error.message}`;
+                        }
+                        
+                        const errorText = document.getElementById('errorText');
+                        if (errorText) errorText.textContent = errorMsg;
+                        if (errorMessage) {
+                            errorMessage.style.display = 'block';
+                            errorMessage.scrollIntoView({ behavior: 'smooth' });
+                        }
+                    } finally {
+                        // Reset submission flag
+                        isSubmitting = false;
+                        
+                        if (submitBtn) {
+                            submitBtn.disabled = false;
+                            submitBtn.style.opacity = '1';
+                            submitBtn.style.cursor = 'pointer';
+                        }
+                        if (loadingSpinner) loadingSpinner.style.display = 'none';
+                        if (submitText) submitText.textContent = 'Create My Personalised Prospectus';
+                    }
+                };
+
+                form.addEventListener('submit', submitHandler);
+                formEventListeners.push({ element: form, type: 'submit', handler: submitHandler });
+            }
+
+            // Checkbox functionality
+            document.querySelectorAll('.checkbox-item').forEach(item => {
+                const handler = function(e) {
+                    if (e.target.type !== 'checkbox') {
+                        const cb = this.querySelector('input[type="checkbox"]');
+                        if (cb) cb.checked = !cb.checked;
+                    }
+                };
+                item.addEventListener('click', handler);
+                formEventListeners.push({ element: item, type: 'click', handler });
+            });
+
+            // Field validation
+            const requiredFields = document.querySelectorAll('input[required], select[required]');
+            requiredFields.forEach(field => {
+                const blurHandler = function() {
+                    this.style.borderColor = this.value.trim() ? '#28a745' : '#dc3545';
+                };
+                const inputHandler = function() {
+                    if (this.value.trim()) this.style.borderColor = '#28a745';
+                };
+                field.addEventListener('blur', blurHandler);
+                field.addEventListener('input', inputHandler);
+                formEventListeners.push({ element: field, type: 'blur', handler: blurHandler });
+                formEventListeners.push({ element: field, type: 'input', handler: inputHandler });
+            });
+            
+            const emailField = document.getElementById('parentEmail');
+            if (emailField) {
+                const emailHandler = function() {
+                    const ok = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.value);
+                    this.style.borderColor = this.value && !ok ? '#dc3545' : (this.value ? '#28a745' : '#ddd');
+                };
+                emailField.addEventListener('blur', emailHandler);
+                formEventListeners.push({ element: emailField, type: 'blur', handler: emailHandler });
+            }
+
+            const phoneField = document.getElementById('contactNumber');
+            if (phoneField) {
+                const phoneHandler = function() {
+                    const ok = /^[\d\s\+\-\(\)]{10,}$/.test(this.value);
+                    this.style.borderColor = this.value && !ok ? '#dc3545' : (this.value ? '#28a745' : '#ddd');
+                };
+                phoneField.addEventListener('blur', phoneHandler);
+                formEventListeners.push({ element: phoneField, type: 'blur', handler: phoneHandler });
+            }
+        };
+
+        // Access Options Functions
+        function showAccessOptions(prospectusData) {
+            currentProspectusData = prospectusData;
+            const formSection = document.getElementById('formSection');
+            const accessOptions = document.getElementById('accessOptions');
+            if (formSection) formSection.style.display = 'none';
+            if (accessOptions) accessOptions.classList.add('show');
+        }
+
+        function showFormSection() {
+            const accessOptions = document.getElementById('accessOptions');
+            const formSection = document.getElementById('formSection');
+            if (accessOptions) accessOptions.classList.remove('show');
+            if (formSection) formSection.style.display = 'block';
+            currentProspectusData = null;
+            // Reset submission flag when returning to form
+            isSubmitting = false;
+        }
+
+        window.viewOnlineProspectus = function() {
+            if (!currentProspectusData) return;
+            
+            const onlineBtn = document.getElementById('onlineBtn');
+            if (onlineBtn) onlineBtn.innerHTML = 'Loading...';
+            
+            if (currentProspectusData.slug) {
+                window.open(`/${currentProspectusData.slug}`, '_blank');
+            } else if (currentProspectusData.prospectus && currentProspectusData.prospectus.url) {
+                window.open(currentProspectusData.prospectus.url, '_blank');
+            }
+            
+            setTimeout(() => {
+                if (onlineBtn) onlineBtn.innerHTML = 'View Online Now';
+            }, 2000);
+        };
+
+        window.downloadOfflineProspectus = function() {
+            if (!currentProspectusData) return;
+            
+            const offlineBtn = document.getElementById('offlineBtn');
+            if (offlineBtn) offlineBtn.innerHTML = '📥 Preparing Download...';
+            
+            let downloadUrl;
+            if (currentProspectusData.prospectus && currentProspectusData.prospectus.slug) {
+                downloadUrl = `/download/${currentProspectusData.prospectus.slug}`;
+            } else if (currentProspectusData.inquiryId) {
+                downloadUrl = `/api/download/${currentProspectusData.inquiryId}`;
+            }
+            
+            if (downloadUrl) {
+                const link = document.createElement('a');
+                link.href = downloadUrl;
+                link.style.display = 'none';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            } else {
+                console.error('No download URL available');
+                if (offlineBtn) offlineBtn.innerHTML = '⚠️ Download Failed';
+                return;
+            }
+            
+            setTimeout(() => {
+                if (offlineBtn) offlineBtn.innerHTML = '📥 Download Offline';
+            }, 3000);
+        };
+
+        window.showFormSection = showFormSection;
+    </script>
+</body>
+</html>

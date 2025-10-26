@@ -33,7 +33,7 @@
     .header {
       background: var(--blazer-navy);
       color: #fff;
-      padding: 2rem 3rem;
+      padding: 2rem 1rem;
       border-bottom: 3px solid var(--award-gold);
     }
 
@@ -59,9 +59,9 @@
 
     /* Tab Navigation */
     .tab-container {
-      max-width: 1440px;
+      max-width: 1800px;
       margin: 0 auto;
-      padding: 0 3rem;
+      padding: 0 1rem;
     }
 
     .tabs {
@@ -78,7 +78,7 @@
       background: transparent;
       border: none;
       padding: 1rem 2rem;
-      font-size: 0.95rem;
+      font-size: 0.85rem;
       font-weight: 600;
       color: #6B7280;
       cursor: pointer;
@@ -88,7 +88,9 @@
       letter-spacing: 0.3px;
       position: relative;
       text-transform: uppercase;
-      font-size: 0.85rem;
+      flex: 1;
+      text-align: center;
+      min-width: 0;
     }
 
     .tab-btn:hover {
@@ -184,13 +186,16 @@
   <div class="tab-container">
     <div class="tabs">
       <button class="tab-btn active" data-tab="analytics">
-        Analytics
+        <span style="color: var(--award-gold); font-weight: 700;">SMART</span> ANALYTICS
       </button>
       <button class="tab-btn" data-tab="smart-reply">
-        Smart Reply
+        <span style="color: var(--award-gold); font-weight: 700;">SMART</span> REPLY
       </button>
       <button class="tab-btn" data-tab="follow-up">
-        Follow-Up Tracker
+        <span style="color: var(--award-gold); font-weight: 700;">SMART</span> FOLLOW-UP
+      </button>
+      <button class="tab-btn" data-tab="ai-learning">
+        <span style="color: var(--award-gold); font-weight: 700;">SMART</span> RULES
       </button>
     </div>
 
@@ -205,12 +210,15 @@
       <div class="tab-pane" id="follow-up-pane">
         <iframe src="follow-up.html" id="follow-up-frame"></iframe>
       </div>
+      <div class="tab-pane" id="ai-learning-pane">
+        <iframe src="ai-learning-dashboard.html" id="ai-learning-frame"></iframe>
+      </div>
     </div>
   </div>
 
   <!-- Footer -->
   <div class="footer-badge">
-    Powered by <span>More House</span> Intelligent Systems
+    Powered by <span>bSMART-ai</span>
   </div>
 
   <script>

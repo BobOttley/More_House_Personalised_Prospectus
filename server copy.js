@@ -4410,7 +4410,162 @@ app.get('/prospectuses/:filename', async (req, res) => {
   }
 });
 
-// OLD ENDPOINT DELETED - using the enhanced version with learning below
+// Replace the existing /api/ai/generate-email endpoint with this version
+// This uses Claude for more human-like responses
+
+app.post('/api/ai/generate-email', async (req, res) => {
+  try {
+    const { originalEmail, templateType, instructions } = req.body;
+
+    if (!originalEmail || !originalEmail.text) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing email content'
+      });
+    }
+
+    // Check which AI service to use
+    const useAnthropic = !!process.env.ANTHROPIC_API_KEY;
+    const useOpenAI = !!process.env.OPENAI_API_KEY;
+    
+    if (!useAnthropic && !useOpenAI) {
+      return res.status(500).json({
+        success: false,
+        error: 'No AI service configured'
+      });
+    }
+
+    // Load knowledge base files (same as before)
+    let knowledgeContext = '';
+    
+    try {
+      const chunksFile = await fs.readFile(path.join(__dirname, 'chunks.jsonl'), 'utf8');
+      const chunks = chunksFile.split('\n')
+        .filter(line => line.trim())
+        .map(line => JSON.parse(line))
+        .slice(0, 20);
+      
+      knowledgeContext += '\n\nSCHOOL INFORMATION:\n';
+      chunks.forEach(chunk => {
+        if (chunk.text) {
+          knowledgeContext += chunk.text + '\n\n';
+        }
+      });
+    } catch (e) {
+      console.warn('Could not load chunks.jsonl:', e.message);
+    }
+
+    // Template instructions
+    const templateInstructions = {
+      'initial': 'Write a warm initial response welcoming their enquiry. Provide key information and invite them to an open day.',
+      'followup': 'Write a nurturing follow-up email checking in and offering to answer questions.',
+      'open_day': 'Write an invitation to an upcoming open day with details and how to register.',
+      'sixth_form': 'Write about sixth form opportunities, A Levels, and university preparation.',
+      'custom': instructions || 'Write a helpful, personalized response.'
+    };
+
+    const prompt = `You are an admissions officer at More House School, an all-girls day school in the UK, responding to a parent enquiry.
+
+ORIGINAL EMAIL FROM ${originalEmail.from || 'Parent'}:
+${originalEmail.text}
+
+TEMPLATE TYPE: ${templateType || 'initial'}
+INSTRUCTIONS: ${templateInstructions[templateType] || templateInstructions['custom']}
+
+${instructions ? `ADDITIONAL INSTRUCTIONS: ${instructions}` : ''}
+
+SCHOOL KNOWLEDGE BASE:
+${knowledgeContext.substring(0, 6000)}
+
+Write a warm, professional email response that:
+- Addresses the parent naturally by name
+- References specific points from their email in a conversational way
+- Uses accurate information from the knowledge base
+- Maintains a welcoming but not overly enthusiastic tone
+- Includes relevant next steps without being pushy
+- Uses British English spelling throughout (colour, organise, programme, behaviour)
+- Uses British school terminology (Year groups, sixth form, head teacher)
+- Remembers this is an all-girls day school (no boarding)
+
+Write ONLY the email body. Be natural and conversational, not formulaic or corporate.`;
+
+    let emailResponse;
+    const aiService = useAnthropic ? 'Claude' : 'ChatGPT';
+    
+    if (useAnthropic) {
+      // Use Claude for more human-like responses
+      console.log('Using Claude for email generation');
+      
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": process.env.ANTHROPIC_API_KEY,
+          "anthropic-version": "2023-06-01"
+        },
+        body: JSON.stringify({
+          model: "claude-3-5-sonnet-20241022", // Latest Claude model
+          max_tokens: 1000,
+          messages: [{
+            role: "user",
+            content: prompt
+          }],
+          temperature: 0.7 // Same as GPT-4 setting
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Claude API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      emailResponse = data.content[0].text;
+      
+    } else {
+      // Fallback to OpenAI
+      console.log('Using GPT-4 for email generation');
+      
+      const OpenAI = (await import('openai')).default;
+      const openai = new OpenAI({ 
+        apiKey: process.env.OPENAI_API_KEY 
+      });
+
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4",
+        messages: [
+          {
+            role: "system",
+            content: "You are a warm, professional admissions officer at More House School. Write naturally and conversationally."
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        temperature: 0.7,
+        max_tokens: 800
+      });
+
+      emailResponse = completion.choices[0].message.content;
+    }
+
+    console.log(`Email generated successfully using ${aiService}`);
+
+    return res.json({
+      success: true,
+      email: emailResponse,
+      aiService: aiService // So you know which AI was used
+    });
+
+  } catch (error) {
+    console.error('Email generation error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to generate email',
+      details: error.message
+    });
+  }
+});
 
 // Replace your existing /api/deepl endpoint with this:
 app.post('/api/deepl', async (req, res) => {
@@ -5256,21 +5411,19 @@ function buildLearningPrompt(basePrompt, learningData) {
   let enhancedPrompt = basePrompt;
   
   if (learningData.rules && learningData.rules.length > 0) {
-    enhancedPrompt += '\n\n⚠️ CRITICAL CORRECTIONS - ALWAYS APPLY THESE:\n';
+    enhancedPrompt += '\n\nIMPORTANT CORRECTIONS TO ALWAYS APPLY:\n';
     
     learningData.rules.forEach(rule => {
-      enhancedPrompt += `- NEVER write "${rule.original_phrase}". Instead use: "${rule.replacement_phrase}"`;
+      enhancedPrompt += `- Replace "${rule.original_phrase}" with "${rule.replacement_phrase}"`;
       if (rule.context_hint) {
         enhancedPrompt += ` (${rule.context_hint})`;
       }
       enhancedPrompt += '\n';
     });
-    
-    enhancedPrompt += '\n⚠️ NEVER leave placeholder text like [INSERT DATE] or [INSERT X]. Always use actual information.\n';
   }
   
   if (learningData.recentCorrections && learningData.recentCorrections.length > 0) {
-    enhancedPrompt += '\n\nRECENT FEEDBACK TO APPLY:\n';
+    enhancedPrompt += '\n\nRECENT FEEDBACK TO CONSIDER:\n';
     learningData.recentCorrections.forEach(correction => {
       if (correction.correction_notes) {
         enhancedPrompt += `- ${correction.correction_type}: ${correction.correction_notes}\n`;
@@ -5281,17 +5434,10 @@ function buildLearningPrompt(basePrompt, learningData) {
   return enhancedPrompt;
 }
 
-// REPLACE the saveEmailGeneration function in your server.js (around line 5437)
-// This version works with UUID id column
-
 async function saveEmailGeneration(data) {
-  if (!db) {
-    console.log('saveEmailGeneration: Database not connected');
-    return null;
-  }
+  if (!db) return null;
   
   try {
-    // Don't specify an ID - let PostgreSQL generate the UUID
     const result = await db.query(`
       INSERT INTO email_generation_history (
         inquiry_id, parent_email, parent_name, template_type,
@@ -5299,7 +5445,7 @@ async function saveEmailGeneration(data) {
       ) VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING id
     `, [
-      data.inquiry_id || null,
+      data.inquiry_id,
       data.parent_email,
       data.parent_name,
       data.template_type,
@@ -5308,12 +5454,9 @@ async function saveEmailGeneration(data) {
       data.ai_service
     ]);
     
-    console.log('Email generation saved with ID:', result.rows[0].id);
     return result.rows[0].id;
-    
   } catch (e) {
-    console.error('Failed to save email generation:', e.message);
-    console.error('Error detail:', e.detail || 'No details');
+    console.error('Failed to save email generation:', e);
     return null;
   }
 }
@@ -5373,7 +5516,7 @@ app.post('/api/ai/generate-email', async (req, res) => {
       'custom': instructions || 'Write a helpful, personalized response.'
     };
 
-    // LOAD LEARNING RULES from previous corrections
+    // LOAD LEARNING RULES - NEW!
     const learningData = await loadLearningRules();
 
     const basePrompt = `You are an admissions officer at More House School, an all-girls day school in the UK, responding to a parent enquiry.
@@ -5520,23 +5663,50 @@ app.post('/api/ai/email-feedback', async (req, res) => {
       WHERE id = $4
     `, [correctedEmail, correctionNotes, correctionType, historyId]);
 
-    // Create a learning rule using the user's correction notes
-    await db.query(`
-      INSERT INTO email_learning_rules 
-      (rule_type, original_phrase, replacement_phrase, context_hint, active, confidence_score)
-      VALUES ($1, $2, $3, $4, true, 0.95)
-    `, [
-      correctionType,
-      correctionNotes, // Show the user's notes as the rule
-      correctionNotes, // Show it in both columns
-      correctionNotes
-    ]);
-    
-    console.log(`✅ Learning rule created: ${correctionType} - ${correctionNotes}`);
+    // Extract learning patterns
+    const history = await db.query(
+      'SELECT * FROM email_generation_history WHERE id = $1',
+      [historyId]
+    );
+
+    if (history.rows.length > 0) {
+      const original = history.rows[0].generated_email;
+      const corrected = correctedEmail;
+
+      // Simple pattern extraction (you can make this more sophisticated)
+      const patterns = extractSimplePatterns(original, corrected);
+      
+      // Store patterns as learning rules
+      for (const pattern of patterns) {
+        await db.query(`
+          INSERT INTO email_learning_rules 
+          (rule_type, original_phrase, replacement_phrase, context_hint)
+          VALUES ($1, $2, $3, $4)
+          ON CONFLICT (original_phrase, replacement_phrase) 
+          DO UPDATE SET 
+            times_used = email_learning_rules.times_used + 1,
+            confidence_score = LEAST(
+              email_learning_rules.confidence_score + 0.1, 
+              1.0
+            )
+        `, [
+          correctionType,
+          pattern.original,
+          pattern.replacement,
+          correctionNotes
+        ]);
+      }
+
+      return res.json({
+        success: true,
+        message: 'Feedback saved and AI learning updated',
+        patternsLearned: patterns.length
+      });
+    }
 
     return res.json({
       success: true,
-      message: 'Feedback saved and learning rule created'
+      message: 'Feedback saved'
     });
 
   } catch (error) {
@@ -5549,195 +5719,53 @@ app.post('/api/ai/email-feedback', async (req, res) => {
 });
 
 // ============================================================================
-// NEW ENDPOINT - VIEW ACTIVE LEARNING RULES
-// ============================================================================
-
-app.get('/api/ai/learning-rules', async (req, res) => {
-  try {
-    const rules = await db.query(`
-      SELECT 
-        id,
-        rule_type,
-        original_phrase,
-        replacement_phrase,
-        context_hint,
-        times_used,
-        confidence_score,
-        active,
-        created_at
-      FROM email_learning_rules 
-      WHERE active = true
-      ORDER BY created_at DESC
-      LIMIT 50
-    `);
-    
-    return res.json({
-      success: true,
-      rules: rules.rows,
-      count: rules.rows.length
-    });
-    
-  } catch (error) {
-    console.error('Failed to fetch learning rules:', error);
-    return res.status(500).json({
-      success: false,
-      error: 'Failed to fetch rules'
-    });
-  }
-});
-
-// ============================================================================
-// DASHBOARD ENDPOINTS - Learning Stats & Management
-// ============================================================================
-
-app.get('/api/ai/learning-stats', async (req, res) => {
-  try {
-    // Get total corrections
-    const totalCorrectionsResult = await db.query(`
-      SELECT COUNT(*) as count 
-      FROM email_generation_history 
-      WHERE corrected_email IS NOT NULL
-    `);
-    
-    // Get active rules count
-    const activeRulesResult = await db.query(`
-      SELECT COUNT(*) as count 
-      FROM email_learning_rules 
-      WHERE active = true
-    `);
-    
-    // Get success rate (rules with high confidence)
-    const successRateResult = await db.query(`
-      SELECT 
-        COUNT(*) FILTER (WHERE confidence_score >= 0.8) * 100.0 / NULLIF(COUNT(*), 0) as rate
-      FROM email_learning_rules 
-      WHERE active = true
-    `);
-    
-    // Get emails generated today
-    const emailsTodayResult = await db.query(`
-      SELECT COUNT(*) as count 
-      FROM email_generation_history 
-      WHERE DATE(created_at) = CURRENT_DATE
-    `);
-    
-    // Get top rules
-    const topRulesResult = await db.query(`
-      SELECT 
-        id,
-        rule_type,
-        original_phrase,
-        replacement_phrase,
-        context_hint,
-        times_used,
-        confidence_score,
-        created_at
-      FROM email_learning_rules 
-      WHERE active = true
-      ORDER BY confidence_score DESC, times_used DESC
-      LIMIT 20
-    `);
-    
-    // Get recent corrections
-    const recentCorrectionsResult = await db.query(`
-      SELECT 
-        correction_type as type,
-        correction_notes as note,
-        created_at as time
-      FROM email_generation_history 
-      WHERE corrected_email IS NOT NULL 
-        AND correction_notes IS NOT NULL
-      ORDER BY created_at DESC
-      LIMIT 10
-    `);
-    
-    return res.json({
-      success: true,
-      totalCorrections: parseInt(totalCorrectionsResult.rows[0]?.count || 0),
-      activeRules: parseInt(activeRulesResult.rows[0]?.count || 0),
-      successRate: Math.round(successRateResult.rows[0]?.rate || 0),
-      emailsToday: parseInt(emailsTodayResult.rows[0]?.count || 0),
-      topRules: topRulesResult.rows,
-      recentCorrections: recentCorrectionsResult.rows.map(row => ({
-        type: row.type,
-        note: row.note,
-        time: new Date(row.time).toLocaleString('en-GB', {
-          day: 'numeric',
-          month: 'short',
-          hour: '2-digit',
-          minute: '2-digit'
-        })
-      }))
-    });
-    
-  } catch (error) {
-    console.error('Failed to fetch learning stats:', error);
-    return res.status(500).json({
-      success: false,
-      error: 'Failed to fetch stats'
-    });
-  }
-});
-
-// Delete a learning rule permanently
-app.post('/api/ai/learning-rules/:id/disable', async (req, res) => {
-  try {
-    const { id } = req.params;
-    
-    await db.query(`
-      DELETE FROM email_learning_rules 
-      WHERE id = $1
-    `, [id]);
-    
-    console.log(`🗑️  Deleted learning rule ID: ${id}`);
-    
-    return res.json({
-      success: true,
-      message: 'Rule deleted successfully'
-    });
-    
-  } catch (error) {
-    console.error('Failed to delete rule:', error);
-    return res.status(500).json({
-      success: false,
-      error: 'Failed to delete rule'
-    });
-  }
-});
-
-// Delete ALL learning rules
-app.post('/api/ai/learning-rules/delete-all', async (req, res) => {
-  try {
-    const result = await db.query(`DELETE FROM email_learning_rules`);
-    
-    console.log(`🗑️  Deleted ALL learning rules (${result.rowCount} rules)`);
-    
-    return res.json({
-      success: true,
-      message: `Deleted ${result.rowCount} rules successfully`
-    });
-    
-  } catch (error) {
-    console.error('Failed to delete all rules:', error);
-    return res.status(500).json({
-      success: false,
-      error: 'Failed to delete rules'
-    });
-  }
-});
-
-// ============================================================================
 // SIMPLE PATTERN EXTRACTION HELPER
 // ============================================================================
 
 function extractSimplePatterns(original, corrected) {
   const patterns = [];
   
-  // DON'T TRY TO BE SMART - JUST RETURN EMPTY
-  // The user will manually review and approve corrections
-  // This prevents garbage patterns from being created
+  // Split into sentences and compare
+  const originalSentences = original.match(/[^.!?]+[.!?]+/g) || [];
+  const correctedSentences = corrected.match(/[^.!?]+[.!?]+/g) || [];
   
-  console.log(`📝 Correction saved. Manual review needed for pattern extraction.`);
+  // Find common phrase replacements
+  const commonCorrections = [
+    // Add patterns you notice getting corrected often
+    { find: /Dear Parent/gi, replace: 'addressed by actual name' },
+    { find: /We are pleased/gi, replace: 'We\'re delighted' },
+    { find: /Please find/gi, replace: 'You\'ll find' },
+    { find: /Do not hesitate/gi, replace: 'Please feel free' },
+    { find: /at your earliest convenience/gi, replace: 'when you have a moment' }
+  ];
+  
+  // Check for replaced phrases
+  commonCorrections.forEach(correction => {
+    if (original.match(correction.find) && !corrected.match(correction.find)) {
+      patterns.push({
+        original: original.match(correction.find)[0],
+        replacement: correction.replace
+      });
+    }
+  });
+  
+  // Look for completely different sentences (indicating major rewrites)
+  if (originalSentences.length === correctedSentences.length) {
+    for (let i = 0; i < originalSentences.length; i++) {
+      if (originalSentences[i].length > 20 && 
+          correctedSentences[i].length > 20 &&
+          originalSentences[i] !== correctedSentences[i]) {
+        // Significant sentence change
+        const similarity = calculateSimilarity(originalSentences[i], correctedSentences[i]);
+        if (similarity < 0.5) {
+          patterns.push({
+            original: originalSentences[i].trim(),
+            replacement: correctedSentences[i].trim()
+          });
+        }
+      }
+    }
+  }
   
   return patterns;
 }
@@ -5753,10 +5781,71 @@ function calculateSimilarity(str1, str2) {
 // LEARNING ANALYTICS ENDPOINT - Track how well the AI is learning
 // ============================================================================
 
+app.get('/api/ai/learning-stats', async (req, res) => {
+  try {
+    if (!db) {
+      return res.json({
+        totalCorrections: 0,
+        activeRules: 0,
+        successRate: 0,
+        topRules: []
+      });
+    }
 
-// ============================================================================
-// RECENT CORRECTIONS ENDPOINT
-// ============================================================================
+    const stats = await db.query(`
+      SELECT 
+        COUNT(*) as total_corrections,
+        COUNT(CASE WHEN corrected_email IS NOT NULL THEN 1 END) as completed_corrections
+      FROM email_generation_history
+    `);
+
+    const rules = await db.query(`
+      SELECT 
+        COUNT(*) as active_rules,
+        AVG(confidence_score) as avg_confidence
+      FROM email_learning_rules
+      WHERE active = true
+    `);
+
+    const topRules = await db.query(`
+      SELECT 
+        rule_type,
+        original_phrase,
+        replacement_phrase,
+        confidence_score,
+        times_used
+      FROM email_learning_rules
+      WHERE active = true
+      ORDER BY confidence_score DESC, times_used DESC
+      LIMIT 10
+    `);
+
+    const successRate = rules.rows[0].avg_confidence 
+      ? Math.round(rules.rows[0].avg_confidence * 100) 
+      : 0;
+
+    return res.json({
+      totalCorrections: stats.rows[0].total_corrections || 0,
+      completedCorrections: stats.rows[0].completed_corrections || 0,
+      activeRules: rules.rows[0].active_rules || 0,
+      successRate: successRate,
+      topRules: topRules.rows
+    });
+
+  } catch (error) {
+    console.error('Learning stats error:', error);
+    return res.json({
+      totalCorrections: 0,
+      activeRules: 0,
+      successRate: 0,
+      topRules: []
+    });
+  }
+});
+
+
+// ADD THIS ENDPOINT TO YOUR server.js
+// This fetches REAL corrections from the database, not hardcoded examples
 
 app.get('/api/ai/recent-corrections', async (req, res) => {
   try {
@@ -5798,31 +5887,93 @@ app.get('/api/ai/recent-corrections', async (req, res) => {
   }
 });
 
-// Endpoint to disable a learning rule
-app.post('/api/ai/learning-rules/:ruleId/disable', async (req, res) => {
+// UPDATE your existing /api/ai/learning-stats endpoint to include recent corrections
+app.get('/api/ai/learning-stats', async (req, res) => {
   try {
-    const { ruleId } = req.params;
-    
     if (!db) {
-      return res.status(400).json({ error: 'Database not available' });
+      return res.json({
+        totalCorrections: 0,
+        activeRules: 0,
+        successRate: 0,
+        topRules: [],
+        recentCorrections: [] // ADD THIS
+      });
     }
 
-    await db.query(`
-      UPDATE email_learning_rules 
-      SET active = false, updated_at = NOW()
-      WHERE id = $1
-    `, [ruleId]);
+    const stats = await db.query(`
+      SELECT 
+        COUNT(*) as total_corrections,
+        COUNT(CASE WHEN corrected_email IS NOT NULL THEN 1 END) as completed_corrections
+      FROM email_generation_history
+    `);
 
-    return res.json({ success: true, message: 'Rule disabled successfully' });
+    const rules = await db.query(`
+      SELECT 
+        COUNT(*) as active_rules,
+        AVG(confidence_score) as avg_confidence
+      FROM email_learning_rules
+      WHERE active = true
+    `);
+
+    const topRules = await db.query(`
+      SELECT 
+        rule_type,
+        original_phrase,
+        replacement_phrase,
+        confidence_score,
+        times_used
+      FROM email_learning_rules
+      WHERE active = true
+      ORDER BY confidence_score DESC, times_used DESC
+      LIMIT 10
+    `);
+
+    // ADD THIS - Recent corrections
+    const recentCorrections = await db.query(`
+      SELECT 
+        correction_type as type,
+        correction_notes as note,
+        CASE 
+          WHEN created_at > NOW() - INTERVAL '1 hour' THEN 
+            CONCAT(EXTRACT(MINUTE FROM NOW() - created_at)::INTEGER, ' minutes ago')
+          WHEN created_at > NOW() - INTERVAL '24 hours' THEN 
+            CONCAT(EXTRACT(HOUR FROM NOW() - created_at)::INTEGER, ' hours ago')
+          WHEN created_at > NOW() - INTERVAL '7 days' THEN 
+            CONCAT(EXTRACT(DAY FROM NOW() - created_at)::INTEGER, ' days ago')
+          ELSE 
+            TO_CHAR(created_at, 'Mon DD, YYYY')
+        END as time
+      FROM email_generation_history
+      WHERE corrected_email IS NOT NULL
+        AND correction_notes IS NOT NULL
+      ORDER BY created_at DESC
+      LIMIT 5
+    `);
+
+    const successRate = rules.rows[0].avg_confidence 
+      ? Math.round(rules.rows[0].avg_confidence * 100) 
+      : 0;
+
+    return res.json({
+      totalCorrections: stats.rows[0].total_corrections || 0,
+      completedCorrections: stats.rows[0].completed_corrections || 0,
+      activeRules: rules.rows[0].active_rules || 0,
+      successRate: successRate,
+      topRules: topRules.rows,
+      recentCorrections: recentCorrections.rows // ADD THIS
+    });
 
   } catch (error) {
-    console.error('Error disabling rule:', error);
-    return res.status(500).json({ error: 'Failed to disable rule' });
+    console.error('Learning stats error:', error);
+    return res.json({
+      totalCorrections: 0,
+      activeRules: 0,
+      successRate: 0,
+      topRules: [],
+      recentCorrections: []
+    });
   }
 });
-
-
-
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════
 // UPDATE YOUR RESERVED SET (find this in your existing server.js and add 'download')

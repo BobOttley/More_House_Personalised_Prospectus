@@ -332,12 +332,13 @@ async function findInquiryBySlug(slug) {
           id: row.id,
           firstName: row.first_name,
           familySurname: row.family_surname,
-          parentName: row.parent_name,        // ADD THIS
+          parentName: row.parent_name,
           parentEmail: row.parent_email,
-          contactNumber: row.contact_number,  // ADD THIS
+          contactNumber: row.contact_number,
+          postcode: row.postcode,
           ageGroup: row.age_group,
           entryYear: row.entry_year,
-          hearAboutUs: row.hear_about_us,    // ADD THIS
+          hearAboutUs: row.hear_about_us,
           receivedAt: row.received_at,
           status: row.status,
           slug: row.slug
@@ -1423,7 +1424,7 @@ app.post(['/webhook', '/api/inquiry'], async (req, res) => {
       try {
         await db.query(`
           INSERT INTO inquiries (
-            id, parent_name, first_name, family_surname, parent_email, contact_number, age_group, entry_year, hear_about_us,
+            id, parent_name, first_name, family_surname, parent_email, contact_number, postcode, age_group, entry_year, hear_about_us,
             sciences, mathematics, english, languages, humanities, business,
             drama, music, art, creative_writing,
             sport, leadership, community_service, outdoor_education,
@@ -1432,17 +1433,17 @@ app.post(['/webhook', '/api/inquiry'], async (req, res) => {
             received_at, status, user_agent, referrer, ip_address,
             country, region, city, latitude, longitude, timezone, isp, school_id
           ) VALUES (
-            $1,$2,$3,$4,$5,$6,$7,$8,$9,
-            $10,$11,$12,$13,$14,$15,
-            $16,$17,$18,$19,
-            $20,$21,$22,$23,
-            $24,$25,$26,$27,$28,$29,
-            $30,$31,$32,$33,$34,
-            $35,$36,$37,$38,$39,$40,$41,$42
+            $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,
+            $11,$12,$13,$14,$15,$16,
+            $17,$18,$19,$20,
+            $21,$22,$23,$24,
+            $25,$26,$27,$28,$29,$30,
+            $31,$32,$33,$34,$35,
+            $36,$37,$38,$39,$40,$41,$42,$43
           )
           ON CONFLICT (id) DO NOTHING
         `, [
-          record.id, record.parentName, record.firstName, record.familySurname, record.parentEmail, record.contactNumber, record.ageGroup, record.entryYear, record.hearAboutUs,
+          record.id, record.parentName, record.firstName, record.familySurname, record.parentEmail, record.contactNumber, record.postcode || null, record.ageGroup, record.entryYear, record.hearAboutUs,
           !!record.sciences, !!record.mathematics, !!record.english, !!record.languages, !!record.humanities, !!record.business,
           !!record.drama, !!record.music, !!record.art, !!record.creative_writing,
           !!record.sport, !!record.leadership, !!record.community_service, !!record.outdoor_education,

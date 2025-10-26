@@ -12,6 +12,9 @@
       --sport-blue: #034674;
       --success: #10B981;
       --border-grey: #E5E7EB;
+      --morehouse-pink: #FFB3C1;
+      --morehouse-deep-pink: #FF6B9D;
+      --morehouse-light-pink: #FFE5EC;
     }
 
     * {
@@ -27,7 +30,7 @@
     }
 
     .container {
-      max-width: 800px;
+      max-width: 900px;
       margin: 0 auto;
     }
 
@@ -105,6 +108,48 @@
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 1rem;
+    }
+
+    .checkbox-group {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 0.75rem;
+      background: var(--morehouse-light-pink);
+      padding: 1rem;
+      border-radius: 6px;
+      border: 1px solid var(--morehouse-pink);
+      margin-bottom: 1rem;
+    }
+
+    .checkbox-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem;
+      background: white;
+      border-radius: 4px;
+      border: 1px solid #ddd;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .checkbox-item:hover {
+      border-color: var(--morehouse-deep-pink);
+      background: #fff9f0;
+    }
+
+    .checkbox-item input[type="checkbox"] {
+      cursor: pointer;
+      width: 16px;
+      height: 16px;
+      accent-color: var(--morehouse-deep-pink);
+    }
+
+    .checkbox-item label {
+      cursor: pointer;
+      margin: 0;
+      font-size: 0.85rem;
+      color: var(--blazer-navy);
     }
 
     .btn {
@@ -191,13 +236,23 @@
     .error.active {
       display: block;
     }
+
+    @media (max-width: 640px) {
+      .form-row {
+        grid-template-columns: 1fr;
+      }
+      
+      .checkbox-group {
+        grid-template-columns: 1fr;
+      }
+    }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="header">
       <h1>Generate New Enquiry</h1>
-      <p>Create a new family enquiry and prospectus</p>
+      <p>Create a new family enquiry and personalised prospectus</p>
     </div>
 
     <div class="form-card">
@@ -207,91 +262,212 @@
           <h2 class="section-title">Family Information</h2>
           
           <div class="form-group">
-            <label class="form-label">Parent Name <span class="required">*</span></label>
+            <label class="form-label">Parent/Guardian Name <span class="required">*</span></label>
             <input type="text" class="form-input" id="parentName" required>
           </div>
 
-          <div class="form-group">
-            <label class="form-label">Parent Email <span class="required">*</span></label>
-            <input type="email" class="form-input" id="parentEmail" required>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Daughter's First Name <span class="required">*</span></label>
+              <input type="text" class="form-input" id="firstName" required>
+            </div>
+            
+            <div class="form-group">
+              <label class="form-label">Family Surname <span class="required">*</span></label>
+              <input type="text" class="form-input" id="familySurname" required>
+            </div>
           </div>
 
-          <div class="form-group">
-            <label class="form-label">Family Surname <span class="required">*</span></label>
-            <input type="text" class="form-input" id="familySurname" required>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Parent Email Address <span class="required">*</span></label>
+              <input type="email" class="form-input" id="parentEmail" required>
+            </div>
+            
+            <div class="form-group">
+              <label class="form-label">Contact Number <span class="required">*</span></label>
+              <input type="tel" class="form-input" id="contactNumber" required placeholder="e.g. 07700 123456">
+            </div>
           </div>
         </div>
 
         <!-- Student Information -->
         <div class="form-section">
           <h2 class="section-title">Student Information</h2>
-          
-          <div class="form-group">
-            <label class="form-label">Student First Name <span class="required">*</span></label>
-            <input type="text" class="form-input" id="firstName" required>
-          </div>
 
           <div class="form-row">
             <div class="form-group">
-              <label class="form-label">Age Group <span class="required">*</span></label>
+              <label class="form-label">Current Age Group <span class="required">*</span></label>
               <select class="form-select" id="ageGroup" required>
-                <option value="">Select Age Group</option>
-                <option value="5-6">Years 5-6 (Pre-Senior)</option>
-                <option value="7-11">Years 7-11 (Senior)</option>
-                <option value="12-13">Years 12-13 (Sixth Form)</option>
+                <option value="">Select age group...</option>
+                <option value="9-11">Ages 9-11 (Years 5-6)</option>
+                <option value="11-16">Ages 11-16 (Years 7-11)</option>
+                <option value="16-18">Ages 16-18 (Sixth Form)</option>
               </select>
             </div>
 
             <div class="form-group">
-              <label class="form-label">Entry Year <span class="required">*</span></label>
-              <input type="number" class="form-input" id="entryYear" min="2025" max="2030" value="2026" required>
+              <label class="form-label">Planned Entry Year <span class="required">*</span></label>
+              <select class="form-select" id="entryYear" required>
+                <option value="">Select entry year...</option>
+                <option value="2025">September 2025</option>
+                <option value="2026">September 2026</option>
+                <option value="2027">September 2027</option>
+                <option value="2028">September 2028</option>
+                <option value="2029">September 2029</option>
+              </select>
             </div>
           </div>
-        </div>
 
-        <!-- Location -->
-        <div class="form-section">
-          <h2 class="section-title">Location</h2>
-          
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label">Country</label>
-              <input type="text" class="form-input" id="country" value="United Kingdom">
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">City</label>
-              <input type="text" class="form-input" id="city">
-            </div>
-          </div>
-        </div>
-
-        <!-- Additional Information -->
-        <div class="form-section">
-          <h2 class="section-title">Additional Information (Optional)</h2>
-          
           <div class="form-group">
-            <label class="form-label">Notes</label>
-            <textarea class="form-textarea" id="notes" rows="4" placeholder="Any additional information about the enquiry..."></textarea>
+            <label class="form-label">How did you hear about More House School? <span class="required">*</span></label>
+            <select class="form-select" id="hearAboutUs" required>
+              <option value="">Please select...</option>
+              <option value="Website">School Website</option>
+              <option value="Search Engine">Search Engine (Google, etc.)</option>
+              <option value="Social Media">Social Media</option>
+              <option value="Word of Mouth">Word of Mouth</option>
+              <option value="Current Parent">Current Parent</option>
+              <option value="Educational Consultant">Educational Consultant</option>
+              <option value="Open Day">Open Day/Event</option>
+              <option value="Good Schools Guide">Good Schools Guide</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Academic Interests -->
+        <div class="form-section">
+          <h2 class="section-title">Academic Interests</h2>
+          <p style="font-size: 0.875rem; color: #6B7280; margin-bottom: 1rem;">Select your daughter's areas of academic interest</p>
+          
+          <div class="checkbox-group">
+            <div class="checkbox-item">
+              <input type="checkbox" id="sciences">
+              <label for="sciences">Sciences</label>
+            </div>
+            <div class="checkbox-item">
+              <input type="checkbox" id="mathematics">
+              <label for="mathematics">Mathematics</label>
+            </div>
+            <div class="checkbox-item">
+              <input type="checkbox" id="english">
+              <label for="english">English</label>
+            </div>
+            <div class="checkbox-item">
+              <input type="checkbox" id="languages">
+              <label for="languages">Languages</label>
+            </div>
+            <div class="checkbox-item">
+              <input type="checkbox" id="humanities">
+              <label for="humanities">Humanities</label>
+            </div>
+            <div class="checkbox-item">
+              <input type="checkbox" id="business">
+              <label for="business">Business Studies</label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Creative Interests -->
+        <div class="form-section">
+          <h2 class="section-title">Creative Interests</h2>
+          <p style="font-size: 0.875rem; color: #6B7280; margin-bottom: 1rem;">Select areas of creative interest</p>
+          
+          <div class="checkbox-group">
+            <div class="checkbox-item">
+              <input type="checkbox" id="drama">
+              <label for="drama">Drama & Theatre</label>
+            </div>
+            <div class="checkbox-item">
+              <input type="checkbox" id="music">
+              <label for="music">Music</label>
+            </div>
+            <div class="checkbox-item">
+              <input type="checkbox" id="art">
+              <label for="art">Art & Design</label>
+            </div>
+            <div class="checkbox-item">
+              <input type="checkbox" id="creative_writing">
+              <label for="creative_writing">Creative Writing</label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Co-curricular Interests -->
+        <div class="form-section">
+          <h2 class="section-title">Co-curricular Interests</h2>
+          <p style="font-size: 0.875rem; color: #6B7280; margin-bottom: 1rem;">Select co-curricular activities of interest</p>
+          
+          <div class="checkbox-group">
+            <div class="checkbox-item">
+              <input type="checkbox" id="sport">
+              <label for="sport">Sport & Fitness</label>
+            </div>
+            <div class="checkbox-item">
+              <input type="checkbox" id="leadership">
+              <label for="leadership">Leadership</label>
+            </div>
+            <div class="checkbox-item">
+              <input type="checkbox" id="community_service">
+              <label for="community_service">Community Service</label>
+            </div>
+            <div class="checkbox-item">
+              <input type="checkbox" id="outdoor_education">
+              <label for="outdoor_education">Outdoor Education</label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Family Priorities -->
+        <div class="form-section">
+          <h2 class="section-title">Family Priorities</h2>
+          <p style="font-size: 0.875rem; color: #6B7280; margin-bottom: 1rem;">What's most important for your family?</p>
+          
+          <div class="checkbox-group">
+            <div class="checkbox-item">
+              <input type="checkbox" id="academic_excellence">
+              <label for="academic_excellence">Academic Excellence</label>
+            </div>
+            <div class="checkbox-item">
+              <input type="checkbox" id="pastoral_care">
+              <label for="pastoral_care">Outstanding Pastoral Care</label>
+            </div>
+            <div class="checkbox-item">
+              <input type="checkbox" id="university_preparation">
+              <label for="university_preparation">University Preparation</label>
+            </div>
+            <div class="checkbox-item">
+              <input type="checkbox" id="personal_development">
+              <label for="personal_development">Personal Development</label>
+            </div>
+            <div class="checkbox-item">
+              <input type="checkbox" id="career_guidance">
+              <label for="career_guidance">Career Guidance</label>
+            </div>
+            <div class="checkbox-item">
+              <input type="checkbox" id="extracurricular_opportunities">
+              <label for="extracurricular_opportunities">Extracurricular Opportunities</label>
+            </div>
           </div>
         </div>
 
         <!-- Buttons -->
         <div class="button-group">
           <button type="button" class="btn btn-secondary" onclick="window.location.href='/dashboard'">Cancel</button>
-          <button type="submit" class="btn btn-primary" id="submitBtn">Generate Enquiry & Prospectus</button>
+          <button type="submit" class="btn btn-primary" id="submitBtn">Create My Personalised Prospectus</button>
         </div>
 
         <div class="loading" id="loading">
-          Creating enquiry and generating prospectus... This may take a few moments.
+          Creating enquiry and generating personalised prospectus... This may take a few moments.
         </div>
 
         <div class="success" id="success">
-          ✅ Enquiry created successfully! <a href="/dashboard" style="color: #065F46; font-weight: 600;">View in dashboard</a>
+          Enquiry created successfully! <a href="/dashboard" style="color: #065F46; font-weight: 600;">View in dashboard</a>
         </div>
 
         <div class="error" id="error">
-          ❌ <span id="errorMsg">Failed to create enquiry</span>
+          âŒ <span id="errorMsg">Failed to create enquiry</span>
         </div>
       </form>
     </div>
@@ -305,6 +481,16 @@
     const error = document.getElementById('error');
     const errorMsg = document.getElementById('errorMsg');
 
+    // Add interactive feedback for checkbox items
+    document.querySelectorAll('.checkbox-item').forEach(item => {
+      item.addEventListener('click', function(e) {
+        if (e.target.type !== 'checkbox' && e.target.tagName !== 'LABEL') {
+          const checkbox = this.querySelector('input[type="checkbox"]');
+          checkbox.checked = !checkbox.checked;
+        }
+      });
+    });
+
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
 
@@ -314,64 +500,132 @@
       loading.classList.add('active');
       submitBtn.disabled = true;
 
-      // Collect form data
-      const data = {
-        parentName: document.getElementById('parentName').value,
-        parentEmail: document.getElementById('parentEmail').value,
-        familySurname: document.getElementById('familySurname').value,
-        firstName: document.getElementById('firstName').value,
+      // Collect form data exactly as the working inquiry form does
+      const formData = {
+        // All required fields
+        parentName: document.getElementById('parentName').value.trim(),
+        firstName: document.getElementById('firstName').value.trim(),
+        familySurname: document.getElementById('familySurname').value.trim(),
+        parentEmail: document.getElementById('parentEmail').value.trim(),
+        contactNumber: document.getElementById('contactNumber').value.trim(),
         ageGroup: document.getElementById('ageGroup').value,
         entryYear: document.getElementById('entryYear').value,
-        country: document.getElementById('country').value || 'United Kingdom',
-        city: document.getElementById('city').value || '',
-        notes: document.getElementById('notes').value || '',
-        source: 'manual_dashboard',
-        school_id: 2
+        hearAboutUs: document.getElementById('hearAboutUs').value,
+        
+        // Academic interests
+        sciences: document.getElementById('sciences').checked,
+        mathematics: document.getElementById('mathematics').checked,
+        english: document.getElementById('english').checked,
+        languages: document.getElementById('languages').checked,
+        humanities: document.getElementById('humanities').checked,
+        business: document.getElementById('business').checked,
+        
+        // Creative interests
+        drama: document.getElementById('drama').checked,
+        music: document.getElementById('music').checked,
+        art: document.getElementById('art').checked,
+        creative_writing: document.getElementById('creative_writing').checked,
+        
+        // Co-curricular interests
+        sport: document.getElementById('sport').checked,
+        leadership: document.getElementById('leadership').checked,
+        community_service: document.getElementById('community_service').checked,
+        outdoor_education: document.getElementById('outdoor_education').checked,
+        
+        // Family priorities
+        academic_excellence: document.getElementById('academic_excellence').checked,
+        pastoral_care: document.getElementById('pastoral_care').checked,
+        university_preparation: document.getElementById('university_preparation').checked,
+        personal_development: document.getElementById('personal_development').checked,
+        career_guidance: document.getElementById('career_guidance').checked,
+        extracurricular_opportunities: document.getElementById('extracurricular_opportunities').checked,
+        
+        // Metadata
+        submissionTimestamp: new Date().toISOString(),
+        userAgent: navigator.userAgent,
+        referrer: document.referrer || 'direct'
       };
 
-      try {
-        // Step 1: Create enquiry
-        const response = await fetch('/api/inquiry', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(data)
-        });
+      console.log('Submitting complete form data:', formData);
+      console.log('All required fields present:', {
+        parentName: !!formData.parentName,
+        firstName: !!formData.firstName,
+        familySurname: !!formData.familySurname,
+        parentEmail: !!formData.parentEmail,
+        contactNumber: !!formData.contactNumber,
+        ageGroup: !!formData.ageGroup,
+        entryYear: !!formData.entryYear,
+        hearAboutUs: !!formData.hearAboutUs
+      });
 
-        if (!response.ok) {
-          throw new Error(`Server error: ${response.status}`);
+      try {
+        // Use the webhook endpoint that actually exists
+        const endpoints = ['/webhook', '/api/inquiry'];
+        let response;
+        let lastError;
+        
+        for (const endpoint of endpoints) {
+          try {
+            console.log(`Trying endpoint: ${endpoint}`);
+            response = await fetch(endpoint, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(formData)
+            });
+            
+            if (response.ok) {
+              console.log(`Success with endpoint: ${endpoint}`);
+              break;
+            } else {
+              const errorData = await response.json();
+              console.log(`Failed at ${endpoint}:`, errorData);
+              lastError = errorData;
+            }
+          } catch (err) {
+            console.log(`Error with ${endpoint}:`, err.message);
+            lastError = err;
+          }
+        }
+
+        if (!response || !response.ok) {
+          if (lastError && lastError.missingFields) {
+            throw new Error(`Missing required fields: ${lastError.missingFields.join(', ')}`);
+          }
+          throw new Error(lastError?.error || lastError?.message || 'Failed to submit enquiry');
         }
 
         const result = await response.json();
+        console.log('Success! Response:', result);
         
-        if (result.success && result.inquiryId) {
-          // Step 2: Generate prospectus
-          const prospectusResponse = await fetch(`/api/generate-prospectus/${result.inquiryId}`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            }
-          });
-
-          if (!prospectusResponse.ok) {
-            console.warn('Prospectus generation failed, but enquiry was created');
-          }
-
+        if (result.success) {
           loading.classList.remove('active');
           success.classList.add('active');
-          form.reset();
           submitBtn.disabled = false;
 
-          // Redirect after 2 seconds
+          // Show prospectus URL if available
+          if (result.prospectus && result.prospectus.url) {
+            const successDiv = document.getElementById('success');
+            successDiv.innerHTML = `
+               Thank you for your enquiry!<br>
+              Your personalised prospectus has been created: <a href="${result.prospectus.url}" target="_blank" style="color: #065F46; font-weight: 600;">View Prospectus</a><br>
+              <a href="/dashboard" style="color: #065F46; font-weight: 600;">Return to Dashboard</a>
+            `;
+          }
+
+          // Clear form
+          form.reset();
+
+          // Redirect after 3 seconds
           setTimeout(() => {
             window.location.href = '/dashboard';
-          }, 2000);
+          }, 3000);
         } else {
           throw new Error(result.error || 'Failed to create enquiry');
         }
       } catch (err) {
-        console.error('Error:', err);
+        console.error('Submission error:', err);
         loading.classList.remove('active');
         error.classList.add('active');
         errorMsg.textContent = err.message;

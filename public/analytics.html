@@ -46,27 +46,24 @@
     .header {
       background: var(--blazer-navy);
       color: #fff;
-      padding: 2.5rem 3rem;
-      border-bottom: 3px solid var(--award-gold);
+      padding: 2rem;
+      border-bottom: 4px solid var(--award-gold);
       position: relative;
-      min-height: 140px;
     }
 
     .header-controls {
-      position: absolute;
-      top: 2.5rem;
-      right: 3rem;
       display: flex;
       gap: 0.5rem;
       flex-wrap: wrap;
-      max-width: 500px;
-      justify-content: flex-end;
+      justify-content: flex-start;
+      margin-top: 1rem;
+      margin-bottom: 1.5rem;
     }
 
     .refresh-btn,
     .ai-btn {
-      background: transparent;
-      border: 1.5px solid rgba(255, 255, 255, .25);
+      background: var(--blazer-navy);
+      border: 1.5px solid var(--blazer-navy);
       color: #fff;
       padding: .625rem 1.25rem;
       border-radius: 4px;
@@ -80,8 +77,8 @@
     }
 
     .refresh-btn:hover {
-      background: rgba(255, 255, 255, .08);
-      border-color: rgba(255, 255, 255, .4)
+      background: #0a1f30;
+      border-color: #0a1f30;
     }
 
     .ai-btn {
@@ -120,14 +117,13 @@
       text-align: center;
       max-width: 600px;
       margin: 0 auto;
-      padding-right: 200px;
     }
 
     .header h1 {
       font-family: var(--font-heading);
-      font-size: 3rem;
+      font-size: 2.5rem;
       font-weight: 700;
-      margin-bottom: 0.75rem;
+      margin-bottom: 0;
       letter-spacing: -0.5px
     }
 
@@ -141,10 +137,7 @@
     }
 
     .header p {
-      font-size: 1rem;
-      font-weight: 400;
-      color: rgba(255, 255, 255, .75);
-      letter-spacing: 0.3px
+      display: none;
     }
 
     .dashboard {
@@ -876,14 +869,8 @@
 
 <body>
   <header class="header">
-    <div class="header-controls">
-      <button class="generate-enquiry-btn" onclick="window.open('/create-enquiry.html', '_blank')">+ Generate Enquiry</button>
-      <button class="refresh-btn" onclick="loadData()">↻ Refresh</button>
-      <button class="ai-btn" onclick="generateAllSummaries()">Generate All AI Summaries</button>
-    </div>
     <div class="header-brand">
       <h1><span class="smart-text">SMART</span> <span class="analytics-text">Analytics</span></h1>
-      <p>More House School • Real-time Engagement Tracking</p>
     </div>
   </header>
 
@@ -942,6 +929,12 @@
           <option value="not-interested">Not Interested</option>
         </select>
         <input type="text" class="search-box" placeholder="Search by family name..." id="searchBox" autocomplete="off">
+      </div>
+
+      <div class="header-controls">
+        <button class="generate-enquiry-btn" onclick="window.open('/create-enquiry.html', '_blank')">+ Generate Enquiry</button>
+        <button class="refresh-btn" onclick="loadData()">↻ Refresh</button>
+        <button class="ai-btn" onclick="generateAllSummaries()">Generate All AI Summaries</button>
       </div>
 
       <div id="familyList">
@@ -1301,9 +1294,6 @@ async function onStatusChange(id, val) {
                 </div>
                 ${interestPills ? `<div class="interests-container">${interestPills}</div>` : ''}
               </div>
-              <div class="family-stats">
-                <div class="expand-icon">▼</div>
-              </div>
               <!-- Status summary badge (ALWAYS VISIBLE) -->
               <div class="status-summary" style="margin-top:.35rem;">
                 <span
@@ -1313,6 +1303,9 @@ async function onStatusChange(id, val) {
                 >
                         ${statusToLabel(familyStatuses[f.id] || 'new')}
                       </span>
+              </div>
+              <div class="family-stats">
+                <div class="expand-icon">▼</div>
               </div>
 
               
