@@ -2981,101 +2981,164 @@ ${extracurricularPersonalization ? `<p>${extracurricularPersonalization}</p>` : 
    
 
 <!-- PEN.ai chatbot (auto-resize iFrame) -->
+<style>
+    #penai-chat-wrapper{position:fixed;right:18px;bottom:18px;z-index:2147483000}
+    #penai-chat-wrapper iframe{display:block;border:0;background:transparent;width:64px;height:64px}
+    @media print{#penai-chat-wrapper{display:none!important}}
+  </style>
+  
+  <div id="penai-chat-wrapper" aria-live="polite">
+    <iframe
+      id="penai-frame"
+      src="https://emily-more-house.onrender.com/embed"
+      title="PEN.ai Chatbot"
+      allow="microphone; autoplay"
+      referrerpolicy="no-referrer-when-downgrade"></iframe>
+  </div>
+  
+  <script>
+ /* prospectus-penai.js — v3
+   Fix: prevent avatar cropping by enforcing a safe minimum bubble size.
+   Behaviour:
+   - Start at bubble size (not a big panel) so the avatar is fully visible.
+   - Only accept resize messages that are >= MIN_BUBBLE in both dimensions.
+   - Open/expanded sizes still apply normally.
+*/
+(function () {
+  'use strict';
 
-<!-- SIMPLE CHATBOT IMPLEMENTATION (Cheltenham Style) -->
-<!-- Replace lines 2983-3140 in your prospectus_template.html with this code -->
+  // ---- CONFIG ---------------------------------------------------------------
+  var BOT_ORIGIN = (window.PENAI_CHATBOT_ORIGIN || 'https://emily-more-house.onrender.com').replace(/\/+$/,'');
+  var WRAP_ID    = 'penai-chat-wrapper';
+  var IFRAME_ID  = 'penai-frame';
 
-<script>
-  // Emily Chatbot Integration - More House School
-  // Simple fixed-size implementation like Cheltenham College
-  window.addEventListener('load', () => {
-    setTimeout(() => {
-      // Create the iframe
-      const iframe = document.createElement('iframe');
-      
-      // Get the inquiry ID for personalization
-      const inquiryId = window.MORE_HOUSE_INQUIRY_ID || '';
-      
-      // Set the iframe source with inquiry ID
-      iframe.src = `https://emily-more-house.onrender.com/embed?family_id=${inquiryId}`;
-      
-      // Fixed dimensions that fit within viewport
-      // 400px wide x 600px tall (slightly shorter than Cheltenham's 700px for better fit)
-      iframe.style.cssText = 'position:fixed;bottom:20px;right:20px;width:400px;height:600px;border:none;z-index:9999;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.15);';
-      
-      // Allow microphone for voice features
-      iframe.setAttribute('allow', 'microphone; autoplay');
-      iframe.setAttribute('title', 'More House Assistant');
-      
-      // Add to page
-      document.body.appendChild(iframe);
-      
-      // Optional: Add a simple toggle button to show/hide the chatbot
-      const toggleBtn = document.createElement('button');
-      toggleBtn.innerHTML = '💬';
-      toggleBtn.style.cssText = 'position:fixed;bottom:20px;right:20px;width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg, #FF6B9D, #FFB3C1);color:white;font-size:24px;border:none;cursor:pointer;z-index:9998;box-shadow:0 4px 12px rgba(255,107,157,0.3);transition:transform 0.2s;display:none;';
-      toggleBtn.setAttribute('aria-label', 'Toggle chat assistant');
-      
-      // Toggle functionality
-      let isVisible = true;
-      toggleBtn.onclick = () => {
-        isVisible = !isVisible;
-        if (isVisible) {
-          iframe.style.display = 'block';
-          toggleBtn.style.display = 'none';
-        } else {
-          iframe.style.display = 'none';
-          toggleBtn.style.display = 'block';
-        }
-      };
-      
-      // Add close button inside chatbot area
-      const closeBtn = document.createElement('button');
-      closeBtn.innerHTML = '×';
-      closeBtn.style.cssText = 'position:fixed;bottom:600px;right:20px;width:32px;height:32px;border-radius:50%;background:#1a2b5c;color:white;font-size:24px;border:none;cursor:pointer;z-index:10000;box-shadow:0 2px 8px rgba(0,0,0,0.2);line-height:1;padding:0;';
-      closeBtn.setAttribute('aria-label', 'Minimize chat');
-      closeBtn.onclick = () => {
-        iframe.style.display = 'none';
-        closeBtn.style.display = 'none';
-        toggleBtn.style.display = 'block';
-      };
-      
-      document.body.appendChild(toggleBtn);
-      document.body.appendChild(closeBtn);
-      
-      // Mobile responsiveness
-      if (window.innerWidth <= 768) {
-        iframe.style.width = 'calc(100vw - 40px)';
-        iframe.style.maxWidth = '400px';
-        iframe.style.height = 'calc(100vh - 100px)';
-        iframe.style.maxHeight = '600px';
+  // Safe bubble sizes (tweak if you still see cropping)
+  var BUBBLE_W   = 120;   // initial closed size (was 76)
+  var BUBBLE_H   = 120;
+  var MIN_BUBBLE = 112;   // hard floor; ignore smaller sizes from child
+
+  // Reasonable open fallback (only used if child never posts a size)
+  var OPEN_W     = 400;
+  var OPEN_H     = 600;
+
+  // Viewport clamps
+  var VIEW_W_PCT = 0.95;
+  var VIEW_H_PCT = 0.85;
+
+  // ---- UTIL -----------------------------------------------------------------
+  function clampToViewport(w, h) {
+    var maxW = Math.floor((window.innerWidth  || 1024) * VIEW_W_PCT);
+    var maxH = Math.floor((window.innerHeight ||  768) * VIEW_H_PCT);
+    w = Math.min(parseInt(w,10) || OPEN_W, maxW);
+    h = Math.min(parseInt(h,10) || OPEN_H, maxH);
+    return { w: w, h: h };
+  }
+
+  function applySize(iframe, w, h) {
+    if (!iframe) return;
+    var s = clampToViewport(w, h);
+    iframe.style.width  = s.w + 'px';
+    iframe.style.height = s.h + 'px';
+  }
+
+  function ensureWrapper() {
+    var wrap = document.getElementById(WRAP_ID);
+    if (!wrap) {
+      wrap = document.createElement('div');
+      wrap.id = WRAP_ID;
+      wrap.style.position = 'fixed';
+      wrap.style.right    = '18px';
+      wrap.style.bottom   = '18px';
+      wrap.style.zIndex   = '2147483000';
+      document.body.appendChild(wrap);
+    }
+    return wrap;
+  }
+
+  function ensureIframe() {
+    var iframe = document.getElementById(IFRAME_ID);
+    if (!iframe) {
+      var wrap = ensureWrapper();
+      iframe = document.createElement('iframe');
+      iframe.id = IFRAME_ID;
+      iframe.title = 'PEN.ai Chatbot';
+      iframe.allow = 'microphone; autoplay; clipboard-read; clipboard-write';
+      iframe.referrerPolicy = 'no-referrer-when-downgrade';
+      iframe.src = BOT_ORIGIN + '/embed';
+      iframe.style.display     = 'block';
+      iframe.style.border      = '0';
+      iframe.style.background  = 'transparent';
+      iframe.style.pointerEvents = 'auto';
+      wrap.appendChild(iframe);
+    }
+    return iframe;
+  }
+
+  // Accept only sensible sizes from the child (avoid tiny/cropped states)
+  function saneResizeTarget(w, h) {
+    w = parseInt(w, 10) || 0;
+    h = parseInt(h, 10) || 0;
+
+    // If child tries to shrink below a safe bubble, clamp to MIN_BUBBLE
+    if (w < MIN_BUBBLE || h < MIN_BUBBLE) {
+      w = Math.max(w, MIN_BUBBLE);
+      h = Math.max(h, MIN_BUBBLE);
+    }
+    return { w: w, h: h };
+  }
+
+  function handleMessage(ev) {
+    try {
+      if (!ev || typeof ev.origin !== 'string') return;
+      if (ev.origin.replace(/\/+$/,'') !== BOT_ORIGIN) return;
+      var data = ev.data || {};
+
+      if (data.type === 'penai:resize' && (data.w || data.h)) {
+        var f = document.getElementById(IFRAME_ID);
+        if (!f) return;
+        var t = saneResizeTarget(data.w, data.h);
+        applySize(f, t.w, t.h);
       }
-      
-      // Handle window resize
-      window.addEventListener('resize', () => {
-        if (window.innerWidth <= 768) {
-          iframe.style.width = 'calc(100vw - 40px)';
-          iframe.style.maxWidth = '400px';
-          iframe.style.height = 'calc(100vh - 100px)';
-          iframe.style.maxHeight = '600px';
-        } else {
-          iframe.style.width = '400px';
-          iframe.style.height = '600px';
-        }
-      });
-      
-    }, 1000); // Slight delay to ensure page is loaded
-  });
+    } catch (_) { /* ignore */ }
+  }
+
+  function init() {
+    var iframe = ensureIframe();
+
+    // Start at a SAFE bubble size so the avatar is always fully visible
+    applySize(iframe, BUBBLE_W, BUBBLE_H);
+
+    // Listen for embedded app resize messages
+    window.addEventListener('message', handleMessage, false);
+
+    // Keep within viewport if the window changes
+    window.addEventListener('resize', function () {
+      if (!iframe) iframe = document.getElementById(IFRAME_ID);
+      if (!iframe) return;
+      var rect = iframe.getBoundingClientRect();
+      applySize(iframe, rect.width || BUBBLE_W, rect.height || BUBBLE_H);
+    });
+
+    // Safety: if something else zeroes it after load, restore safe bubble
+    setTimeout(function () {
+      var f = document.getElementById(IFRAME_ID);
+      if (!f) return;
+      var w = parseInt(f.style.width, 10)  || 0;
+      var h = parseInt(f.style.height, 10) || 0;
+      if (w < MIN_BUBBLE || h < MIN_BUBBLE) applySize(f, BUBBLE_W, BUBBLE_H);
+    }, 300);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+
+
 </script>
 
-<!-- Optional: Add print styles to hide chatbot when printing -->
-<style>
-  @media print {
-    iframe[src*="emily-more-house"] {
-      display: none !important;
-    }
-  }
-</style>
     <!-- 1. Your translator -->
 <script src="/translator.js" defer></script>
 
