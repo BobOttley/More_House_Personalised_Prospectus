@@ -2981,13 +2981,32 @@ ${extracurricularPersonalization ? `<p>${extracurricularPersonalization}</p>` : 
    
 
 <!-- PEN.ai chatbot (auto-resize iFrame) -->
-<!-- PEN.ai chatbot (auto-resize iFrame) - FIXED VERSION -->
+<!-- PEN.ai chatbot - FIXED VERSION 2 -->
 <!-- Replace lines 2983-3140 in your prospectus_template.html with this code -->
 
 <style>
-    #penai-chat-wrapper{position:fixed;right:18px;bottom:18px;z-index:2147483000}
-    #penai-chat-wrapper iframe{display:block;border:0;background:transparent;width:64px;height:64px}
-    @media print{#penai-chat-wrapper{display:none!important}}
+    #penai-chat-wrapper {
+        position: fixed;
+        right: 18px;
+        bottom: 18px;
+        z-index: 2147483000;
+        max-height: calc(100vh - 80px) !important; /* Never exceed viewport height minus margins */
+    }
+    
+    #penai-chat-wrapper iframe {
+        display: block;
+        border: 0;
+        background: transparent;
+        width: 64px;
+        height: 64px;
+        max-height: calc(100vh - 80px) !important; /* Constrain iframe height */
+    }
+    
+    @media print {
+        #penai-chat-wrapper {
+            display: none !important;
+        }
+    }
 </style>
   
 <div id="penai-chat-wrapper" aria-live="polite">
@@ -3000,215 +3019,127 @@ ${extracurricularPersonalization ? `<p>${extracurricularPersonalization}</p>` : 
 </div>
   
 <script>
-/* prospectus-penai.js — v4 FIXED
-   Fix: Prevent chatbot header from disappearing off-screen
-   - Dynamically adjusts position when expanded height would exceed viewport
-   - Maintains bottom anchor for bubble state
-   - Switches to top anchor when expanded if needed
-*/
 (function () {
   'use strict';
 
-  // ---- CONFIG ---------------------------------------------------------------
   var BOT_ORIGIN = (window.PENAI_CHATBOT_ORIGIN || 'https://emily-more-house.onrender.com').replace(/\/+$/,'');
   var WRAP_ID    = 'penai-chat-wrapper';
   var IFRAME_ID  = 'penai-frame';
 
-  // Safe bubble sizes
+  // Bubble sizes
   var BUBBLE_W   = 120;
   var BUBBLE_H   = 120;
   var MIN_BUBBLE = 112;
 
-  // Reasonable open fallback
+  // Default expanded size
   var OPEN_W     = 400;
   var OPEN_H     = 600;
 
-  // Viewport clamps and margins
-  var VIEW_W_PCT = 0.95;
-  var VIEW_H_PCT = 0.85;
-  var TOP_MARGIN = 60;    // Minimum distance from top of viewport
-  var BOTTOM_MARGIN = 18;  // Distance from bottom
-
-  // Track current state
-  var isExpanded = false;
-
-  // ---- UTIL -----------------------------------------------------------------
-  function clampToViewport(w, h) {
-    var maxW = Math.floor((window.innerWidth  || 1024) * VIEW_W_PCT);
-    var maxH = Math.floor((window.innerHeight ||  768) * VIEW_H_PCT);
-    w = Math.min(parseInt(w,10) || OPEN_W, maxW);
-    h = Math.min(parseInt(h,10) || OPEN_H, maxH);
-    return { w: w, h: h };
-  }
-
   function applySize(iframe, w, h) {
     if (!iframe) return;
-    var wrap = document.getElementById(WRAP_ID);
-    if (!wrap) return;
     
-    var s = clampToViewport(w, h);
-    iframe.style.width  = s.w + 'px';
-    iframe.style.height = s.h + 'px';
+    w = parseInt(w, 10) || BUBBLE_W;
+    h = parseInt(h, 10) || BUBBLE_H;
     
-    // Check if this looks like an expanded state (not bubble)
-    var expanding = (s.h > BUBBLE_H * 1.5 || s.w > BUBBLE_W * 1.5);
+    // Get viewport dimensions
+    var viewportHeight = window.innerHeight || 768;
+    var viewportWidth = window.innerWidth || 1024;
     
-    if (expanding !== isExpanded) {
-      isExpanded = expanding;
-      
-      if (isExpanded) {
-        // When expanding, check if it would go off the top
-        var viewportHeight = window.innerHeight || 768;
-        var availableHeight = viewportHeight - TOP_MARGIN - BOTTOM_MARGIN;
-        
-        if (s.h > availableHeight) {
-          // Too tall - anchor to top instead
-          wrap.style.bottom = 'auto';
-          wrap.style.top = TOP_MARGIN + 'px';
-          // Also limit the height to available space
-          s.h = availableHeight;
-          iframe.style.height = s.h + 'px';
-        } else if (s.h > (viewportHeight - BOTTOM_MARGIN - TOP_MARGIN)) {
-          // Would go off top - reposition
-          wrap.style.bottom = 'auto';
-          wrap.style.top = TOP_MARGIN + 'px';
-        }
-      } else {
-        // When collapsing back to bubble, restore bottom anchor
-        wrap.style.top = 'auto';
-        wrap.style.bottom = BOTTOM_MARGIN + 'px';
-      }
-    }
+    // Maximum allowed dimensions (leaving margin for visibility)
+    var maxHeight = viewportHeight - 80; // 80px total margin (top + bottom)
+    var maxWidth = viewportWidth - 40;   // 40px total margin (left + right)
     
-    // For already expanded state, ensure it stays within viewport
-    if (isExpanded) {
-      var viewportHeight = window.innerHeight || 768;
-      var rect = wrap.getBoundingClientRect();
-      
-      // Check if top is off-screen
-      if (rect.top < TOP_MARGIN) {
-        wrap.style.bottom = 'auto';
-        wrap.style.top = TOP_MARGIN + 'px';
-        
-        // Recalculate max height
-        var availableHeight = viewportHeight - TOP_MARGIN - BOTTOM_MARGIN;
-        if (s.h > availableHeight) {
-          s.h = availableHeight;
-          iframe.style.height = s.h + 'px';
-        }
-      }
-    }
-  }
-
-  function ensureWrapper() {
-    var wrap = document.getElementById(WRAP_ID);
-    if (!wrap) {
-      wrap = document.createElement('div');
-      wrap.id = WRAP_ID;
-      wrap.style.position = 'fixed';
-      wrap.style.right    = '18px';
-      wrap.style.bottom   = BOTTOM_MARGIN + 'px';
-      wrap.style.zIndex   = '2147483000';
-      wrap.style.transition = 'top 0.3s ease, bottom 0.3s ease'; // Smooth transition
-      document.body.appendChild(wrap);
-    }
-    return wrap;
-  }
-
-  function ensureIframe() {
-    var iframe = document.getElementById(IFRAME_ID);
-    if (!iframe) {
-      var wrap = ensureWrapper();
-      iframe = document.createElement('iframe');
-      iframe.id = IFRAME_ID;
-      iframe.title = 'PEN.ai Chatbot';
-      iframe.allow = 'microphone; autoplay; clipboard-read; clipboard-write';
-      iframe.referrerPolicy = 'no-referrer-when-downgrade';
-      iframe.src = BOT_ORIGIN + '/embed';
-      iframe.style.display     = 'block';
-      iframe.style.border      = '0';
-      iframe.style.background  = 'transparent';
-      iframe.style.pointerEvents = 'auto';
-      wrap.appendChild(iframe);
-    }
-    return iframe;
-  }
-
-  // Accept only sensible sizes from the child
-  function saneResizeTarget(w, h) {
-    w = parseInt(w, 10) || 0;
-    h = parseInt(h, 10) || 0;
-
-    // If child tries to shrink below a safe bubble, clamp to MIN_BUBBLE
-    if (w < MIN_BUBBLE || h < MIN_BUBBLE) {
-      w = Math.max(w, MIN_BUBBLE);
-      h = Math.max(h, MIN_BUBBLE);
-    }
-    return { w: w, h: h };
+    // Constrain dimensions
+    w = Math.min(w, maxWidth);
+    h = Math.min(h, maxHeight);
+    
+    // Never go below minimum bubble size
+    if (w < MIN_BUBBLE) w = MIN_BUBBLE;
+    if (h < MIN_BUBBLE) h = MIN_BUBBLE;
+    
+    // Apply the constrained dimensions
+    iframe.style.width = w + 'px';
+    iframe.style.height = h + 'px';
+    
+    // Force max-height to prevent any overflow
+    iframe.style.maxHeight = maxHeight + 'px';
   }
 
   function handleMessage(ev) {
     try {
       if (!ev || typeof ev.origin !== 'string') return;
       if (ev.origin.replace(/\/+$/,'') !== BOT_ORIGIN) return;
+      
       var data = ev.data || {};
-
+      
       if (data.type === 'penai:resize' && (data.w || data.h)) {
-        var f = document.getElementById(IFRAME_ID);
-        if (!f) return;
-        var t = saneResizeTarget(data.w, data.h);
-        applySize(f, t.w, t.h);
+        var iframe = document.getElementById(IFRAME_ID);
+        if (!iframe) return;
+        
+        // Apply the requested size (will be constrained by applySize)
+        applySize(iframe, data.w, data.h);
       }
-    } catch (_) { /* ignore */ }
+    } catch (_) {}
+  }
+
+  function ensureIframe() {
+    var iframe = document.getElementById(IFRAME_ID);
+    if (!iframe) {
+      // Create wrapper if needed
+      var wrap = document.getElementById(WRAP_ID);
+      if (!wrap) {
+        wrap = document.createElement('div');
+        wrap.id = WRAP_ID;
+        wrap.style.cssText = 'position:fixed;right:18px;bottom:18px;z-index:2147483000;';
+        document.body.appendChild(wrap);
+      }
+      
+      // Create iframe
+      iframe = document.createElement('iframe');
+      iframe.id = IFRAME_ID;
+      iframe.title = 'PEN.ai Chatbot';
+      iframe.allow = 'microphone; autoplay; clipboard-read; clipboard-write';
+      iframe.referrerPolicy = 'no-referrer-when-downgrade';
+      iframe.src = BOT_ORIGIN + '/embed';
+      iframe.style.cssText = 'display:block;border:0;background:transparent;';
+      wrap.appendChild(iframe);
+    }
+    return iframe;
   }
 
   function init() {
     var iframe = ensureIframe();
-
-    // Start at a SAFE bubble size
+    
+    // Set initial bubble size
     applySize(iframe, BUBBLE_W, BUBBLE_H);
-
-    // Listen for embedded app resize messages
+    
+    // Listen for resize messages from the iframe
     window.addEventListener('message', handleMessage, false);
-
-    // Keep within viewport if the window changes
-    window.addEventListener('resize', function () {
-      if (!iframe) iframe = document.getElementById(IFRAME_ID);
-      if (!iframe) return;
-      var rect = iframe.getBoundingClientRect();
-      
-      // Re-apply size to trigger viewport checks
-      applySize(iframe, rect.width || BUBBLE_W, rect.height || BUBBLE_H);
+    
+    // Reapply constraints on window resize
+    window.addEventListener('resize', function() {
+      var iframe = document.getElementById(IFRAME_ID);
+      if (iframe) {
+        var currentW = parseInt(iframe.style.width, 10) || BUBBLE_W;
+        var currentH = parseInt(iframe.style.height, 10) || BUBBLE_H;
+        applySize(iframe, currentW, currentH);
+      }
     });
-
-    // Handle scroll events to ensure chatbot stays visible
-    window.addEventListener('scroll', function() {
-      if (isExpanded) {
-        var wrap = document.getElementById(WRAP_ID);
+    
+    // Debug: Log resize events
+    window.addEventListener('message', function(ev) {
+      if (ev.origin.replace(/\/+$/,'') === BOT_ORIGIN && ev.data && ev.data.type === 'penai:resize') {
+        console.log('PEN.ai resize request:', ev.data.w, 'x', ev.data.h);
         var iframe = document.getElementById(IFRAME_ID);
-        if (wrap && iframe) {
-          var rect = wrap.getBoundingClientRect();
-          var height = parseInt(iframe.style.height, 10) || OPEN_H;
-          
-          // Check if we need to reposition
-          if (rect.top < TOP_MARGIN) {
-            wrap.style.bottom = 'auto';
-            wrap.style.top = TOP_MARGIN + 'px';
-          }
+        if (iframe) {
+          console.log('Applied size:', iframe.style.width, 'x', iframe.style.height);
+          console.log('Viewport height:', window.innerHeight);
         }
       }
     });
-
-    // Safety: restore safe bubble if needed
-    setTimeout(function () {
-      var f = document.getElementById(IFRAME_ID);
-      if (!f) return;
-      var w = parseInt(f.style.width, 10)  || 0;
-      var h = parseInt(f.style.height, 10) || 0;
-      if (w < MIN_BUBBLE || h < MIN_BUBBLE) applySize(f, BUBBLE_W, BUBBLE_H);
-    }, 300);
   }
 
+  // Initialize
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
   } else {
