@@ -1,0 +1,1659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SMART Charts - More House School</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --blazer-navy: #091825;
+    --award-gold: #FF9F1C;
+    --sport-blue: #034674;
+    --text-primary: #2C3E50;
+    --white: #FFFFFF;
+    --light-grey: #F8FAFC;
+    --border-grey: #E5E7EB;
+    --green: #059669;
+    --blue: #3b82f6;
+    --purple: #8b5cf6;
+    --pink: #ec4899;
+    --red: #dc2626;
+    --orange: #f97316;
+  }
+  
+  * { 
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box; 
+  }
+  
+  body {
+    font-family: 'Inter', sans-serif;
+    background: #FAFBFC;
+    color: var(--text-primary);
+    font-size: 14px;
+  }
+  
+  /* Header */
+  .page-header {
+    background: var(--blazer-navy);
+    color: #fff;
+    padding: 2rem;
+    border-bottom: 4px solid var(--award-gold);
+    text-align: center;
+  }
+
+  .page-header h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 2.5rem;
+    margin-bottom: 0;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+  }
+
+  .smart-text {
+    color: var(--award-gold);
+  }
+
+  .charts-text {
+    color: #fff;
+    font-weight: 400;
+  }
+
+  .page-header p {
+    display: none;
+  }
+  
+  /* Controls Bar */
+  .controls-bar {
+    background: white;
+    border-bottom: 1px solid var(--border-grey);
+    padding: 1rem 2rem;
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: space-between;
+  }
+  
+  .controls-group {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+  }
+  
+  button {
+    border: 1px solid var(--border-grey);
+    background: white;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.875rem;
+    transition: all 0.2s;
+    font-family: 'Inter', sans-serif;
+  }
+  
+  button:hover {
+    background: var(--light-grey);
+    border-color: var(--sport-blue);
+  }
+  
+  button.primary {
+    background: var(--award-gold);
+    border-color: var(--award-gold);
+    color: var(--blazer-navy);
+  }
+  
+  button.primary:hover {
+    filter: brightness(0.95);
+  }
+  
+  select {
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--border-grey);
+    border-radius: 4px;
+    background: white;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.875rem;
+    color: var(--text-primary);
+  }
+  
+  select:focus {
+    outline: none;
+    border-color: var(--sport-blue);
+  }
+  
+  #status {
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    background: var(--light-grey);
+    font-size: 0.875rem;
+    color: var(--text-primary);
+    border: 1px solid var(--border-grey);
+  }
+  
+  main {
+    padding: 2rem;
+    max-width: 1800px;
+    margin: 0 auto;
+  }
+  
+  .summary-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+  }
+  
+  .summary-card {
+    background: white;
+    border: 1px solid var(--border-grey);
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  }
+  
+  .summary-card .label {
+    font-size: 0.75rem;
+    color: #6B7280;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.5rem;
+  }
+  
+  .summary-card .value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--blazer-navy);
+  }
+  
+  .summary-card .subtext {
+    font-size: 0.875rem;
+    color: #6B7280;
+    margin-top: 0.25rem;
+  }
+  
+  .summary-card.trend-up .value { color: var(--green); }
+  .summary-card.trend-down .value { color: var(--red); }
+  
+  .charts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+  
+  .chart-card {
+    background: white;
+    border: 1px solid var(--border-grey);
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  }
+  
+  .chart-card.wide {
+    grid-column: 1 / -1;
+  }
+  
+  .chart-card h2 {
+    margin: 0 0 1rem 0;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--blazer-navy);
+    font-family: 'Inter', sans-serif;
+  }
+  
+  .chart-card .subtitle {
+    font-size: 0.875rem;
+    color: #6B7280;
+    margin-top: -0.75rem;
+    margin-bottom: 1rem;
+  }
+  
+  .chart-container {
+    position: relative;
+    height: 300px;
+  }
+  
+  .chart-container.tall {
+    height: 400px;
+  }
+  
+  .chart-container.short {
+    height: 250px;
+  }
+  
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+    font-size: 0.875rem;
+  }
+  
+  .data-table th,
+  .data-table td {
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border-grey);
+  }
+  
+  .data-table th {
+    background: var(--light-grey);
+    font-weight: 700;
+    color: var(--blazer-navy);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  
+  .data-table tr:hover {
+    background: var(--light-grey);
+  }
+  
+  .badge {
+    display: inline-block;
+    padding: 0.25rem 0.625rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+  
+  .badge.hot { background: #fef3c7; color: #92400e; }
+  .badge.warm { background: #dbeafe; color: #1e40af; }
+  .badge.cold { background: #f3f4f6; color: #4b5563; }
+  
+  .loading {
+    text-align: center;
+    padding: 2.5rem;
+    color: #6B7280;
+    font-size: 0.875rem;
+  }
+  
+  .error {
+    background: #fee;
+    border: 1px solid #fcc;
+    color: #c00;
+    padding: 1rem;
+    border-radius: 8px;
+    margin: 1.25rem 0;
+  }
+  
+  @media (max-width: 1200px) {
+    .charts-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+  
+  @media (max-width: 768px) {
+    .summary-cards {
+      grid-template-columns: repeat(2, 1fr);
+    }
+    
+    main {
+      padding: 1rem;
+    }
+    
+    .controls-bar {
+      padding: 1rem;
+    }
+  }
+</style>
+</head>
+<body>
+<!-- Header -->
+<div class="page-header">
+  <h1><span class="smart-text">SMART</span> <span class="charts-text">Charts</span></h1>
+</div>
+
+<!-- Controls Bar -->
+<div class="controls-bar">
+  <div class="controls-group">
+    <button id="refreshBtn" class="primary">Refresh Data</button>
+    <select id="timeRangeSelect">
+      <option value="all">All Time</option>
+      <option value="30">Last 30 Days</option>
+      <option value="90">Last 90 Days</option>
+      <option value="365">Last Year</option>
+    </select>
+  </div>
+  <span id="status">Loading...</span>
+</div>
+
+<main>
+  <!-- Summary KPI Cards -->
+  <div class="summary-cards" id="summaryCards">
+    <div class="summary-card">
+      <div class="label">Total Inquiries</div>
+      <div class="value" id="totalInquiries">-</div>
+      <div class="subtext" id="inquiriesTrend">-</div>
+    </div>
+    
+    <div class="summary-card trend-up">
+      <div class="label">Hot Leads</div>
+      <div class="value" id="hotLeads">-</div>
+      <div class="subtext">Score ≥ 80</div>
+    </div>
+    
+    <div class="summary-card">
+      <div class="label">Warm Leads</div>
+      <div class="value" id="warmLeads">-</div>
+      <div class="subtext">Score 60-79</div>
+    </div>
+    
+    <div class="summary-card">
+      <div class="label">Avg. Response Time</div>
+      <div class="value" id="avgResponseTime">-</div>
+      <div class="subtext" id="responseTimeTrend">-</div>
+    </div>
+    
+    <div class="summary-card">
+      <div class="label">Prospectus Opens</div>
+      <div class="value" id="prospectusOpens">-</div>
+      <div class="subtext" id="openRate">-</div>
+    </div>
+    
+    <div class="summary-card">
+      <div class="label">Conversion Rate</div>
+      <div class="value" id="conversionRate">-</div>
+      <div class="subtext">to qualified leads</div>
+    </div>
+  </div>
+
+  <!-- Charts Grid -->
+  <div class="charts-grid">
+    
+    <!-- Pipeline Stages Distribution -->
+    <div class="chart-card">
+      <h2>Current Pipeline Distribution</h2>
+      <div class="subtitle">Families by admissions stage</div>
+      <div class="chart-container">
+        <canvas id="pipelineStagesChart"></canvas>
+      </div>
+    </div>
+    
+    <!-- Response Time Analytics -->
+    <div class="chart-card">
+      <h2>Response Time Performance</h2>
+      <div class="subtitle">Time to first contact by stage</div>
+      <div class="chart-container">
+        <canvas id="responseTimeChart"></canvas>
+      </div>
+    </div>
+    
+    <!-- Admissions Funnel -->
+    <div class="chart-card wide">
+      <h2>Admissions Funnel</h2>
+      <div class="subtitle">Stage-by-stage conversion through admissions process</div>
+      <div class="chart-container short">
+        <canvas id="funnelChart"></canvas>
+      </div>
+    </div>
+    
+    <!-- Pipeline Movement Table -->
+    <div class="chart-card wide">
+      <h2>Pipeline Stage Details</h2>
+      <div class="subtitle">Detailed breakdown by current stage</div>
+      <table class="data-table" id="pipelineTable">
+        <thead>
+          <tr>
+            <th>Stage</th>
+            <th>Count</th>
+            <th>Avg. Time in Stage</th>
+            <th>Avg. Response Time</th>
+            <th>Conversion Rate</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td colspan="5" class="loading">Loading pipeline data...</td></tr>
+        </tbody>
+      </table>
+    </div>
+    
+    <!-- Entry Year Distribution -->
+    <div class="chart-card">
+      <h2>Entry Year Distribution</h2>
+      <div class="subtitle">Inquiries by intended entry year</div>
+      <div class="chart-container">
+        <canvas id="entryYearChart"></canvas>
+      </div>
+    </div>
+    
+    <!-- Most Popular Subjects -->
+    <div class="chart-card wide">
+      <h2>Subject Interest Analysis</h2>
+      <div class="subtitle">Academic interests across all inquiries</div>
+      <div class="chart-container tall">
+        <canvas id="subjectsChart"></canvas>
+      </div>
+    </div>
+    
+    <!-- Engagement Score Distribution -->
+    <div class="chart-card">
+      <h2>Engagement Score Distribution</h2>
+      <div class="subtitle">Lead quality breakdown</div>
+      <div class="chart-container">
+        <canvas id="scoreDistChart"></canvas>
+      </div>
+    </div>
+    
+    <!-- Lead Status Over Time -->
+    <div class="chart-card">
+      <h2>Lead Quality Trends</h2>
+      <div class="subtitle">Hot/Warm/Cold leads over time</div>
+      <div class="chart-container">
+        <canvas id="leadTrendsChart"></canvas>
+      </div>
+    </div>
+    
+    <!-- Co-curricular Interests -->
+    <div class="chart-card">
+      <h2>Co-Curricular Interests</h2>
+      <div class="subtitle">Non-academic activity preferences</div>
+      <div class="chart-container">
+        <canvas id="coCurricularChart"></canvas>
+      </div>
+    </div>
+    
+    <!-- Creative Subjects -->
+    <div class="chart-card">
+      <h2>Creative Interests</h2>
+      <div class="subtitle">Arts and creative subject breakdown</div>
+      <div class="chart-container">
+        <canvas id="creativeChart"></canvas>
+      </div>
+    </div>
+    
+    <!-- Family Priorities -->
+    <div class="chart-card wide">
+      <h2>Family Priorities</h2>
+      <div class="subtitle">What families value most about More House</div>
+      <div class="chart-container short">
+        <canvas id="prioritiesChart"></canvas>
+      </div>
+    </div>
+    
+    <!-- Average Time on Prospectus -->
+    <div class="chart-card">
+      <h2>Engagement Metrics</h2>
+      <div class="subtitle">Time spent and interaction depth</div>
+      <div class="chart-container">
+        <canvas id="engagementMetricsChart"></canvas>
+      </div>
+    </div>
+    
+    <!-- Age Group Distribution -->
+    <div class="chart-card">
+      <h2>Age Group Breakdown</h2>
+      <div class="subtitle">Inquiry distribution by student age</div>
+      <div class="chart-container">
+        <canvas id="ageGroupChart"></canvas>
+      </div>
+    </div>
+    
+    <!-- Top Performing Sections -->
+    <div class="chart-card wide">
+      <h2>Most Engaging Prospectus Sections</h2>
+      <div class="subtitle">Sections by average dwell time</div>
+      <table class="data-table" id="topSectionsTable">
+        <thead>
+          <tr>
+            <th>Section</th>
+            <th>Avg. Time</th>
+            <th>Unique Views</th>
+            <th>Avg. Scroll</th>
+            <th>Video Plays</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td colspan="5" class="loading">Loading section data...</td></tr>
+        </tbody>
+      </table>
+    </div>
+    
+  </div>
+</main>
+
+<script>
+// Utility Functions
+const $ = id => document.getElementById(id);
+const formatTime = ms => {
+  const mins = Math.floor(ms / 60000);
+  const secs = Math.floor((ms % 60000) / 1000);
+  return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+};
+
+// Global data store
+let allData = {
+  inquiries: [],
+  sections: [],
+  events: []
+};
+
+// Chart instances (for cleanup)
+let charts = {};
+
+// Initialize
+async function init() {
+  updateStatus('Loading data...');
+  try {
+    await loadAllData();
+    renderSummaryCards();
+    renderAllCharts();
+    updateStatus('Data loaded successfully', 'success');
+  } catch (error) {
+    console.error('Init error:', error);
+    updateStatus('Error loading data: ' + error.message, 'error');
+  }
+}
+
+// Load all data from API
+async function loadAllData() {
+  try {
+    // Load inquiries
+    console.log('Fetching inquiries from /api/analytics/inquiries...');
+    const inquiriesRes = await fetch('/api/analytics/inquiries');
+    if (!inquiriesRes.ok) throw new Error(`Failed to load inquiries: ${inquiriesRes.status}`);
+    allData.inquiries = await inquiriesRes.json();
+    
+    console.log(`Loaded ${allData.inquiries.length} inquiries`);
+    console.log('Sample inquiry:', allData.inquiries[0]);
+    
+    // Load section engagement data if available
+    try {
+      console.log('Fetching sections from /api/analytics/sections...');
+      const sectionsRes = await fetch('/api/analytics/sections');
+      if (sectionsRes.ok) {
+        allData.sections = await sectionsRes.json();
+        console.log(`Loaded ${allData.sections.length} section records`);
+      } else {
+        console.warn('Sections endpoint returned:', sectionsRes.status);
+        allData.sections = [];
+      }
+    } catch (e) {
+      console.warn('Section data not available:', e.message);
+      allData.sections = [];
+    }
+    
+  } catch (error) {
+    console.error('Data loading error:', error);
+    throw error;
+  }
+}
+
+// Render Summary Cards
+function renderSummaryCards() {
+  const inquiries = allData.inquiries;
+  
+  // Total inquiries
+  $('totalInquiries').textContent = inquiries.length;
+  $('inquiriesTrend').textContent = `${inquiries.filter(i => isRecent(i.received_at, 30)).length} in last 30 days`;
+  
+  // Hot leads (score >= 80)
+  const hotLeads = inquiries.filter(i => getScore(i) >= 80);
+  $('hotLeads').textContent = hotLeads.length;
+  
+  // Warm leads (score 60-79)
+  const warmLeads = inquiries.filter(i => {
+    const score = getScore(i);
+    return score >= 60 && score < 80;
+  });
+  $('warmLeads').textContent = warmLeads.length;
+  
+  // Average response time
+  const contactedInquiries = inquiries.filter(i => 
+    i.status && i.status !== 'new_inquiry' && i.received_at && i.updated_at
+  );
+  
+  if (contactedInquiries.length > 0) {
+    const totalResponseTime = contactedInquiries.reduce((sum, i) => {
+      const received = new Date(i.received_at);
+      const responded = new Date(i.updated_at);
+      const diffHours = (responded - received) / (1000 * 60 * 60);
+      return sum + diffHours;
+    }, 0);
+    
+    const avgHours = totalResponseTime / contactedInquiries.length;
+    const avgDays = Math.floor(avgHours / 24);
+    const remainingHours = Math.round(avgHours % 24);
+    
+    if (avgDays > 0) {
+      $('avgResponseTime').textContent = `${avgDays}d ${remainingHours}h`;
+    } else {
+      $('avgResponseTime').textContent = `${remainingHours}h`;
+    }
+    
+    const fastResponses = contactedInquiries.filter(i => {
+      const received = new Date(i.received_at);
+      const responded = new Date(i.updated_at);
+      const diffHours = (responded - received) / (1000 * 60 * 60);
+      return diffHours <= 24;
+    }).length;
+    
+    const fastResponseRate = Math.round((fastResponses / contactedInquiries.length) * 100);
+    $('responseTimeTrend').textContent = `${fastResponseRate}% within 24h`;
+  } else {
+    $('avgResponseTime').textContent = 'N/A';
+    $('responseTimeTrend').textContent = 'No responses yet';
+  }
+  
+  // Prospectus opens - check all possible fields
+  const opened = inquiries.filter(i => 
+    i.prospectus_generated === true || 
+    i.prospectus_generated_at !== null ||
+    i.first_engagement_at !== null ||
+    i.prospectus_filename !== null ||
+    i.slug !== null
+  );
+  $('prospectusOpens').textContent = opened.length;
+  const openRate = inquiries.length > 0 
+    ? Math.round((opened.length / inquiries.length) * 100)
+    : 0;
+  $('openRate').textContent = `${openRate}% open rate`;
+  
+  // Conversion rate (hot + warm leads)
+  const qualified = hotLeads.length + warmLeads.length;
+  const conversionRate = inquiries.length > 0
+    ? Math.round((qualified / inquiries.length) * 100)
+    : 0;
+  $('conversionRate').textContent = `${conversionRate}%`;
+}
+
+// Render all charts
+function renderAllCharts() {
+  renderPipelineStagesChart();
+  renderResponseTimeChart();
+  renderPipelineTable();
+  renderFunnelChart();
+  renderEntryYearChart();
+  renderSubjectsChart();
+  renderScoreDistChart();
+  renderLeadTrendsChart();
+  renderCoCurricularChart();
+  renderCreativeChart();
+  renderPrioritiesChart();
+  renderEngagementMetricsChart();
+  renderAgeGroupChart();
+  renderTopSectionsTable();
+}
+
+// Pipeline Stages Distribution
+function renderPipelineStagesChart() {
+  const inquiries = allData.inquiries;
+  
+  console.log('Pipeline chart - Sample inquiry:', inquiries[0]); // Debug
+  
+  // Define all possible stages with labels
+  const stageLabels = {
+    'received': 'New Inquiry',
+    'new_inquiry': 'New Inquiry',
+    'prospectus_generated': 'Prospectus Sent',
+    'contacted': 'Contacted',
+    'high_interest': 'High Interest',
+    'tour_booked': 'Tour Booked',
+    'open_day_booked': 'Open Day Booked',
+    'application_started': 'Application Started',
+    'application_complete': 'Application Complete',
+    'not_interested': 'Not Interested'
+  };
+  
+  const stageCounts = {};
+  
+  inquiries.forEach(i => {
+    let status = i.status || 'received';
+    
+    // Normalize status
+    if (!status || status === 'received' || status === 'new_inquiry') {
+      status = 'new_inquiry';
+    }
+    
+    if (!stageCounts[status]) {
+      stageCounts[status] = 0;
+    }
+    stageCounts[status]++;
+  });
+  
+  console.log('Stage counts:', stageCounts); // Debug
+  
+  // Get all stages that have data
+  const activeStages = Object.keys(stageCounts).sort((a, b) => stageCounts[b] - stageCounts[a]);
+  
+  if (activeStages.length === 0) {
+    console.warn('No pipeline data available');
+    return;
+  }
+  
+  destroyChart('pipelineStagesChart');
+  charts.pipelineStagesChart = new Chart($('pipelineStagesChart'), {
+    type: 'bar',
+    data: {
+      labels: activeStages.map(s => stageLabels[s] || s),
+      datasets: [{
+        label: 'Families',
+        data: activeStages.map(s => stageCounts[s]),
+        backgroundColor: activeStages.map(s => {
+          // Assign colors based on stage type
+          if (s === 'new_inquiry' || s === 'received') return '#6B7280'; // Grey - New
+          if (s === 'prospectus_generated') return '#3b82f6'; // Blue - Prospectus sent
+          if (s === 'contacted') return '#8b5cf6'; // Purple - Initial contact
+          if (s === 'high_interest') return '#FF9F1C'; // Gold - Interested
+          if (s === 'tour_booked' || s === 'open_day_booked') return '#f97316'; // Orange - Engaged
+          if (s === 'application_started') return '#059669'; // Green - Applying
+          if (s === 'application_complete') return '#10B981'; // Bright Green - Complete
+          if (s === 'not_interested') return '#dc2626'; // Red - Lost
+          return '#034674'; // Navy - Default
+        }),
+        borderWidth: 0
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => `${ctx.parsed.x} families`
+          }
+        }
+      },
+      scales: {
+        x: { beginAtZero: true, grid: { display: false }, ticks: { precision: 0 } },
+        y: { grid: { display: false } }
+      }
+    }
+  });
+}
+
+// Response Time Analytics
+function renderResponseTimeChart() {
+  const inquiries = allData.inquiries;
+  
+  const stageLabels = {
+    'new_inquiry': 'New Inquiry',
+    'received': 'New Inquiry',
+    'prospectus_generated': 'Prospectus Sent',
+    'contacted': 'Contacted',
+    'high_interest': 'High Interest',
+    'tour_booked': 'Tour Booked',
+    'open_day_booked': 'Open Day Booked',
+    'application_started': 'Application Started'
+  };
+  
+  const responseData = {};
+  
+  Object.keys(stageLabels).forEach(stage => {
+    const stageInquiries = inquiries.filter(i => {
+      const status = i.status || 'received';
+      return status === stage && i.received_at && i.updated_at;
+    });
+    
+    if (stageInquiries.length > 0) {
+      const totalHours = stageInquiries.reduce((sum, i) => {
+        const received = new Date(i.received_at);
+        const responded = new Date(i.updated_at);
+        const hours = (responded - received) / (1000 * 60 * 60);
+        return sum + (hours > 0 ? hours : 0);
+      }, 0);
+      
+      if (totalHours > 0) {
+        responseData[stage] = totalHours / stageInquiries.length;
+      }
+    }
+  });
+  
+  console.log('Response time data:', responseData); // Debug
+  
+  const stages = Object.keys(responseData);
+  
+  if (stages.length === 0) {
+    console.warn('No response time data available');
+    // Show placeholder chart
+    destroyChart('responseTimeChart');
+    charts.responseTimeChart = new Chart($('responseTimeChart'), {
+      type: 'bar',
+      data: {
+        labels: ['No Data'],
+        datasets: [{
+          label: 'Avg. Hours',
+          data: [0],
+          backgroundColor: '#E5E7EB',
+          borderWidth: 0
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false }
+        },
+        scales: {
+          y: { beginAtZero: true, grid: { color: '#F8FAFC' } },
+          x: { grid: { display: false } }
+        }
+      }
+    });
+    return;
+  }
+  
+  destroyChart('responseTimeChart');
+  charts.responseTimeChart = new Chart($('responseTimeChart'), {
+    type: 'bar',
+    data: {
+      labels: stages.map(s => stageLabels[s] || s),
+      datasets: [{
+        label: 'Avg. Hours',
+        data: stages.map(s => Math.round(responseData[s])),
+        backgroundColor: stages.map(s => {
+          // Assign colors based on stage type - match pipeline colors
+          if (s === 'new_inquiry' || s === 'received') return '#6B7280';
+          if (s === 'prospectus_generated') return '#3b82f6';
+          if (s === 'contacted') return '#8b5cf6';
+          if (s === 'high_interest') return '#FF9F1C';
+          if (s === 'tour_booked' || s === 'open_day_booked') return '#f97316';
+          if (s === 'application_started') return '#059669';
+          return '#034674';
+        }),
+        borderWidth: 0
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => {
+              const hours = ctx.parsed.y;
+              const days = Math.floor(hours / 24);
+              const remainingHours = Math.round(hours % 24);
+              return days > 0 ? `${days}d ${remainingHours}h` : `${remainingHours}h`;
+            }
+          }
+        }
+      },
+      scales: {
+        y: { 
+          beginAtZero: true, 
+          grid: { color: '#F8FAFC' },
+          ticks: { precision: 0 },
+          title: {
+            display: true,
+            text: 'Hours'
+          }
+        },
+        x: { grid: { display: false } }
+      }
+    }
+  });
+}
+
+// Pipeline Stage Details Table
+function renderPipelineTable() {
+  const inquiries = allData.inquiries;
+  
+  const stageLabels = {
+    'new_inquiry': 'New Inquiry',
+    'contacted': 'Contacted',
+    'high_interest': 'High Interest',
+    'tour_booked': 'Tour Booked',
+    'open_day_booked': 'Open Day Booked',
+    'application_started': 'Application Started',
+    'application_complete': 'Application Complete',
+    'not_interested': 'Not Interested'
+  };
+  
+  const stageStats = {};
+  
+  Object.keys(stageLabels).forEach(stage => {
+    const stageInquiries = inquiries.filter(i => (i.status || 'new_inquiry') === stage);
+    
+    if (stageInquiries.length > 0) {
+      // Calculate average time in stage
+      const avgTimeInStage = stageInquiries.reduce((sum, i) => {
+        if (i.received_at && i.updated_at) {
+          const received = new Date(i.received_at);
+          const updated = new Date(i.updated_at);
+          return sum + ((updated - received) / (1000 * 60 * 60 * 24)); // days
+        }
+        return sum;
+      }, 0) / stageInquiries.length;
+      
+      // Calculate average response time
+      const respondedInquiries = stageInquiries.filter(i => i.received_at && i.updated_at);
+      const avgResponseTime = respondedInquiries.length > 0
+        ? respondedInquiries.reduce((sum, i) => {
+            const received = new Date(i.received_at);
+            const responded = new Date(i.updated_at);
+            return sum + ((responded - received) / (1000 * 60 * 60)); // hours
+          }, 0) / respondedInquiries.length
+        : 0;
+      
+      // Calculate conversion rate (moved to next stage)
+      const totalInStage = inquiries.filter(i => 
+        i.status === stage || (i.status && new Date(i.updated_at) > new Date(i.received_at))
+      ).length;
+      
+      const conversionRate = totalInStage > 0
+        ? Math.round((stageInquiries.length / totalInStage) * 100)
+        : 0;
+      
+      stageStats[stage] = {
+        count: stageInquiries.length,
+        avgTimeInStage: avgTimeInStage,
+        avgResponseTime: avgResponseTime,
+        conversionRate: conversionRate
+      };
+    }
+  });
+  
+  const tbody = $('pipelineTable').querySelector('tbody');
+  const stages = Object.keys(stageStats);
+  
+  if (stages.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#6B7280;">No pipeline data available</td></tr>';
+    return;
+  }
+  
+  tbody.innerHTML = stages.map(stage => {
+    const stats = stageStats[stage];
+    const timeInStage = stats.avgTimeInStage > 1 
+      ? `${Math.round(stats.avgTimeInStage)}d`
+      : `${Math.round(stats.avgTimeInStage * 24)}h`;
+    
+    const responseTime = stats.avgResponseTime > 24
+      ? `${Math.floor(stats.avgResponseTime / 24)}d ${Math.round(stats.avgResponseTime % 24)}h`
+      : `${Math.round(stats.avgResponseTime)}h`;
+    
+    return `
+      <tr>
+        <td><strong>${escapeHtml(stageLabels[stage])}</strong></td>
+        <td>${stats.count}</td>
+        <td>${timeInStage}</td>
+        <td>${responseTime}</td>
+        <td>${stats.conversionRate}%</td>
+      </tr>
+    `;
+  }).join('');
+}
+
+// 1. Admissions Funnel Chart (Updated)
+function renderFunnelChart() {
+  const inquiries = allData.inquiries;
+  
+  const stages = {
+    'Inquiries Received': inquiries.length,
+    'Prospectus Generated': inquiries.filter(i => 
+      i.prospectus_generated === true || 
+      i.prospectus_generated_at !== null ||
+      i.prospectus_filename !== null
+    ).length,
+    'Engaged (>5min)': inquiries.filter(i => getTotalEngagementTime(i) > 300000).length,
+    'Highly Engaged (>15min)': inquiries.filter(i => getTotalEngagementTime(i) > 900000).length,
+    'Hot Leads (Score 80+)': inquiries.filter(i => getScore(i) >= 80).length,
+    'Contacted': inquiries.filter(i => 
+      i.status && 
+      i.status !== 'received' && 
+      i.status !== 'new_inquiry' &&
+      i.status !== 'prospectus_generated'
+    ).length
+  };
+  
+  console.log('Funnel stages:', stages); // Debug
+  
+  destroyChart('funnelChart');
+  charts.funnelChart = new Chart($('funnelChart'), {
+    type: 'bar',
+    data: {
+      labels: Object.keys(stages),
+      datasets: [{
+        label: 'Families',
+        data: Object.values(stages),
+        backgroundColor: [
+          '#034674',
+          '#3b82f6',
+          '#8b5cf6',
+          '#FF9F1C',
+          '#f97316',
+          '#059669'
+        ],
+        borderWidth: 0
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              const pct = inquiries.length > 0 
+                ? Math.round((ctx.parsed.x / inquiries.length) * 100)
+                : 0;
+              return `${ctx.parsed.x} families (${pct}%)`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: { beginAtZero: true, grid: { display: false }, ticks: { precision: 0 } },
+        y: { grid: { display: false } }
+      }
+    }
+  });
+}
+
+// 2. Entry Year Distribution
+function renderEntryYearChart() {
+  const inquiries = allData.inquiries;
+  const yearCounts = {};
+  
+  inquiries.forEach(i => {
+    const year = i.entry_year || 'Unknown';
+    yearCounts[year] = (yearCounts[year] || 0) + 1;
+  });
+  
+  const sortedYears = Object.keys(yearCounts).sort();
+  
+  // Distinct colors for each year
+  const colors = [
+    '#034674', // sport-blue
+    '#FF9F1C', // award-gold
+    '#3b82f6', // blue
+    '#8b5cf6', // purple
+    '#ec4899', // pink
+    '#059669', // green
+    '#f97316', // orange
+    '#dc2626', // red
+    '#091825', // blazer-navy
+    '#6366f1'  // indigo
+  ];
+  
+  destroyChart('entryYearChart');
+  charts.entryYearChart = new Chart($('entryYearChart'), {
+    type: 'bar',
+    data: {
+      labels: sortedYears,
+      datasets: [{
+        label: 'Inquiries',
+        data: sortedYears.map(y => yearCounts[y]),
+        backgroundColor: sortedYears.map((_, i) => colors[i % colors.length]),
+        borderWidth: 0
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false }
+      },
+      scales: {
+        y: { beginAtZero: true, grid: { color: '#F8FAFC' } },
+        x: { grid: { display: false } }
+      }
+    }
+  });
+}
+
+// 3. Subject Interest Analysis
+function renderSubjectsChart() {
+  const subjects = [
+    { key: 'sciences', label: 'Sciences' },
+    { key: 'mathematics', label: 'Mathematics' },
+    { key: 'english', label: 'English' },
+    { key: 'languages', label: 'Languages' },
+    { key: 'humanities', label: 'Humanities' },
+    { key: 'business', label: 'Business' }
+  ];
+  
+  const counts = subjects.map(s => ({
+    label: s.label,
+    count: allData.inquiries.filter(i => i[s.key]).length
+  })).sort((a, b) => b.count - a.count);
+  
+  // Distinct colors for each subject
+  const colors = [
+    '#034674', // sport-blue
+    '#FF9F1C', // award-gold
+    '#3b82f6', // blue
+    '#8b5cf6', // purple
+    '#ec4899', // pink
+    '#059669'  // green
+  ];
+  
+  destroyChart('subjectsChart');
+  charts.subjectsChart = new Chart($('subjectsChart'), {
+    type: 'bar',
+    data: {
+      labels: counts.map(c => c.label),
+      datasets: [{
+        label: 'Families Interested',
+        data: counts.map(c => c.count),
+        backgroundColor: counts.map((_, i) => colors[i % colors.length]),
+        borderWidth: 0
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false }
+      },
+      scales: {
+        y: { beginAtZero: true, grid: { color: '#F8FAFC' } },
+        x: { grid: { display: false } }
+      }
+    }
+  });
+}
+
+// 4. Score Distribution
+function renderScoreDistChart() {
+  const inquiries = allData.inquiries;
+  const buckets = {
+    'Cold (0-39)': 0,
+    'Warm (40-59)': 0,
+    'Hot (60-79)': 0,
+    'Very Hot (80-100)': 0
+  };
+  
+  inquiries.forEach(i => {
+    const score = getScore(i);
+    if (score < 40) buckets['Cold (0-39)']++;
+    else if (score < 60) buckets['Warm (40-59)']++;
+    else if (score < 80) buckets['Hot (60-79)']++;
+    else buckets['Very Hot (80-100)']++;
+  });
+  
+  destroyChart('scoreDistChart');
+  charts.scoreDistChart = new Chart($('scoreDistChart'), {
+    type: 'doughnut',
+    data: {
+      labels: Object.keys(buckets),
+      datasets: [{
+        data: Object.values(buckets),
+        backgroundColor: ['#6B7280', '#3b82f6', '#FF9F1C', '#10B981'],
+        borderWidth: 2,
+        borderColor: '#fff'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom' }
+      }
+    }
+  });
+}
+
+// 5. Lead Quality Trends Over Time
+function renderLeadTrendsChart() {
+  const inquiries = allData.inquiries.filter(i => i.received_at);
+  
+  // Group by month
+  const monthlyData = {};
+  inquiries.forEach(i => {
+    const month = new Date(i.received_at).toISOString().substring(0, 7);
+    if (!monthlyData[month]) {
+      monthlyData[month] = { hot: 0, warm: 0, cold: 0 };
+    }
+    const score = getScore(i);
+    if (score >= 80) monthlyData[month].hot++;
+    else if (score >= 60) monthlyData[month].warm++;
+    else monthlyData[month].cold++;
+  });
+  
+  const months = Object.keys(monthlyData).sort().slice(-12);
+  
+  destroyChart('leadTrendsChart');
+  charts.leadTrendsChart = new Chart($('leadTrendsChart'), {
+    type: 'line',
+    data: {
+      labels: months.map(m => new Date(m + '-01').toLocaleDateString('en-GB', { month: 'short', year: '2-digit' })),
+      datasets: [
+        {
+          label: 'Hot Leads',
+          data: months.map(m => monthlyData[m].hot),
+          borderColor: '#10B981',
+          backgroundColor: 'rgba(16, 185, 129, 0.1)',
+          tension: 0.4,
+          borderWidth: 3
+        },
+        {
+          label: 'Warm Leads',
+          data: months.map(m => monthlyData[m].warm),
+          borderColor: '#FF9F1C',
+          backgroundColor: 'rgba(255, 159, 28, 0.1)',
+          tension: 0.4,
+          borderWidth: 3
+        },
+        {
+          label: 'Cold Leads',
+          data: months.map(m => monthlyData[m].cold),
+          borderColor: '#6B7280',
+          backgroundColor: 'rgba(107, 114, 128, 0.1)',
+          tension: 0.4,
+          borderWidth: 3
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom' }
+      },
+      scales: {
+        y: { beginAtZero: true, grid: { color: '#f3f4f6' } },
+        x: { grid: { display: false } }
+      }
+    }
+  });
+}
+
+// 6. Co-Curricular Interests
+function renderCoCurricularChart() {
+  const activities = [
+    { key: 'sport', label: 'Sport' },
+    { key: 'leadership', label: 'Leadership' },
+    { key: 'community_service', label: 'Community Service' },
+    { key: 'debating', label: 'Debating' }
+  ];
+  
+  const counts = activities.map(a => ({
+    label: a.label,
+    count: allData.inquiries.filter(i => i[a.key]).length
+  }));
+  
+  destroyChart('coCurricularChart');
+  charts.coCurricularChart = new Chart($('coCurricularChart'), {
+    type: 'polarArea',
+    data: {
+      labels: counts.map(c => c.label),
+      datasets: [{
+        data: counts.map(c => c.count),
+        backgroundColor: [
+          'rgba(59, 130, 246, 0.7)',
+          'rgba(139, 92, 246, 0.7)',
+          'rgba(236, 72, 153, 0.7)',
+          'rgba(249, 115, 22, 0.7)'
+        ],
+        borderWidth: 2,
+        borderColor: '#fff'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom' }
+      }
+    }
+  });
+}
+
+// 7. Creative Interests
+function renderCreativeChart() {
+  const creative = [
+    { key: 'drama', label: 'Drama' },
+    { key: 'music', label: 'Music' },
+    { key: 'art', label: 'Art' },
+    { key: 'creative_writing', label: 'Creative Writing' }
+  ];
+  
+  const counts = creative.map(c => ({
+    label: c.label,
+    count: allData.inquiries.filter(i => i[c.key]).length
+  }));
+  
+  destroyChart('creativeChart');
+  charts.creativeChart = new Chart($('creativeChart'), {
+    type: 'doughnut',
+    data: {
+      labels: counts.map(c => c.label),
+      datasets: [{
+        data: counts.map(c => c.count),
+        backgroundColor: ['#ec4899', '#8b5cf6', '#034674', '#FF9F1C'],
+        borderWidth: 2,
+        borderColor: '#fff'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom' }
+      }
+    }
+  });
+}
+
+// 8. Family Priorities
+function renderPrioritiesChart() {
+  const priorities = [
+    { key: 'academic_excellence', label: 'Academic Excellence' },
+    { key: 'pastoral_care', label: 'Pastoral Care' },
+    { key: 'small_classes', label: 'Small Classes' },
+    { key: 'london_location', label: 'London Location' },
+    { key: 'values_based', label: 'Values-Based Education' },
+    { key: 'university_prep', label: 'University Preparation' }
+  ];
+  
+  const counts = priorities.map(p => ({
+    label: p.label,
+    count: allData.inquiries.filter(i => i[p.key]).length
+  })).sort((a, b) => b.count - a.count);
+  
+  // Distinct colors for each priority
+  const colors = [
+    '#034674', // sport-blue
+    '#FF9F1C', // award-gold
+    '#3b82f6', // blue
+    '#8b5cf6', // purple
+    '#ec4899', // pink
+    '#059669'  // green
+  ];
+  
+  destroyChart('prioritiesChart');
+  charts.prioritiesChart = new Chart($('prioritiesChart'), {
+    type: 'bar',
+    data: {
+      labels: counts.map(c => c.label),
+      datasets: [{
+        label: 'Families',
+        data: counts.map(c => c.count),
+        backgroundColor: counts.map((_, i) => colors[i % colors.length]),
+        borderWidth: 0
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false }
+      },
+      scales: {
+        x: { beginAtZero: true, grid: { display: false } },
+        y: { grid: { display: false } }
+      }
+    }
+  });
+}
+
+// 9. Engagement Metrics
+function renderEngagementMetricsChart() {
+  const inquiries = allData.inquiries;
+  
+  // Filter inquiries with engagement data
+  const engaged = inquiries.filter(i => {
+    const dwell = getTotalEngagementTime(i);
+    const visits = countVisits(i);
+    return dwell > 0 || visits > 0;
+  });
+  
+  // Calculate metrics
+  const avgTimeMs = engaged.length > 0
+    ? engaged.reduce((sum, i) => sum + getTotalEngagementTime(i), 0) / engaged.length
+    : 0;
+  const avgTimeMin = Math.round(avgTimeMs / 60000);
+  
+  const avgScore = inquiries.length > 0
+    ? inquiries.reduce((sum, i) => sum + getScore(i), 0) / inquiries.length
+    : 0;
+  
+  const avgVisits = engaged.length > 0
+    ? engaged.reduce((sum, i) => sum + countVisits(i), 0) / engaged.length
+    : 0;
+  
+  const openedCount = inquiries.filter(i => 
+    i.prospectus_generated === true || 
+    i.prospectus_generated_at !== null ||
+    i.prospectus_filename !== null
+  ).length;
+  
+  const openRatePct = inquiries.length > 0
+    ? Math.round((openedCount / inquiries.length) * 100)
+    : 0;
+  
+  const qualifiedCount = inquiries.filter(i => getScore(i) >= 60).length;
+  const qualifiedPct = inquiries.length > 0
+    ? Math.round((qualifiedCount / inquiries.length) * 100)
+    : 0;
+  
+  destroyChart('engagementMetricsChart');
+  charts.engagementMetricsChart = new Chart($('engagementMetricsChart'), {
+    type: 'radar',
+    data: {
+      labels: ['Avg Time (min)', 'Avg Score (/10)', 'Avg Visits', 'Open Rate (%)', 'Qualified (%)'],
+      datasets: [{
+        label: 'Engagement Metrics',
+        data: [
+          avgTimeMin,
+          Math.round(avgScore / 10),
+          avgVisits.toFixed(1),
+          openRatePct,
+          qualifiedPct
+        ],
+        backgroundColor: 'rgba(255, 159, 28, 0.2)',
+        borderColor: '#FF9F1C',
+        borderWidth: 2,
+        pointBackgroundColor: '#FF9F1C'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        r: {
+          beginAtZero: true,
+          grid: { color: '#E5E7EB' }
+        }
+      }
+    }
+  });
+}
+
+// 10. Age Group Distribution
+function renderAgeGroupChart() {
+  const ageGroups = {};
+  allData.inquiries.forEach(i => {
+    const age = i.age_group || 'Unknown';
+    ageGroups[age] = (ageGroups[age] || 0) + 1;
+  });
+  
+  destroyChart('ageGroupChart');
+  charts.ageGroupChart = new Chart($('ageGroupChart'), {
+    type: 'pie',
+    data: {
+      labels: Object.keys(ageGroups),
+      datasets: [{
+        data: Object.values(ageGroups),
+        backgroundColor: [
+          '#034674',
+          '#3b82f6',
+          '#8b5cf6',
+          '#ec4899',
+          '#FF9F1C',
+          '#059669'
+        ],
+        borderWidth: 2,
+        borderColor: '#fff'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom' }
+      }
+    }
+  });
+}
+
+// 11. Top Sections Table
+function renderTopSectionsTable() {
+  const sections = allData.sections;
+  
+  if (!sections || sections.length === 0) {
+    $('topSectionsTable').querySelector('tbody').innerHTML = 
+      '<tr><td colspan="5" style="text-align:center;color:#64748b;">No section data available yet</td></tr>';
+    return;
+  }
+  
+  // Aggregate section data
+  const sectionStats = {};
+  sections.forEach(s => {
+    const name = s.section_id || s.section || 'Unknown';
+    if (!sectionStats[name]) {
+      sectionStats[name] = {
+        totalTime: 0,
+        views: 0,
+        totalScroll: 0,
+        videoPlays: 0
+      };
+    }
+    sectionStats[name].totalTime += s.dwell_seconds || 0;
+    sectionStats[name].views++;
+    sectionStats[name].totalScroll += s.max_scroll_pct || 0;
+    sectionStats[name].videoPlays += s.video_plays || 0;
+  });
+  
+  // Convert to array and sort by avg time
+  const sortedSections = Object.keys(sectionStats)
+    .map(name => ({
+      name,
+      avgTime: sectionStats[name].totalTime / sectionStats[name].views,
+      views: sectionStats[name].views,
+      avgScroll: Math.round(sectionStats[name].totalScroll / sectionStats[name].views),
+      videoPlays: sectionStats[name].videoPlays
+    }))
+    .sort((a, b) => b.avgTime - a.avgTime)
+    .slice(0, 10);
+  
+  const tbody = $('topSectionsTable').querySelector('tbody');
+  tbody.innerHTML = sortedSections.map(s => `
+    <tr>
+      <td><strong>${escapeHtml(s.name)}</strong></td>
+      <td>${formatTime(s.avgTime * 1000)}</td>
+      <td>${s.views}</td>
+      <td>${s.avgScroll}%</td>
+      <td>${s.videoPlays}</td>
+    </tr>
+  `).join('');
+}
+
+// Helper Functions
+function getScore(inquiry) {
+  // Priority 1: Use AI-calculated engagement score if available
+  if (inquiry.engagement_score && inquiry.engagement_score > 0) {
+    return inquiry.engagement_score;
+  }
+  
+  // Priority 2: Use AI insights score
+  if (inquiry.ai_engagement && inquiry.ai_engagement.score) {
+    return inquiry.ai_engagement.score;
+  }
+  
+  // Priority 3: Calculate score from actual engagement data
+  let score = 0;
+  
+  // Time-based scoring (max 40 points)
+  const dwellMs = Number(inquiry.actual_dwell_ms || inquiry.dwell_ms || 0);
+  const dwellMinutes = dwellMs / 60000;
+  if (dwellMinutes >= 30) score += 40;
+  else if (dwellMinutes >= 15) score += 30;
+  else if (dwellMinutes >= 5) score += 20;
+  else score += Math.min(dwellMinutes * 4, 15);
+  
+  // Visit-based scoring (max 30 points)
+  const visits = Number(inquiry.actual_return_visits || inquiry.total_visits || 0);
+  if (visits >= 5) score += 30;
+  else if (visits >= 3) score += 20;
+  else if (visits >= 2) score += 10;
+  else if (visits >= 1) score += 5;
+  
+  // Engagement depth (max 30 points)
+  const scrollDepth = Number(inquiry.scroll_depth || 0);
+  score += Math.min(scrollDepth * 0.3, 20);
+  
+  // Prospectus opened bonus (10 points)
+  if (inquiry.prospectus_generated || inquiry.prospectus_generated_at) {
+    score += 10;
+  }
+  
+  return Math.min(Math.round(score), 100);
+}
+
+function countVisits(inquiry) {
+  return Number(inquiry.actual_return_visits || inquiry.total_visits || 0);
+}
+
+function getTotalEngagementTime(inquiry) {
+  return Number(inquiry.actual_dwell_ms || inquiry.dwell_ms || inquiry.total_engagement_time || 0);
+}
+
+function isRecent(dateStr, days) {
+  if (!dateStr) return false;
+  const date = new Date(dateStr);
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - days);
+  return date >= cutoff;
+}
+
+function destroyChart(chartId) {
+  if (charts[chartId]) {
+    charts[chartId].destroy();
+    delete charts[chartId];
+  }
+}
+
+function updateStatus(message, type = 'info') {
+  const statusEl = $('status');
+  statusEl.textContent = message;
+  statusEl.style.background = type === 'error' 
+    ? 'rgba(220, 38, 38, 0.2)' 
+    : type === 'success'
+    ? 'rgba(5, 150, 105, 0.2)'
+    : 'rgba(255, 255, 255, 0.1)';
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+// Event Listeners
+$('refreshBtn').addEventListener('click', init);
+
+$('timeRangeSelect').addEventListener('change', (e) => {
+  const days = parseInt(e.target.value);
+  if (days === 'all') {
+    // Show all data
+    renderAllCharts();
+  } else {
+    // Filter data by time range
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - days);
+    allData.inquiries = allData.inquiries.filter(i => 
+      !i.received_at || new Date(i.received_at) >= cutoff
+    );
+    renderAllCharts();
+  }
+});
+
+// Initialize on load
+init();
+</script>
+</body>
+</html>

@@ -2981,28 +2981,30 @@ ${extracurricularPersonalization ? `<p>${extracurricularPersonalization}</p>` : 
    
 
 <!-- PEN.ai chatbot (auto-resize iFrame) -->
+<!-- PEN.ai chatbot (auto-resize iFrame) - FIXED VERSION -->
+<!-- Replace lines 2983-3140 in your prospectus_template.html with this code -->
+
 <style>
     #penai-chat-wrapper{position:fixed;right:18px;bottom:18px;z-index:2147483000}
     #penai-chat-wrapper iframe{display:block;border:0;background:transparent;width:64px;height:64px}
     @media print{#penai-chat-wrapper{display:none!important}}
-  </style>
+</style>
   
-  <div id="penai-chat-wrapper" aria-live="polite">
-    <iframe
-      id="penai-frame"
-      src="https://emily-more-house.onrender.com/embed"
-      title="PEN.ai Chatbot"
-      allow="microphone; autoplay"
-      referrerpolicy="no-referrer-when-downgrade"></iframe>
-  </div>
+<div id="penai-chat-wrapper" aria-live="polite">
+  <iframe
+    id="penai-frame"
+    src="https://emily-more-house.onrender.com/embed"
+    title="PEN.ai Chatbot"
+    allow="microphone; autoplay"
+    referrerpolicy="no-referrer-when-downgrade"></iframe>
+</div>
   
-  <script>
- /* prospectus-penai.js — v3
-   Fix: prevent avatar cropping by enforcing a safe minimum bubble size.
-   Behaviour:
-   - Start at bubble size (not a big panel) so the avatar is fully visible.
-   - Only accept resize messages that are >= MIN_BUBBLE in both dimensions.
-   - Open/expanded sizes still apply normally.
+<script>
+/* prospectus-penai.js — v4 FIXED
+   Fix: Prevent chatbot header from disappearing off-screen
+   - Dynamically adjusts position when expanded height would exceed viewport
+   - Maintains bottom anchor for bubble state
+   - Switches to top anchor when expanded if needed
 */
 (function () {
   'use strict';
@@ -3012,18 +3014,23 @@ ${extracurricularPersonalization ? `<p>${extracurricularPersonalization}</p>` : 
   var WRAP_ID    = 'penai-chat-wrapper';
   var IFRAME_ID  = 'penai-frame';
 
-  // Safe bubble sizes (tweak if you still see cropping)
-  var BUBBLE_W   = 120;   // initial closed size (was 76)
+  // Safe bubble sizes
+  var BUBBLE_W   = 120;
   var BUBBLE_H   = 120;
-  var MIN_BUBBLE = 112;   // hard floor; ignore smaller sizes from child
+  var MIN_BUBBLE = 112;
 
-  // Reasonable open fallback (only used if child never posts a size)
+  // Reasonable open fallback
   var OPEN_W     = 400;
   var OPEN_H     = 600;
 
-  // Viewport clamps
+  // Viewport clamps and margins
   var VIEW_W_PCT = 0.95;
   var VIEW_H_PCT = 0.85;
+  var TOP_MARGIN = 60;    // Minimum distance from top of viewport
+  var BOTTOM_MARGIN = 18;  // Distance from bottom
+
+  // Track current state
+  var isExpanded = false;
 
   // ---- UTIL -----------------------------------------------------------------
   function clampToViewport(w, h) {
@@ -3036,9 +3043,61 @@ ${extracurricularPersonalization ? `<p>${extracurricularPersonalization}</p>` : 
 
   function applySize(iframe, w, h) {
     if (!iframe) return;
+    var wrap = document.getElementById(WRAP_ID);
+    if (!wrap) return;
+    
     var s = clampToViewport(w, h);
     iframe.style.width  = s.w + 'px';
     iframe.style.height = s.h + 'px';
+    
+    // Check if this looks like an expanded state (not bubble)
+    var expanding = (s.h > BUBBLE_H * 1.5 || s.w > BUBBLE_W * 1.5);
+    
+    if (expanding !== isExpanded) {
+      isExpanded = expanding;
+      
+      if (isExpanded) {
+        // When expanding, check if it would go off the top
+        var viewportHeight = window.innerHeight || 768;
+        var availableHeight = viewportHeight - TOP_MARGIN - BOTTOM_MARGIN;
+        
+        if (s.h > availableHeight) {
+          // Too tall - anchor to top instead
+          wrap.style.bottom = 'auto';
+          wrap.style.top = TOP_MARGIN + 'px';
+          // Also limit the height to available space
+          s.h = availableHeight;
+          iframe.style.height = s.h + 'px';
+        } else if (s.h > (viewportHeight - BOTTOM_MARGIN - TOP_MARGIN)) {
+          // Would go off top - reposition
+          wrap.style.bottom = 'auto';
+          wrap.style.top = TOP_MARGIN + 'px';
+        }
+      } else {
+        // When collapsing back to bubble, restore bottom anchor
+        wrap.style.top = 'auto';
+        wrap.style.bottom = BOTTOM_MARGIN + 'px';
+      }
+    }
+    
+    // For already expanded state, ensure it stays within viewport
+    if (isExpanded) {
+      var viewportHeight = window.innerHeight || 768;
+      var rect = wrap.getBoundingClientRect();
+      
+      // Check if top is off-screen
+      if (rect.top < TOP_MARGIN) {
+        wrap.style.bottom = 'auto';
+        wrap.style.top = TOP_MARGIN + 'px';
+        
+        // Recalculate max height
+        var availableHeight = viewportHeight - TOP_MARGIN - BOTTOM_MARGIN;
+        if (s.h > availableHeight) {
+          s.h = availableHeight;
+          iframe.style.height = s.h + 'px';
+        }
+      }
+    }
   }
 
   function ensureWrapper() {
@@ -3048,8 +3107,9 @@ ${extracurricularPersonalization ? `<p>${extracurricularPersonalization}</p>` : 
       wrap.id = WRAP_ID;
       wrap.style.position = 'fixed';
       wrap.style.right    = '18px';
-      wrap.style.bottom   = '18px';
+      wrap.style.bottom   = BOTTOM_MARGIN + 'px';
       wrap.style.zIndex   = '2147483000';
+      wrap.style.transition = 'top 0.3s ease, bottom 0.3s ease'; // Smooth transition
       document.body.appendChild(wrap);
     }
     return wrap;
@@ -3074,7 +3134,7 @@ ${extracurricularPersonalization ? `<p>${extracurricularPersonalization}</p>` : 
     return iframe;
   }
 
-  // Accept only sensible sizes from the child (avoid tiny/cropped states)
+  // Accept only sensible sizes from the child
   function saneResizeTarget(w, h) {
     w = parseInt(w, 10) || 0;
     h = parseInt(h, 10) || 0;
@@ -3105,7 +3165,7 @@ ${extracurricularPersonalization ? `<p>${extracurricularPersonalization}</p>` : 
   function init() {
     var iframe = ensureIframe();
 
-    // Start at a SAFE bubble size so the avatar is always fully visible
+    // Start at a SAFE bubble size
     applySize(iframe, BUBBLE_W, BUBBLE_H);
 
     // Listen for embedded app resize messages
@@ -3116,10 +3176,30 @@ ${extracurricularPersonalization ? `<p>${extracurricularPersonalization}</p>` : 
       if (!iframe) iframe = document.getElementById(IFRAME_ID);
       if (!iframe) return;
       var rect = iframe.getBoundingClientRect();
+      
+      // Re-apply size to trigger viewport checks
       applySize(iframe, rect.width || BUBBLE_W, rect.height || BUBBLE_H);
     });
 
-    // Safety: if something else zeroes it after load, restore safe bubble
+    // Handle scroll events to ensure chatbot stays visible
+    window.addEventListener('scroll', function() {
+      if (isExpanded) {
+        var wrap = document.getElementById(WRAP_ID);
+        var iframe = document.getElementById(IFRAME_ID);
+        if (wrap && iframe) {
+          var rect = wrap.getBoundingClientRect();
+          var height = parseInt(iframe.style.height, 10) || OPEN_H;
+          
+          // Check if we need to reposition
+          if (rect.top < TOP_MARGIN) {
+            wrap.style.bottom = 'auto';
+            wrap.style.top = TOP_MARGIN + 'px';
+          }
+        }
+      }
+    });
+
+    // Safety: restore safe bubble if needed
     setTimeout(function () {
       var f = document.getElementById(IFRAME_ID);
       if (!f) return;
@@ -3135,8 +3215,6 @@ ${extracurricularPersonalization ? `<p>${extracurricularPersonalization}</p>` : 
     init();
   }
 })();
-
-
 </script>
 
     <!-- 1. Your translator -->
