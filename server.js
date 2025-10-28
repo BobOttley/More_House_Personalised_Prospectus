@@ -5708,9 +5708,24 @@ app.post('/api/ai/learning-rules/:id/disable', async (req, res) => {
 // Delete ALL learning rules
 app.post('/api/ai/learning-rules/delete-all', async (req, res) => {
   try {
+    // Start transaction
+    await db.query('BEGIN');
+
+    // First, delete all learning rules
     const result = await db.query(`DELETE FROM email_learning_rules`);
     
-    console.log(`🗑️  Deleted ALL learning rules (${result.rowCount} rules)`);
+    // CRITICAL: Also disable training approval for ALL corrections
+    // This prevents any old corrections from being used in future emails
+    await db.query(`
+      UPDATE email_generation_history 
+      SET approved_for_training = false
+      WHERE approved_for_training = true
+    `);
+
+    // Commit transaction
+    await db.query('COMMIT');
+    
+    console.log(`🗑️  Deleted ALL learning rules (${result.rowCount} rules) and disabled all training approvals`);
     
     return res.json({
       success: true,
@@ -5718,6 +5733,10 @@ app.post('/api/ai/learning-rules/delete-all', async (req, res) => {
     });
     
   } catch (error) {
+    // Rollback on error
+    if (db) {
+      await db.query('ROLLBACK');
+    }
     console.error('Failed to delete all rules:', error);
     return res.status(500).json({
       success: false,
@@ -5807,15 +5826,45 @@ app.post('/api/ai/learning-rules/:ruleId/disable', async (req, res) => {
       return res.status(400).json({ error: 'Database not available' });
     }
 
+    // Start transaction
+    await db.query('BEGIN');
+
+    // First, get the rule details to find related corrections
+    const ruleResult = await db.query(`
+      SELECT original_phrase, replacement_phrase 
+      FROM email_learning_rules 
+      WHERE id = $1
+    `, [ruleId]);
+
+    // Disable the learning rule
     await db.query(`
       UPDATE email_learning_rules 
       SET active = false, updated_at = NOW()
       WHERE id = $1
     `, [ruleId]);
 
-    return res.json({ success: true, message: 'Rule disabled successfully' });
+    // CRITICAL: Also disable the training approval for any corrections that match this rule
+    // This prevents the correction from being included in "Recent Feedback" in future emails
+    if (ruleResult.rows.length > 0) {
+      const rule = ruleResult.rows[0];
+      await db.query(`
+        UPDATE email_generation_history 
+        SET approved_for_training = false
+        WHERE approved_for_training = true 
+          AND correction_notes ILIKE '%' || $1 || '%'
+      `, [rule.original_phrase]);
+    }
+
+    // Commit transaction
+    await db.query('COMMIT');
+
+    return res.json({ success: true, message: 'Rule and related corrections disabled successfully' });
 
   } catch (error) {
+    // Rollback on error
+    if (db) {
+      await db.query('ROLLBACK');
+    }
     console.error('Error disabling rule:', error);
     return res.status(500).json({ error: 'Failed to disable rule' });
   }
