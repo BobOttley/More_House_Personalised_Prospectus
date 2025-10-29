@@ -3040,14 +3040,19 @@ ${extracurricularPersonalization ? `<p>${extracurricularPersonalization}</p>` : 
   iframe.style.width  = s.w + 'px';
   iframe.style.height = s.h + 'px';
 
-  // Fix: When chatbot expands tall, anchor from top to prevent top cutoff
+  // Fix: Limit height to viewport so top doesn't disappear
   var wrapper = document.getElementById(WRAP_ID);
-  if (wrapper && s.h > 200) {
-    // Expanded - anchor from top
-    wrapper.style.bottom = 'auto';
-    wrapper.style.top = '18px';
-  } else if (wrapper) {
-    // Bubble mode - anchor from bottom
+  if (wrapper) {
+    var viewportHeight = window.innerHeight || 768;
+    var maxChatbotHeight = viewportHeight - 36; // Leave 18px top + 18px bottom margin
+    
+    if (s.h > maxChatbotHeight) {
+      // Too tall - limit it and let content scroll
+      iframe.style.maxHeight = maxChatbotHeight + 'px';
+      iframe.style.height = maxChatbotHeight + 'px';
+    }
+    
+    // Always keep wrapper at bottom-right
     wrapper.style.bottom = '18px';
     wrapper.style.top = 'auto';
   }
