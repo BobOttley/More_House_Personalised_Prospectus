@@ -3035,10 +3035,42 @@ ${extracurricularPersonalization ? `<p>${extracurricularPersonalization}</p>` : 
   }
 
   function applySize(iframe, w, h) {
-    if (!iframe) return;
-    var s = clampToViewport(w, h);
-    iframe.style.width  = s.w + 'px';
-    iframe.style.height = s.h + 'px';
+  if (!iframe) return;
+  var s = clampToViewport(w, h);
+  iframe.style.width  = s.w + 'px';
+  iframe.style.height = s.h + 'px';
+  
+  // FIX: Dynamically adjust wrapper bottom position to keep chatbot fully visible
+  var wrapper = document.getElementById(WRAP_ID);
+  if (wrapper) {
+    var viewportHeight = window.innerHeight || 768;
+    var chatbotHeight = s.h;
+    var minBottomMargin = 18;
+    
+    // Calculate if chatbot would extend beyond top of viewport
+    var spaceNeeded = chatbotHeight + (2 * minBottomMargin); // chatbot + top margin + bottom margin
+    
+    if (spaceNeeded > viewportHeight) {
+      // Chatbot is taller than viewport - anchor to top with max-height
+      wrapper.style.bottom = '';
+      wrapper.style.top = minBottomMargin + 'px';
+      wrapper.style.maxHeight = (viewportHeight - (2 * minBottomMargin)) + 'px';
+      wrapper.style.overflow = 'visible';
+      iframe.style.maxHeight = '100%';
+    } else if (chatbotHeight > 200) {
+      // Chatbot is expanded but fits - adjust bottom to keep top visible
+      var bottomPos = Math.max(minBottomMargin, viewportHeight - chatbotHeight - minBottomMargin);
+      wrapper.style.top = '';
+      wrapper.style.bottom = bottomPos + 'px';
+      wrapper.style.maxHeight = '';
+    } else {
+      // Chatbot is in bubble mode - use default bottom positioning
+      wrapper.style.top = '';
+      wrapper.style.bottom = '18px';
+      wrapper.style.maxHeight = '';
+    }
+  }
+}
   }
 
   function ensureWrapper() {
